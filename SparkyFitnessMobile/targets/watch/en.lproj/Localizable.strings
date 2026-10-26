@@ -209,9 +209,12 @@
 "watch.workout.rest" = "Rest";
 "watch.workout.upNext" = "Up next: %@";
 "watch.workout.upNextTitle" = "Up Next";
-"watch.workout.upNextSets" = "%lld sets";
+"watch.workout.upNextSetCount" = "Sets: %lld";
 "watch.workout.upNextThen" = "Then %@";
 "watch.workout.lastExercise" = "This is the last exercise";
+"watch.workout.swap" = "Swap";
+"watch.workout.swapExercise" = "Swap Exercise";
+"watch.workout.doNowTitle" = "Do Now";
 "watch.workout.supersetHeader" = "Superset";
 "watch.summary.time" = "Time";
 "watch.summary.sets" = "Sets";

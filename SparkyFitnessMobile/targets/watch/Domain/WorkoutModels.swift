@@ -214,6 +214,8 @@ enum WorkoutEditAction: Equatable {
     case setSetType(setId: String, type: String)
     case addExercise(exerciseId: String)
     case deleteExercise(exerciseEntryId: String)
+    /// Moves an upcoming exercise in front of the current one and starts it.
+    case doExerciseNow(exerciseEntryId: String)
 }
 
 /// What the wearer actually did for a set, once they have adjusted the

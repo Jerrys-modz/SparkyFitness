@@ -504,6 +504,9 @@ struct WatchContext: Codable, Equatable {
     /// The phone handles a skipped dose (`medicationSkip`). Nil, from an older
     /// phone, hides Skipped: it would read the message as an un-tick.
     var medicationSkip: Bool? = nil
+    /// The phone handles "do this exercise now" (`exerciseDoNow`). Nil, from
+    /// an older phone, hides Swap: it would ignore the edit.
+    var exerciseDoNow: Bool? = nil
     /// The fast running now. Nil with `fastSynced` true means "not fasting".
     var fast: WatchFast? = nil
     /// True once the phone has said anything about fasting, so "not fasting"

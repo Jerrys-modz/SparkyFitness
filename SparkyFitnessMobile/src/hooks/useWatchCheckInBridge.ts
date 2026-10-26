@@ -768,6 +768,8 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         rpeEnabled: watchRpeEnabled,
         // This build handles a skipped dose from the watch.
         medicationSkip: true,
+        // ... and "do this exercise now" from the workout pages.
+        exerciseDoNow: true,
         runVoiceCues: recording.audioCues,
         runAutoPause: recording.autoPause,
         runCheckInMinutes: recording.checkInMinutes,

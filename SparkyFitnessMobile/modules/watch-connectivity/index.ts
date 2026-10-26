@@ -333,6 +333,11 @@ export interface WatchContextPayload {
    */
   medicationSkip?: boolean;
   /**
+   * This phone handles the `doExerciseNow` workout edit. The watch offers
+   * Swap only while it is true.
+   */
+  exerciseDoNow?: boolean;
+  /**
    * Saved workouts the wearer can start from the wrist. Names and ids only;
    * the phone still builds and arms the session. Absent on an older phone.
    */
@@ -667,8 +672,13 @@ export interface WatchWorkoutEditPayload {
   sessionId: string;
   clientId: string;
   action:
-    'addSet' | 'deleteSet' | 'setSetType' | 'addExercise' | 'deleteExercise';
-  /** For `addSet` and `deleteExercise`. */
+    | 'addSet'
+    | 'deleteSet'
+    | 'setSetType'
+    | 'addExercise'
+    | 'deleteExercise'
+    | 'doExerciseNow';
+  /** For `addSet`, `deleteExercise` and `doExerciseNow`. */
   exerciseEntryId?: string;
   /** For `deleteSet` and `setSetType`. */
   setId?: string;

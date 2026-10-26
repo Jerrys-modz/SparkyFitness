@@ -81,6 +81,7 @@ enum ContextPayloadMapper {
             rpeEnabled: payload["rpeEnabled"] as? Bool ?? previous.rpeEnabled,
             medications: medications(from: payload),
             medicationSkip: payload["medicationSkip"] as? Bool,
+            exerciseDoNow: payload["exerciseDoNow"] as? Bool,
             fast: fastKnown(in: payload) ? fast(from: payload["fast"]) : previous.fast,
             fastSynced: fastKnown(in: payload) ? true : previous.fastSynced,
             steps: steps(from: payload["steps"]),

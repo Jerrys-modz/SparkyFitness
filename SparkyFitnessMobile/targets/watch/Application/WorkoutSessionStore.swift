@@ -393,6 +393,18 @@ final class WorkoutSessionStore: ObservableObject {
         completedSetIds.contains(step.plannedSet.setId)
     }
 
+    /// The first set still to do of each exercise after the current one, in
+    /// workout order: what Up Next shows and what Swap offers.
+    var upcomingExercises: [WorkoutStep] {
+        let current = currentStep?.exerciseEntryId
+        var seen: Set<String> = []
+        return steps.dropFirst(currentStepIndex).filter { step in
+            step.exerciseEntryId != current
+                && !isCompleted(step)
+                && seen.insert(step.exerciseEntryId).inserted
+        }
+    }
+
     /// The plan's sets in the order the phone walks them (`setOrder`,
     /// supersets interleaved), else each exercise in turn.
     private static func steps(for plan: ActiveWorkoutPlan) -> [WorkoutStep] {

@@ -120,7 +120,8 @@ enum SampleDay {
             scheduledWorkouts: scheduledWorkouts,
             suggestedExercises: suggestedExercises,
             medications: medications,
-            medicationSkip: true
+            medicationSkip: true,
+            exerciseDoNow: true
         )
     }
 

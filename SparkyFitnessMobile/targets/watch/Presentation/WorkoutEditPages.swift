@@ -96,11 +96,20 @@ struct ExerciseOptionsPage: View {
     let step: WorkoutStep
 
     @EnvironmentObject private var session: WatchSessionManager
+    @EnvironmentObject private var store: WorkoutSessionStore
+    @EnvironmentObject private var checkIn: CheckInStore
     @State private var addingExercise = false
     @State private var confirmingDelete = false
+    @State private var swapping = false
 
     var body: some View {
         EditPage(title: "Exercise options") {
+            if checkIn.context.exerciseDoNow == true, !store.upcomingExercises.isEmpty {
+                Button(String(localized: "watch.workout.swapExercise", defaultValue: "Swap Exercise")) {
+                    Haptics.tap()
+                    swapping = true
+                }
+            }
             Button(String(localized: "watch.workout.addExercise", defaultValue: "Add Exercise")) {
                 Haptics.tap()
                 addingExercise = true
@@ -113,6 +122,7 @@ struct ExerciseOptionsPage: View {
             .buttonStyle(.borderedProminent)
         }
         .sheet(isPresented: $addingExercise) { AddExerciseSheet() }
+        .sheet(isPresented: $swapping) { SwapExerciseSheet() }
         .confirmationDialog(
             String(localized: "watch.workout.deleteExerciseConfirm", defaultValue: "Delete \(step.exerciseName)?"),
             isPresented: $confirmingDelete,

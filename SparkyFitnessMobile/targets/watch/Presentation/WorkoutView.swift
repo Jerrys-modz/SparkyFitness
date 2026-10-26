@@ -543,7 +543,7 @@ private struct ActiveWorkoutView: View {
                 showingExercises = true
             }
             switch ScreenshotSeed.workoutPage {
-            case "upnext": page = .upNext
+            case "upnext", "swap": page = .upNext
             case "metrics": page = .metrics
             case "setoptions": page = .setOptions
             case "exerciseoptions": page = .exerciseOptions
@@ -866,20 +866,35 @@ private struct UpNextPage: View {
     @EnvironmentObject private var store: WorkoutSessionStore
     @EnvironmentObject private var checkIn: CheckInStore
 
-    /// The first set still to do of each exercise after the current one, in
-    /// workout order.
-    private var upcoming: [WorkoutStep] {
-        let current = store.currentStep?.exerciseEntryId
-        var seen: Set<String> = []
-        return store.steps.dropFirst(store.currentStepIndex).filter { step in
-            step.exerciseEntryId != current
-                && !store.isCompleted(step)
-                && seen.insert(step.exerciseEntryId).inserted
-        }
-    }
+    @State private var swapping = false
 
     var body: some View {
-        let upcoming = upcoming
+        let upcoming = store.upcomingExercises
+        VStack(spacing: 6) {
+            upNext(upcoming)
+            // A busy machine: do another exercise now and come back to this one.
+            if !upcoming.isEmpty, checkIn.context.exerciseDoNow == true {
+                Button {
+                    Haptics.tap()
+                    swapping = true
+                } label: {
+                    Label(String(localized: "watch.workout.swap", defaultValue: "Swap"), systemImage: "arrow.left.arrow.right")
+                        .frame(maxWidth: .infinity)
+                }
+            }
+        }
+        .sheet(isPresented: $swapping) { SwapExerciseSheet() }
+        #if DEBUG
+        .onAppear {
+            // After the launch scroll to this page, which a sheet would stop.
+            if ScreenshotSeed.opensSwap {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1) { swapping = true }
+            }
+        }
+        #endif
+    }
+
+    private func upNext(_ upcoming: [WorkoutStep]) -> some View {
         Button(action: Haptics.tapping(onOpenList)) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(String(localized: "watch.workout.upNextTitle", defaultValue: "Up Next"))
@@ -891,8 +906,16 @@ private struct UpNextPage: View {
                         .foregroundStyle(next.supersetRun.map(SupersetPalette.color(for:)) ?? Color.primary)
                         .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
-                    Text(String(localized: "watch.workout.upNextSets", defaultValue: "\(next.setCount) sets"))
-                        .font(.body)
+                    // One dot per set: a count without a plural to translate.
+                    HStack(spacing: 4) {
+                        ForEach(0..<next.setCount, id: \.self) { _ in
+                            Circle()
+                                .fill(Color.secondary)
+                                .frame(width: WatchStyle.s(7), height: WatchStyle.s(7))
+                        }
+                    }
+                    .accessibilityElement()
+                    .accessibilityLabel(String(localized: "watch.workout.upNextSetCount", defaultValue: "Sets: \(next.setCount)"))
                     if let target = RestView.target(for: next, store: store, unit: checkIn.context.effectiveWeightUnit, carry: checkIn.context.effectiveCarryUnit) {
                         Text(target)
                             .font(.body)
@@ -916,6 +939,43 @@ private struct UpNextPage: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+    }
+}
+
+/// The exercises still to come, to do one now instead of the current one (its
+/// machine is taken, say). The phone moves the picked exercise in front of the
+/// current one, so the current one comes straight after; the watch jumps to it
+/// at once rather than waiting for the updated plan.
+struct SwapExerciseSheet: View {
+    @EnvironmentObject private var store: WorkoutSessionStore
+    @EnvironmentObject private var session: WatchSessionManager
+    @EnvironmentObject private var checkIn: CheckInStore
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            List(store.upcomingExercises) { step in
+                Button {
+                    Haptics.tap()
+                    session.sendWorkoutEdit(.doExerciseNow(exerciseEntryId: step.exerciseEntryId))
+                    store.jumpToExercise(step.exerciseEntryId)
+                    dismiss()
+                } label: {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(step.exerciseName)
+                            .font(.body)
+                            .lineLimit(2)
+                        if let target = RestView.target(for: step, store: store, unit: checkIn.context.effectiveWeightUnit, carry: checkIn.context.effectiveCarryUnit) {
+                            Text(target)
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+            .navigationTitle(String(localized: "watch.workout.doNowTitle", defaultValue: "Do Now"))
+            .navigationBarTitleDisplayMode(.inline)
+        }
     }
 }
 
