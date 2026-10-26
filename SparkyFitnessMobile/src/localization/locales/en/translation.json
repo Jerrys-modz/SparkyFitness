@@ -496,7 +496,16 @@
     "syncHealth": "Sync Health Data",
     "logPregnancyEntry": "Log Pregnancy Entry",
     "logCycle": "Log Cycle",
-    "mindfulness": "Mindfulness"
+    "mindfulness": "Mindfulness",
+    "title": "Quick Actions",
+    "scanShort": "Scan",
+    "measureShort": "Measure",
+    "symptomsHealth": "Symptoms & Health",
+    "syncHealthShort": "Sync Health",
+    "photosHint": "Visual",
+    "symptomsHint": "Log",
+    "moodHint": "Track state",
+    "mindfulnessHint": "Breathing, zen"
   },
   "screens": {
     "foods": "Foods",
