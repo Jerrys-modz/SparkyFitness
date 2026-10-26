@@ -40,6 +40,14 @@ enum ScreenshotSeed {
         ProcessInfo.processInfo.environment["SPARKY_SCREENSHOT_PAGE"]
     }
 
+    /// Settings the phone would send, as a comma list in
+    /// `SPARKY_SCREENSHOT_OPTIONS`: `nometrics`, `upnext`, `large`.
+    static func has(_ option: String) -> Bool {
+        (ProcessInfo.processInfo.environment["SPARKY_SCREENSHOT_OPTIONS"] ?? "")
+            .split(separator: ",")
+            .contains { $0 == option }
+    }
+
     /// Opens the exercise picker on appear. A sheet cannot be driven from
     /// `simctl` the way a launch environment can, so the view checks this.
     static var opensExerciseList: Bool {

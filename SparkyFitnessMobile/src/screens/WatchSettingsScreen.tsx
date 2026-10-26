@@ -47,6 +47,22 @@ const WatchSettingsScreen: React.FC<WatchSettingsScreenProps> = () => {
     (s) => s.watchDoubleTapEnabled
   );
   const watchRpeEnabled = useAppPreferencesStore((s) => s.watchRpeEnabled);
+  const watchSetScreenMetrics = useAppPreferencesStore(
+    (s) => s.watchSetScreenMetrics
+  );
+  const setWatchSetScreenMetrics = useAppPreferencesStore(
+    (s) => s.setWatchSetScreenMetrics
+  );
+  const watchUpNextPage = useAppPreferencesStore((s) => s.watchUpNextPage);
+  const setWatchUpNextPage = useAppPreferencesStore(
+    (s) => s.setWatchUpNextPage
+  );
+  const watchLargeGoalsWater = useAppPreferencesStore(
+    (s) => s.watchLargeGoalsWater
+  );
+  const setWatchLargeGoalsWater = useAppPreferencesStore(
+    (s) => s.setWatchLargeGoalsWater
+  );
   const setWatchRpeEnabled = useAppPreferencesStore(
     (s) => s.setWatchRpeEnabled
   );
@@ -198,6 +214,61 @@ const WatchSettingsScreen: React.FC<WatchSettingsScreenProps> = () => {
               ]}
               activeKey={watchSetInputStyle}
               onSelect={setWatchSetInputStyle}
+            />
+
+            <Text className="text-text-primary text-base font-semibold mt-6 mb-1">
+              {t('watchSettings.layoutTitle', { defaultValue: 'Layout' })}
+            </Text>
+            <SettingsRow
+              title={t('watchSettings.setScreenMetricsTitle', {
+                defaultValue: 'Time, heart rate and calories on the set screen',
+              })}
+              subtitle={t('watchSettings.setScreenMetricsSubtitle', {
+                defaultValue:
+                  'Off moves them to their own page, one swipe up from the set screen.',
+              })}
+              subtitleNumberOfLines={0}
+              rightAccessory={
+                <Switch
+                  testID="watch-set-screen-metrics-switch"
+                  value={watchSetScreenMetrics}
+                  onValueChange={setWatchSetScreenMetrics}
+                />
+              }
+            />
+            <SettingsRow
+              title={t('watchSettings.upNextTitle', {
+                defaultValue: 'Up Next page',
+              })}
+              subtitle={t('watchSettings.upNextSubtitle', {
+                defaultValue:
+                  'A page one swipe up from the set screen with the next exercise, its target, and a Swap button to do another exercise first.',
+              })}
+              subtitleNumberOfLines={0}
+              rightAccessory={
+                <Switch
+                  testID="watch-up-next-switch"
+                  value={watchUpNextPage}
+                  onValueChange={setWatchUpNextPage}
+                />
+              }
+            />
+            <SettingsRow
+              title={t('watchSettings.largeGoalsWaterTitle', {
+                defaultValue: 'Larger text on Goals and Water',
+              })}
+              subtitle={t('watchSettings.largeGoalsWaterSubtitle', {
+                defaultValue:
+                  'A bigger calorie ring and full-width water containers, in larger type.',
+              })}
+              subtitleNumberOfLines={0}
+              rightAccessory={
+                <Switch
+                  testID="watch-large-goals-water-switch"
+                  value={watchLargeGoalsWater}
+                  onValueChange={setWatchLargeGoalsWater}
+                />
+              }
             />
           </>
         )}

@@ -447,12 +447,19 @@ private struct ActiveWorkoutView: View {
                     setScreen
                         .workoutPage(geo, alignment: .top)
                         .id(WorkoutPageID.set)
-                    UpNextPage(onOpenList: { showingExercises = true })
-                        .workoutPage(geo)
-                        .id(WorkoutPageID.upNext)
-                    WorkoutMetricsPage()
-                        .workoutPage(geo)
-                        .id(WorkoutPageID.metrics)
+                    // Both pages are the wearer's choice (Settings → Apple
+                    // Watch on the phone). The metrics page only stands in
+                    // for the metrics the set screen is not showing.
+                    if checkIn.context.effectiveUpNextPage {
+                        UpNextPage(onOpenList: { showingExercises = true })
+                            .workoutPage(geo)
+                            .id(WorkoutPageID.upNext)
+                    }
+                    if !checkIn.context.effectiveSetScreenMetrics {
+                        WorkoutMetricsPage()
+                            .workoutPage(geo)
+                            .id(WorkoutPageID.metrics)
+                    }
                     if let step = store.currentStep {
                         SetOptionsPage(step: step)
                             .workoutPage(geo)
@@ -568,11 +575,15 @@ private struct ActiveWorkoutView: View {
     }
 
     private var setScreen: some View {
-        // Only what the set needs: time, heart rate and calories are on the
-        // metrics page below and inside the rest ring, not on this screen.
+        // Time, heart rate and calories sit on one line here when the wearer
+        // keeps them on the set screen (the default), else on the metrics
+        // page; the heart rate is also inside the rest ring.
         VStack(spacing: 4) {
             if let format = store.plan?.workoutFormat?.lowercased(), format != "standard" {
                 IntervalCaptionView(plan: store.plan)
+            }
+            if checkIn.context.effectiveSetScreenMetrics, !store.isResting, store.currentStep != nil {
+                SetScreenMetricsLine()
             }
 
             Group {
@@ -976,6 +987,39 @@ struct SwapExerciseSheet: View {
             .navigationTitle(String(localized: "watch.workout.doNowTitle", defaultValue: "Do Now"))
             .navigationBarTitleDisplayMode(.inline)
         }
+    }
+}
+
+/// Elapsed time, heart rate and calories on one line over the set, for the
+/// wearer who wants them in view while lifting. It sits in the clock's row,
+/// where the time sat before, so it costs the set no height.
+private struct SetScreenMetricsLine: View {
+    @EnvironmentObject private var store: WorkoutSessionStore
+
+    /// The clock's width at the top right, measured on 40 and 46 mm.
+    private static var clockWidth: CGFloat { WatchStyle.s(54) }
+
+    var body: some View {
+        // One Text, so a 40 mm screen shrinks the line as a whole rather than
+        // cutting off the calories.
+        let bpm = store.latestBpm.map { "\(Int($0.rounded()))" } ?? "--"
+        let kcal = store.activeEnergyKcal.map { "\(Int($0))" } ?? "--"
+        (Text(WorkoutMetricsPage.elapsed(store.elapsedSeconds)).foregroundStyle(.yellow)
+            + Text(" ")
+            + Text(Image(systemName: "heart.fill")).foregroundStyle(.red)
+            + Text("\(bpm) ").foregroundStyle(.red)
+            + Text(Image(systemName: "flame.fill")).foregroundStyle(.orange)
+            + Text("\(kcal)").foregroundStyle(.orange))
+            .font(.footnote.weight(.semibold))
+            .monospacedDigit()
+            .lineLimit(1)
+            .minimumScaleFactor(0.65)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.trailing, Self.clockWidth)
+            // Up into the clock's row instead of pushing the set down.
+            .padding(.top, -WatchStyle.s(20))
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(String(localized: "watch.workout.metricsLine", defaultValue: "Time \(WorkoutMetricsPage.elapsed(store.elapsedSeconds)), heart rate \(bpm), \(kcal) calories"))
     }
 }
 

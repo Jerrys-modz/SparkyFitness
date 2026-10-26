@@ -332,6 +332,12 @@ export interface WatchContextPayload {
    * offers Skipped only while it is true.
    */
   medicationSkip?: boolean;
+  /** Elapsed time, heart rate and calories on the set screen. Absent means on. */
+  setScreenMetrics?: boolean;
+  /** The Up Next page after the set screen. Absent means off. */
+  upNextPage?: boolean;
+  /** The larger-text layout of the Goals and Water pages. Absent means off. */
+  largeGoalsWater?: boolean;
   /**
    * This phone handles the `doExerciseNow` workout edit. The watch offers
    * Swap only while it is true.

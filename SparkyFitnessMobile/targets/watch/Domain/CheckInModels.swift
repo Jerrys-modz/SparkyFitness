@@ -507,6 +507,15 @@ struct WatchContext: Codable, Equatable {
     /// The phone handles "do this exercise now" (`exerciseDoNow`). Nil, from
     /// an older phone, hides Swap: it would ignore the edit.
     var exerciseDoNow: Bool? = nil
+    /// Elapsed time, heart rate and calories on the set screen
+    /// (`setScreenMetrics`). Nil, from an older phone, means on: the layout
+    /// that phone's users already know.
+    var setScreenMetrics: Bool? = nil
+    /// The Up Next page after the set screen (`upNextPage`). Nil means off.
+    var upNextPage: Bool? = nil
+    /// The larger-text Goals and Water pages (`largeGoalsWater`). Nil means
+    /// off, the original layout.
+    var largeGoalsWater: Bool? = nil
     /// The fast running now. Nil with `fastSynced` true means "not fasting".
     var fast: WatchFast? = nil
     /// True once the phone has said anything about fasting, so "not fasting"
@@ -615,6 +624,9 @@ struct WatchContext: Codable, Equatable {
     var effectiveDoubleTapEnabled: Bool { doubleTapEnabled ?? true }
 
     var effectiveRpeEnabled: Bool { rpeEnabled ?? false }
+    var effectiveSetScreenMetrics: Bool { setScreenMetrics ?? true }
+    var effectiveUpNextPage: Bool { upNextPage ?? false }
+    var effectiveLargeGoalsWater: Bool { largeGoalsWater ?? false }
 
     /// Stale seeds are worse than no seed: every morning would start from a lie
     /// and the delta line would reassure falsely.

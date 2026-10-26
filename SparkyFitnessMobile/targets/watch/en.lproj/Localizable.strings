@@ -218,6 +218,7 @@
 "watch.workout.swap" = "Swap";
 "watch.workout.previousSet" = "Previous set";
 "watch.workout.nextSet" = "Next set";
+"watch.workout.metricsLine" = "Time %@, heart rate %@, %@ calories";
 "watch.workout.swapExercise" = "Swap Exercise";
 "watch.workout.doNowTitle" = "Do Now";
 "watch.workout.supersetHeader" = "Superset";

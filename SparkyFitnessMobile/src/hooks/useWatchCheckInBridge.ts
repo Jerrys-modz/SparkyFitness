@@ -269,6 +269,13 @@ export function useWatchCheckInBridge(enabled: boolean): void {
   // Device-local settings the watch's haptics follow.
   const hapticsEnabled = useAppPreferencesStore((s) => s.hapticsEnabled);
   const watchRpeEnabled = useAppPreferencesStore((s) => s.watchRpeEnabled);
+  const watchSetScreenMetrics = useAppPreferencesStore(
+    (s) => s.watchSetScreenMetrics
+  );
+  const watchUpNextPage = useAppPreferencesStore((s) => s.watchUpNextPage);
+  const watchLargeGoalsWater = useAppPreferencesStore(
+    (s) => s.watchLargeGoalsWater
+  );
   const watchDoubleTapEnabled = useAppPreferencesStore(
     (s) => s.watchDoubleTapEnabled
   );
@@ -766,6 +773,9 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         restAlertsEnabled,
         doubleTapEnabled: watchDoubleTapEnabled,
         rpeEnabled: watchRpeEnabled,
+        setScreenMetrics: watchSetScreenMetrics,
+        upNextPage: watchUpNextPage,
+        largeGoalsWater: watchLargeGoalsWater,
         // This build handles a skipped dose from the watch.
         medicationSkip: true,
         // ... and "do this exercise now" from the workout pages.
@@ -832,6 +842,9 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     restAlertsEnabled,
     watchDoubleTapEnabled,
     watchRpeEnabled,
+    watchSetScreenMetrics,
+    watchUpNextPage,
+    watchLargeGoalsWater,
     runPlans,
     indoorDistanceScale,
     startableWorkouts,
