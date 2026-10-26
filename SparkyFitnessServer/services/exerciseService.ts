@@ -349,7 +349,7 @@ async function prepareExerciseEntryForCreate(
     ? await exerciseDb.getExerciseById(resolvedExerciseId, authenticatedUserId)
     : null;
   if (hasLibraryExercise && !exercise) {
-    throw new Error('Exercise not found for snapshot.');
+    throw createServiceError(404, 'Exercise not found.');
   }
   const durationMinutes =
     typeof entryData.duration_minutes === 'number'
