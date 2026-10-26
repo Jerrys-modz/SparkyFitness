@@ -12,7 +12,7 @@ Shared by the `issue-plan` and `enhancement-plan` skills. These are the user's s
 
 - **Facts come from research; decisions come from the user.** If the answer is in the code, git history, the issue, or the web, find it and cite it. If it is a product or scope choice (behavior, defaults, naming, what to defer, how a UI should feel), **ask the user**, with your recommendation first. Use the tool's question UI if it has one (Claude Code: AskUserQuestion); otherwise a short numbered list, then wait for answers.
 - Never fill a gap with a guess and bury it in the plan. Unverified items go under **Open questions** or get asked immediately. "I assumed X" is a failure; "I checked X in `file:line`" or "I need you to decide X" is correct.
-- If the code contradicts the issue, the issue contradicts itself, a requirement is logically wrong, or the idea falls short of what commercial apps do, say so plainly and suggest the better option. Don't silently implement the flawed version.
+- If the code contradicts the issue, the issue contradicts itself, a requirement is logically wrong, or the idea falls short of common practice in this space, say so plainly and suggest the better option. Don't silently implement the flawed version.
 - Think long-term: no shortcuts that create a second system, a one-off table, or a mobile-only/web-only feature. Act as architect, server, web, and mobile engineer at once.
 
 ## Debug from evidence, not guesses
