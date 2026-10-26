@@ -95,6 +95,27 @@ afterEach(() => {
   vi.useRealTimers();
 });
 describe('barcode alternatives', () => {
+  it.each([undefined, null, ''])(
+    'does not offer a provider product without an import identity (%s)',
+    async (externalId) => {
+      mocks.providers.mockResolvedValue([firstProvider]);
+      mocks.lookup.mockResolvedValue({
+        source: 'usda',
+        food: { ...food(), provider_external_id: externalId },
+      });
+
+      const result = await getBarcodeAlternatives(barcode, 'target', 'actor');
+
+      expect(result.results).toEqual([
+        expect.objectContaining({
+          providerId: A,
+          status: 'not_found',
+          food: null,
+        }),
+      ]);
+    }
+  );
+
   const nutrientFood = () => ({
     ...food(),
     default_variant: {

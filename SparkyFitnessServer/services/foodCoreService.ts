@@ -1049,7 +1049,8 @@ async function lookupBarcode(
     if (!surfaceableError && candidate?.status) {
       surfaceableError = candidate;
     }
-    return options.surfaceErrors ? candidate : err;
+    // Retain the cause for server logs; only surfaceableError reaches callers.
+    return err;
   };
   const signalArgs = options.signal
     ? ([options.signal] as const)

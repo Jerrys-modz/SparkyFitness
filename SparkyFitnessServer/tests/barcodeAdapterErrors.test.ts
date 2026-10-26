@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import externalProviderService from '../services/externalProviderService.js';
 import { lookupBarcode } from '../services/foodCoreService.js';
+import { log } from '../config/logging.js';
 
 vi.mock('../models/foodRepository.js');
 vi.mock('../services/preferenceService.js');
@@ -151,6 +152,51 @@ describe.each(['usda', 'openfoodfacts'] as const)(
 );
 
 describe('single-source provider configuration failures', () => {
+  it('retains the original provider resolution cause in warning logs while rejecting with a neutral error', async () => {
+    const cause = new Error('Provider configuration could not be decrypted');
+    vi.mocked(
+      externalProviderService.getExternalDataProviderDetails
+    ).mockRejectedValue(cause);
+
+    await expect(
+      lookupBarcode(barcode, userId, providerId, userId, {
+        ...singleSourceOptions,
+        surfaceErrors: true,
+      })
+    ).rejects.toMatchObject({
+      message: 'Barcode provider lookup failed.',
+      status: 502,
+    });
+    expect(log).toHaveBeenCalledWith(
+      'warn',
+      expect.stringContaining('Barcode provider resolution failed'),
+      cause
+    );
+  });
+
+  it('retains a product lookup failure cause in warning logs while rejecting with a neutral error', async () => {
+    const cause = new Error('Provider connection refused');
+    vi.mocked(
+      externalProviderService.getExternalDataProviderDetails
+    ).mockResolvedValue(makeProvider('usda'));
+    fetchMock.mockRejectedValue(cause);
+
+    await expect(
+      lookupBarcode(barcode, userId, providerId, userId, {
+        ...singleSourceOptions,
+        surfaceErrors: true,
+      })
+    ).rejects.toMatchObject({
+      message: 'Barcode provider lookup failed.',
+      status: 502,
+    });
+    expect(log).toHaveBeenCalledWith(
+      'warn',
+      expect.stringContaining('USDA barcode lookup failed'),
+      cause
+    );
+  });
+
   it('surfaces a provider resolution failure without forwarding its details', async () => {
     vi.mocked(
       externalProviderService.getExternalDataProviderDetails

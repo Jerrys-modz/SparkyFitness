@@ -153,7 +153,7 @@ async function fetchSource(
       }),
     ]);
     if (controller.signal.aborted) throw new Error('Barcode source timed out');
-    const food = result.food
+    const food = result.food?.provider_external_id
       ? NormalizedFoodSchema.parse(
           normalizeFoodForResponse({ ...result.food, barcode })
         )
