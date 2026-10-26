@@ -1,11 +1,20 @@
 import type {
   ExerciseActivityQueryItem,
   ExerciseEntryHrZones,
+  StoredZoneMethod,
   GpsTrackPoint,
   IndividualSessionResponse,
   WorkoutHeartRatePoint,
 } from '@workspace/shared';
 import { canEditGroupedWorkout } from '@workspace/shared';
+import {
+  computeSplits,
+  haversineMeters,
+  withSplitHeartRate,
+  type RecordedPoint,
+  type RecordedSplit,
+} from './gpsRecording';
+import { toFiniteNumber } from './numericInput';
 import { distanceFromKm } from './unitConversions';
 
 /** Trackpoints kept when drawing a route; plenty for a phone-width figure. */
@@ -199,6 +208,12 @@ export interface HeartRateZoneRow {
   seconds: number;
   /** Share of the time spent across all zones, 0-1. */
   share: number;
+  /**
+   * How the zone bounds were worked out when the workout was stored; null for
+   * workouts stored before methods were recorded, 'mixed' when the entries of
+   * one workout disagree.
+   */
+  method: StoredZoneMethod | 'mixed' | null;
 }
 
 export function heartRateZoneRows(
@@ -219,7 +234,13 @@ export function combinedHeartRateZoneRows(
 ): HeartRateZoneRow[] {
   const byZone = new Map<
     number,
-    { lowerBpm: number | null; upperBpm: number | null; seconds: number }
+    {
+      lowerBpm: number | null;
+      upperBpm: number | null;
+      seconds: number;
+      method: StoredZoneMethod | 'mixed' | null;
+      methodSeen: boolean;
+    }
   >();
   for (const zones of zonesPerEntry) {
     for (const zone of zones) {
@@ -227,8 +248,17 @@ export function combinedHeartRateZoneRows(
         lowerBpm: null,
         upperBpm: null,
         seconds: 0,
+        method: null,
+        methodSeen: false,
       };
       row.seconds += Math.max(0, zone.seconds_in_zone);
+      const method = zone.zone_method ?? null;
+      row.method = !row.methodSeen
+        ? method
+        : row.method === method
+          ? method
+          : 'mixed';
+      row.methodSeen = true;
       if (zone.zone_lower_bpm != null) {
         row.lowerBpm =
           row.lowerBpm == null
@@ -253,6 +283,7 @@ export function combinedHeartRateZoneRows(
       upperBpm: row.upperBpm,
       seconds: row.seconds,
       share: total > 0 ? row.seconds / total : 0,
+      method: row.method,
     }));
 }
 
@@ -260,14 +291,18 @@ export function combinedHeartRateZoneRows(
  * Maps a diary workout to the shape the cardio detail screen takes, or null
  * when that screen has nothing to add. Only synced workouts qualify: in-app
  * entries (manual, sparky, workout plan, or no source) carry no route, heart
- * rate, or zones, and strength sessions are logged as weight and reps.
+ * rate, or zones, and strength sessions are logged as weight and reps. Pass
+ * `allowInApp` for an in-app entry that is a run, walk or ride (a GPS
+ * recording or watch run is saved as one).
  */
 export function cardioSessionFromDiaryEntry(
   session: IndividualSessionResponse,
-  distanceUnit: 'km' | 'miles'
+  distanceUnit: 'km' | 'miles',
+  options: { allowInApp?: boolean } = {}
 ): ExerciseActivityQueryItem | null {
   if (!session.entry_date) return null;
-  if (canEditGroupedWorkout(session.source)) return null;
+  // In-app entries are skipped unless the caller asks for them.
+  if (!options.allowInApp && canEditGroupedWorkout(session.source)) return null;
   if (session.exercise_snapshot?.modality === 'weight_reps') return null;
   if (session.sets.some((set) => set.weight != null || set.reps != null)) {
     return null;
@@ -275,6 +310,11 @@ export function cardioSessionFromDiaryEntry(
 
   const distanceKm =
     session.distance != null && session.distance > 0 ? session.distance : null;
+  // The entry row comes straight from the database, where these columns are
+  // numeric and so arrive as strings. Empty and zero both mean "not measured",
+  // matching the server's activity item, so a walk shows no "0 floors".
+  const floors = toFiniteNumber(session.floors_climbed);
+  const elevationGain = toFiniteNumber(session.elevation_gain_meters);
   return {
     id: session.id,
     userId: '',
@@ -295,8 +335,151 @@ export function cardioSessionFromDiaryEntry(
     formattedPace: null,
     caloriesBurned: session.calories_burned,
     avgHeartRate: session.avg_heart_rate,
+    floorsClimbed: floors > 0 ? floors : null,
+    elevationGainMeters: elevationGain > 0 ? elevationGain : null,
     source: session.source,
     notes: session.notes,
     hasGpsTrack: false,
+    modality: session.exercise_snapshot?.modality ?? null,
   };
+}
+
+export interface PacePoint {
+  /** Distance from the start, in the display unit (km or mi). */
+  distance: number;
+  /** Seconds per display unit. */
+  paceSeconds: number;
+}
+
+/** Each pace reading spans at least this long, which smooths GPS jitter. */
+const PACE_WINDOW_SECONDS = 30;
+/** Readings slower than this (seconds per unit) are standing still. */
+const MAX_PACE_SECONDS = 3600;
+/** Points kept for the chart. */
+const MAX_PACE_POINTS = 400;
+
+/**
+ * Pace along a recorded or imported route: for each stretch of at least
+ * `PACE_WINDOW_SECONDS` between trackpoints, the seconds per kilometer or mile
+ * over it, plotted at the distance where it ended. Stretches that are
+ * standing still are left out, so a red light is a gap and not a spike to an
+ * hour per kilometer. Uses each point's own `dist` when the track carries it,
+ * and falls back to the path length between fixes.
+ */
+export function paceSeriesFromTrack(
+  points: readonly GpsTrackPoint[],
+  unitMeters: number
+): PacePoint[] {
+  if (points.length < 2 || !(unitMeters > 0)) return [];
+  const samples: { t: number; meters: number }[] = [];
+  let running = 0;
+  let previous: GpsTrackPoint | null = null;
+  for (const point of points) {
+    const t = Date.parse(point.t);
+    if (!Number.isFinite(t)) continue;
+    // Out of order: leave the running distance and the previous fix alone.
+    if (samples.length > 0 && t <= samples[samples.length - 1].t) continue;
+    if (typeof point.dist === 'number' && Number.isFinite(point.dist)) {
+      running = point.dist;
+    } else if (previous) {
+      running += haversineMeters(previous, point);
+    }
+    previous = point;
+    samples.push({ t, meters: running });
+  }
+
+  return paceSeriesFromSamples(samples, unitMeters);
+}
+
+/**
+ * A distance recorded against time with no route (an indoor session):
+ * `[active seconds, cumulative metres]` rows, in the same windows as a track.
+ */
+export function paceSeriesFromDistance(
+  rows: readonly (readonly number[])[],
+  unitMeters: number
+): PacePoint[] {
+  if (rows.length < 2 || !(unitMeters > 0)) return [];
+  const samples = rows
+    .filter((row) => row.length >= 2)
+    .map((row) => ({ t: row[0] * 1000, meters: row[1] }))
+    .sort((a, b) => a.t - b.t);
+  return paceSeriesFromSamples(samples, unitMeters);
+}
+
+function paceSeriesFromSamples(
+  samples: readonly { t: number; meters: number }[],
+  unitMeters: number
+): PacePoint[] {
+  const series: PacePoint[] = [];
+  let anchor = samples[0];
+  for (let i = 1; i < samples.length; i++) {
+    const sample = samples[i];
+    const seconds = (sample.t - anchor.t) / 1000;
+    if (seconds < PACE_WINDOW_SECONDS) continue;
+    const meters = sample.meters - anchor.meters;
+    if (meters > 0) {
+      const pace = seconds / (meters / unitMeters);
+      if (pace > 0 && pace <= MAX_PACE_SECONDS) {
+        series.push({
+          distance: sample.meters / unitMeters,
+          paceSeconds: pace,
+        });
+      }
+    }
+    anchor = sample;
+  }
+
+  if (series.length <= MAX_PACE_POINTS) return series;
+  const step = Math.ceil(series.length / MAX_PACE_POINTS);
+  const kept = series.filter(
+    (_, i) => i % step === 0 || i === series.length - 1
+  );
+  let fastest = 0;
+  for (let i = 1; i < series.length; i++) {
+    if (series[i].paceSeconds < series[fastest].paceSeconds) fastest = i;
+  }
+  if (kept.includes(series[fastest])) return kept;
+  const fastestPoint = series[fastest];
+  const insertAt = kept.findIndex(
+    (sample) => sample.distance > fastestPoint.distance
+  );
+  if (insertAt === -1) kept.push(fastestPoint);
+  else kept.splice(insertAt, 0, fastestPoint);
+  return kept;
+}
+
+/**
+ * Per-km or per-mile splits for a stored workout, cut from its GPS track the
+ * way a recording is. Heart rate per split comes from the readings that fall
+ * inside it, when there are any. A stored track has no pause marks, so any
+ * stop counts as time in the split.
+ */
+export function splitsFromTrack(
+  points: readonly GpsTrackPoint[],
+  unitMeters: number,
+  heartRate: readonly { timestamp: number; bpm: number }[] = []
+): RecordedSplit[] {
+  const fixes: RecordedPoint[] = [];
+  for (const point of points) {
+    const t = Date.parse(point.t);
+    if (!Number.isFinite(t)) continue;
+    // Out of order or repeated: keep the first.
+    if (fixes.length > 0 && t <= fixes[fixes.length - 1].t) continue;
+    fixes.push({
+      t,
+      lat: point.lat,
+      lon: point.lon,
+      alt: typeof point.alt === 'number' ? point.alt : null,
+      hacc: null,
+      vacc: null,
+      speed: null,
+      course: null,
+      seg: 0,
+    });
+  }
+  return withSplitHeartRate(
+    computeSplits(fixes, unitMeters),
+    heartRate.map((sample) => ({ t: sample.timestamp, bpm: sample.bpm }))
+  );
 }

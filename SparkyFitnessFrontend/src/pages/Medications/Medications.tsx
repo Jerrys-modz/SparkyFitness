@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useTranslation } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import DayNavigator from '@/components/DayNavigator';
 import {
@@ -20,6 +20,9 @@ import {
   getDueDosesForDate,
   formatDose,
   formatStrengthPerUnit,
+  filterEntriesBySubtype,
+  filterMedsBySubtype,
+  type MedSubtype,
 } from '@workspace/shared';
 import { Button } from '@/components/ui/button';
 import {
@@ -40,12 +43,7 @@ import { usePreferences } from '@/contexts/PreferencesContext';
 import type { MedicationDetail } from '@/types/medications';
 import Glp1Coach from './Glp1Coach';
 import AddMedicationDialog, { MedTypeIcon } from './AddMedicationDialog';
-import {
-  countMedicationNutrients,
-  filterEntriesBySubtype,
-  filterMedsBySubtype,
-  type MedSubtype,
-} from './medicationUtils';
+import { countMedicationNutrients } from './medicationUtils';
 import ScheduleManager from './ScheduleManager';
 import TodayMedications from './TodayMedications';
 import SymptomsHub from '../Symptoms/SymptomsHub';
@@ -429,12 +427,12 @@ export default function Medications() {
                       : ''
                   }`}
                 >
-                  <CardContent className="flex items-center justify-between p-4">
-                    <div className="flex items-center gap-3">
+                  <CardContent className="flex items-center justify-between gap-2 p-4">
+                    <div className="flex min-w-0 flex-1 items-center gap-3">
                       <MedTypeIcon
                         typeId={med.type_id}
                         isGlp1={med.is_glp1}
-                        className="h-5 w-5"
+                        className="h-5 w-5 shrink-0"
                       />
                       <div className="min-w-0">
                         <p className="font-medium truncate">
@@ -457,8 +455,11 @@ export default function Medications() {
                             <>
                               <span>·</span>
                               <span className="truncate">
-                                {t('medications.cabinet.doctorPrefix', 'Dr.')}{' '}
-                                {med.prescriber}
+                                {t(
+                                  'medications.cabinet.drPrescriber',
+                                  'Dr. {{prescriber}}',
+                                  { prescriber: med.prescriber }
+                                )}
                               </span>
                             </>
                           )}
@@ -467,7 +468,10 @@ export default function Medications() {
                     </div>
 
                     {!med.is_active && (
-                      <Badge variant="secondary" className="text-[10px]">
+                      <Badge
+                        variant="secondary"
+                        className="shrink-0 text-[10px]"
+                      >
                         {t('medications.common.inactive', 'Inactive')}
                       </Badge>
                     )}
@@ -500,14 +504,14 @@ export default function Medications() {
                 <div className="space-y-4">
                   <Card>
                     <CardHeader className="pb-3 flex flex-row items-start justify-between gap-4">
-                      <div>
+                      <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <CardTitle className="text-base font-bold">
+                          <CardTitle className="text-base font-bold break-words">
                             {selected.display_name || selected.name}
                           </CardTitle>
                           {selected.is_glp1 && (
                             <Badge className="bg-blue-600 hover:bg-blue-700 text-white text-[10px] px-1.5 py-0">
-                              GLP-1
+                              {t('medications.glp1Name', 'GLP-1')}
                             </Badge>
                           )}
                           {selected.is_supplement &&
@@ -536,7 +540,7 @@ export default function Medications() {
                             .join(' · ') || selected.type_id}
                         </CardDescription>
                       </div>
-                      <div className="flex items-center gap-1">
+                      <div className="flex shrink-0 items-center gap-1">
                         <AddMedicationDialog
                           key={selected.id}
                           editMed={selected}
@@ -695,17 +699,13 @@ export default function Medications() {
                           </CardTitle>
                         </CardHeader>
                         <CardContent className="text-sm text-muted-foreground">
-                          {t(
-                            'medications.cabinet.adherenceDescriptionBefore',
-                            'Schedules and daily checklists for non-GLP-1 medications are fully active. Manage schedule rules below, and log daily intake from the'
-                          )}{' '}
-                          <strong>
-                            {t('medications.cabinet.todayTab', 'Today')}
-                          </strong>{' '}
-                          {t(
-                            'medications.cabinet.adherenceDescriptionAfter',
-                            'tab.'
-                          )}
+                          <Trans
+                            i18nKey="medications.cabinet.schedulesAndDailyChecklistsFor"
+                            defaults={
+                              'Schedules and daily checklists for non-GLP-1 medications are fully active. Manage schedule rules below, and log daily intake from the <strong>Today</strong> tab.'
+                            }
+                            components={{ strong: <strong /> }}
+                          />
                         </CardContent>
                       </Card>
                       <ScheduleManager med={selected} />

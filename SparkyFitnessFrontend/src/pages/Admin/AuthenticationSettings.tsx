@@ -1,5 +1,5 @@
 import type React from 'react';
-import { useTranslation } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
 import { Info, Clipboard } from 'lucide-react';
 import {
   Accordion,
@@ -51,6 +51,7 @@ const AuthenticationSettings: React.FC = () => {
     if (!settings) return;
 
     const newSettings = { ...settings, [id]: checked };
+    const isVersionCheck = id === 'enable_version_check';
 
     updateSettings(newSettings, {
       onSuccess: () => {
@@ -59,19 +60,29 @@ const AuthenticationSettings: React.FC = () => {
             'admin.authenticationSettings.settingsSaved',
             'Settings Saved'
           ),
-          description: t(
-            'admin.authenticationSettings.loginSettingUpdated',
-            'Login setting updated successfully.'
-          ),
+          description: isVersionCheck
+            ? t(
+                'admin.authenticationSettings.versionCheckUpdated',
+                'Release check setting updated successfully.'
+              )
+            : t(
+                'admin.authenticationSettings.loginSettingUpdated',
+                'Login setting updated successfully.'
+              ),
         });
       },
       onError: () => {
         toast({
           title: t('admin.authenticationSettings.error', 'Error'),
-          description: t(
-            'admin.authenticationSettings.failedToSaveLoginSettings',
-            'Failed to save login settings.'
-          ),
+          description: isVersionCheck
+            ? t(
+                'admin.authenticationSettings.failedToSaveVersionCheck',
+                'Failed to save the release check setting.'
+              )
+            : t(
+                'admin.authenticationSettings.failedToSaveLoginSettings',
+                'Failed to save login settings.'
+              ),
           variant: 'destructive',
         });
       },
@@ -254,21 +265,41 @@ const AuthenticationSettings: React.FC = () => {
                   }
                 />
               </div>
+              <div className="flex items-center justify-between p-4 border rounded-md">
+                <div className="flex flex-col">
+                  <Label htmlFor="enable_version_check" className="font-medium">
+                    {t(
+                      'admin.authenticationSettings.versionCheck',
+                      'Check for New Releases'
+                    )}
+                  </Label>
+                  <span className="text-sm text-muted-foreground mt-1">
+                    {t(
+                      'admin.authenticationSettings.versionCheckDescription',
+                      'Ask GitHub (api.github.com) for the latest release and tell users when a newer version is available. Turn this off if updates are managed outside the app or the server should not contact GitHub.'
+                    )}
+                  </span>
+                </div>
+                <Switch
+                  id="enable_version_check"
+                  checked={settings.enable_version_check ?? true}
+                  onCheckedChange={(checked) =>
+                    handleSwitchChange('enable_version_check', checked)
+                  }
+                />
+              </div>
             </>
           )}
           <div className="flex items-start p-4 mt-2 text-sm text-muted-foreground bg-secondary/20 border border-secondary/40 rounded-lg">
             <Info className="h-5 w-5 mr-3 mt-1 flex-shrink-0" />
             <div>
-              <strong>
-                {t(
-                  'admin.authenticationSettings.loginManagement.emergencyFailSafe',
-                  'Emergency Fail-Safe:'
-                )}
-              </strong>{' '}
-              {t(
-                'admin.authenticationSettings.loginManagement.emergencyFailSafeDescription',
-                'If you are ever locked out of your account, you can force email/password login to be enabled by setting the following environment variable on your server and restarting it:'
-              )}
+              <Trans
+                i18nKey="admin.authenticationSettings.loginManagement.emergencyFailSafeIfYou"
+                defaults={
+                  '<strong>Emergency Fail-Safe:</strong> If you are ever locked out of your account, you can force email/password login to be enabled by setting the following environment variable on your server and restarting it:'
+                }
+                components={{ strong: <strong /> }}
+              />
               <CopyableEnvVar value="SPARKY_FITNESS_FORCE_EMAIL_LOGIN=true" />
               <p className="mt-2">
                 {t(

@@ -34,6 +34,8 @@ const ICON_MAP = {
   search: { sf: 'magnifyingglass', ion: 'search-outline' },
   save: { sf: 'square.and.arrow.down', ion: 'save-outline' },
   share: { sf: 'square.and.arrow.up', ion: 'share-outline' },
+  microphone: { sf: 'mic.fill', ion: 'mic' },
+  'microphone-off': { sf: 'mic.slash.fill', ion: 'mic-off' },
   bookmark: { sf: 'bookmark', ion: 'bookmark-outline' },
   'bookmark-filled': { sf: 'bookmark.fill', ion: 'bookmark' },
   star: { sf: 'star.fill', ion: 'star' },
@@ -104,6 +106,7 @@ const ICON_MAP = {
   'trophy-outline': { sf: 'trophy', ion: 'trophy-outline' },
   exercise: { sf: 'flame.fill', ion: 'flame' },
   'exercise-running': { sf: 'figure.run', ion: 'walk-outline' },
+  'exercise-jumprope': { sf: 'figure.jumprope', ion: 'fitness-outline' },
   'exercise-running-filled': { sf: 'figure.run', ion: 'walk' },
   'exercise-cycling': { sf: 'figure.outdoor.cycle', ion: 'bicycle-outline' },
   'exercise-swimming': { sf: 'figure.pool.swim', ion: 'water-outline' },
@@ -146,6 +149,7 @@ const ICON_MAP = {
   'food-search-settings': { sf: 'magnifyingglass', ion: 'search-outline' },
   'dashboard-settings': { sf: 'square.grid.2x2', ion: 'grid-outline' },
   'diary-settings': { sf: 'book', ion: 'book-outline' },
+  'measurements-settings': { sf: 'ruler', ion: 'speedometer-outline' },
   'workout-settings': { sf: 'dumbbell', ion: 'barbell-outline' },
   'watch-settings': { sf: 'applewatch', ion: 'watch-outline' },
   'app-settings': { sf: 'slider.horizontal.3', ion: 'options-outline' },
@@ -159,6 +163,7 @@ const ICON_MAP = {
   // Biometrics/Security
   fingerprint: { sf: 'touchid', ion: 'finger-print-outline' },
   'lock-closed': { sf: 'lock.fill', ion: 'lock-closed-outline' },
+  'lock-open': { sf: 'lock.open', ion: 'lock-open-outline' },
   'share-public': {
     sf: 'square.and.arrow.up',
     ion: 'share-social-outline',

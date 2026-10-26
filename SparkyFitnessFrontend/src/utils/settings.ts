@@ -5,6 +5,7 @@ export const providerRequirements: Record<string, string[]> = {
   mealie: ['base_url', 'app_key'],
   tandoor: ['base_url', 'app_key'],
   norish: ['base_url', 'app_key'],
+  valhalla: ['base_url'],
   nutritionix: ['app_id', 'app_key'],
   fatsecret: ['app_id', 'app_key'],
   withings: ['app_id', 'app_key'],
@@ -16,6 +17,7 @@ export const providerRequirements: Record<string, string[]> = {
   usda: ['app_key'],
   hevy: ['app_key'],
   liftosaur: ['app_key'],
+  intervals: ['app_id', 'app_key'],
   yazio: ['app_id', 'app_key', 'yazio_client_id', 'yazio_client_secret'],
   coros_mcp: [],
 };
@@ -29,6 +31,10 @@ const providerFieldLabels: Record<string, Record<string, string>> = {
   },
   liftosaur: {
     app_key: 'Liftosaur API Key',
+  },
+  intervals: {
+    app_id: 'Athlete ID',
+    app_key: 'API Key',
   },
 };
 
@@ -45,6 +51,7 @@ const PROVIDERS_WITHOUT_APP_ID = [
   'mealie',
   'tandoor',
   'norish',
+  'valhalla',
   'free-exercise-db',
   'wger',
   'liftosaur',

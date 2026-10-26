@@ -12,6 +12,7 @@ import {
 import { Clipboard } from 'lucide-react';
 import { useTranslation, Trans } from 'react-i18next';
 import type { ExternalDataProvider } from './ExternalProviderSettings';
+import { RoutingProviderFields } from './RoutingProviderFields';
 
 // Developer dashboards where each OAuth provider's Client ID/Secret and callback
 // URL are configured. Kept in sync with the per-provider text in EditProviderForm.
@@ -74,6 +75,7 @@ export const ProviderSpecificFields = ({
     'googlehealth',
     'strava',
     'polar',
+    'intervals',
   ].includes(provider.provider_type || '');
   const needsAppKey = [
     'mealie',
@@ -90,6 +92,7 @@ export const ProviderSpecificFields = ({
     'polar',
     'hevy',
     'liftosaur',
+    'intervals',
   ].includes(provider.provider_type || '');
 
   const providerDashboard =
@@ -102,11 +105,32 @@ export const ProviderSpecificFields = ({
     return `${window.location.origin}/${provider.provider_type}/callback`;
   };
 
+  const yazioMoreInfoText = t(
+    'settings.foodExerciseDataProviders.yazio.moreInfoLink',
+    'For more information & client credentials, see <1>saganos/yazio_public_api</1>.'
+  );
+  const yazioHasRepoLink =
+    yazioMoreInfoText.includes('saganos/yazio_public_api') ||
+    yazioMoreInfoText.includes('<1>') ||
+    yazioMoreInfoText.includes('<link>');
+  const yazioRepoLinkElement = (
+    <a
+      href="https://github.com/saganos/yazio_public_api"
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-red-800 dark:text-red-200 underline font-medium"
+    >
+      saganos/yazio_public_api
+    </a>
+  );
+
   return (
     <>
       {needsBaseUrl && (
         <div>
-          <Label htmlFor="new_base_url">App URL</Label>
+          <Label htmlFor="new_base_url">
+            {t('settings.providerSpecificFields.appURL', 'App URL')}
+          </Label>
           <Input
             id="new_base_url"
             type="text"
@@ -114,10 +138,28 @@ export const ProviderSpecificFields = ({
             onChange={(e) =>
               setProvider((prev) => ({ ...prev, base_url: e.target.value }))
             }
-            placeholder={`e.g., http://your-${provider.provider_type}-instance.com`}
+            placeholder={t(
+              'settings.providerSpecificFields.eGHttpYourInstance',
+              'e.g., http://your-{{provider_type}}-instance.com',
+              { provider_type: provider.provider_type }
+            )}
             autoComplete="off"
           />
         </div>
+      )}
+
+      {provider.provider_type === 'valhalla' && (
+        <RoutingProviderFields
+          idPrefix="new"
+          baseUrl={provider.base_url}
+          appKey={provider.app_key}
+          onBaseUrlChange={(value) =>
+            setProvider((prev) => ({ ...prev, base_url: value }))
+          }
+          onAppKeyChange={(value) =>
+            setProvider((prev) => ({ ...prev, app_key: value }))
+          }
+        />
       )}
 
       {needsAppId && (
@@ -132,10 +174,15 @@ export const ProviderSpecificFields = ({
               'polar',
               'fatsecret',
             ].includes(provider.provider_type || '')
-              ? 'Client ID'
+              ? t('settings.providerSpecificFields.clientID', 'Client ID')
               : provider.provider_type === 'yazio'
-                ? 'YAZIO Email / Username'
-                : 'App ID'}
+                ? t(
+                    'settings.providerSpecificFields.yazioEmailUsername',
+                    'YAZIO Email / Username'
+                  )
+                : provider.provider_type === 'intervals'
+                  ? t('integrations.intervalsAthleteId', 'Athlete ID')
+                  : t('settings.providerSpecificFields.appID', 'App ID')}
           </Label>
           <Input
             id="new_app_id"
@@ -144,7 +191,14 @@ export const ProviderSpecificFields = ({
             onChange={(e) =>
               setProvider((prev) => ({ ...prev, app_id: e.target.value }))
             }
-            placeholder="Enter ID"
+            placeholder={
+              provider.provider_type === 'intervals'
+                ? t(
+                    'integrations.intervalsAthleteIdPlaceholder',
+                    'Enter Athlete ID (i12345)'
+                  )
+                : t('settings.providerSpecificFields.enterID', 'Enter ID')
+            }
             autoComplete="off"
           />
         </div>
@@ -162,12 +216,24 @@ export const ProviderSpecificFields = ({
               'polar',
               'fatsecret',
             ].includes(provider.provider_type || '')
-              ? 'Client Secret'
+              ? t(
+                  'settings.providerSpecificFields.clientSecret',
+                  'Client Secret'
+                )
               : provider.provider_type === 'yazio'
-                ? 'YAZIO Password'
+                ? t(
+                    'settings.providerSpecificFields.yazioPassword',
+                    'YAZIO Password'
+                  )
                 : provider.provider_type === 'liftosaur'
-                  ? 'Liftosaur API Key'
-                  : 'API Key / App Key'}
+                  ? t(
+                      'settings.providerSpecificFields.liftosaurAPIKey',
+                      'Liftosaur API Key'
+                    )
+                  : t(
+                      'settings.providerSpecificFields.apiKeyAppKey',
+                      'API Key / App Key'
+                    )}
           </Label>
           <Input
             id="new_app_key"
@@ -178,8 +244,11 @@ export const ProviderSpecificFields = ({
             }
             placeholder={
               provider.provider_type === 'liftosaur'
-                ? 'Enter Liftosaur API Key (lftsk_...)'
-                : 'Enter Key'
+                ? t(
+                    'settings.providerSpecificFields.enterLiftosaurAPIKeyLftsk',
+                    'Enter Liftosaur API Key (lftsk_...)'
+                  )
+                : t('settings.providerSpecificFields.enterKey', 'Enter Key')
             }
             autoComplete="off"
           />
@@ -210,7 +279,10 @@ export const ProviderSpecificFields = ({
           </p>
           <div>
             <Label htmlFor="add-openfoodfacts-username">
-              Open Food Facts Username (Optional)
+              {t(
+                'settings.providerSpecificFields.openFoodFactsUsernameOptional',
+                'Open Food Facts Username (Optional)'
+              )}
             </Label>
             <Input
               id="add-openfoodfacts-username"
@@ -219,13 +291,19 @@ export const ProviderSpecificFields = ({
               onChange={(e) =>
                 setProvider((prev) => ({ ...prev, app_id: e.target.value }))
               }
-              placeholder="Enter Open Food Facts username"
+              placeholder={t(
+                'settings.providerSpecificFields.enterOpenFoodFactsUsername',
+                'Enter Open Food Facts username'
+              )}
               autoComplete="username"
             />
           </div>
           <div>
             <Label htmlFor="add-openfoodfacts-password">
-              Open Food Facts Password (Optional)
+              {t(
+                'settings.providerSpecificFields.openFoodFactsPasswordOptional',
+                'Open Food Facts Password (Optional)'
+              )}
             </Label>
             <Input
               id="add-openfoodfacts-password"
@@ -234,7 +312,10 @@ export const ProviderSpecificFields = ({
               onChange={(e) =>
                 setProvider((prev) => ({ ...prev, app_key: e.target.value }))
               }
-              placeholder="Enter Open Food Facts password"
+              placeholder={t(
+                'settings.providerSpecificFields.enterOpenFoodFactsPassword',
+                'Enter Open Food Facts password'
+              )}
               autoComplete="current-password"
             />
           </div>
@@ -244,27 +325,30 @@ export const ProviderSpecificFields = ({
             )}
           </p>
           <p className="text-sm text-muted-foreground col-span-2">
-            Open Food Facts is a community-driven database that supports
-            localization. Sparky automatically queries products in your active
-            language setting in SparkyFitness. For more information, visit the{' '}
-            <a
-              href="https://world.openfoodfacts.org/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary hover:underline font-medium"
-            >
-              Open Food Facts Portal
-            </a>{' '}
-            or learn about language support in the{' '}
-            <a
-              href="https://en.wiki.openfoodfacts.org/Translations"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary hover:underline font-medium"
-            >
-              Open Food Facts Translations Wiki
-            </a>
-            .
+            <Trans
+              i18nKey="settings.providerSpecificFields.openFoodFactsIsA2"
+              defaults={
+                'Open Food Facts is a community-driven database that supports localization. Sparky automatically queries products in your active language setting in SparkyFitness. For more information, visit the <link>Open Food Facts Portal</link> or learn about language support in the <link2>Open Food Facts Translations Wiki</link2>.'
+              }
+              components={{
+                link: (
+                  <a
+                    href="https://world.openfoodfacts.org/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline font-medium"
+                  />
+                ),
+                link2: (
+                  <a
+                    href="https://en.wiki.openfoodfacts.org/Translations"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline font-medium"
+                  />
+                ),
+              }}
+            />
           </p>
         </>
       )}
@@ -287,24 +371,27 @@ export const ProviderSpecificFields = ({
                     1: <strong />,
                     3: <strong />,
                     5: <strong />,
+                    strong: <strong />,
+                    strong2: <strong />,
+                    strong3: <strong />,
                   }}
                 />
               </p>
               <p className="text-sm text-red-700 dark:text-red-300">
-                <Trans
-                  i18nKey="settings.foodExerciseDataProviders.yazio.moreInfoLink"
-                  defaults="For more information & client credentials, see <1>saganos/yazio_public_api</1>."
-                  components={{
-                    1: (
-                      <a
-                        href="https://github.com/saganos/yazio_public_api"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-red-800 dark:text-red-200 underline font-medium"
-                      />
-                    ),
-                  }}
-                />
+                {yazioHasRepoLink ? (
+                  <Trans
+                    i18nKey="settings.foodExerciseDataProviders.yazio.moreInfoLink"
+                    defaults="For more information & client credentials, see <1>saganos/yazio_public_api</1>."
+                    components={{
+                      1: yazioRepoLinkElement,
+                      link: yazioRepoLinkElement,
+                    }}
+                  />
+                ) : (
+                  <>
+                    {yazioMoreInfoText} {yazioRepoLinkElement}.
+                  </>
+                )}
               </p>
             </div>
           </div>
@@ -415,7 +502,9 @@ export const ProviderSpecificFields = ({
       {provider.provider_type === 'garmin' && (
         <>
           <div>
-            <Label htmlFor="add-garmin-email">Garmin Email</Label>
+            <Label htmlFor="add-garmin-email">
+              {t('settings.providerSpecificFields.garminEmail', 'Garmin Email')}
+            </Label>
             <Input
               id="add-garmin-email"
               type="email"
@@ -423,12 +512,20 @@ export const ProviderSpecificFields = ({
               onChange={(e) =>
                 setProvider((prev) => ({ ...prev, app_id: e.target.value }))
               }
-              placeholder="Enter Garmin Email"
+              placeholder={t(
+                'settings.providerSpecificFields.enterGarminEmail',
+                'Enter Garmin Email'
+              )}
               autoComplete="username"
             />
           </div>
           <div>
-            <Label htmlFor="add-garmin-password">Garmin Password</Label>
+            <Label htmlFor="add-garmin-password">
+              {t(
+                'settings.providerSpecificFields.garminPassword',
+                'Garmin Password'
+              )}
+            </Label>
             <Input
               id="add-garmin-password"
               type="password"
@@ -436,7 +533,10 @@ export const ProviderSpecificFields = ({
               onChange={(e) =>
                 setProvider((prev) => ({ ...prev, app_key: e.target.value }))
               }
-              placeholder="Enter Garmin Password"
+              placeholder={t(
+                'settings.providerSpecificFields.enterGarminPassword',
+                'Enter Garmin Password'
+              )}
               autoComplete="current-password"
             />
           </div>
@@ -447,23 +547,30 @@ export const ProviderSpecificFields = ({
         provider.provider_type || ''
       ) && (
         <p className="text-sm text-muted-foreground col-span-2">
-          This integration uses OAuth2. You will be redirected to the provider
-          to authorize access after adding or updating the provider.
-          <br />
-          In your{' '}
-          {providerDashboard ? (
-            <a
-              href={providerDashboard.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-500 underline"
-            >
-              {t(providerDashboard.labelKey)}
-            </a>
-          ) : (
-            t(`${OAUTH_DASHBOARD_LABELS}.fallback`)
-          )}
-          , you must set your callback URL to:
+          <Trans
+            i18nKey="settings.providerSpecificFields.thisIntegrationUsesOAuth2You2"
+            defaults={
+              'This integration uses OAuth2. You will be redirected to the provider to authorize access after adding or updating the provider.<br/>In your <link>{{dashboard}}</link>, you must set your callback URL to:'
+            }
+            values={{
+              dashboard: providerDashboard
+                ? t(providerDashboard.labelKey)
+                : t(`${OAUTH_DASHBOARD_LABELS}.fallback`),
+            }}
+            components={{
+              br: <br />,
+              link: providerDashboard ? (
+                <a
+                  href={providerDashboard.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-500 underline"
+                />
+              ) : (
+                <span />
+              ),
+            }}
+          />
           <strong className="flex items-center mt-1">
             {getCallbackUrl()}
             <Button
@@ -483,19 +590,23 @@ export const ProviderSpecificFields = ({
 
       {provider.provider_type === 'strava' && (
         <p className="text-sm text-muted-foreground col-span-2">
-          Strava integration uses OAuth2. You will be redirected to Strava to
-          authorize access after adding or updating the provider.
-          <br />
-          In your{' '}
-          <a
-            href="https://www.strava.com/settings/api"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-blue-500 underline"
-          >
-            Strava API Dashboard
-          </a>
-          , you must set your "Authorization Callback Domain" to:
+          <Trans
+            i18nKey="settings.providerSpecificFields.stravaIntegrationUsesOAuth2You2"
+            defaults={
+              'Strava integration uses OAuth2. You will be redirected to Strava to authorize access after adding or updating the provider.<br/>In your <link>Strava API Dashboard</link>, you must set your "Authorization Callback Domain" to:'
+            }
+            components={{
+              br: <br />,
+              link: (
+                <a
+                  href="https://www.strava.com/settings/api"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-500 underline"
+                />
+              ),
+            }}
+          />
           <strong className="flex items-center mt-1">
             {window.location.hostname}
             <Button
@@ -510,83 +621,128 @@ export const ProviderSpecificFields = ({
               <Clipboard className="h-4 w-4" />
             </Button>
           </strong>
-          and ensure your local URL is correct if testing locally. Note: Strava
-          callback URL on the server is configured to:
-          <strong>{` ${window.location.origin}/strava/callback`}</strong>
+          <span className="block">
+            {t(
+              'settings.providerSpecificFields.ensureLocalUrl',
+              'Also ensure your local URL is correct if testing locally.'
+            )}
+          </span>
+          <Trans
+            i18nKey="settings.providerSpecificFields.stravaCallbackNote"
+            defaults={
+              'Note: Strava callback URL on the server is configured to: <strong>{{value}}</strong>'
+            }
+            values={{ value: `${window.location.origin}/strava/callback` }}
+            components={{ strong: <strong /> }}
+          />
         </p>
       )}
 
       {provider.provider_type === 'garmin' && (
         <p className="text-sm text-muted-foreground col-span-2">
-          Note: Garmin Connect integration is tested with few metrics only.
-          Ensure your Docker Compose is updated to include Garmin section.
-          <br />
-          Sparky Fitness does not store your Garmin email or password. They are
-          used only during login to obtain secure tokens.
+          <Trans
+            i18nKey="settings.providerSpecificFields.noteGarminConnectIntegrationIs2"
+            defaults={
+              'Note: Garmin Connect integration is tested with few metrics only. Ensure your Docker Compose is updated to include Garmin section.<br/>Sparky Fitness does not store your Garmin email or password. They are used only during login to obtain secure tokens.'
+            }
+            components={{ br: <br /> }}
+          />
         </p>
       )}
 
       {provider.provider_type === 'hevy' && (
         <p className="text-sm text-muted-foreground col-span-2">
-          Get your API Key from Hevy Settings &#62; API Key.
+          {t(
+            'settings.providerSpecificFields.getYourAPIKeyFrom',
+            'Get your API Key from Hevy Settings > API Key.'
+          )}
         </p>
       )}
 
       {provider.provider_type === 'liftosaur' && (
         <p className="text-sm text-muted-foreground col-span-2">
-          Generate an API key in the Liftosaur app: Settings &#62; API Keys
-          (starts with <span className="font-mono">lftsk_</span>). A Liftosaur
-          Pro subscription is required to use the Liftosaur API.
+          <Trans
+            i18nKey="settings.providerSpecificFields.generateAnAPIKeyIn2"
+            defaults={
+              'Generate an API key in the Liftosaur app: Settings > API Keys (starts with <span>lftsk_</span>). A Liftosaur Pro subscription is required to use the Liftosaur API.'
+            }
+            components={{ span: <span className="font-mono" /> }}
+          />
+        </p>
+      )}
+
+      {provider.provider_type === 'intervals' && (
+        <p className="text-sm text-muted-foreground col-span-2">
+          {t(
+            'integrations.intervalsCredentialsHelp',
+            'Find your Athlete ID and API Key on intervals.icu under Settings > Developer Settings.'
+          )}
         </p>
       )}
 
       {provider.provider_type === 'nutritionix' && (
         <p className="text-sm text-muted-foreground col-span-2">
-          Get your App ID and App Key from the{' '}
-          <a
-            href="https://developer.nutritionix.com/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-blue-500 underline"
-          >
-            Nutritionix Developer Portal
-          </a>
-          .
+          <Trans
+            i18nKey="settings.providerSpecificFields.getYourAppIDAnd2"
+            defaults={
+              'Get your App ID and App Key from the <link>Nutritionix Developer Portal</link>.'
+            }
+            components={{
+              link: (
+                <a
+                  href="https://developer.nutritionix.com/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-500 underline"
+                />
+              ),
+            }}
+          />
         </p>
       )}
 
       {provider.provider_type === 'fatsecret' && (
         <p className="text-sm text-muted-foreground col-span-2">
-          Note: For Fatsecret, you need to set up{' '}
-          <strong>your public IP</strong> whitelisting in your Fatsecret
-          developer account. This process can take up to 24 hours.
-          <br />
-          Get your Client ID and Client Secret from the{' '}
-          <a
-            href="https://platform.fatsecret.com/my-account/dashboard"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-blue-500 underline"
-          >
-            Fatsecret Platform Dashboard
-          </a>
-          , under <strong>REST API OAuth 2.0 Credentials</strong> (not the OAuth
-          1.0 Consumer Key/Secret).
+          <Trans
+            i18nKey="settings.providerSpecificFields.noteForFatsecretYouNeed2"
+            defaults={
+              'Note: For Fatsecret, you need to set up <strong>your public IP</strong> whitelisting in your Fatsecret developer account. This process can take up to 24 hours.<br/>Get your Client ID and Client Secret from the <link>Fatsecret Platform Dashboard</link>, under <strong2>REST API OAuth 2.0 Credentials</strong2> (not the OAuth 1.0 Consumer Key/Secret).'
+            }
+            components={{
+              strong: <strong />,
+              br: <br />,
+              link: (
+                <a
+                  href="https://platform.fatsecret.com/my-account/dashboard"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-500 underline"
+                />
+              ),
+              strong2: <strong />,
+            }}
+          />
         </p>
       )}
 
       {provider.provider_type === 'usda' && (
         <p className="text-sm text-muted-foreground col-span-2">
-          Get your API Key from the{' '}
-          <a
-            href="https://fdc.nal.usda.gov/api-guide.html"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-blue-500 underline"
-          >
-            USDA FoodData Central API Guide
-          </a>
-          .
+          <Trans
+            i18nKey="settings.providerSpecificFields.getYourAPIKeyFrom3"
+            defaults={
+              'Get your API Key from the <link>USDA FoodData Central API Guide</link>.'
+            }
+            components={{
+              link: (
+                <a
+                  href="https://fdc.nal.usda.gov/api-guide.html"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-500 underline"
+                />
+              ),
+            }}
+          />
         </p>
       )}
 
@@ -600,7 +756,10 @@ export const ProviderSpecificFields = ({
             onCheckedChange={setFullSyncOnConnect}
           />
           <Label htmlFor="full_sync_on_connect">
-            Sync entire history on connect
+            {t(
+              'settings.providerSpecificFields.syncEntireHistoryOnConnect',
+              'Sync entire history on connect'
+            )}
           </Label>
         </div>
       )}
@@ -608,25 +767,36 @@ export const ProviderSpecificFields = ({
       {provider.provider_type === 'swissfood' && (
         <div className="col-span-2 space-y-2">
           <p className="text-sm text-muted-foreground">
-            The Swiss Food Composition Database API is free, public, and
-            requires no credentials. Supported languages for searches and
-            nutritional value labels are <strong>English (en)</strong>,{' '}
-            <strong>German (de)</strong>, <strong>French (fr)</strong>, and{' '}
-            <strong>Italian (it)</strong>.
+            <Trans
+              i18nKey="settings.providerSpecificFields.theSwissFoodCompositionDatabase2"
+              defaults={
+                'The Swiss Food Composition Database API is free, public, and requires no credentials. Supported languages for searches and nutritional value labels are <strong>English (en)</strong>, <strong2>German (de)</strong2>, <strong3>French (fr)</strong3>, and <strong4>Italian (it)</strong4>.'
+              }
+              components={{
+                strong: <strong />,
+                strong2: <strong />,
+                strong3: <strong />,
+                strong4: <strong />,
+              }}
+            />
           </p>
           <p className="text-sm text-muted-foreground">
-            If your active language in SparkyFitness is not supported, the API
-            queries will default to English. For more details, see the official
-            portal at{' '}
-            <a
-              href="https://naehrwertdaten.ch/en/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary hover:underline font-medium"
-            >
-              Swiss Food Composition Database
-            </a>
-            .
+            <Trans
+              i18nKey="settings.providerSpecificFields.ifYourActiveLanguageIn2"
+              defaults={
+                'If your active language in SparkyFitness is not supported, the API queries will default to English. For more details, see the official portal at <link>Swiss Food Composition Database</link>.'
+              }
+              components={{
+                link: (
+                  <a
+                    href="https://naehrwertdaten.ch/en/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline font-medium"
+                  />
+                ),
+              }}
+            />
           </p>
         </div>
       )}
@@ -673,18 +843,22 @@ export const ProviderSpecificFields = ({
       {provider.provider_type === 'free-exercise-db' && (
         <div className="col-span-2 space-y-2">
           <p className="text-sm text-muted-foreground">
-            The Free Exercise DB provider is public, free, and requires no
-            credentials. It fetches exercise data directly from the community
-            repository at{' '}
-            <a
-              href="https://github.com/yuhonas/free-exercise-db"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary hover:underline font-medium"
-            >
-              yuhonas/free-exercise-db on GitHub
-            </a>
-            .
+            <Trans
+              i18nKey="settings.providerSpecificFields.theFreeExerciseDBProvider2"
+              defaults={
+                'The Free Exercise DB provider is public, free, and requires no credentials. It fetches exercise data directly from the community repository at <link>yuhonas/free-exercise-db on GitHub</link>.'
+              }
+              components={{
+                link: (
+                  <a
+                    href="https://github.com/yuhonas/free-exercise-db"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline font-medium"
+                  />
+                ),
+              }}
+            />
           </p>
         </div>
       )}
@@ -692,17 +866,22 @@ export const ProviderSpecificFields = ({
       {provider.provider_type === 'wger' && (
         <div className="col-span-2 space-y-2">
           <p className="text-sm text-muted-foreground">
-            The wger provider is public, free, and requires no credentials. It
-            fetches workout and exercise data directly from the official{' '}
-            <a
-              href="https://wger.de/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary hover:underline font-medium"
-            >
-              wger Project Website
-            </a>
-            .
+            <Trans
+              i18nKey="settings.providerSpecificFields.theWgerProviderIsPublic2"
+              defaults={
+                'The wger provider is public, free, and requires no credentials. It fetches workout and exercise data directly from the official <link>wger Project Website</link>.'
+              }
+              components={{
+                link: (
+                  <a
+                    href="https://wger.de/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline font-medium"
+                  />
+                ),
+              }}
+            />
           </p>
         </div>
       )}
@@ -723,7 +902,12 @@ export const ProviderSpecificFields = ({
               }
             >
               <SelectTrigger id="coros_region" className="w-full">
-                <SelectValue placeholder="Select region" />
+                <SelectValue
+                  placeholder={t(
+                    'settings.providerSpecificFields.selectRegion',
+                    'Select region'
+                  )}
+                />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="https://mcpus.coros.com/mcp">
@@ -733,32 +917,26 @@ export const ProviderSpecificFields = ({
                   )}
                 </SelectItem>
                 <SelectItem value="https://mcpeu.coros.com/mcp">
-                  {t(
-                    'settings.foodExerciseDataProviders.coros.regionEu',
-                    'Europe (mcpeu.coros.com)'
-                  )}{' '}
-                  <span className="text-xs text-muted-foreground">
-                    (
-                    {t(
-                      'settings.foodExerciseDataProviders.coros.notTested',
-                      'not yet tested'
-                    )}
-                    )
-                  </span>
+                  <Trans
+                    i18nKey="settings.providerSpecificFields.europeMcpeuCorosComNot"
+                    defaults={
+                      'Europe (mcpeu.coros.com) <span>(not yet tested)</span>'
+                    }
+                    components={{
+                      span: <span className="text-xs text-muted-foreground" />,
+                    }}
+                  />
                 </SelectItem>
                 <SelectItem value="https://mcpcn.coros.com/mcp">
-                  {t(
-                    'settings.foodExerciseDataProviders.coros.regionCn',
-                    'Mainland China (mcpcn.coros.com)'
-                  )}{' '}
-                  <span className="text-xs text-muted-foreground">
-                    (
-                    {t(
-                      'settings.foodExerciseDataProviders.coros.notTested',
-                      'not yet tested'
-                    )}
-                    )
-                  </span>
+                  <Trans
+                    i18nKey="settings.providerSpecificFields.mainlandChinaMcpcnCorosCom"
+                    defaults={
+                      'Mainland China (mcpcn.coros.com) <span>(not yet tested)</span>'
+                    }
+                    components={{
+                      span: <span className="text-xs text-muted-foreground" />,
+                    }}
+                  />
                 </SelectItem>
               </SelectContent>
             </Select>

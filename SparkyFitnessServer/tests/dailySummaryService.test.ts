@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import type { ExerciseSessionResponse } from '@workspace/shared';
-import { EMPTY_SUPPLEMENT_TOTALS } from '@workspace/shared';
+import type { CalorieRules, ExerciseSessionResponse } from '@workspace/shared';
+import {
+  CALORIE_CALCULATION_CONSTANTS,
+  CALORIE_RULE_DEFAULTS,
+  EMPTY_SUPPLEMENT_TOTALS,
+} from '@workspace/shared';
 import { getDailySummary } from '../services/dailySummaryService.js';
 import goalService from '../services/goalService.js';
 import foodEntryService from '../services/foodEntryService.js';
@@ -11,7 +15,11 @@ import preferenceRepository from '../models/preferenceRepository.js';
 import foodRepository from '../models/foodMisc.js';
 import * as genericHealthRepository from '../models/genericHealthRepository.js';
 import bmrService from '../services/bmrService.js';
+import calorieRuleHistoryRepository from '../models/calorieRuleHistoryRepository.js';
 
+vi.mock('../models/calorieRuleHistoryRepository.js', () => ({
+  default: { getCalorieRuleHistory: vi.fn(async () => []) },
+}));
 vi.mock('../services/goalService.js', () => ({
   default: {
     getUserGoals: vi.fn(),
@@ -177,6 +185,88 @@ describe('dailySummaryService', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  test('reports the settings and measurements the day was worked out from', async () => {
+    const dayRules: CalorieRules = {
+      goal_mode: 'cut',
+      goal_mode_calculation_method: 'manual',
+      goal_mode_custom_percentage: 0,
+      goal_mode_weekly_change_kg: 0,
+      calorie_goal_adjustment_mode: 'dynamic',
+      exercise_calorie_percentage: 100,
+      tdee_allow_negative_adjustment: false,
+      calorie_safety_floor_mode: 'standard',
+      calorie_safety_floor_value: 1200,
+      adaptive_activity_separate: false,
+      bmr_algorithm: 'Oxford',
+      activity_level: 'active',
+      use_external_bmr: false,
+      include_bmr_in_net_calories: false,
+    };
+    vi.mocked(
+      calorieRuleHistoryRepository.getCalorieRuleHistory
+    ).mockResolvedValueOnce([{ ...dayRules, effective_date: '-infinity' }]);
+    vi.mocked(
+      measurementRepository.getLatestCheckInMeasurementsOnOrBeforeDate
+    ).mockResolvedValue({
+      weight: '92',
+      height: '181',
+      body_fat_percentage: '18.5',
+      waist: '88',
+      neck: null,
+    });
+
+    const result = await getDailySummary({
+      actorUserId,
+      targetUserId,
+      date,
+      includeCheckin: true,
+    });
+
+    expect(result.calorieInputs).toEqual({
+      rules: dayRules,
+      age: 34,
+      gender: 'male',
+      weightKg: 92,
+      heightCm: 181,
+      bodyFatPercentage: 18.5,
+      waistCm: 88,
+      neckCm: null,
+      hipsCm: null,
+    });
+    // The balance used the same inputs the summary reports.
+    expect(bmrService.calculateBmr).toHaveBeenCalledWith(
+      'Oxford',
+      92,
+      181,
+      34,
+      'male',
+      18.5
+    );
+  });
+
+  test('reports the defaults when there are no preferences or check-ins', async () => {
+    vi.mocked(preferenceRepository.getUserPreferences).mockResolvedValue(null);
+
+    const result = await getDailySummary({
+      actorUserId,
+      targetUserId,
+      date,
+      includeCheckin: false,
+    });
+
+    expect(result.calorieInputs).toEqual({
+      rules: CALORIE_RULE_DEFAULTS,
+      age: 34,
+      gender: 'male',
+      weightKg: CALORIE_CALCULATION_CONSTANTS.DEFAULT_WEIGHT_KG,
+      heightCm: CALORIE_CALCULATION_CONSTANTS.DEFAULT_HEIGHT_CM,
+      bodyFatPercentage: null,
+      waistCm: null,
+      neckCm: null,
+      hipsCm: null,
+    });
   });
 
   test('does not double-count Garmin active calories with workouts and steps', async () => {
@@ -513,6 +603,44 @@ describe('dailySummaryService', () => {
       expect(result.adjustedGoals!.protein).toBe(176);
       expect(result.adjustedGoals!.carbs).toBe(234);
       expect(result.adjustedGoals!.fat).toBe(78);
+    });
+
+    test('returns the adjusted water goal when only water changes', async () => {
+      vi.mocked(goalService.getUserGoals).mockImplementation(
+        (_userId, _date, _endDate, adjust) => {
+          if (adjust) {
+            return Promise.resolve({
+              calories: 2000,
+              protein: 150,
+              carbs: 200,
+              fat: 67,
+              water_goal_ml: 2800,
+            });
+          }
+          return Promise.resolve({
+            calories: 2000,
+            protein: 150,
+            carbs: 200,
+            fat: 67,
+            water_goal_ml: 2000,
+          });
+        }
+      );
+
+      const result = await getDailySummary({
+        actorUserId,
+        targetUserId,
+        date,
+        includeCheckin: true,
+      });
+
+      expect(result.adjustedGoals).toEqual({
+        calories: 2000,
+        protein: 150,
+        carbs: 200,
+        fat: 67,
+        water_goal_ml: 2800,
+      });
     });
   });
 });

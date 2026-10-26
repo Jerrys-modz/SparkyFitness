@@ -9,6 +9,22 @@ import {
 } from '../../src/hooks/useExerciseMutations';
 import { useActivityForm } from '../../src/hooks/useActivityForm';
 
+// The program badge reads the run program query; it has its own tests.
+jest.mock('../../src/components/recording/ProgramWorkoutBadge', () => ({
+  __esModule: true,
+  default: () => null,
+}));
+// The fitness test badge reads the fitness test query; it has its own tests.
+jest.mock('../../src/components/recording/FitnessTestBadge', () => ({
+  __esModule: true,
+  default: () => null,
+}));
+// The shoe picker reads the shoe list and the entry; it has its own tests.
+jest.mock('../../src/components/ShoePickerCard', () => ({
+  __esModule: true,
+  default: () => null,
+}));
+
 jest.mock('../../src/hooks/useExerciseMutations', () => ({
   useDeleteExerciseEntry: jest.fn(),
   useUpdateExerciseEntry: jest.fn(),
@@ -45,6 +61,7 @@ jest.mock('../../src/services/nativeTabBarPreference', () => ({
   useNativeIOSHeadersActive: jest.fn(() => false),
 }));
 jest.mock('../../src/components/EditableSetList', () => () => null);
+jest.mock('../../src/components/LinkSyncedWorkoutSheet', () => () => null);
 jest.mock('../../src/components/CalendarSheet', () => {
   const ReactModule = require('react');
   const MockCalendar = ReactModule.forwardRef(() => null);

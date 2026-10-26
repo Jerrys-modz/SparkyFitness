@@ -27,6 +27,7 @@ import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useActiveUser } from '@/contexts/ActiveUserContext';
 import EditExerciseEntryDialog from './EditExerciseEntryDialog';
+import LinkSyncedWorkoutDialog from './LinkSyncedWorkoutDialog';
 import ExercisePlaybackModal from '@/pages/Diary/ExercisePlaybackModal';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import { debug, info, error } from '@/utils/logging';
@@ -51,11 +52,13 @@ import {
   useExerciseEntries,
 } from '@/hooks/Exercises/useExerciseEntries';
 import { useActiveWorkoutPlans } from '@/hooks/Exercises/useWorkoutPlans';
+import RunProgramBanner from './RunProgramBanner';
 import {
   useWorkoutPresets,
   workoutPresetByIdOptions,
 } from '@/hooks/Exercises/useWorkoutPresets';
 import {
+  entryCaloriesCounted,
   isCardioModality,
   resolveExerciseCalories,
   resolveExerciseModality,
@@ -97,7 +100,8 @@ const ExerciseCard = ({
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { activeUserId } = useActiveUser();
+  const { activeUserId, hasWritePermission } = useActiveUser();
+  const canLinkWorkouts = hasWritePermission('diary');
   const { loggingLevel, energyUnit, convertEnergy, getEnergyUnitString } =
     usePreferences();
   debug(
@@ -112,6 +116,7 @@ const ExerciseCard = ({
   const [addDialogIntent, setAddDialogIntent] = useState<'log' | 'playback'>(
     'log'
   );
+  const [linkEntryId, setLinkEntryId] = useState<string | null>(null);
   const [editingEntry, setEditingEntry] = useState<ExerciseEntry | null>(null); // Use ExerciseEntry from service
   const [isPlaybackModalOpen, setIsPlaybackModalOpen] = useState(false); // State for playback modal
   const [exerciseToPlay, setExerciseToPlay] = useState<Exercise | null>(null); // State for exercise to play
@@ -267,7 +272,11 @@ const ExerciseCard = ({
       id: `plan-${targetPlan.id}-session-${assignment.session_index ?? assignment.day_of_week ?? 1}`,
       user_id: currentUserId || '',
       name: sessionName,
-      description: targetPlan.description || `${targetPlan.plan_name} session`,
+      description:
+        targetPlan.description ||
+        t('diary.exerciseCard.session', '{{plan_name}} session', {
+          plan_name: targetPlan.plan_name,
+        }),
       exercises: combinedExercises,
     };
 
@@ -547,7 +556,7 @@ const ExerciseCard = ({
         // Calories — keep the device-wide "Active Calories" summary separate
         // from logged workouts so the total can be deduped, not summed (the
         // summary already includes the workouts it overlaps with).
-        const cal = entry.calories_burned;
+        const cal = entryCaloriesCounted(entry);
         if (cal && !isNaN(cal)) {
           if (entry.exercise_snapshot?.name === 'Active Calories') {
             activeCalories += cal;
@@ -684,7 +693,11 @@ const ExerciseCard = ({
   };
 
   if (loading) {
-    return <div>Loading exercises...</div>;
+    return (
+      <div>
+        {t('diary.exerciseCard.loadingExercises', 'Loading exercises...')}
+      </div>
+    );
   }
 
   return (
@@ -737,6 +750,7 @@ const ExerciseCard = ({
         </div>
       </CardHeader>
       <CardContent>
+        <RunProgramBanner date={selectedDate} />
         {uncompletedActivePlans.map((plan: WorkoutPlanTemplate) => {
           const distinctSessions = getDistinctSessionsForPlan(plan);
           const currentAssignmentId =
@@ -843,7 +857,11 @@ const ExerciseCard = ({
                   )}
                   {plan.schedule_type === 'sequential' && (
                     <span className="text-xs text-muted-foreground font-medium">
-                      ({sessionIndex} of {totalSessions})
+                      {t(
+                        'diary.exerciseCard.of',
+                        '({{sessionIndex}} of {{totalSessions}})',
+                        { sessionIndex, totalSessions }
+                      )}
                     </span>
                   )}
                 </div>
@@ -894,6 +912,7 @@ const ExerciseCard = ({
                     handleDeleteExerciseEntry={handleDeleteExerciseEntry} // Pass the individual exercise entry delete handler
                     handleEdit={handleEdit}
                     handleEditExerciseDatabase={handleEditExerciseDatabase}
+                    onLink={canLinkWorkouts ? setLinkEntryId : undefined}
                     setExerciseToPlay={setExerciseToPlay}
                     setIsPlaybackModalOpen={setIsPlaybackModalOpen}
                     energyUnit={energyUnit}
@@ -911,6 +930,7 @@ const ExerciseCard = ({
                     handleEdit={handleEdit}
                     handleDelete={handleDeleteExerciseEntry} // Pass the handler for individual entries
                     handleEditExerciseDatabase={handleEditExerciseDatabase}
+                    onLink={canLinkWorkouts ? setLinkEntryId : undefined}
                     setExerciseToPlay={setExerciseToPlay}
                     setIsPlaybackModalOpen={setIsPlaybackModalOpen}
                     energyUnit={energyUnit}
@@ -922,7 +942,7 @@ const ExerciseCard = ({
             })}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center pt-2 gap-4">
               <span className="font-semibold">
-                {t('exerciseCard.exerciseTotal', 'Exercise Total')}:
+                {t('exerciseCard.exerciseTotal2', 'Exercise Total:')}
               </span>
               <div className="grid grid-cols-4 gap-2 sm:gap-4 text-xs sm:text-sm">
                 <div className="text-center">
@@ -966,10 +986,24 @@ const ExerciseCard = ({
           </div>
         )}
 
+        {linkEntryId && (
+          <LinkSyncedWorkoutDialog
+            key={linkEntryId}
+            entryId={linkEntryId}
+            open
+            onOpenChange={(open) => {
+              if (!open) setLinkEntryId(null);
+            }}
+            energyUnit={energyUnit}
+            convertEnergy={convertEnergy}
+            getEnergyUnitString={getEnergyUnitString}
+          />
+        )}
+
         {/* Edit Exercise Entry Dialog */}
         {editingEntry && (
           <EditExerciseEntryDialog
-            key={editingEntry ? 'open' : 'close'}
+            key={editingEntry.id}
             entry={editingEntry as ExerciseEntry}
             open={!!editingEntry}
             onOpenChange={(open) => {

@@ -34,6 +34,11 @@ vi.mock('../models/preferenceRepository', () => ({
 vi.mock('../config/logging', () => ({
   log: vi.fn(),
 }));
+// Read by utils/outboundUrlPolicy's resolveAiNetworkPolicy. Default false
+// keeps these cases off the real database.
+vi.mock('../models/globalSettingsRepository.js', () => ({
+  isPrivateNetworkAiAllowed: vi.fn().mockResolvedValue(false),
+}));
 vi.mock('../utils/timezoneLoader', () => ({
   loadUserTimezone: vi.fn(async () => 'UTC'),
 }));
@@ -106,6 +111,31 @@ describe('chatService', () => {
         setting: savedSetting,
       });
     });
+    it('clears the selected Voice pointer when audio eligibility is removed', async () => {
+      const serviceData = {
+        service_type: 'google',
+        supports_audio_input: false,
+      };
+      const savedSetting = { id: 'setting-1', ...serviceData };
+      vi.mocked(chatRepository.upsertAiServiceSetting).mockResolvedValue(
+        savedSetting
+      );
+      vi.mocked(preferenceRepository.getUserPreferences).mockResolvedValue({
+        active_voice_ai_service_id: 'setting-1',
+      });
+
+      await chatService.handleAiServiceSettings(
+        'save_ai_service_settings',
+        serviceData,
+        mockUserId
+      );
+
+      expect(preferenceRepository.updateUserPreferences).toHaveBeenCalledWith(
+        mockUserId,
+        { active_voice_ai_service_id: null }
+      );
+    });
+
     it('should throw error for unsupported action', async () => {
       await expect(
         chatService.handleAiServiceSettings('unknown_action', {}, mockUserId)
@@ -466,76 +496,89 @@ describe('chatService', () => {
       ]);
     });
 
-    it('executes a log_food tool call in-process, derives food_added from call input, and saves history', async () => {
-      vi.mocked(foodRepository.getFoodsWithPagination).mockResolvedValue([
-        {
-          ...eggsRow,
-          default_variant: {
-            ...eggsRow.default_variant,
-            serving_size: 1,
-            serving_unit: 'serving',
+    it.each([true, false])(
+      'executes a log_food tool call and avoids inviting a duplicate retry when summary=%s',
+      async (hasSummary) => {
+        vi.mocked(foodRepository.getFoodsWithPagination).mockResolvedValue([
+          {
+            ...eggsRow,
+            default_variant: {
+              ...eggsRow.default_variant,
+              serving_size: 1,
+              serving_unit: 'serving',
+            },
           },
-        },
-      ]);
-      vi.mocked(foodRepository.getFoodVariantsByFoodId).mockResolvedValue([]);
-      vi.mocked(foodEntryService.createFoodEntry).mockResolvedValue({
-        id: 'entry-1',
-        food_name: 'Eggs',
-      });
-      const logFoodArgs = {
-        action: 'log_food',
-        food_name: 'Eggs',
-        quantity: 2,
-        unit: 'serving',
-        meal_type: 'breakfast',
-        entry_date: '2026-06-10',
-      };
-      scriptModel([
-        toolCallStep(logFoodArgs),
-        textStep('Logged 2 eggs for breakfast!'),
-      ]);
-
-      const result = await chatService.processChatMessage(
-        [{ role: 'user', content: 'log 2 eggs for breakfast' }],
-        'svc-1',
-        activeUserId,
-        actorUserId
-      );
-
-      expect(result.content).toBe('Logged 2 eggs for breakfast!');
-      expect(result.action).toBe('food_added');
-      expect(result.executedTools).toEqual([
-        { name: 'sparky_manage_food', args: logFoodArgs },
-      ]);
-      // Tool handlers act as the authenticated user, not the active user.
-      expect(foodEntryService.createFoodEntry).toHaveBeenCalledWith(
-        actorUserId,
-        actorUserId,
-        {
-          user_id: actorUserId,
-          food_id: FOOD_ID,
-          variant_id: VARIANT_ID,
-          entry_date: '2026-06-10',
+        ]);
+        vi.mocked(foodRepository.getFoodVariantsByFoodId).mockResolvedValue([]);
+        vi.mocked(foodEntryService.createFoodEntry).mockResolvedValue({
+          id: 'entry-1',
+          food_name: 'Eggs',
+        });
+        const logFoodArgs = {
+          action: 'log_food',
+          food_name: 'Eggs',
           quantity: 2,
           unit: 'serving',
-          meal_type_id: 'breakfast-id',
-        }
-      );
-      expect(chatRepository.saveChatHistory).toHaveBeenCalledWith(
-        expect.objectContaining({
-          user_id: activeUserId,
-          messageType: 'user',
-          content: 'log 2 eggs for breakfast',
-        })
-      );
-      expect(chatRepository.saveChatHistory).toHaveBeenCalledWith(
-        expect.objectContaining({
-          user_id: activeUserId,
-          messageType: 'assistant',
-          content: 'Logged 2 eggs for breakfast!',
-        })
-      );
-    });
+          meal_type: 'breakfast',
+          entry_date: '2026-06-10',
+        };
+        scriptModel([
+          toolCallStep(logFoodArgs),
+          textStep(hasSummary ? 'Logged 2 eggs for breakfast!' : ''),
+        ]);
+
+        const result = await chatService.processChatMessage(
+          [{ role: 'user', content: 'log 2 eggs for breakfast' }],
+          'svc-1',
+          activeUserId,
+          actorUserId
+        );
+
+        const expectedContent = hasSummary
+          ? 'Logged 2 eggs for breakfast!'
+          : 'Tools ran, but the AI service returned no summary. Check your diary and saved changes before retrying.';
+        expect(result.content).toBe(expectedContent);
+        if (!hasSummary)
+          expect(log).toHaveBeenCalledWith(
+            'debug',
+            'No assistant reply text; tool result metadata:',
+            { toolNames: ['sparky_manage_food'], resultCount: 1 }
+          );
+        expect(foodEntryService.createFoodEntry).toHaveBeenCalledTimes(1);
+        expect(result.action).toBe('food_added');
+        expect(result.executedTools).toEqual([
+          { name: 'sparky_manage_food', args: logFoodArgs },
+        ]);
+        // Tool handlers act as the authenticated user, not the active user.
+        expect(foodEntryService.createFoodEntry).toHaveBeenCalledWith(
+          actorUserId,
+          actorUserId,
+          {
+            user_id: actorUserId,
+            food_id: FOOD_ID,
+            variant_id: VARIANT_ID,
+            entry_date: '2026-06-10',
+            quantity: 2,
+            unit: 'serving',
+            meal_type_id: 'breakfast-id',
+          }
+        );
+        expect(chatRepository.saveChatHistory).toHaveBeenCalledWith(
+          expect.objectContaining({
+            user_id: activeUserId,
+            messageType: 'user',
+            content: 'log 2 eggs for breakfast',
+          })
+        );
+        expect(chatRepository.saveChatHistory).toHaveBeenCalledWith(
+          expect.objectContaining({
+            user_id: activeUserId,
+            messageType: 'assistant',
+            content: expectedContent,
+          })
+        );
+      }
+    );
 
     it('limits the tool set passed to the model when toolCategories is provided', async () => {
       const model = scriptModel([textStep('Sure.')]);
@@ -652,7 +695,7 @@ describe('chatService', () => {
       expect(log).toHaveBeenCalledWith(
         'info',
         expect.stringMatching(
-          /Loaded 33\/54 active tools for chatbot \(profile=core/
+          /Loaded 35\/57 active tools for chatbot \(profile=core/
         )
       );
       // The core profile is the mitigation, so no context-window warning.
@@ -734,7 +777,7 @@ describe('chatService', () => {
       expect(log).toHaveBeenCalledWith(
         'info',
         expect.stringMatching(
-          /Loaded 54\/54 active tools for chatbot \(profile=full/
+          /Loaded 57\/57 active tools for chatbot \(profile=full/
         )
       );
       // Ollama + full profile is the risky combo, so warn about the 4096 default.
@@ -767,7 +810,7 @@ describe('chatService', () => {
       expect(log).toHaveBeenCalledWith(
         'info',
         expect.stringMatching(
-          /Loaded 54\/54 active tools for chatbot \(profile=full/
+          /Loaded 57\/57 active tools for chatbot \(profile=full/
         )
       );
     });
@@ -795,7 +838,7 @@ describe('chatService', () => {
       expect(log).toHaveBeenCalledWith(
         'info',
         expect.stringMatching(
-          /Loaded 54\/54 active tools for chatbot \(profile=full/
+          /Loaded 57\/57 active tools for chatbot \(profile=full/
         )
       );
       // The context-window warning is Ollama-only; cloud providers never see it.
@@ -1097,8 +1140,12 @@ describe('chatService', () => {
       outputTokens: { total: 5, text: 5, reasoning: 0 },
     };
 
-    const streamModel = (parts: unknown[]) => {
+    const streamModel = (
+      parts: unknown[],
+      supportedUrls?: Record<string, RegExp[]>
+    ) => {
       const model = new MockLanguageModelV3({
+        supportedUrls,
         doStream: async () => ({
           stream: simulateReadableStream({
             chunks: parts as never[],
@@ -1512,22 +1559,8 @@ describe('chatService', () => {
     });
 
     it('maps remote image URLs with detected media types based on extension', async () => {
-      const originalFetch = global.fetch;
-      global.fetch = vi
-        .fn()
-        .mockImplementation(async (url: string | URL | Request) => {
-          const urlStr = typeof url === 'string' ? url : url.toString();
-          if (urlStr.includes('example.com/meal.webp')) {
-            return new Response(new Uint8Array([0x52, 0x49, 0x46, 0x46]), {
-              status: 200,
-              headers: { 'content-type': 'image/webp' },
-            });
-          }
-          return originalFetch(url as RequestInfo, undefined);
-        });
-
-      try {
-        const model = streamModel([
+      const model = streamModel(
+        [
           { type: 'stream-start', warnings: [] },
           { type: 'text-start', id: 't1' },
           { type: 'text-delta', id: 't1', delta: 'ok' },
@@ -1537,37 +1570,39 @@ describe('chatService', () => {
             finishReason: { unified: 'stop', raw: undefined },
             usage,
           },
-        ]);
+        ],
+        // Declared as natively supported so the SDK passes the URL through
+        // instead of downloading it (the SDK's own guarded fetcher is not the
+        // global fetch).
+        { 'image/*': [/^https:\/\/.*$/] }
+      );
 
-        const { stream } = await chatService.processChatMessageStream(
-          [
-            {
-              role: 'user',
-              content: [
-                { type: 'text', text: 'Analyze this photo' },
-                {
-                  type: 'image_url',
-                  image_url: { url: 'https://example.com/meal.webp' },
-                },
-              ],
-            },
-          ],
-          'svc-1',
-          activeUserId,
-          actorUserId
-        );
-        await drainStream(stream);
+      const { stream } = await chatService.processChatMessageStream(
+        [
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: 'Analyze this photo' },
+              {
+                type: 'image_url',
+                image_url: { url: 'https://example.com/meal.webp' },
+              },
+            ],
+          },
+        ],
+        'svc-1',
+        activeUserId,
+        actorUserId
+      );
+      await drainStream(stream);
 
-        const prompt = model.doStreamCalls[0].prompt;
-        const userMessage = prompt.find((m) => m.role === 'user');
-        const filePart = (
-          userMessage?.content as Array<{ type: string; mediaType?: string }>
-        ).find((p) => p.type === 'file');
-        expect(filePart).toBeDefined();
-        expect(filePart?.mediaType).toBe('image/webp');
-      } finally {
-        global.fetch = originalFetch;
-      }
+      const prompt = model.doStreamCalls[0].prompt;
+      const userMessage = prompt.find((m) => m.role === 'user');
+      const filePart = (
+        userMessage?.content as Array<{ type: string; mediaType?: string }>
+      ).find((p) => p.type === 'file');
+      expect(filePart).toBeDefined();
+      expect(filePart?.mediaType).toBe('image/webp');
     });
 
     it('trims old history to a token budget but always keeps the current turn', async () => {

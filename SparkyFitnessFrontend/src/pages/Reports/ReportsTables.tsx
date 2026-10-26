@@ -49,6 +49,7 @@ import {
   CustomCategoriesResponse,
   getPrecision,
   bodyWeightOnDay,
+  entryCaloriesCounted,
   isBodyweightModality,
   resolveExerciseModality,
   setVolumeKg,
@@ -381,8 +382,9 @@ const ReportsTables = ({
     if (sortConfig !== null) {
       sortableItems.sort((a, b) => {
         const key = sortConfig.key as keyof typeof a;
-        const aValue = a[key] ?? '';
-        const bValue = b[key] ?? '';
+        const counted = key === 'calories_burned';
+        const aValue = counted ? entryCaloriesCounted(a) : (a[key] ?? '');
+        const bValue = counted ? entryCaloriesCounted(b) : (b[key] ?? '');
         if (aValue < bValue) {
           return sortConfig.direction === 'ascending' ? -1 : 1;
         }
@@ -702,7 +704,9 @@ const ReportsTables = ({
                       {t('reportsTables.reps', 'Reps')}
                     </TableHead>
                     <TableHead onClick={() => requestSort('weight')}>
-                      {t('reportsTables.weight', 'Weight')} ({weightUnit})
+                      {t('reportsTables.weight2', 'Weight ({{weightUnit}})', {
+                        weightUnit,
+                      })}
                     </TableHead>
                     <TableHead>
                       {t('reportsTables.tonnage', 'Tonnage')}
@@ -785,7 +789,7 @@ const ReportsTables = ({
                           <TableCell>
                             {Math.round(
                               convertEnergy(
-                                entry.calories_burned,
+                                entryCaloriesCounted(entry),
                                 'kcal',
                                 energyUnit
                               )
@@ -870,37 +874,59 @@ const ReportsTables = ({
                   <TableRow>
                     <TableHead>{t('reportsTables.date', 'Date')}</TableHead>
                     <TableHead>
-                      {t('reportsTables.weight', 'Weight')} ({weightUnit})
+                      {t('reportsTables.weight2', 'Weight ({{weightUnit}})', {
+                        weightUnit,
+                      })}
                     </TableHead>
                     <TableHead>
-                      {t('reportsTables.neck', 'Neck')} ({measurementUnit})
+                      {t('reportsTables.neck2', 'Neck ({{measurementUnit}})', {
+                        measurementUnit,
+                      })}
                     </TableHead>
                     <TableHead>
-                      {t('reportsTables.waist', 'Waist')} ({measurementUnit})
+                      {t(
+                        'reportsTables.waist2',
+                        'Waist ({{measurementUnit}})',
+                        { measurementUnit }
+                      )}
                     </TableHead>
                     <TableHead>
-                      {t('reportsTables.hips', 'Hips')} ({measurementUnit})
+                      {t('reportsTables.hips2', 'Hips ({{measurementUnit}})', {
+                        measurementUnit,
+                      })}
                     </TableHead>
                     <TableHead>{t('reportsTables.steps', 'Steps')}</TableHead>
                     <TableHead>
-                      {t('reportsTables.height', 'Height')} ({measurementUnit})
+                      {t(
+                        'reportsTables.height2',
+                        'Height ({{measurementUnit}})',
+                        { measurementUnit }
+                      )}
                     </TableHead>
                     <TableHead>
                       {t('reportsTables.bodyFatPercentage', 'Body Fat %')}
                     </TableHead>
                     <TableHead>
-                      {t('reportsTables.muscleMass', 'Muscle Mass')} (
-                      {weightUnit})
+                      {t(
+                        'reportsTables.muscleMass2',
+                        'Muscle Mass ({{weightUnit}})',
+                        { weightUnit }
+                      )}
                     </TableHead>
                     <TableHead>
-                      {t('reportsTables.boneMass', 'Bone Mass')} ({weightUnit})
+                      {t(
+                        'reportsTables.boneMass2',
+                        'Bone Mass ({{weightUnit}})',
+                        { weightUnit }
+                      )}
                     </TableHead>
                     <TableHead>
                       {t('reportsTables.bodyWaterPercentage', 'Body Water %')}
                     </TableHead>
                     <TableHead>
-                      {t('reportsTables.bmr', 'BMR')} (
-                      {getEnergyUnitString(energyUnit)})
+                      {t('reportsTables.bmr2', 'BMR ({{energyUnitString}})', {
+                        energyUnitString: getEnergyUnitString(energyUnit),
+                      })}
                     </TableHead>
                   </TableRow>
                 </TableHeader>
@@ -1014,24 +1040,20 @@ const ReportsTables = ({
                         )}
                       </TableHead>
                       <TableHead>
-                        {t(
-                          'reports.customMeasurementsExportHeaders.value',
-                          'Value'
-                        )}{' '}
-                        (
-                        {['kg', 'lbs', 'st_lbs'].includes(
-                          category.measurement_type.toLowerCase()
-                        )
-                          ? weightUnit
-                          : ['cm', 'inches', 'ft_in'].includes(
-                                category.measurement_type.toLowerCase()
-                              )
-                            ? measurementUnit
-                            : healthMetricUnitLabel(
-                                category.measurement_type,
-                                t
-                              )}
-                        )
+                        {t('reportsTables.value', 'Value ({{value}})', {
+                          value: ['kg', 'lbs', 'st_lbs'].includes(
+                            category.measurement_type.toLowerCase()
+                          )
+                            ? weightUnit
+                            : ['cm', 'inches', 'ft_in'].includes(
+                                  category.measurement_type.toLowerCase()
+                                )
+                              ? measurementUnit
+                              : healthMetricUnitLabel(
+                                  category.measurement_type,
+                                  t
+                                ),
+                        })}
                       </TableHead>
                       <TableHead>{t('reportsTables.notes', 'Notes')}</TableHead>
                     </TableRow>

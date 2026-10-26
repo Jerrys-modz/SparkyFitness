@@ -2,6 +2,7 @@ import { log } from '../../config/logging.js';
 import measurementService from '../measurementService.js';
 import moodRepository from '../../models/moodRepository.js';
 import sleepRepository from '../../models/sleepRepository.js';
+import type { SleepEntryInput } from '../../models/sleepRepository.js';
 import foodRepository from '../../models/food.js';
 import foodEntryRepository from '../../models/foodEntry.js';
 import mealTypeRepository from '../../models/mealType.js';
@@ -12,7 +13,11 @@ import { num, str, toUtcInstant } from './garminTelemetryExtractors.js';
 // Shared with the generic /api/health-data workout path; Garmin keeps the
 // default 'replace' mode because it re-fetches the whole day on every sync.
 import { upsertSamplesByDay } from '../healthMetricSampleWriter.js';
-import { localDateTimeToUtc, instantToDay } from '@workspace/shared';
+import {
+  localDateTimeToUtc,
+  instantToDay,
+  instantForDay,
+} from '@workspace/shared';
 
 interface ActivityWindow {
   id: string;
@@ -195,12 +200,13 @@ export async function processGarminHealthAndWellnessData(
 
         if (derived_mood_value !== null && derived_mood_value !== undefined) {
           try {
-            await moodRepository.createOrUpdateMoodEntry(
-              userId,
-              derived_mood_value,
-              derived_mood_notes,
-              date
-            );
+            await moodRepository.upsertDerivedMood(userId, 'garmin', {
+              moodValue: derived_mood_value,
+              notes: derived_mood_notes,
+              entryDate: date,
+              // A daily value: now for today, local noon for a past day.
+              entryTimestamp: instantForDay(date, userTz),
+            });
             processedResults.push({
               type: 'derived_mood_value',
               status: 'success',
@@ -339,6 +345,24 @@ export async function processGarminHealthAndWellnessData(
             ? Number(acuteLoad) / Number(chronicLoad)
             : null;
 
+        // Ordering key for the total_calories upsert gate: routes.py stamps
+        // each daily_summary entry with the get_user_summary fetch instant
+        // (captured_at), so the newest provider snapshot wins however
+        // scheduled and manual syncs interleave — the same reasoning Polar
+        // uses end_time for. Microservices predating the field omit it and an
+        // unparseable value degrades the same way: the row then keeps a NULL
+        // capture time, which the upsert gate only lets fill an equally
+        // untimestamped slot, so a delayed legacy sync can never stamp its own
+        // arrival time over a newer timestamped total.
+        const summaryCapturedAtMs = summaryItem.captured_at
+          ? Date.parse(String(summaryItem.captured_at))
+          : NaN;
+        const totalCalories = summaryItem.total_calories ?? null;
+        const totalCaloriesCapturedAt =
+          totalCalories !== null && !Number.isNaN(summaryCapturedAtMs)
+            ? new Date(summaryCapturedAtMs)
+            : null;
+
         await genericHealthRepo.upsertDailyHealthMetrics(userId, actingUserId, {
           user_id: userId,
           entry_date: dateStr,
@@ -355,6 +379,10 @@ export async function processGarminHealthAndWellnessData(
           floors_descended: floorsItem?.floors_descended ?? null,
           active_calories: summaryItem.active_calories ?? null,
           bmr_calories: summaryItem.bmr_calories ?? null,
+          total_calories: totalCalories,
+          // Value and stamp travel as a pair: a NULL stamp marks an unordered
+          // legacy snapshot, which the gate only lets fill a NULL slot.
+          total_calories_captured_at: totalCaloriesCapturedAt,
           resting_heart_rate: summaryItem.resting_heart_rate ?? null,
           exercise_minutes: intensityItem?.total_intensity_minutes ?? null,
           body_battery_highest:
@@ -919,6 +947,15 @@ export async function processGarminHealthAndWellnessData(
   }
 }
 
+/** A bedtime or wake time that `new Date()` reads as a real instant. */
+const isSleepInstant = (value: unknown): value is string | Date =>
+  (typeof value === 'string' || value instanceof Date) &&
+  !Number.isNaN(new Date(value).getTime());
+
+/** An entry_date as the Garmin service sends it: a plain YYYY-MM-DD day. */
+const isCalendarDay = (value: unknown): value is string =>
+  typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value);
+
 export async function processGarminSleepData(
   userId: string,
   actingUserId: string,
@@ -929,23 +966,50 @@ export async function processGarminSleepData(
   const processedResults: Array<Record<string, unknown>> = [];
   const errors: Array<Record<string, unknown>> = [];
 
+  // Clear only the nights Garmin returned, each on its own date. One delete
+  // over the whole requested range also removed any night the response left
+  // out (an older day that 503'd, say), and that night stayed missing until a
+  // later run happened to return it. With the scheduled look-back the window
+  // is several days, so the hourly sync would have hit the same path.
+  const returnedNights = Array.from(
+    new Set(
+      sleepDataArray
+        .map((sleepEntry) => sleepEntry.entry_date)
+        .filter(isCalendarDay)
+    )
+  );
   log(
     'info',
-    `[garminHealthProcessor] Performing comprehensive cleanup for Garmin sleep data for user ${userId} from ${startDate} to ${endDate}.`
+    `[garminHealthProcessor] Clearing ${returnedNights.length} Garmin sleep night(s) returned for user ${userId} within ${startDate} to ${endDate} before re-inserting them.`
   );
-  await sleepRepository.deleteSleepEntriesByEntrySourceAndDate(
-    userId,
-    'garmin',
-    startDate,
-    endDate
-  );
+  for (const night of returnedNights) {
+    await sleepRepository.deleteSleepEntriesByEntrySourceAndDate(
+      userId,
+      'garmin',
+      night,
+      night
+    );
+  }
 
   for (const sleepEntry of sleepDataArray) {
     try {
+      // routes.py skips a night without both times; one that slips through
+      // fails here, with the others still processed, instead of reaching the
+      // upsert as an Invalid Date.
+      if (
+        !isSleepInstant(sleepEntry.bedtime) ||
+        !isSleepInstant(sleepEntry.wake_time)
+      ) {
+        throw new Error(
+          'Garmin sleep entry is missing a valid bedtime or wake_time.'
+        );
+      }
       const result = await measurementService.processSleepEntry(
         userId,
         actingUserId,
-        sleepEntry
+        // The rest is shaped by the Garmin service's sleep mapper, which
+        // isn't typed yet.
+        sleepEntry as SleepEntryInput
       );
       processedResults.push({ status: 'success', data: result });
     } catch (error: unknown) {

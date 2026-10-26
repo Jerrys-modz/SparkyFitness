@@ -29,71 +29,42 @@ import {
   useDailySteps,
   useAdaptiveTdee,
   useDailySummary,
-  useMostRecentWeightQuery,
-  useMostRecentHeightQuery,
-  useMostRecentBodyFatQuery,
 } from '@/hooks/Diary/useDailyProgress';
 import { DailyProgressSkeleton } from './DailyProgressSkeleton';
 import { getEnergyUnitString } from '@/utils/nutritionCalculations';
 import { formatWeight } from '@/utils/numberFormatting';
 import { EnergyCircle } from './EnergyProgressCircle';
-import { useAuth } from '@/hooks/useAuth';
-import { useProfileQuery } from '@/hooks/Settings/useProfile';
-import { useMostRecentMeasurement } from '@/hooks/CheckIn/useCheckIn';
 import {
   ACTIVITY_MULTIPLIERS,
-  calculateAge,
   computeCalorieTarget,
   isAdaptiveTdeeMature,
   ADAPTIVE_TDEE_GOAL_MIN_DAYS,
   calculateBmr,
   computeExerciseCredited,
+  computeCalorieProgress,
   normalizeCalorieGoalAdjustmentMode,
   resolveCalorieSafetyFloor,
   DEFAULT_CUSTOM_CALORIE_SAFETY_FLOOR,
+  isAdaptiveActivitySeparated,
+  withCalorieRuleDefaults,
 } from '@workspace/shared';
 import { CalorieTargetBreakdown } from '@/components/CalorieTargetBreakdown';
+import { getAdaptiveTdeeForGoal } from '@/utils/adaptiveTdee';
 import { useNutrientGoalPreferences } from '@/hooks/Settings/useNutrientGoalPreferences';
+import { getCalorieBudget } from '@/utils/calorieBudget';
 
 const DailyProgress = ({ selectedDate }: { selectedDate: string }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const {
     loggingLevel,
-    calorieGoalAdjustmentMode: storedCalorieGoalAdjustmentMode,
     energyUnit,
     convertEnergy,
     weightUnit,
-    bmrAlgorithm,
     bodyFatAlgorithm,
-    goalMode,
-    goalModeCalculationMethod,
-    goalModeCustomPercentage,
-    calorieSafetyFloorMode,
-    calorieSafetyFloorValue,
-    activityLevel,
-    timezone,
   } = usePreferences();
 
-  // `smart` computes identically to `tdee` server-side and arrives with a populated
-  // `tdeeProjection`, but it has no UI of its own — so the untranslated value fell
-  // through the `=== 'tdee'` check below and hid the Daily Burn panel entirely.
-  const calorieGoalAdjustmentMode = normalizeCalorieGoalAdjustmentMode(
-    storedCalorieGoalAdjustmentMode
-  );
-
-  const { user } = useAuth();
-  const { data: userProfile } = useProfileQuery(user?.id);
   const { data: goalTypePreferences } = useNutrientGoalPreferences();
-  const { data: weightData } = useMostRecentWeightQuery();
-  const { data: heightData } = useMostRecentHeightQuery();
-  const { data: bodyFatData } = useMostRecentBodyFatQuery();
-  const { data: waistData } = useMostRecentMeasurement('waist');
-  const { data: neckData } = useMostRecentMeasurement('neck');
-  const { data: hipsData } = useMostRecentMeasurement('hips');
-
-  const isLeanMassBmr =
-    bmrAlgorithm === 'Katch-McArdle' || bmrAlgorithm === 'Cunningham';
 
   const { data: adaptiveTdeeData, isLoading: loadingAdaptiveTdee } =
     useAdaptiveTdee(selectedDate);
@@ -108,6 +79,31 @@ const DailyProgress = ({ selectedDate }: { selectedDate: string }) => {
     isError: summaryError,
   } = useDailySummary(selectedDate);
 
+  // The calorie settings and measurements this day was worked out from
+  // (#1795), so a past day is not explained with today's settings or weight.
+  const {
+    bmr_algorithm: bmrAlgorithm,
+    goal_mode: goalMode,
+    goal_mode_calculation_method: goalModeCalculationMethod,
+    adaptive_activity_separate: adaptiveActivitySeparate,
+    goal_mode_custom_percentage: goalModeCustomPercentage,
+    goal_mode_weekly_change_kg: goalModeWeeklyChangeKg,
+    calorie_safety_floor_mode: calorieSafetyFloorMode,
+    calorie_safety_floor_value: calorieSafetyFloorValue,
+    activity_level: activityLevel,
+    calorie_goal_adjustment_mode: dayCalorieGoalAdjustmentMode,
+  } = withCalorieRuleDefaults(summaryData?.calorieInputs?.rules);
+
+  // `smart` computes identically to `tdee` server-side and arrives with a populated
+  // `tdeeProjection`, but it has no UI of its own — so the untranslated value fell
+  // through the `=== 'tdee'` check below and hid the Daily Burn panel entirely.
+  const calorieGoalAdjustmentMode = normalizeCalorieGoalAdjustmentMode(
+    dayCalorieGoalAdjustmentMode
+  );
+
+  const isLeanMassBmr =
+    bmrAlgorithm === 'Katch-McArdle' || bmrAlgorithm === 'Cunningham';
+
   const isLoading =
     loadingExercise ||
     loadingSteps ||
@@ -118,7 +114,13 @@ const DailyProgress = ({ selectedDate }: { selectedDate: string }) => {
     return <DailyProgressSkeleton />;
   }
 
-  if (summaryError || !summaryData?.calorieBalance) {
+  // An older server sends no calorieInputs; show the summary error rather
+  // than crash on it.
+  if (
+    summaryError ||
+    !summaryData?.calorieBalance ||
+    !summaryData.calorieInputs
+  ) {
     return (
       <Card className="h-full">
         <CardContent className="pt-6 pb-4">
@@ -220,34 +222,24 @@ const DailyProgress = ({ selectedDate }: { selectedDate: string }) => {
       ? Math.round(convertEnergy(calorieGoalPref.targetMax, 'kcal', energyUnit))
       : undefined;
 
-  // When a calorie target range is set, the upper bound (targetMax) serves as the budget ceiling.
-  const effectiveTargetGoal = isTargetBand ? targetMaxConverted! : display.goal;
-  const exerciseBonus = Math.max(
-    0,
-    display.remaining - (display.goal - display.eaten)
-  );
+  const calorieBudget = getCalorieBudget(calorieBalance, calorieGoalPref);
+  const targetRemaining = calorieBudget - eatenCalories;
   const effectiveRemaining = isTargetBand
-    ? Math.round(effectiveTargetGoal - display.eaten + exerciseBonus)
+    ? Math.round(convertEnergy(targetRemaining, 'kcal', energyUnit))
     : display.remaining;
-  const effectiveProgress =
-    isTargetBand && effectiveTargetGoal > 0
-      ? Math.max(
-          0,
-          ((effectiveTargetGoal - effectiveRemaining) / effectiveTargetGoal) *
-            100
-        )
-      : calorieProgress;
+  const effectiveProgress = isTargetBand
+    ? computeCalorieProgress(eatenCalories, targetRemaining)
+    : calorieProgress;
 
-  const displayWeight = weightData?.weight || 70;
-  const displayHeight = heightData?.height || 170;
-  const displayBodyFat = bodyFatData?.body_fat_percentage ?? 0;
-  const displayWaist = waistData?.waist;
-  const displayNeck = neckData?.neck;
-  const displayHips = hipsData?.hips;
-  const displayGender = (userProfile?.gender || 'male') as 'male' | 'female';
-  const displayAge = userProfile?.date_of_birth
-    ? calculateAge(userProfile.date_of_birth, timezone)
-    : 30;
+  const calorieInputs = summaryData.calorieInputs;
+  const displayWeight = calorieInputs.weightKg;
+  const displayHeight = calorieInputs.heightCm;
+  const displayBodyFat = calorieInputs.bodyFatPercentage ?? 0;
+  const displayWaist = calorieInputs.waistCm;
+  const displayNeck = calorieInputs.neckCm;
+  const displayHips = calorieInputs.hipsCm;
+  const displayGender = calorieInputs.gender as 'male' | 'female';
+  const displayAge = calorieInputs.age;
 
   const activityMultiplier = ACTIVITY_MULTIPLIERS[activityLevel] || 1.2;
 
@@ -281,13 +273,19 @@ const DailyProgress = ({ selectedDate }: { selectedDate: string }) => {
         : Math.max(adaptiveGoalFloor, adaptiveGoal);
   }
 
+  const activitySeparated = isAdaptiveActivitySeparated(
+    calorieGoalAdjustmentMode,
+    goalModeCalculationMethod,
+    adaptiveActivitySeparate
+  );
   const previewResult = computeCalorieTarget({
     goalMode,
     calculationMethod: goalModeCalculationMethod,
     customPercentage: goalModeCustomPercentage,
+    weeklyChangeKg: goalModeWeeklyChangeKg,
     bmr,
     activityLevelMultiplier: activityMultiplier,
-    adaptiveTdee: adaptiveTdeeData ? adaptiveTdeeData.tdee : null,
+    adaptiveTdee: getAdaptiveTdeeForGoal(adaptiveTdeeData, activitySeparated),
     adaptiveTdeeFallback: adaptiveTdeeData ? adaptiveTdeeData.isFallback : true,
     adaptiveTdeeDaysOfData: adaptiveTdeeData
       ? (adaptiveTdeeData.daysOfData ?? 0)
@@ -393,8 +391,11 @@ const DailyProgress = ({ selectedDate }: { selectedDate: string }) => {
                 <span>{display.eaten}</span>
               </div>
               <div className="text-xs text-gray-500 whitespace-nowrap">
-                {getEnergyUnitString(energyUnit)}{' '}
-                {t('exercise.dailyProgress.eaten', 'eaten')}
+                {t(
+                  'exercise.dailyProgress.eaten2',
+                  '{{energyUnitString}} eaten',
+                  { energyUnitString: getEnergyUnitString(energyUnit) }
+                )}
               </div>
             </div>
 
@@ -408,8 +409,11 @@ const DailyProgress = ({ selectedDate }: { selectedDate: string }) => {
                       <span>{display.burnedTotal}</span>
                     </div>
                     <div className="text-xs text-gray-500 whitespace-nowrap">
-                      {getEnergyUnitString(energyUnit)}{' '}
-                      {t('exercise.dailyProgress.burned', 'burned')}
+                      {t(
+                        'exercise.dailyProgress.burned2',
+                        '{{energyUnitString}} burned',
+                        { energyUnitString: getEnergyUnitString(energyUnit) }
+                      )}
                     </div>
                   </div>
                 </TooltipTrigger>
@@ -461,19 +465,20 @@ const DailyProgress = ({ selectedDate }: { selectedDate: string }) => {
                     </p>
                   )}
 
-                  {bmr && (
+                  {!!bmr && (
                     <p>
                       {t(
-                        'exercise.dailyProgress.bmrCalories',
-                        'BMR: {{bmr}} {{energyUnit}}',
+                        bmrSource === 'measured'
+                          ? 'exercise.dailyProgress.bmrMeasured'
+                          : 'exercise.dailyProgress.bmrAlgorithm',
+                        bmrSource === 'measured'
+                          ? 'BMR: {{bmr}} {{energyUnit}} (Measured)'
+                          : 'BMR: {{bmr}} {{energyUnit}} (Algorithm)',
                         {
                           bmr: display.bmr,
                           energyUnit: getEnergyUnitString(energyUnit),
                         }
                       )}
-                      {bmrSource === 'measured'
-                        ? ` (${t('exercise.dailyProgress.bmrSourceMeasured', 'Measured')})`
-                        : ` (${t('exercise.dailyProgress.bmrSourceAlgorithm', 'Algorithm')})`}
                     </p>
                   )}
 
@@ -506,14 +511,17 @@ const DailyProgress = ({ selectedDate }: { selectedDate: string }) => {
                 </span>
               </div>
               <div className="text-xs dark:text-slate-400 text-gray-500 whitespace-nowrap">
-                {getEnergyUnitString(energyUnit)}{' '}
-                {t('exercise.dailyProgress.goal', 'goal')}
+                {t(
+                  'exercise.dailyProgress.goal2',
+                  '{{energyUnitString}} goal',
+                  { energyUnitString: getEnergyUnitString(energyUnit) }
+                )}
               </div>
             </div>
           </div>
 
           {/* Detailed Burned Breakdown (Visible if data present) */}
-          {(exerciseSource !== 'none' || bmr) && (
+          {!!(exerciseSource !== 'none' || bmr) && (
             <div className="text-center p-2 bg-blue-50 rounded-lg space-y-1">
               <div className="text-sm font-medium text-blue-700">
                 {t(
@@ -563,19 +571,20 @@ const DailyProgress = ({ selectedDate }: { selectedDate: string }) => {
                 </div>
               )}
 
-              {bmr && (
+              {!!bmr && (
                 <div className="text-xs text-blue-600">
                   {t(
-                    'exercise.dailyProgress.bmrCalories',
-                    'BMR: {{bmr}} {{energyUnit}}',
+                    bmrSource === 'measured'
+                      ? 'exercise.dailyProgress.bmrMeasured'
+                      : 'exercise.dailyProgress.bmrAlgorithm',
+                    bmrSource === 'measured'
+                      ? 'BMR: {{bmr}} {{energyUnit}} (Measured)'
+                      : 'BMR: {{bmr}} {{energyUnit}} (Algorithm)',
                     {
                       bmr: display.bmr,
                       energyUnit: getEnergyUnitString(energyUnit),
                     }
                   )}
-                  {bmrSource === 'measured'
-                    ? ` (${t('exercise.dailyProgress.bmrSourceMeasured', 'Measured')})`
-                    : ` (${t('exercise.dailyProgress.bmrSourceAlgorithm', 'Algorithm')})`}
                 </div>
               )}
             </div>
@@ -669,8 +678,9 @@ const DailyProgress = ({ selectedDate }: { selectedDate: string }) => {
                     {t('exercise.dailyProgress.dataPoints', 'Data Points')}
                   </span>
                   <span className="font-semibold text-gray-800 dark:text-slate-200">
-                    {adaptiveTdeeData.daysOfData || 0}{' '}
-                    {t('exercise.dailyProgress.days', 'days')}
+                    {t('exercise.dailyProgress.days2', '{{daysOfData}} days', {
+                      daysOfData: adaptiveTdeeData.daysOfData || 0,
+                    })}
                   </span>
                 </div>
               </div>
@@ -800,6 +810,7 @@ const DailyProgress = ({ selectedDate }: { selectedDate: string }) => {
           {/* Calorie Math Breakdown Dropdown */}
           <div className="pt-3 border-t border-border/40 space-y-2.5">
             <CalorieTargetBreakdown
+              adaptiveActivitySeparate={adaptiveActivitySeparate}
               asDialog
               previewResult={previewResult}
               adaptiveTdeeData={adaptiveTdeeData}
@@ -816,6 +827,7 @@ const DailyProgress = ({ selectedDate }: { selectedDate: string }) => {
               goalMode={goalMode}
               goalModeCalculationMethod={goalModeCalculationMethod}
               goalModeCustomPercentage={goalModeCustomPercentage}
+              goalModeWeeklyChangeKg={goalModeWeeklyChangeKg}
               calorieGoalAdjustmentMode={calorieGoalAdjustmentMode}
               rawManualGoal={rawManualGoal}
               adjustedManualGoal={adjustedManualGoal}

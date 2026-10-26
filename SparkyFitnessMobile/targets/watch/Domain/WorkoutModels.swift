@@ -205,6 +205,17 @@ struct WorkoutSummary: Equatable {
     var sessionId: String? = nil
 }
 
+/// A change the wearer makes to the running workout from the wrist. The phone
+/// owns the workout, so each one is a request it applies and answers with the
+/// updated plan.
+enum WorkoutEditAction: Equatable {
+    case addSet(exerciseEntryId: String)
+    case deleteSet(setId: String)
+    case setSetType(setId: String, type: String)
+    case addExercise(exerciseId: String)
+    case deleteExercise(exerciseEntryId: String)
+}
+
 /// What the wearer actually did for a set, once they have adjusted the
 /// targets. Absent fields mean "unchanged from target" — the watch only
 /// records an override when a value is edited.
@@ -251,6 +262,8 @@ struct CompletedSet: Codable, Equatable {
     var duration: Int? = nil
     /// A carry's distance in km, entered in metres on the watch.
     var distanceKm: Double? = nil
+    /// Effort (6 to 10) the wearer picked. Nil when skipped.
+    var rpe: Double? = nil
     /// When the wearer tapped the set, not when the phone received it.
     let completedAt: Date
 }
@@ -260,6 +273,41 @@ struct HeartRateSample: Codable, Equatable {
     /// ISO 8601 instant.
     let t: String
     let bpm: Double
+}
+
+/// One zone from a finished HealthKit workout. Codable so a heart-rate batch
+/// can carry it; dictionaries of `Any` cannot.
+struct AppleZoneReading: Codable, Equatable {
+    var index: Int
+    var minimumBpm: Double?
+    var maximumBpm: Double?
+    var seconds: Double
+
+    static func parse(_ rows: [[String: Any]]) -> [AppleZoneReading] {
+        rows.compactMap { row in
+            guard let seconds = Self.number(row["seconds"]) else { return nil }
+            return AppleZoneReading(
+                index: Int(Self.number(row["index"]) ?? 0),
+                minimumBpm: Self.number(row["minimumBpm"]),
+                maximumBpm: Self.number(row["maximumBpm"]),
+                seconds: seconds
+            )
+        }
+    }
+
+    func payload() -> [String: Any] {
+        var row: [String: Any] = ["index": index, "seconds": seconds]
+        if let minimumBpm { row["minimumBpm"] = minimumBpm }
+        if let maximumBpm { row["maximumBpm"] = maximumBpm }
+        return row
+    }
+
+    private static func number(_ value: Any?) -> Double? {
+        if let value = value as? Double { return value }
+        if let value = value as? Int { return Double(value) }
+        if let value = value as? NSNumber { return value.doubleValue }
+        return nil
+    }
 }
 
 /// A batch of heart-rate samples for one exercise, tagged with whichever
@@ -286,6 +334,9 @@ struct HeartRateBatch: Codable, Equatable {
     /// between its sets. Sent when the exercise is left and again at the end.
     /// Cumulative across return visits. Nil on a batch that is only samples.
     let durationMinutes: Double?
+    /// Apple's time-in-zone for the whole workout. Only the batch sent after
+    /// HealthKit finishes the workout carries it. Nil on every other batch.
+    var appleZones: [AppleZoneReading]? = nil
 }
 
 /// The wearer ended the workout on the watch. Carries no data of its own —

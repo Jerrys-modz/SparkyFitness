@@ -1,4 +1,5 @@
 import {
+  summarizeWorkoutEffort,
   summarizeWorkoutHeartRate,
   CATEGORY_ICON_MAP,
   getWorkoutIcon,
@@ -19,6 +20,7 @@ import {
   buildPresetUpdateExercises,
   buildSessionExercisesPayload,
   buildSingleExerciseStartPayload,
+  captureResumedDurations,
   draftExerciseToCardExercise,
   presetExerciseToCardExercise,
   DEFAULT_REST_SEC,
@@ -93,6 +95,25 @@ type IndividualSession = Extract<
   { type: 'individual' }
 >;
 type PresetSession = Extract<ExerciseSessionResponse, { type: 'preset' }>;
+type PresetExercise = PresetSession['exercises'][number];
+
+const presetExercise = (
+  overrides: Partial<PresetExercise> &
+    Pick<PresetExercise, 'exercise_id' | 'calories_burned'>
+): PresetExercise => ({
+  id: overrides.id ?? overrides.exercise_id ?? 'entry',
+  duration_minutes: 0,
+  entry_date: '2026-03-20',
+  notes: null,
+  distance: null,
+  avg_heart_rate: null,
+  source: null,
+  sets: [],
+  exercise_snapshot: null,
+  activity_details: [],
+  superset_group: null,
+  ...overrides,
+});
 
 /** Format a number the same way the source does (runtime-locale toLocaleString). */
 const fmt = (n: number) => n.toLocaleString();
@@ -177,6 +198,29 @@ describe('workoutSession', () => {
         },
       });
       expect(getWorkoutIcon(session)).toBe('exercise-swimming');
+    });
+
+    it('gives the jump rope icon only to rope skipping, not to jump squats or battle ropes', () => {
+      const named = (name: string) =>
+        makeIndividual({
+          name,
+          exercise_snapshot: {
+            id: 'ex-1',
+            name,
+            category: 'Cardio',
+            calories_per_hour: 500,
+            source: 'system',
+          },
+        });
+      expect(getWorkoutIcon(named('Jump Rope'))).toBe('exercise-jumprope');
+      expect(getWorkoutIcon(named('Skipping rope'))).toBe('exercise-jumprope');
+      expect(getWorkoutIcon(named('Jump Squat'))).not.toBe('exercise-jumprope');
+      expect(getWorkoutIcon(named('Jumping Jacks'))).not.toBe(
+        'exercise-jumprope'
+      );
+      expect(getWorkoutIcon(named('Battle Ropes'))).not.toBe(
+        'exercise-jumprope'
+      );
     });
 
     it('uses category match for non-Cardio categories', () => {
@@ -473,6 +517,30 @@ describe('workoutSession', () => {
   });
 
   describe('getSessionCalories', () => {
+    it('counts calories_applied instead of calories_burned, including 0', () => {
+      expect(
+        getSessionCalories(
+          makeIndividual({ calories_burned: 425, calories_applied: 0 })
+        )
+      ).toBe(0);
+      const preset = makePreset({
+        exercises: [
+          presetExercise({
+            exercise_id: 'ex-1',
+            calories_burned: 475,
+            calories_applied: 100,
+          }),
+          presetExercise({
+            id: 'entry-2',
+            exercise_id: 'ex-2',
+            calories_burned: 50,
+            calories_applied: null,
+          }),
+        ],
+      });
+      expect(getSessionCalories(preset)).toBe(150);
+    });
+
     it('sums exercise calories for preset sessions', () => {
       const session = makePreset({
         exercises: [
@@ -2346,7 +2414,7 @@ describe('workoutSession', () => {
       const startedAt = Date.UTC(2026, 2, 20, 10, 0, 0);
       const min = (n: number) => startedAt + n * 60_000;
 
-      it('splits start→last-completion across exercises by completed-set count', () => {
+      it('gives each exercise the time up to its own completed sets', () => {
         const session = makePreset({
           exercises: [
             makeExercise({
@@ -2368,8 +2436,83 @@ describe('workoutSession', () => {
           {},
           startedAt
         );
-        expect(payload[0].duration_minutes).toBe(20); // 30 × 2/3
-        expect(payload[1].duration_minutes).toBe(10); // 30 × 1/3
+        expect(payload[0].duration_minutes).toBe(12); // start → 12 min
+        expect(payload[1].duration_minutes).toBe(18); // 12 → 30 min
+      });
+
+      it('splits alternating superset sets by their own gaps', () => {
+        const session = makePreset({
+          exercises: [
+            makeExercise({
+              superset_group: 1,
+              sets: [makeSet({ id: 101 }), makeSet({ id: 102, set_number: 2 })],
+            }),
+            makeExercise({
+              id: ENTRY_B,
+              exercise_id: EX_2,
+              superset_group: 1,
+              sets: [makeSet({ id: 201 }), makeSet({ id: 202, set_number: 2 })],
+            }),
+          ],
+        });
+
+        const completed = {
+          '101': min(3),
+          '201': min(5),
+          '102': min(8),
+          '202': min(11),
+        };
+        const payload = buildSessionExercisesPayload(
+          session,
+          completed,
+          {},
+          startedAt
+        );
+        expect(payload[0].duration_minutes).toBe(6); // 0→3 + 5→8
+        expect(payload[1].duration_minutes).toBe(5); // 3→5 + 8→11
+      });
+
+      it('stamps entry_time with the local start of each exercise', () => {
+        const localStart = new Date(2026, 2, 20, 10, 0, 0).getTime();
+        const at = (n: number) => localStart + n * 60_000;
+        const session = makePreset({
+          exercises: [
+            makeExercise({
+              sets: [makeSet({ id: 101 }), makeSet({ id: 102, set_number: 2 })],
+            }),
+            makeExercise({
+              id: ENTRY_B,
+              exercise_id: EX_2,
+              sets: [makeSet({ id: 201 })],
+            }),
+            makeExercise({
+              id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+              sets: [makeSet({ id: 301 })],
+            }),
+          ],
+        });
+        const payload = buildSessionExercisesPayload(
+          session,
+          { '101': at(4), '102': at(12), '201': at(19) },
+          {},
+          localStart
+        );
+        expect(payload[0].entry_time).toBe('10:00');
+        expect(payload[1].entry_time).toBe('10:12');
+        // Nothing completed yet: omitted so the server keeps its value.
+        expect('entry_time' in payload[2]).toBe(false);
+      });
+
+      it('omits entry_time without a workout start', () => {
+        const session = makePreset({
+          exercises: [makeExercise({ sets: [makeSet({ id: 101 })] })],
+        });
+        const payload = buildSessionExercisesPayload(
+          session,
+          { '101': min(10) },
+          {}
+        );
+        expect('entry_time' in payload[0]).toBe(false);
       });
 
       it('gives an exercise with no completed sets zero duration', () => {
@@ -2422,6 +2565,104 @@ describe('workoutSession', () => {
           startedAt
         );
         expect(payload[0].duration_minutes).toBe(25);
+      });
+
+      describe('resumed entries with completions on both sides of the start', () => {
+        const resumedSession = (storedMinutes: number) =>
+          makePreset({
+            exercises: [
+              makeExercise({
+                duration_minutes: storedMinutes,
+                sets: [
+                  makeSet({ id: 101 }),
+                  makeSet({ id: 102, set_number: 2 }),
+                ],
+              }),
+            ],
+          });
+        const completed = { '101': startedAt - 10 * 60_000, '102': min(5) };
+
+        it('adds the time after the start to the captured duration', () => {
+          const payload = buildSessionExercisesPayload(
+            resumedSession(20),
+            completed,
+            {},
+            startedAt,
+            captureResumedDurations(resumedSession(20), completed, startedAt)
+          );
+          expect(payload[0].duration_minutes).toBe(25);
+          // The entry started before this run; its stored time stays.
+          expect('entry_time' in payload[0]).toBe(false);
+        });
+
+        it('does not add this run twice once the session holds the saved value', () => {
+          // After an autosave the session is the server response, so its
+          // duration already includes the 5 min after the start.
+          const payload = buildSessionExercisesPayload(
+            resumedSession(25),
+            completed,
+            {},
+            startedAt,
+            { [ENTRY_A]: 20 }
+          );
+          expect(payload[0].duration_minutes).toBe(25);
+        });
+
+        it('drops the captured duration once the earlier completions are cleared', () => {
+          const payload = buildSessionExercisesPayload(
+            resumedSession(25),
+            { '102': min(5) },
+            {},
+            startedAt,
+            { [ENTRY_A]: 20 }
+          );
+          expect(payload[0].duration_minutes).toBe(5);
+          expect('entry_time' in payload[0]).toBe(true);
+        });
+      });
+
+      describe('captureResumedDurations', () => {
+        it('captures stored durations of strength entries completed before the start', () => {
+          const session = makePreset({
+            exercises: [
+              makeExercise({
+                duration_minutes: 20,
+                sets: [makeSet({ id: 101 })],
+              }),
+              makeExercise({
+                id: ENTRY_B,
+                exercise_id: EX_2,
+                duration_minutes: null,
+                sets: [makeSet({ id: 201 })],
+              }),
+              makeExercise({
+                id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+                duration_minutes: 7,
+                sets: [makeSet({ id: 301 })],
+              }),
+              makeExercise({
+                id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+                duration_minutes: 12,
+                exercise_snapshot: {
+                  modality: 'duration_distance',
+                } as SessionExercise['exercise_snapshot'],
+                sets: [makeSet({ id: 401 })],
+              }),
+            ],
+          });
+          expect(
+            captureResumedDurations(
+              session,
+              {
+                '101': startedAt - 60_000,
+                '201': startedAt,
+                '301': min(1),
+                '401': startedAt - 60_000,
+              },
+              startedAt
+            )
+          ).toEqual({ [ENTRY_A]: 20, [ENTRY_B]: 0 });
+        });
       });
 
       it('round-trips existing durations when startedAt is not provided', () => {
@@ -6572,5 +6813,29 @@ describe('wodScoreFormat', () => {
     expect(wodScoreFormat({ workout_format: 'amrap' })).toBe('amrap');
     expect(wodScoreFormat({ format: 'for_time' })).toBe('for_time');
     expect(wodScoreFormat({})).toBeNull();
+  });
+});
+
+describe('summarizeWorkoutEffort', () => {
+  it('is null when no exercise carries a rating', () => {
+    expect(summarizeWorkoutEffort([])).toBeNull();
+    expect(summarizeWorkoutEffort([{ workout_effort: null }, {}])).toBeNull();
+  });
+
+  it('reads the rating from any exercise of the session', () => {
+    expect(
+      summarizeWorkoutEffort([{ workout_effort: null }, { workout_effort: 8 }])
+    ).toBe(8);
+  });
+
+  it('takes the highest if they ever differ, and ignores values outside 1-10', () => {
+    expect(
+      summarizeWorkoutEffort([
+        { workout_effort: 6 },
+        { workout_effort: 9 },
+        { workout_effort: 0 },
+        { workout_effort: 14 },
+      ])
+    ).toBe(9);
   });
 });
