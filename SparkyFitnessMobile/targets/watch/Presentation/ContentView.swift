@@ -223,10 +223,10 @@ struct FirstRunEntryView: View {
         ScrollView {
             VStack(spacing: 6) {
                 Text(String(localized: "watch.checkin.first.title", defaultValue: "First check-in"))
-                    .font(.caption)
+                    .font(.footnote)
                     .foregroundStyle(.secondary)
                 Text(String(localized: "watch.checkin.first.body", defaultValue: "Type today's numbers once — after this the Digital Crown starts from your last value."))
-                    .font(.caption2)
+                    .font(.footnote)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
 

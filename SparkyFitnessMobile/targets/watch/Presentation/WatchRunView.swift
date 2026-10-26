@@ -179,7 +179,7 @@ struct WatchRunView: View {
                 VStack(alignment: .leading, spacing: 0) {
                     Text(String(localized: "watch.run.paceAlert", defaultValue: "Pace alert"))
                     Text(band.map(bandText) ?? String(localized: "watch.run.alertPerStep", defaultValue: "Each step has its own"))
-                        .font(.caption2)
+                        .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
             }
@@ -187,7 +187,7 @@ struct WatchRunView: View {
             VStack(alignment: .leading, spacing: 0) {
                 Text(String(localized: "watch.run.paceAlert", defaultValue: "Pace alert"))
                 Text(String(localized: "watch.run.paceAlertSetup", defaultValue: "Set a pace range on your iPhone"))
-                    .font(.caption2)
+                    .font(.footnote)
                     .foregroundStyle(.secondary)
             }
         }
@@ -206,7 +206,7 @@ struct WatchRunView: View {
                 VStack(alignment: .leading, spacing: 0) {
                     Text(String(localized: "watch.run.heartRateAlert", defaultValue: "Heart rate alert"))
                     Text(band.map { "\(Int($0.minBpm))–\(Int($0.maxBpm)) bpm" } ?? String(localized: "watch.run.alertPerStep", defaultValue: "Each step has its own"))
-                        .font(.caption2)
+                        .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
             }
@@ -214,7 +214,7 @@ struct WatchRunView: View {
             VStack(alignment: .leading, spacing: 0) {
                 Text(String(localized: "watch.run.heartRateAlert", defaultValue: "Heart rate alert"))
                 Text(String(localized: "watch.run.heartRateAlertSetup", defaultValue: "Set a heart rate range on your iPhone"))
-                    .font(.caption2)
+                    .font(.footnote)
                     .foregroundStyle(.secondary)
             }
         }
@@ -262,7 +262,7 @@ struct WatchRunView: View {
                         }
                     }
                     Text(String(localized: "watch.run.sentToPhone", defaultValue: "Sent to your iPhone. It shows up in SparkyFitness once the phone can reach the server."))
-                        .font(.caption2)
+                        .font(.footnote)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                         .padding(.top, 2)
@@ -284,9 +284,9 @@ struct WatchRunView: View {
 
     private func row(_ title: String, _ value: String) -> some View {
         HStack {
-            Text(title).font(.caption).foregroundStyle(.secondary)
+            Text(title).font(.body).foregroundStyle(.secondary)
             Spacer()
-            Text(value).font(.caption.weight(.semibold)).monospacedDigit()
+            Text(value).font(.body.weight(.semibold)).monospacedDigit()
         }
     }
 }
@@ -318,7 +318,7 @@ private struct TreadmillDistanceView: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
                 Text(treadmillMessage)
-                    .font(.caption2)
+                    .font(.footnote)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                 Button {

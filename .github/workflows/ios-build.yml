@@ -185,6 +185,7 @@ jobs:
 
             shoot workout-active active workout
             shoot workout-resting resting workout
+            shoot workout-metrics active workout metrics
             shoot workout-idle none workout
             shoot workout-exercises active workout exercises
             shoot workout-set-options active workout setoptions
@@ -196,6 +197,9 @@ jobs:
             shoot workout-stopwatch stopwatch workout
             shoot workout-interval interval workout
             shoot goals none goals
+            shoot water none water
+            shoot medications none medications
+            shoot medications-dose none medications dose
           done <<< "$DEVICES"
 
           ls -la screenshots

@@ -176,7 +176,7 @@ private struct EditPage<Content: View>: View {
     var body: some View {
         VStack(spacing: 6) {
             Text(title)
-                .font(.caption2)
+                .font(.footnote)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
             content

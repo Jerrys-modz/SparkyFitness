@@ -992,6 +992,15 @@ final class WorkoutSessionStore: ObservableObject {
         moveCursor(to: currentStepIndex + 1)
     }
 
+    /// Moves the cursor to one set, picked from the set screen's dots.
+    func goToStep(setId: String) {
+        guard let index = steps.firstIndex(where: { $0.plannedSet.setId == setId }),
+              index != currentStepIndex
+        else { return }
+        stopRestTimer()
+        moveCursor(to: index)
+    }
+
     func goToPreviousStep() {
         guard currentStepIndex > 0 else { return }
         stopRestTimer()
