@@ -42,7 +42,11 @@ export const MCP_TOOL_READ_ACCESS: Readonly<Record<string, ToolReadAccess>> = {
     'propose_plan_changes',
   ],
   sparky_manage_run_program: ['get_run_program', 'get_fitness_tests'],
-  sparky_manage_workout_splits: ['list_workout_splits', 'get_workout_split'],
+  sparky_manage_workout_splits: [
+    'list_workout_splits',
+    'get_workout_split',
+    'recommend_workout_split',
+  ],
   // food
   sparky_manage_food: [
     'search_food',

@@ -20,7 +20,19 @@
   "Bent_Over_Two-Dumbbell_Row": {
     "equipment": "dumbbell"
   },
+  "Butterfly": {
+    "equipment": "machine"
+  },
   "Cable_Crossover": {
+    "equipment": "cable"
+  },
+  "Cable_Crunch": {
+    "equipment": "cable"
+  },
+  "Cable_Hammer_Curls_-_Rope_Attachment": {
+    "equipment": "cable"
+  },
+  "Cable_Seated_Lateral_Raise": {
     "equipment": "cable"
   },
   "Chin-Up": {
@@ -28,6 +40,12 @@
   },
   "Close-Grip_Barbell_Bench_Press": {
     "equipment": "barbell"
+  },
+  "Concentration_Curls": {
+    "equipment": "dumbbell"
+  },
+  "Crunches": {
+    "equipment": "body only"
   },
   "Dumbbell_Bench_Press": {
     "equipment": "dumbbell"
@@ -59,7 +77,13 @@
   "Front_Barbell_Squat": {
     "equipment": "barbell"
   },
+  "Front_Dumbbell_Raise": {
+    "equipment": "dumbbell"
+  },
   "Hammer_Curls": {
+    "equipment": "dumbbell"
+  },
+  "Incline_Dumbbell_Flyes": {
     "equipment": "dumbbell"
   },
   "Incline_Dumbbell_Press": {
@@ -86,14 +110,23 @@
   "Pushups": {
     "equipment": "body only"
   },
+  "Reverse_Crunch": {
+    "equipment": "body only"
+  },
   "Reverse_Flyes": {
     "equipment": "dumbbell"
+  },
+  "Reverse_Machine_Flyes": {
+    "equipment": "machine"
   },
   "Romanian_Deadlift": {
     "equipment": "barbell"
   },
   "Seated_Cable_Rows": {
     "equipment": "cable"
+  },
+  "Seated_Leg_Curl": {
+    "equipment": "machine"
   },
   "Side_Lateral_Raise": {
     "equipment": "dumbbell"
@@ -126,6 +159,9 @@
     "equipment": "dumbbell"
   },
   "Triceps_Pushdown": {
+    "equipment": "cable"
+  },
+  "Triceps_Pushdown_-_Rope_Attachment": {
     "equipment": "cable"
   },
   "Wide-Grip_Lat_Pulldown": {

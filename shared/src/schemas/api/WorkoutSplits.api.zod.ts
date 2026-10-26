@@ -1,4 +1,28 @@
 import { z } from 'zod';
+import { WORKOUT_SPLIT_VENUES } from '../../utils/workoutSplits.ts';
+import {
+  TRAINER_FOCUSES,
+  TRAINER_SESSION_MINUTES,
+} from '../../utils/workoutTrainer.ts';
+
+/**
+ * How the program finder fitted a program to the person. The server rebuilds
+ * the adjusted program from these answers (`applyTrainerOptions`), so a client
+ * never sends an exercise list.
+ */
+export const trainerOptionsSchema = z.object({
+  /** Where the person trains; the program must fit it. */
+  venue: z.enum(WORKOUT_SPLIT_VENUES),
+  /** Minutes a session should take; the program is written for 60. */
+  sessionMinutes: z
+    .union([
+      z.literal(TRAINER_SESSION_MINUTES[0]),
+      z.literal(TRAINER_SESSION_MINUTES[1]),
+      z.literal(TRAINER_SESSION_MINUTES[2]),
+    ])
+    .optional(),
+  focus: z.enum(TRAINER_FOCUSES).optional(),
+});
 
 /**
  * Importing a built-in workout split (`WORKOUT_SPLITS`) makes the person's own
@@ -13,6 +37,8 @@ export const importWorkoutSplitRequestSchema = z.object({
   sessionNames: z.record(z.string(), z.string().trim().min(1).max(100)),
   /** Make the plan the active one. Off keeps the person's current plan. */
   activate: z.boolean().default(false),
+  /** Fit the program to the person, as the program finder shows it. */
+  trainer: trainerOptionsSchema.optional(),
 });
 
 export type ImportWorkoutSplitRequest = z.infer<

@@ -1,6 +1,8 @@
 import { tool } from 'ai';
 import {
+  applyTrainerOptions,
   getWorkoutSplit,
+  recommendWorkoutSplits,
   splitFitsVenue,
   WORKOUT_SPLITS,
   workoutSplitExerciseIds,
@@ -97,9 +99,10 @@ This tool takes a FLAT object with an "action" field. Do NOT nest fields under t
 Actions:
 - action: 'list_workout_splits' (fields: venue? "home"|"garage"|"gym" (where the user trains; also lists the smaller venues), level? "beginner"|"intermediate", goal? "muscle"|"strength", days_per_week?) — lists the programs
 - action: 'get_workout_split' (fields: split_id) — the sessions and exercises of one program
-- action: 'import_workout_split' (fields: split_id, plan_name?, activate? (default false), confirmed) — adds the program for the user
+- action: 'recommend_workout_split' (fields: goal "muscle"|"strength", level "beginner"|"intermediate", days_per_week 3-6, venue "home"|"garage"|"gym") — the closest programs, best first, saying where the days, goal or level differ
+- action: 'import_workout_split' (fields: split_id, plan_name?, activate? (default false), session_minutes? 40|60|80 (60 is as written), focus? "core"|"chest"|"arms"|"shoulders"|"legs", venue? (where the user trains, with session_minutes or focus), confirmed) — adds the program for the user, fitted to their session length and focus muscle if given
 
-Adding needs confirmed=true after the user has agreed. Ask where they train and how many days a week first, recommend a fitting program, and remind them to check with a doctor or healthcare professional before starting a new workout program, especially with a medical condition or an injury.`,
+Adding needs confirmed=true after the user has agreed. Ask their goal, experience, where they train and how many days a week first, recommend a fitting program with recommend_workout_split, and remind them to check with a doctor or healthcare professional before starting a new workout program, especially with a medical condition or an injury.`,
       inputSchema: manageWorkoutSplitsInput,
       execute: async (rawArgs) => {
         const normalized = normalizeActionArgs(
@@ -132,6 +135,28 @@ Adding needs confirmed=true after the user has agreed. Ask where they train and 
             ].join('\n');
           }
 
+          if (args.action === 'recommend_workout_split') {
+            const recs = recommendWorkoutSplits({
+              goal: args.goal,
+              level: args.level,
+              daysPerWeek: args.days_per_week,
+              venue: args.venue,
+            });
+            return [
+              `# Closest programs for ${args.level} / ${args.goal === 'muscle' ? 'build muscle' : 'gain strength'} / ${args.days_per_week} days a week / ${args.venue}`,
+              ...recs.map((rec, i) => {
+                const notes = [
+                  rec.daysDifference !== 0
+                    ? `${rec.split.daysPerWeek} days a week, not ${args.days_per_week}`
+                    : null,
+                  rec.matchesGoal ? null : 'a different goal',
+                  rec.matchesLevel ? null : `a ${rec.split.level} program`,
+                ].filter(Boolean);
+                return `${i + 1}. ${summariseSplit(rec.split).slice(2)}${notes.length ? ` — differs: ${notes.join(', ')}` : ' — matches everything asked'}`;
+              }),
+            ].join('\n');
+          }
+
           const split = getWorkoutSplit(args.split_id);
           if (!split) {
             return ERRORS.NOT_FOUND('workout program', args.split_id);
@@ -143,9 +168,26 @@ Adding needs confirmed=true after the user has agreed. Ask where they train and 
 
           const planName = args.plan_name ?? humanize(split.id);
           const activate = args.activate ?? false;
+          const trainer =
+            args.session_minutes !== undefined || args.focus !== undefined
+              ? {
+                  venue: args.venue ?? split.venue,
+                  sessionMinutes: args.session_minutes,
+                  focus: args.focus,
+                }
+              : undefined;
+          if (trainer && !splitFitsVenue(split, trainer.venue)) {
+            return ERRORS.VALIDATION(
+              `${humanize(split.id)} needs more equipment than "${trainer.venue}" has. Pick a program that fits where the user trains.`
+            );
+          }
+          const program = trainer ? applyTrainerOptions(split, trainer) : split;
           if (args.confirmed !== true) {
+            const fitted = trainer
+              ? `, fitted to ${trainer.sessionMinutes ?? 60}-minute sessions${trainer.focus ? ` with extra ${trainer.focus} work` : ''}`
+              : '';
             return confirmFirst(
-              `This will add ${workoutSplitExerciseIds(split).length} exercises to the user's library (the ones they do not have yet), create ${split.sessions.length} workout presets and a sequential workout plan named "${planName}"${activate ? ', and make it their active plan' : ', without making it their active plan'}. Remind the user to check with a doctor or healthcare professional before starting a new workout program, especially with a medical condition or an injury.`
+              `This will add ${workoutSplitExerciseIds(program).length} exercises to the user's library (the ones they do not have yet), create ${program.sessions.length} workout presets and a sequential workout plan named "${planName}"${fitted}${activate ? ', and make it their active plan' : ', without making it their active plan'}. Remind the user to check with a doctor or healthcare professional before starting a new workout program, especially with a medical condition or an injury.`
             );
           }
           const result = await importWorkoutSplit(userId, split.id, {
@@ -157,6 +199,7 @@ Adding needs confirmed=true after the user has agreed. Ask where they train and 
               ])
             ),
             activate,
+            trainer,
           });
           return formatConfirmation(
             `Added "${planName}": ${split.sessions.length} presets and a sequential workout plan (id ${result.planId})${activate ? ', now the active plan' : ''}. ${result.addedExerciseCount} exercises were added to the library. The user sets their starting weights as they log their first workout.`

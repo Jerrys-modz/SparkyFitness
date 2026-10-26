@@ -1,5 +1,7 @@
 import {
+  applyTrainerOptions,
   getWorkoutSplit,
+  splitFitsVenue,
   type ImportWorkoutSplitRequest,
   type ImportWorkoutSplitResponse,
   type WorkoutSplit,
@@ -134,8 +136,17 @@ export async function importWorkoutSplit(
   splitId: string,
   request: ImportWorkoutSplitRequest
 ): Promise<ImportWorkoutSplitResponse> {
-  const split = getWorkoutSplit(splitId);
-  if (!split) throw new UnknownWorkoutSplitError(splitId);
+  const catalogSplit = getWorkoutSplit(splitId);
+  if (!catalogSplit) throw new UnknownWorkoutSplitError(splitId);
+  if (request.trainer && !splitFitsVenue(catalogSplit, request.trainer.venue)) {
+    throw new ValidationError(
+      'This program needs more equipment than where the person trains has.'
+    );
+  }
+  // Rebuilt here from the answers, so a client cannot send its own exercises.
+  const split = request.trainer
+    ? applyTrainerOptions(catalogSplit, request.trainer)
+    : catalogSplit;
   assertSessionNames(split, request.sessionNames);
 
   const { libraryIds, addedCount } = await ensureLibraryExercises(

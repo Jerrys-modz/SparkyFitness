@@ -1,5 +1,8 @@
 import { z } from 'zod';
 import {
+  TRAINER_DAYS_PER_WEEK,
+  TRAINER_FOCUSES,
+  TRAINER_SESSION_MINUTES,
   WORKOUT_SPLIT_GOALS,
   WORKOUT_SPLIT_VENUES,
   WORKOUT_SPLITS,
@@ -8,6 +11,7 @@ import {
 export const WORKOUT_SPLIT_ACTIONS = [
   'list_workout_splits',
   'get_workout_split',
+  'recommend_workout_split',
   'import_workout_split',
 ] as const;
 
@@ -36,6 +40,23 @@ export const manageWorkoutSplitsSchema = z.discriminatedUnion('action', [
     .strict(),
   z
     .object({
+      action: z.literal('recommend_workout_split'),
+      goal: z
+        .enum(WORKOUT_SPLIT_GOALS)
+        .describe('build muscle or gain strength'),
+      level: z
+        .enum(['beginner', 'intermediate'])
+        .describe('beginner is up to about a year of training'),
+      days_per_week: z.coerce
+        .number()
+        .int()
+        .min(TRAINER_DAYS_PER_WEEK[0])
+        .max(TRAINER_DAYS_PER_WEEK[TRAINER_DAYS_PER_WEEK.length - 1]),
+      venue: z.enum(WORKOUT_SPLIT_VENUES),
+    })
+    .strict(),
+  z
+    .object({
       action: z.literal('get_workout_split'),
       split_id: splitIdSchema,
     })
@@ -51,6 +72,31 @@ export const manageWorkoutSplitsSchema = z.discriminatedUnion('action', [
         .max(120)
         .optional()
         .describe('Name for the new plan. Defaults to the program name.'),
+      venue: z
+        .enum(WORKOUT_SPLIT_VENUES)
+        .optional()
+        .describe(
+          'Where the user trains; needed with session_minutes or focus so added exercises fit their equipment. Defaults to what the program needs.'
+        ),
+      session_minutes: z.coerce
+        .number()
+        .pipe(
+          z.union([
+            z.literal(TRAINER_SESSION_MINUTES[0]),
+            z.literal(TRAINER_SESSION_MINUTES[1]),
+            z.literal(TRAINER_SESSION_MINUTES[2]),
+          ])
+        )
+        .optional()
+        .describe(
+          'How long a session should take: 40, 60 (as written) or 80 minutes. Shortens or lengthens every session.'
+        ),
+      focus: z
+        .enum(TRAINER_FOCUSES)
+        .optional()
+        .describe(
+          'A muscle to give extra attention: one added exercise in each session that trains it.'
+        ),
       activate: z
         .boolean()
         .optional()
@@ -80,6 +126,8 @@ export const manageWorkoutSplitsInput = z.object({
   goal: z.string().optional(),
   days_per_week: z.union([z.string(), z.number()]).optional(),
   split_id: z.string().max(50).optional(),
+  session_minutes: z.union([z.string(), z.number()]).optional(),
+  focus: z.string().optional(),
   plan_name: z.string().max(120).optional(),
   activate: z.boolean().optional(),
   confirmed: z.boolean().optional(),
