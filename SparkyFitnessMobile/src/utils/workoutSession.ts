@@ -1061,7 +1061,7 @@ export function describeActiveSet(
 
 /**
  * The exercises after the one holding `activeSetId` that still have a set to
- * do, in workout order: what "Do now" offers and what the Now card names as
+ * do, outside its superset, in workout order: what "Do now" offers and what the Now card names as
  * up next. Empty when there is no active set.
  */
 export function upcomingExercises(
@@ -1074,9 +1074,16 @@ export function upcomingExercises(
     e.sets.some((s) => String(s.id) === activeSetId)
   );
   if (current < 0) return [];
+  // The current exercise's superset partners are not offered: they move with
+  // it as one block, so "do now" on one of them would do nothing.
+  const group = session.exercises[current].superset_group;
   return session.exercises
     .slice(current + 1)
-    .filter((e) => e.sets.some((s) => completedSetIds[String(s.id)] == null));
+    .filter(
+      (e) =>
+        (group == null || e.superset_group !== group) &&
+        e.sets.some((s) => completedSetIds[String(s.id)] == null)
+    );
 }
 
 /**
