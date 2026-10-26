@@ -21,7 +21,7 @@ const isAuthzError = (error: unknown): boolean => {
   return error.message.includes('403') || error.message.includes('404');
 };
 
-function invalidateWorkoutPresetCaches(qc: QueryClient) {
+export function invalidateWorkoutPresetCaches(qc: QueryClient) {
   void qc.invalidateQueries({ queryKey: workoutPresetsQueryKey });
   void qc.invalidateQueries({ queryKey: ['workoutPresets', 'count'] });
   void qc.resetQueries({ queryKey: ['workoutPresetsLibraryList'] });
