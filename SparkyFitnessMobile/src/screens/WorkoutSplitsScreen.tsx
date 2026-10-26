@@ -10,10 +10,13 @@ import {
   type WorkoutSplit,
   type WorkoutSplitLevel,
 } from '@workspace/shared';
+import { useActiveWorkoutBarPadding } from '../components/ActiveWorkoutBar';
 import SegmentedControl, { type Segment } from '../components/SegmentedControl';
 import Button from '../components/ui/Button';
 import WorkoutSplitCard from '../components/WorkoutSplitCard';
+import { useNavigationActionGuard } from '../hooks/useNavigationActionGuard';
 import { useScreenHeader } from '../hooks/useScreenHeader';
+import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import type { RootStackScreenProps } from '../types/navigation';
 import { goalLabel, levelLabel, venueLabel } from '../utils/workoutSplits';
 
@@ -35,6 +38,9 @@ const DAYS_OPTIONS = [
 const WorkoutSplitsScreen: React.FC<Props> = ({ navigation }) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  const usesNativeHeader = useNativeIOSHeadersActive();
+  const activeWorkoutBarPadding = useActiveWorkoutBarPadding('stack');
+  const { runNavigationAction } = useNavigationActionGuard(navigation);
   const [venue, setVenue] = useState<string>(ANY);
   const [level, setLevel] = useState<string>(ANY);
   const [goal, setGoal] = useState<string>(ANY);
@@ -123,15 +129,22 @@ const WorkoutSplitsScreen: React.FC<Props> = ({ navigation }) => {
   );
 
   return (
-    <>
+    <View
+      className="flex-1 bg-background"
+      style={usesNativeHeader ? undefined : { paddingTop: insets.top }}
+    >
       {header}
       <ScrollView
-        className="flex-1 bg-background"
+        className="flex-1"
+        contentInsetAdjustmentBehavior={
+          usesNativeHeader ? 'automatic' : 'never'
+        }
         contentContainerStyle={{
           padding: 16,
-          paddingBottom: insets.bottom + 24,
+          paddingBottom: insets.bottom + 80 + activeWorkoutBarPadding,
         }}
       >
+        {' '}
         <Text className="text-text-secondary text-sm">
           {t('workoutSplits.page.intro', {
             defaultValue:
@@ -141,17 +154,20 @@ const WorkoutSplitsScreen: React.FC<Props> = ({ navigation }) => {
         <View className="mt-3">
           <Button
             variant="outline"
-            onPress={() => navigation.navigate('WorkoutFinder')}
+            onPress={() =>
+              runNavigationAction(() => navigation.navigate('WorkoutFinder'))
+            }
           >
             {t('workoutSplits.page.finder', {
               defaultValue: 'Find my program',
             })}
           </Button>
         </View>
-
         {filters.map((filter) => (
           <View key={filter.id} className="mt-4" testID={`filter-${filter.id}`}>
-            <Text className="text-text-muted text-xs mb-1">{filter.label}</Text>
+            <Text className="text-sm font-medium text-text-secondary mb-1">
+              {filter.label}
+            </Text>
             <SegmentedControl
               segments={filter.segments}
               activeKey={filter.value}
@@ -159,33 +175,36 @@ const WorkoutSplitsScreen: React.FC<Props> = ({ navigation }) => {
             />
           </View>
         ))}
-
-        {visible.length === 0 ? (
-          <Text className="text-text-secondary text-sm mt-6">
-            {t('workoutSplits.page.none', {
-              defaultValue:
-                'No program matches those filters. Try a different one.',
-            })}
-          </Text>
-        ) : (
-          visible.map((split) => (
-            <WorkoutSplitCard
-              key={split.id}
-              split={split}
-              expanded={expandedId === split.id}
-              onToggle={() =>
-                setExpandedId(expandedId === split.id ? null : split.id)
-              }
-              onAdd={() =>
-                navigation.navigate('WorkoutSplitImport', {
-                  splitId: split.id,
-                })
-              }
-            />
-          ))
-        )}
+        <View className="mt-4">
+          {visible.length === 0 ? (
+            <Text className="text-text-secondary text-sm mt-6">
+              {t('workoutSplits.page.none', {
+                defaultValue:
+                  'No program matches those filters. Try a different one.',
+              })}
+            </Text>
+          ) : (
+            visible.map((split) => (
+              <WorkoutSplitCard
+                key={split.id}
+                split={split}
+                expanded={expandedId === split.id}
+                onToggle={() =>
+                  setExpandedId(expandedId === split.id ? null : split.id)
+                }
+                onAdd={() =>
+                  runNavigationAction(() =>
+                    navigation.navigate('WorkoutSplitImport', {
+                      splitId: split.id,
+                    })
+                  )
+                }
+              />
+            ))
+          )}
+        </View>
       </ScrollView>
-    </>
+    </View>
   );
 };
 

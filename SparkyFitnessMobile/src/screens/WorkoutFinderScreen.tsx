@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -17,9 +17,12 @@ import {
   type WorkoutSplitLevel,
   type WorkoutSplitVenue,
 } from '@workspace/shared';
+import { useActiveWorkoutBarPadding } from '../components/ActiveWorkoutBar';
 import SegmentedControl, { type Segment } from '../components/SegmentedControl';
 import WorkoutSplitCard from '../components/WorkoutSplitCard';
+import { useNavigationActionGuard } from '../hooks/useNavigationActionGuard';
 import { useScreenHeader } from '../hooks/useScreenHeader';
+import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import type { RootStackScreenProps } from '../types/navigation';
 import {
   focusLabel,
@@ -41,6 +44,9 @@ const LEVELS: readonly WorkoutSplitLevel[] = ['beginner', 'intermediate'];
 const WorkoutFinderScreen: React.FC<Props> = ({ navigation }) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  const usesNativeHeader = useNativeIOSHeadersActive();
+  const activeWorkoutBarPadding = useActiveWorkoutBarPadding('stack');
+  const { runNavigationAction } = useNavigationActionGuard(navigation);
   const [goal, setGoal] = useState<WorkoutSplitGoal>('muscle');
   const [level, setLevel] = useState<WorkoutSplitLevel>('beginner');
   const [days, setDays] = useState<number>(3);
@@ -181,13 +187,19 @@ const WorkoutFinderScreen: React.FC<Props> = ({ navigation }) => {
     ];
 
   return (
-    <>
+    <View
+      className="flex-1 bg-background"
+      style={usesNativeHeader ? undefined : { paddingTop: insets.top }}
+    >
       {header}
       <ScrollView
-        className="flex-1 bg-background"
+        className="flex-1"
+        contentInsetAdjustmentBehavior={
+          usesNativeHeader ? 'automatic' : 'never'
+        }
         contentContainerStyle={{
           padding: 16,
-          paddingBottom: insets.bottom + 24,
+          paddingBottom: insets.bottom + 80 + activeWorkoutBarPadding,
         }}
       >
         <Text className="text-text-secondary text-sm">
@@ -199,7 +211,9 @@ const WorkoutFinderScreen: React.FC<Props> = ({ navigation }) => {
 
         {rows.map((row) => (
           <View key={row.id} className="mt-4" testID={`finder-${row.id}`}>
-            <Text className="text-text-muted text-xs mb-1">{row.label}</Text>
+            <Text className="text-sm font-medium text-text-secondary mb-1">
+              {row.label}
+            </Text>
             <SegmentedControl
               segments={row.segments}
               activeKey={row.value}
@@ -209,7 +223,7 @@ const WorkoutFinderScreen: React.FC<Props> = ({ navigation }) => {
         ))}
 
         <View className="mt-4" testID="finder-focus">
-          <Text className="text-text-muted text-xs mb-1">
+          <Text className="text-sm font-medium text-text-secondary mb-1">
             {t('workoutSplits.finder.focus', {
               defaultValue: 'Muscle to focus on',
             })}
@@ -218,65 +232,73 @@ const WorkoutFinderScreen: React.FC<Props> = ({ navigation }) => {
             {focusOptions.map((option) => {
               const selected = focus === option.key;
               return (
-                <Pressable
+                <TouchableOpacity
                   key={option.key}
                   onPress={() => setFocus(option.key)}
+                  activeOpacity={0.7}
                   accessibilityRole="button"
                   accessibilityState={{ selected }}
-                  className={`px-3 py-2 rounded-full ${
-                    selected ? 'bg-accent-primary' : 'bg-raised'
+                  className={`px-4 py-2 rounded-full border ${
+                    selected
+                      ? 'bg-accent-primary border-accent-primary'
+                      : 'bg-raised border-border-subtle'
                   }`}
                 >
                   <Text
-                    className={`text-sm ${
-                      selected
-                        ? 'text-white font-semibold'
-                        : 'text-text-primary'
+                    className={`text-sm font-medium ${
+                      selected ? 'text-white' : 'text-text-primary'
                     }`}
+                    numberOfLines={1}
                   >
                     {option.label}
                   </Text>
-                </Pressable>
+                </TouchableOpacity>
               );
             })}
           </View>
         </View>
 
-        {recommendations.map((rec, index) => (
-          <View key={rec.split.id} testID={`finder-result-${index}`}>
-            <WorkoutSplitCard
-              split={rec.split}
-              fitted={applyTrainerOptions(rec.split, {
-                venue,
-                sessionMinutes: minutes,
-                focus: focusValue,
-              })}
-              note={
-                index === 0
-                  ? `${t('workoutSplits.finder.bestMatch', {
-                      defaultValue: 'Best match.',
-                    })} ${noteFor(rec)}`
-                  : noteFor(rec)
-              }
-              expanded={expandedId === rec.split.id}
-              onToggle={() =>
-                setExpandedId(expandedId === rec.split.id ? null : rec.split.id)
-              }
-              onAdd={() =>
-                navigation.navigate('WorkoutSplitImport', {
-                  splitId: rec.split.id,
-                  trainer: {
-                    venue,
-                    sessionMinutes: minutes,
-                    focus: focusValue,
-                  },
-                })
-              }
-            />
-          </View>
-        ))}
+        <View className="mt-4">
+          {recommendations.map((rec, index) => (
+            <View key={rec.split.id} testID={`finder-result-${index}`}>
+              <WorkoutSplitCard
+                split={rec.split}
+                fitted={applyTrainerOptions(rec.split, {
+                  venue,
+                  sessionMinutes: minutes,
+                  focus: focusValue,
+                })}
+                note={
+                  index === 0
+                    ? `${t('workoutSplits.finder.bestMatch', {
+                        defaultValue: 'Best match.',
+                      })} ${noteFor(rec)}`
+                    : noteFor(rec)
+                }
+                expanded={expandedId === rec.split.id}
+                onToggle={() =>
+                  setExpandedId(
+                    expandedId === rec.split.id ? null : rec.split.id
+                  )
+                }
+                onAdd={() =>
+                  runNavigationAction(() =>
+                    navigation.navigate('WorkoutSplitImport', {
+                      splitId: rec.split.id,
+                      trainer: {
+                        venue,
+                        sessionMinutes: minutes,
+                        focus: focusValue,
+                      },
+                    })
+                  )
+                }
+              />
+            </View>
+          ))}
+        </View>
       </ScrollView>
-    </>
+    </View>
   );
 };
 

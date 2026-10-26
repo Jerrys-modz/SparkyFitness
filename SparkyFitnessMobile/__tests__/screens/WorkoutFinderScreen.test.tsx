@@ -16,6 +16,13 @@ const metrics = {
 jest.mock('../../src/hooks/useScreenHeader', () => ({
   useScreenHeader: () => null,
 }));
+jest.mock('../../src/services/nativeTabBarPreference', () => ({
+  useNativeIOSHeadersActive: () => true,
+  useNativeIOSTabsActive: () => false,
+}));
+jest.mock('../../src/components/ActiveWorkoutBar', () => ({
+  useActiveWorkoutBarPadding: () => 0,
+}));
 
 const navigate = jest.fn();
 const props = () =>

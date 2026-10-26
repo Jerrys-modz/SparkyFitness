@@ -5,12 +5,13 @@ import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import { getWorkoutSplit } from '@workspace/shared';
+import { FooterSaveBar } from '../components/FormScreenChrome';
 import FormInput from '../components/FormInput';
 import StatusView from '../components/StatusView';
-import Button from '../components/ui/Button';
 import Switch from '../components/ui/Switch';
 import { useImportWorkoutSplit } from '../hooks/useImportWorkoutSplit';
 import { useScreenHeader } from '../hooks/useScreenHeader';
+import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import type { RootStackScreenProps } from '../types/navigation';
 import {
   sessionName,
@@ -25,6 +26,7 @@ type Props = RootStackScreenProps<'WorkoutSplitImport'>;
 const WorkoutSplitImportScreen: React.FC<Props> = ({ navigation, route }) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  const usesNativeHeader = useNativeIOSHeadersActive();
   const split = getWorkoutSplit(route.params.splitId);
   const { importSplitAsync, isPending } = useImportWorkoutSplit();
   const [planName, setPlanName] = useState(() =>
@@ -44,7 +46,10 @@ const WorkoutSplitImportScreen: React.FC<Props> = ({ navigation, route }) => {
 
   if (!split) {
     return (
-      <>
+      <View
+        className="flex-1 bg-background"
+        style={usesNativeHeader ? undefined : { paddingTop: insets.top }}
+      >
         {header}
         <StatusView
           icon="alert-circle"
@@ -59,7 +64,7 @@ const WorkoutSplitImportScreen: React.FC<Props> = ({ navigation, route }) => {
             onPress: () => navigation.goBack(),
           }}
         />
-      </>
+      </View>
     );
   }
 
@@ -98,14 +103,17 @@ const WorkoutSplitImportScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   return (
-    <>
+    <View
+      className="flex-1 bg-background"
+      style={usesNativeHeader ? undefined : { paddingTop: insets.top }}
+    >
       {header}
       <KeyboardAwareScrollView
-        className="flex-1 bg-background"
-        contentContainerStyle={{
-          padding: 16,
-          paddingBottom: insets.bottom + 24,
-        }}
+        className="flex-1"
+        contentInsetAdjustmentBehavior={
+          usesNativeHeader ? 'automatic' : 'never'
+        }
+        contentContainerStyle={{ padding: 16, paddingBottom: 24 }}
         keyboardShouldPersistTaps="handled"
         bottomOffset={20}
       >
@@ -122,7 +130,7 @@ const WorkoutSplitImportScreen: React.FC<Props> = ({ navigation, route }) => {
           })}
         </Text>
 
-        <Text className="text-text-muted text-xs mt-5 mb-1">
+        <Text className="text-sm font-medium text-text-secondary mt-5 mb-1">
           {t('workoutSplits.import.planName', { defaultValue: 'Plan name' })}
         </Text>
         <FormInput
@@ -164,19 +172,15 @@ const WorkoutSplitImportScreen: React.FC<Props> = ({ navigation, route }) => {
             })}
           />
         </View>
-
-        <View className="mt-6">
-          <Button
-            variant="primary"
-            onPress={() => void add()}
-            disabled={!canAdd}
-            loading={isPending}
-          >
-            {t('workoutSplits.import.add', { defaultValue: 'Add program' })}
-          </Button>
-        </View>
       </KeyboardAwareScrollView>
-    </>
+
+      <FooterSaveBar
+        onPress={() => void add()}
+        disabled={!canAdd}
+        busy={isPending}
+        label={t('workoutSplits.import.add', { defaultValue: 'Add program' })}
+      />
+    </View>
   );
 };
 

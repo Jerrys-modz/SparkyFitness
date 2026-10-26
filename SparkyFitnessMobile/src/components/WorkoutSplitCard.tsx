@@ -37,7 +37,7 @@ const WorkoutSplitCard: React.FC<WorkoutSplitCardProps> = ({
   const { t } = useTranslation();
   return (
     <View
-      className="bg-surface rounded-xl p-4 mt-4"
+      className="bg-surface rounded-xl p-4 mb-4 shadow-sm"
       testID={`workout-split-${split.id}`}
     >
       <Text className="text-text-primary text-base font-semibold">
@@ -80,7 +80,10 @@ const WorkoutSplitCard: React.FC<WorkoutSplitCardProps> = ({
                   key={exercise.exerciseId}
                   className="flex-row justify-between mt-0.5"
                 >
-                  <Text className="text-text-secondary text-sm flex-1 mr-3">
+                  <Text
+                    className="text-text-secondary text-sm flex-1 mr-3"
+                    numberOfLines={1}
+                  >
                     {exerciseLabel(exercise.exerciseId)}
                   </Text>
                   <Text className="text-text-secondary text-sm">
