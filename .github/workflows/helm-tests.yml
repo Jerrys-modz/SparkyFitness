@@ -52,6 +52,17 @@ jobs:
       - name: Render — defaults (bundled postgres)
         run: helm template t helm/chart > /dev/null
 
+      - name: Render — shutdown timeout sets the grace period on every server pod
+        run: |
+          out=$(helm template t helm/chart --set server.replicas=2 --set server.shutdownTimeoutSeconds=60)
+          test "$(grep -c 'terminationGracePeriodSeconds: 65' <<< "$out")" = 2
+          test "$(grep -A1 'name: SPARKY_FITNESS_SHUTDOWN_TIMEOUT_SECONDS' <<< "$out" | grep -c 'value: "60"')" = 2
+          for bad in 0 3601; do
+            if helm template t helm/chart --set server.shutdownTimeoutSeconds=$bad > /dev/null 2>&1; then
+              echo "a timeout of $bad should fail to render"; exit 1
+            fi
+          done
+
       - name: Render — external DB with NetworkPolicy
         run: |
           helm template t helm/chart \

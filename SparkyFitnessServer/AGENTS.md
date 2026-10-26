@@ -64,7 +64,7 @@ pnpm exec eslint routes/v2/foodRoutes.ts services/foodCoreService.ts
 
 - `index.ts` - real dev entrypoint; loads env, secrets, and preflight checks before booting the app
 - `SparkyFitnessServer.ts` - Express app shell, route mounting, Swagger/ReDoc, startup
-- `utils/gracefulShutdown.ts` - SIGTERM/SIGINT drain: stops accepting connections, closes keep-alive connections once their responses are written out (never cutting off a response still being sent), closes the pools, and exits 1 after 15 s
+- `utils/gracefulShutdown.ts` - SIGTERM/SIGINT drain: stops accepting connections, closes keep-alive connections once their responses are written out (never cutting off a response still being sent), closes the pools, and exits 1 after `SPARKY_FITNESS_SHUTDOWN_TIMEOUT_SECONDS` (default 15, parsed by `shutdownTimeoutMs`)
 - `services/backgroundJobScheduler.ts` - starts every scheduled background job at startup, including the demo reset; provider syncs are listed in `services/providerSyncScheduler.ts`; `SPARKY_FITNESS_DISABLE_SCHEDULED_JOBS=true` skips them all
 - `auth.ts` - Better Auth configuration, plugins, session behavior, SSO provider syncing
 - `routes/` - primary HTTP route surface

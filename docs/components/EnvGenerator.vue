@@ -76,6 +76,7 @@ const trustedProxyHops = ref("1");
 const trustedProxies = ref("");
 const allowPrivateNetworkCors = ref(false);
 const extraTrustedOrigins = ref("");
+const shutdownTimeoutSeconds = ref("");
 
 // --- 4. Custom Host Storage Paths (Optional) ---
 const dbPath = ref("./postgresql");
@@ -370,6 +371,9 @@ TZ=${timezone.value}
 `;
     if (extraTrustedOrigins.value.trim()) {
       out += `SPARKY_FITNESS_EXTRA_TRUSTED_ORIGINS=${extraTrustedOrigins.value.trim()}\n`;
+    }
+    if (shutdownTimeoutSeconds.value.trim()) {
+      out += `SPARKY_FITNESS_SHUTDOWN_TIMEOUT_SECONDS=${shutdownTimeoutSeconds.value.trim()}\n`;
     }
   }
 
@@ -1001,6 +1005,26 @@ onMounted(() => {
               <span class="field-hint"
                 >Comma-separated additional origins Better Auth should trust.
                 Leave blank unless you reach the app on more than one URL.</span
+              >
+            </div>
+            <div class="form-group">
+              <label
+                >Shutdown Timeout (seconds)
+                <code class="var-badge"
+                  >SPARKY_FITNESS_SHUTDOWN_TIMEOUT_SECONDS</code
+                ></label
+              >
+              <input
+                v-model="shutdownTimeoutSeconds"
+                type="text"
+                class="text-input"
+                placeholder="15"
+              />
+              <span class="field-hint"
+                >How long the server may take to finish running work when it
+                stops. Leave blank for 15. If you raise it, raise
+                <code>stop_grace_period</code> in docker-compose.yml above
+                it.</span
               >
             </div>
           </div>
