@@ -464,7 +464,7 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
     );
 
     // Everything the app can offer right now, keyed so the saved arrangement
-    // from Settings → Add menu can place it. An item whose handler or feature
+    // from Settings → Quick Actions can place it. An item whose handler or feature
     // is off is simply absent, whatever the arrangement says.
     const itemDefs: Partial<Record<AddMenuItemKey, MenuItemDef>> = {
       food: {

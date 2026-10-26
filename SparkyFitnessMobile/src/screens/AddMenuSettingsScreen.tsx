@@ -93,7 +93,7 @@ const AddMenuSettingsScreen: React.FC<AddMenuSettingsScreenProps> = () => {
     );
 
   const header = useScreenHeader({
-    title: t('screens.addMenuSettings', { defaultValue: 'Add menu' }),
+    title: t('screens.addMenuSettings', { defaultValue: 'Quick Actions' }),
     left: { kind: 'back' },
   });
 
@@ -108,14 +108,14 @@ const AddMenuSettingsScreen: React.FC<AddMenuSettingsScreenProps> = () => {
           setAddMenuCards(placeInCardSlot(cards, slotIndex, picked))
         }
         title={t('addMenuSettings.chooseCard', {
-          defaultValue: 'Choose a big button',
+          defaultValue: 'Choose a tile',
         })}
         renderTrigger={({ onPress }) => (
           <Pressable
             testID={`add-menu-slot-${slotIndex}`}
             accessibilityRole="button"
             accessibilityLabel={t('addMenuSettings.slotLabel', {
-              defaultValue: 'Big button {{number}}: {{name}}',
+              defaultValue: 'Tile {{number}}: {{name}}',
               number: slotIndex + 1,
               name: ADD_MENU_ITEM_LABELS[key](t),
             })}
@@ -162,12 +162,12 @@ const AddMenuSettingsScreen: React.FC<AddMenuSettingsScreenProps> = () => {
         }
       >
         <Text className="text-text-primary text-base font-semibold mb-1">
-          {t('addMenuSettings.cardsTitle', { defaultValue: 'Big buttons' })}
+          {t('addMenuSettings.cardsTitle', { defaultValue: 'Tiles' })}
         </Text>
         <Text className="text-text-secondary text-sm mb-4">
           {t('addMenuSettings.cardsDescription', {
             defaultValue:
-              'The four buttons at the top of the + menu. Tap one to choose what goes there. Choosing something already placed swaps the two.',
+              'The four tiles at the top of Quick Actions. Tap one to choose what goes there. Choosing something already placed swaps the two.',
           })}
         </Text>
         <View
@@ -178,12 +178,12 @@ const AddMenuSettingsScreen: React.FC<AddMenuSettingsScreenProps> = () => {
         </View>
 
         <Text className="text-text-primary text-base font-semibold mt-8 mb-1">
-          {t('addMenuSettings.rowsTitle', { defaultValue: 'Rows' })}
+          {t('addMenuSettings.rowsTitle', { defaultValue: 'List' })}
         </Text>
         <Text className="text-text-secondary text-sm mb-4">
           {t('addMenuSettings.rowsDescription', {
             defaultValue:
-              'Everything else, listed under the buttons. Drag a row by its handle to move it. Toggle a row off to hide it.',
+              'Everything else, listed under the tiles. Drag a row by its handle to move it. Toggle a row off to hide it.',
           })}
         </Text>
         <ReorderSwitchList
@@ -201,7 +201,7 @@ const AddMenuSettingsScreen: React.FC<AddMenuSettingsScreenProps> = () => {
             })
           }
           reorderA11yHint={t('addMenuSettings.reorderHint', {
-            defaultValue: 'Changes where this row sits in the + menu',
+            defaultValue: 'Changes where this row sits in Quick Actions',
           })}
         />
         <View className="mt-6">

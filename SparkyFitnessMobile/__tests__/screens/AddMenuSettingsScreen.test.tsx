@@ -102,10 +102,10 @@ describe('AddMenuSettingsScreen', () => {
     renderScreen();
 
     expect(screen.getByTestId('add-menu-slot-0').props.accessibilityLabel).toBe(
-      'Big button 1: Food'
+      'Tile 1: Food'
     );
     expect(screen.getByTestId('add-menu-slot-3').props.accessibilityLabel).toBe(
-      'Big button 4: Scan Food'
+      'Tile 4: Scan Food'
     );
     expect(orderedRowKeys()).not.toContain('scanFood');
   });

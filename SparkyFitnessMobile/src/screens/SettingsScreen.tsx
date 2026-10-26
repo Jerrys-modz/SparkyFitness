@@ -377,7 +377,9 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
               )}
               <SettingsRow
                 icon="add-circle"
-                title={t('settings.rows.addMenu', { defaultValue: 'Add menu' })}
+                title={t('settings.rows.addMenu', {
+                  defaultValue: 'Quick Actions',
+                })}
                 onPress={() => navigation.navigate('AddMenuSettings')}
                 iconColor={catBlue}
               />
