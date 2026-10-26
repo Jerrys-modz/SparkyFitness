@@ -39,6 +39,7 @@ enum SampleDay {
     static let water = WaterSnapshot(
         day: today,
         consumedMl: 1500,
+        fromFoodMl: 300,
         log: waterLog
     )
 
@@ -121,7 +122,10 @@ enum SampleDay {
             suggestedExercises: suggestedExercises,
             medications: medications,
             medicationSkip: true,
-            exerciseDoNow: true
+            exerciseDoNow: true,
+            setScreenMetrics: !ScreenshotSeed.has("nometrics"),
+            upNextPage: ScreenshotSeed.has("upnext"),
+            largeGoalsWater: ScreenshotSeed.has("large")
         )
     }
 

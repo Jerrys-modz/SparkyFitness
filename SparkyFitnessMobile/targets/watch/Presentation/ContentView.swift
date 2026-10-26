@@ -154,9 +154,17 @@ struct ContentView: View {
     private func view(for page: WatchPage) -> some View {
         switch page {
         case .goals:
-            GoalSummaryView()
+            if store.context.effectiveLargeGoalsWater {
+                GoalSummaryView()
+            } else {
+                ClassicGoalSummaryView()
+            }
         case .water:
-            WaterIntakeView()
+            if store.context.effectiveLargeGoalsWater {
+                WaterIntakeView()
+            } else {
+                ClassicWaterIntakeView()
+            }
         case .medications:
             MedicationsView()
         case .fasting:
