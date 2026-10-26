@@ -130,7 +130,7 @@ const IntervalCard: React.FC<Props> = ({
         {next && !position.done ? (
           <Text className="text-text-muted text-xs">
             {t('recordActivity.intervals.next', {
-              name: intervalStepName(t, next.kind, plan.style),
+              name: intervalStepName(t, next.kind, plan.style, next.effort),
               time: stepLengthText(t, next),
               defaultValue: 'Next: {{name}} {{time}}',
             })}
