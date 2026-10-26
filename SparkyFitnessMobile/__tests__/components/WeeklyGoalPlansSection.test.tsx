@@ -85,4 +85,20 @@ describe('WeeklyGoalPlansSection', () => {
   it('follows a profile timezone already on the next day', () => {
     expect(activePlan('Asia/Tokyo')).toBe('Next');
   });
+
+  it('marks no plan when none is in force, even one without an id', () => {
+    mockUsePreferences.mockReturnValue({
+      preferences: { timezone: 'UTC' },
+    } as unknown as ReturnType<typeof usePreferences>);
+    const { id: _id, ...unsaved } = plan('Later', '2026-11-01', null);
+    render(
+      <WeeklyGoalPlansSection
+        plans={[unsaved]}
+        presets={[]}
+        onCreate={jest.fn()}
+        onEdit={jest.fn()}
+      />
+    );
+    expect(screen.queryByText('Active')).toBeNull();
+  });
 });

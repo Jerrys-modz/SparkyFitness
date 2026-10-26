@@ -102,7 +102,7 @@ const WeeklyGoalPlansSection: React.FC<WeeklyGoalPlansSectionProps> = ({
               <Text className="flex-shrink text-base font-semibold text-text-primary">
                 {plan.plan_name}
               </Text>
-              {plan.id === planInForce?.id && (
+              {plan === planInForce && (
                 <Text className="text-xs font-semibold text-accent-primary">
                   {t('goals.weekly.activeBadge', { defaultValue: 'Active' })}
                 </Text>
