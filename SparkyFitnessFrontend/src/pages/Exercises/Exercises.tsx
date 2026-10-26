@@ -43,6 +43,7 @@ import WorkoutPresetsManager from './WorkoutPresetsManager';
 import EquipmentManager from '@/pages/Exercises/EquipmentManager';
 import WorkoutPlansManager from '@/pages/Exercises/WorkoutPlansManager';
 import TrainingProgramsEntry from '@/pages/Exercises/TrainingPrograms/TrainingProgramsEntry';
+import WorkoutSplitsEntry from '@/pages/Exercises/WorkoutSplits/WorkoutSplitsEntry';
 import {
   useExercises,
   useUpdateExerciseShareStatusMutation,
@@ -688,6 +689,9 @@ const ExerciseDatabaseManager = () => {
 
       {/* Workout Plans Section */}
       <WorkoutPlansManager />
+
+      {/* Ready-made strength splits */}
+      <WorkoutSplitsEntry />
 
       {/* Run and walk training programs */}
       <TrainingProgramsEntry />
