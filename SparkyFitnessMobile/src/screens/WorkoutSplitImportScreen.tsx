@@ -80,6 +80,7 @@ const WorkoutSplitImportScreen: React.FC<Props> = ({ navigation, route }) => {
             ])
           ),
           activate,
+          trainer: route.params.trainer,
         },
       });
     } catch {

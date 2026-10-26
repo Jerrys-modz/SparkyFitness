@@ -12,18 +12,10 @@ import {
 } from '@workspace/shared';
 import SegmentedControl, { type Segment } from '../components/SegmentedControl';
 import Button from '../components/ui/Button';
+import WorkoutSplitCard from '../components/WorkoutSplitCard';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import type { RootStackScreenProps } from '../types/navigation';
-import {
-  exerciseLabel,
-  exerciseTarget,
-  goalLabel,
-  levelLabel,
-  sessionName,
-  splitDescription,
-  splitName,
-  venueLabel,
-} from '../utils/workoutSplits';
+import { goalLabel, levelLabel, venueLabel } from '../utils/workoutSplits';
 
 type Props = RootStackScreenProps<'WorkoutSplits'>;
 
@@ -146,6 +138,16 @@ const WorkoutSplitsScreen: React.FC<Props> = ({ navigation }) => {
               'Ready-made strength splits for getting started. Each exercise has a rep range: reach the top on every set and the next session suggests a little more weight. Add one and change anything you like afterwards.',
           })}
         </Text>
+        <View className="mt-3">
+          <Button
+            variant="outline"
+            onPress={() => navigation.navigate('WorkoutFinder')}
+          >
+            {t('workoutSplits.page.finder', {
+              defaultValue: 'Find my program',
+            })}
+          </Button>
+        </View>
 
         {filters.map((filter) => (
           <View key={filter.id} className="mt-4" testID={`filter-${filter.id}`}>
@@ -166,90 +168,21 @@ const WorkoutSplitsScreen: React.FC<Props> = ({ navigation }) => {
             })}
           </Text>
         ) : (
-          visible.map((split) => {
-            const expanded = expandedId === split.id;
-            return (
-              <View
-                key={split.id}
-                className="bg-surface rounded-xl p-4 mt-4"
-                testID={`workout-split-${split.id}`}
-              >
-                <Text className="text-text-primary text-base font-semibold">
-                  {splitName(t, split.id)}
-                </Text>
-                <Text className="text-text-muted text-xs mt-0.5">
-                  {`${levelLabel(t, split.level)} · ${goalLabel(t, split.goal)} · ${venueLabel(t, split.venue)}`}
-                </Text>
-                <Text className="text-text-muted text-xs mt-0.5">
-                  {t('workoutSplits.card.summary', {
-                    days: split.daysPerWeek,
-                    sessions: split.sessions.length,
-                    defaultValue:
-                      '{{days}} days a week, {{sessions}} sessions in rotation',
-                  })}
-                </Text>
-                <Text className="text-text-secondary text-sm mt-2">
-                  {splitDescription(t, split.id)}
-                </Text>
-                {expanded ? (
-                  <View
-                    className="mt-3"
-                    testID={`workout-split-sessions-${split.id}`}
-                  >
-                    {split.sessions.map((session) => (
-                      <View key={session.id} className="mb-3">
-                        <Text className="text-text-primary text-sm font-medium">
-                          {sessionName(t, session.id)}
-                        </Text>
-                        {session.exercises.map((exercise) => (
-                          <View
-                            key={exercise.exerciseId}
-                            className="flex-row justify-between mt-0.5"
-                          >
-                            <Text className="text-text-secondary text-sm flex-1 mr-3">
-                              {exerciseLabel(exercise.exerciseId)}
-                            </Text>
-                            <Text className="text-text-secondary text-sm">
-                              {exerciseTarget(t, exercise)}
-                            </Text>
-                          </View>
-                        ))}
-                      </View>
-                    ))}
-                  </View>
-                ) : null}
-                <View className="mt-1">
-                  <Button
-                    variant="ghost"
-                    onPress={() => setExpandedId(expanded ? null : split.id)}
-                    accessibilityState={{ expanded }}
-                  >
-                    {expanded
-                      ? t('workoutSplits.card.hideSessions', {
-                          defaultValue: 'Hide sessions',
-                        })
-                      : t('workoutSplits.card.showSessions', {
-                          defaultValue: 'Show sessions',
-                        })}
-                  </Button>
-                </View>
-                <View className="mt-2">
-                  <Button
-                    variant="outline"
-                    onPress={() =>
-                      navigation.navigate('WorkoutSplitImport', {
-                        splitId: split.id,
-                      })
-                    }
-                  >
-                    {t('workoutSplits.card.add', {
-                      defaultValue: 'Add to my workouts',
-                    })}
-                  </Button>
-                </View>
-              </View>
-            );
-          })
+          visible.map((split) => (
+            <WorkoutSplitCard
+              key={split.id}
+              split={split}
+              expanded={expandedId === split.id}
+              onToggle={() =>
+                setExpandedId(expandedId === split.id ? null : split.id)
+              }
+              onAdd={() =>
+                navigation.navigate('WorkoutSplitImport', {
+                  splitId: split.id,
+                })
+              }
+            />
+          ))
         )}
       </ScrollView>
     </>
