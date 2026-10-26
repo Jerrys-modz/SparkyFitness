@@ -5,7 +5,13 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { View, Text, Pressable, LayoutAnimation } from 'react-native';
+import {
+  View,
+  Text,
+  Pressable,
+  LayoutAnimation,
+  StyleSheet,
+} from 'react-native';
 import { BottomSheetModal, BottomSheetView } from '@gorhom/bottom-sheet';
 import { useCSSVariable } from 'uniwind';
 import { useTranslation } from 'react-i18next';
@@ -15,6 +21,8 @@ import Button from './ui/Button';
 import { useSheetBackdrop, useSheetHardwareBack } from './ui/sheetChrome';
 import {
   ADD_MENU_ITEM_ICONS,
+  ADD_MENU_ITEM_ROW_STYLES,
+  ADD_MENU_ITEM_TINTS,
   type AddMenuItemKey,
 } from '../constants/addMenuItems';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
@@ -51,10 +59,47 @@ interface AddSheetProps {
 /** What one item in the sheet looks like and does, as a card or a row. */
 interface MenuItemDef {
   label: string;
+  /** A shorter name for the narrow card, when the label is long. */
+  cardLabel?: string;
+  /** A word at the right of a list row, or under the label of a compact one. */
+  hint?: string;
   icon: IconName;
   /** Missing for Exercise, which opens the sub-menu instead. */
   onPress?: () => void;
 }
+
+/** An icon on a softly tinted rounded square. */
+const IconTile = ({
+  icon,
+  color,
+  size,
+}: {
+  icon: IconName;
+  color: string;
+  size: 'card' | 'row';
+}) => {
+  const box = size === 'card' ? 52 : 40;
+  return (
+    <View
+      style={{
+        width: box,
+        height: box,
+        borderRadius: size === 'card' ? 18 : 12,
+        alignItems: 'center',
+        justifyContent: 'center',
+        overflow: 'hidden',
+      }}
+    >
+      <View
+        style={[
+          StyleSheet.absoluteFill,
+          { backgroundColor: color, opacity: 0.14 },
+        ]}
+      />
+      <Icon name={icon} size={size === 'card' ? 26 : 20} color={color} />
+    </View>
+  );
+};
 
 const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
   (
@@ -90,24 +135,52 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
     const pendingInitialMenuRef = useRef<'exercise' | null>(null);
     const presentFrameRef = useRef<number | null>(null);
     const [showExerciseMenu, setShowExerciseMenu] = useState(false);
-    // Mirrors the modal's open state for the Android hardware-back listener.
-    // Cleared in onDismiss (the terminal signal), not at dismissal start, so a
-    // Back press during the close animation is still swallowed by the sheet.
-    const [isOpen, setIsOpen] = useState(false);
     const addMenuCards = useAppPreferencesStore((st) => st.addMenuCards);
     const addMenuOrder = useAppPreferencesStore((st) => st.addMenuOrder);
     const hiddenAddMenuItems = useAppPreferencesStore(
       (st) => st.hiddenAddMenuItems
     );
+    // Mirrors the modal's open state for the Android hardware-back listener.
+    // Cleared in onDismiss (the terminal signal), not at dismissal start, so a
+    // Back press during the close animation is still swallowed by the sheet.
+    const [isOpen, setIsOpen] = useState(false);
 
-    const [surfaceBg, textMuted, accentPrimary, raisedBg, textSecondary] =
-      useCSSVariable([
-        '--color-surface',
-        '--color-text-muted',
-        '--color-accent-primary',
-        '--color-raised',
-        '--color-text-secondary',
-      ]) as [string, string, string, string, string];
+    const [
+      surfaceBg,
+      textMuted,
+      accentPrimary,
+      raisedBg,
+      textSecondary,
+      borderSubtle,
+      tintGreen,
+      tintViolet,
+      tintRed,
+      tintAmber,
+      tintSky,
+      tintPink,
+    ] = useCSSVariable([
+      '--color-surface',
+      '--color-text-muted',
+      '--color-accent-primary',
+      '--color-raised',
+      '--color-text-secondary',
+      '--color-border-subtle',
+      '--color-cat-green',
+      '--color-cat-violet',
+      '--color-icon-danger',
+      '--color-icon-warning',
+      '--color-macro-fat',
+      '--color-cat-pink',
+    ]) as string[];
+    const tintColors = {
+      accent: accentPrimary,
+      green: tintGreen,
+      violet: tintViolet,
+      red: tintRed,
+      amber: tintAmber,
+      sky: tintSky,
+      pink: tintPink,
+    };
 
     const clearScheduledPresent = useCallback(() => {
       if (presentFrameRef.current != null) {
@@ -236,6 +309,16 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
       [markOpen]
     );
 
+    // Exercise has no action of its own: it opens the sub-menu, wherever it sits.
+    const press = (onPress?: () => void) => {
+      if (onPress) {
+        handleAction(onPress);
+        return;
+      }
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      setShowExerciseMenu(true);
+    };
+
     const handleChange = useCallback(
       (index: number) => {
         if (index >= 0) {
@@ -265,50 +348,137 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
 
     useSheetHardwareBack(isOpen, handleHardwareBack);
 
-    // Exercise has no action of its own: it opens the sub-menu, wherever it sits.
-    const press = (onPress?: () => void) => {
-      if (onPress) {
-        handleAction(onPress);
-        return;
-      }
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-      setShowExerciseMenu(true);
-    };
-
-    const renderCard = (key: string, def: MenuItemDef) => (
-      <Button
+    const renderCard = (key: AddMenuItemKey, def: MenuItemDef) => (
+      <Pressable
         key={key}
-        variant="primary"
-        className="flex-1 py-5 mx-1.5"
-        style={{ backgroundColor: raisedBg }}
+        className="flex-1 items-center px-0.5"
+        accessibilityRole="button"
+        accessibilityLabel={def.label}
+        style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
         onPress={() => press(def.onPress)}
       >
-        <Icon name={def.icon} size={32} color={accentPrimary} />
+        <IconTile
+          icon={def.icon}
+          color={tintColors[ADD_MENU_ITEM_TINTS[key]]}
+          size="card"
+        />
         <Text
           className="text-text-primary text-sm font-medium mt-2 text-center"
           numberOfLines={1}
           adjustsFontSizeToFit
           minimumFontScale={0.8}
         >
-          {def.label}
+          {def.cardLabel ?? def.label}
         </Text>
-      </Button>
+      </Pressable>
     );
 
-    const renderSecondaryRow = (key: string, def: MenuItemDef) => (
-      <Button
+    const renderListRow = (key: AddMenuItemKey, def: MenuItemDef) => (
+      <Pressable
         key={key}
-        variant="primary"
-        className="flex-row items-center justify-center py-3 mx-1.5 mt-3"
-        style={{ backgroundColor: raisedBg }}
+        className="flex-row items-center px-4 py-3"
+        accessibilityRole="button"
+        accessibilityLabel={def.label}
+        style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
         onPress={() => press(def.onPress)}
       >
-        <Icon name={def.icon} size={20} color={accentPrimary} />
-        <Text className="text-text-primary text-sm font-medium ml-2">
+        <IconTile
+          icon={def.icon}
+          color={tintColors[ADD_MENU_ITEM_TINTS[key]]}
+          size="row"
+        />
+        <Text
+          className="flex-1 text-text-primary text-base font-medium ml-3"
+          numberOfLines={1}
+        >
           {def.label}
         </Text>
-      </Button>
+        {def.hint ? (
+          <Text className="text-sm mr-2" style={{ color: textMuted }}>
+            {def.hint}
+          </Text>
+        ) : null}
+        <Icon name="chevron-forward" size={14} color={textMuted} />
+      </Pressable>
     );
+
+    const renderCompactRow = (key: AddMenuItemKey, def: MenuItemDef) => (
+      <Pressable
+        key={key}
+        className="flex-1 flex-row items-center px-4 py-3"
+        accessibilityRole="button"
+        accessibilityLabel={def.label}
+        style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
+        onPress={() => press(def.onPress)}
+      >
+        <IconTile
+          icon={def.icon}
+          color={tintColors[ADD_MENU_ITEM_TINTS[key]]}
+          size="row"
+        />
+        <View className="flex-1 ml-3">
+          <Text
+            className="text-text-primary text-base font-medium"
+            numberOfLines={1}
+          >
+            {def.label}
+          </Text>
+          {def.hint ? (
+            <Text
+              className="text-xs mt-0.5"
+              numberOfLines={1}
+              style={{ color: textSecondary }}
+            >
+              {def.hint}
+            </Text>
+          ) : null}
+        </View>
+      </Pressable>
+    );
+
+    const renderActionButton = (key: AddMenuItemKey, def: MenuItemDef) => {
+      const isAccent = key === 'askSparky';
+      return (
+        <Pressable
+          key={key}
+          className="flex-1 flex-row items-center justify-center py-3.5 rounded-2xl mx-1.5"
+          accessibilityRole="button"
+          accessibilityLabel={def.label}
+          style={({ pressed }) => ({
+            backgroundColor: isAccent ? 'transparent' : raisedBg,
+            borderWidth: 1,
+            borderColor: isAccent ? accentPrimary : borderSubtle,
+            opacity: pressed ? 0.7 : 1,
+          })}
+          onPress={() => press(def.onPress)}
+        >
+          {isAccent ? (
+            <View
+              pointerEvents="none"
+              style={[
+                StyleSheet.absoluteFill,
+                {
+                  borderRadius: 16,
+                  backgroundColor: accentPrimary,
+                  opacity: 0.1,
+                },
+              ]}
+            />
+          ) : null}
+          <Icon
+            name={def.icon}
+            size={20}
+            color={isAccent ? accentPrimary : textSecondary}
+          />
+          <Text
+            className="text-text-primary text-base font-medium ml-2"
+            style={isAccent ? { color: accentPrimary } : undefined}
+          >
+            {def.label}
+          </Text>
+        </Pressable>
+      );
+    };
 
     const renderExerciseOption = (
       label: string,
@@ -359,11 +529,13 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
       },
       measurements: {
         label: t('addSheet.measurements', { defaultValue: 'Measurements' }),
+        cardLabel: t('addSheet.measureShort', { defaultValue: 'Measure' }),
         icon: ADD_MENU_ITEM_ICONS.measurements,
         onPress: onAddMeasurements,
       },
       scanFood: {
         label: t('addSheet.scanFood', { defaultValue: 'Scan Food' }),
+        cardLabel: t('addSheet.scanShort', { defaultValue: 'Scan' }),
         icon: ADD_MENU_ITEM_ICONS.scanFood,
         onPress: onBarcodeScan,
       },
@@ -371,6 +543,7 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
         label: t('addSheet.progressPhotos', {
           defaultValue: 'Progress Photos',
         }),
+        hint: t('addSheet.photosHint', { defaultValue: 'Visual' }),
         icon: ADD_MENU_ITEM_ICONS.progressPhotos,
         onPress: onAddProgressPhotos,
       },
@@ -385,17 +558,24 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
             }
           : undefined,
       symptoms: onAddSymptoms && {
-        label: t('addSheet.symptoms', { defaultValue: 'Symptoms' }),
+        label: t('addSheet.symptomsHealth', {
+          defaultValue: 'Symptoms & Health',
+        }),
+        hint: t('addSheet.symptomsHint', { defaultValue: 'Log' }),
         icon: ADD_MENU_ITEM_ICONS.symptoms,
         onPress: onAddSymptoms,
       },
       mood: onAddMood && {
         label: t('addSheet.mood', { defaultValue: 'Mood' }),
+        hint: t('addSheet.moodHint', { defaultValue: 'Track state' }),
         icon: ADD_MENU_ITEM_ICONS.mood,
         onPress: onAddMood,
       },
       mindfulness: onAddMindfulness && {
         label: t('addSheet.mindfulness', { defaultValue: 'Mindfulness' }),
+        hint: t('addSheet.mindfulnessHint', {
+          defaultValue: 'Breathing, zen',
+        }),
         icon: ADD_MENU_ITEM_ICONS.mindfulness,
         onPress: onAddMindfulness,
       },
@@ -405,39 +585,62 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
         onPress: onAskSparky,
       },
       syncHealth: {
-        label: t('addSheet.syncHealth', { defaultValue: 'Sync Health Data' }),
+        label: t('addSheet.syncHealthShort', { defaultValue: 'Sync Health' }),
         icon: ADD_MENU_ITEM_ICONS.syncHealth,
         onPress: onSyncHealthData,
       },
     };
     const cardKeys = resolveAddMenuCards(addMenuCards);
-    // The four big cards, two to a line. An unavailable one leaves its slot
-    // empty, so a line with one card keeps that card at half width.
-    const cardLines: React.ReactNode[] = [];
-    for (let start = 0; start < cardKeys.length; start += 2) {
-      const line = cardKeys.slice(start, start + 2).flatMap((key) => {
-        const def = itemDefs[key];
-        return def ? [renderCard(key, def)] : [];
-      });
-      if (line.length === 0) continue;
+    // The four cards share one panel. An unavailable one leaves its slot
+    // empty so the others keep their width.
+    const cards = cardKeys.map((key) => {
+      const def = itemDefs[key];
+      return def ? renderCard(key, def) : <View key={key} className="flex-1" />;
+    });
+    // Below the cards, each style gathers in its own place, keeping the
+    // arranged order within it: list rows and compact pairs in one panel,
+    // actions side by side at the foot.
+    const shown = rowKeys(addMenuOrder, cardKeys).flatMap((key) => {
+      const def = itemDefs[key];
+      return def && !hiddenAddMenuItems.includes(key) ? [{ key, def }] : [];
+    });
+    const withStyle = (style: 'list' | 'compact' | 'action') =>
+      shown.filter(({ key }) => ADD_MENU_ITEM_ROW_STYLES[key] === style);
+    const listRows = withStyle('list').map(({ key, def }) =>
+      renderListRow(key, def)
+    );
+    const compactItems = withStyle('compact');
+    const compactLines: React.ReactNode[] = [];
+    for (let start = 0; start < compactItems.length; start += 2) {
+      const line = compactItems
+        .slice(start, start + 2)
+        .map(({ key, def }) => renderCompactRow(key, def));
       if (line.length === 1) {
-        line.push(<View key={`spacer-${start}`} className="flex-1 mx-1.5" />);
+        line.push(<View key={`spacer-${start}`} className="flex-1" />);
+      } else {
+        line.splice(
+          1,
+          0,
+          <View
+            key={`divider-${start}`}
+            style={{
+              width: StyleSheet.hairlineWidth,
+              backgroundColor: borderSubtle,
+            }}
+          />
+        );
       }
-      cardLines.push(
-        <View
-          key={`line-${start}`}
-          className={start === 0 ? 'flex-row mb-3' : 'flex-row'}
-        >
+      compactLines.push(
+        <View key={`compact-${start}`} className="flex-row">
           {line}
         </View>
       );
     }
-    const secondaryRows = rowKeys(addMenuOrder, cardKeys)
-      .filter((key) => !hiddenAddMenuItems.includes(key))
-      .flatMap((key) => {
-        const def = itemDefs[key];
-        return def ? [renderSecondaryRow(key, def)] : [];
-      });
+    const actionButtons = withStyle('action').map(({ key, def }) =>
+      renderActionButton(key, def)
+    );
+    // Hairlines between the panel's lines, in place of a border on each row.
+    const panelLines = [...listRows, ...compactLines];
 
     return (
       <BottomSheetModal
@@ -506,8 +709,55 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
             </>
           ) : (
             <>
-              {cardLines}
-              {secondaryRows}
+              <View className="flex-row items-center justify-between px-3 pt-1 pb-3">
+                <Text className="text-text-primary text-2xl font-bold">
+                  {t('addSheet.title', { defaultValue: 'Quick Actions' })}
+                </Text>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t('common.done', {
+                    defaultValue: 'Done',
+                  })}
+                  hitSlop={10}
+                  onPress={() => bottomSheetRef.current?.dismiss()}
+                >
+                  <Text
+                    className="text-base font-semibold"
+                    style={{ color: accentPrimary }}
+                  >
+                    {t('common.done', { defaultValue: 'Done' })}
+                  </Text>
+                </Pressable>
+              </View>
+              <View
+                className="flex-row rounded-2xl mx-1.5 px-2 py-4"
+                style={{ backgroundColor: raisedBg }}
+              >
+                {cards}
+              </View>
+              {panelLines.length > 0 ? (
+                <View
+                  className="rounded-2xl mx-1.5 mt-3 overflow-hidden"
+                  style={{ backgroundColor: raisedBg }}
+                >
+                  {panelLines.map((line, index) => (
+                    <View key={index}>
+                      {index > 0 ? (
+                        <View
+                          style={{
+                            height: StyleSheet.hairlineWidth,
+                            backgroundColor: borderSubtle,
+                          }}
+                        />
+                      ) : null}
+                      {line}
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+              {actionButtons.length > 0 ? (
+                <View className="flex-row mt-3">{actionButtons}</View>
+              ) : null}
             </>
           )}
         </BottomSheetView>

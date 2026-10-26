@@ -150,10 +150,9 @@ describe('AddSheet', () => {
     expect(queryByText('Progress Photos')).toBeNull();
     const text = JSON.stringify(toJSON());
     // Saved rows first, then the rest in their usual order.
-    expect(text.indexOf('Sync Health Data')).toBeLessThan(
+    expect(text.indexOf('Sync Health')).toBeLessThan(
       text.indexOf('Ask Sparky')
     );
-    expect(text.indexOf('Ask Sparky')).toBeLessThan(text.indexOf('Symptoms'));
     __resetAppPreferencesStoreForTests();
   });
 
@@ -184,11 +183,13 @@ describe('AddSheet', () => {
     __resetAppPreferencesStoreForTests();
   });
 
-  it('renders the Measurements tile in the main grid', () => {
+  it('renders the quick action tiles with their short names', () => {
     const { ref, getByText } = renderAddSheet();
 
     act(() => ref.current?.present());
-    expect(getByText('Measurements')).toBeTruthy();
+    expect(getByText('Quick Actions')).toBeTruthy();
+    expect(getByText('Measure')).toBeTruthy();
+    expect(getByText('Scan')).toBeTruthy();
   });
 
   it('invokes onAddProgressPhotos when the Progress Photos row is pressed', () => {
@@ -207,7 +208,7 @@ describe('AddSheet', () => {
     expect(onDismissWithoutAction).not.toHaveBeenCalled();
   });
 
-  it('invokes onSyncHealthData when the secondary Sync Health Data row is pressed', () => {
+  it('invokes onSyncHealthData when the Sync Health button is pressed', () => {
     const onSyncHealthData = jest.fn();
     const onDismissWithoutAction = jest.fn();
     const { ref, getByText } = renderAddSheet({
@@ -216,14 +217,14 @@ describe('AddSheet', () => {
     });
 
     act(() => ref.current?.present());
-    fireEvent.press(getByText('Sync Health Data'));
+    fireEvent.press(getByText('Sync Health'));
     act(() => mockBottomSheetControls.onDismiss?.());
 
     expect(onSyncHealthData).toHaveBeenCalledTimes(1);
     expect(onDismissWithoutAction).not.toHaveBeenCalled();
   });
 
-  it('invokes onAddSymptoms when the secondary Symptoms row is pressed', () => {
+  it('invokes onAddSymptoms when the Symptoms & Health row is pressed', () => {
     const onAddSymptoms = jest.fn();
     const onDismissWithoutAction = jest.fn();
     const { ref, getByText } = renderAddSheet({
@@ -232,7 +233,7 @@ describe('AddSheet', () => {
     });
 
     act(() => ref.current?.present());
-    fireEvent.press(getByText('Symptoms'));
+    fireEvent.press(getByText('Symptoms & Health'));
     act(() => mockBottomSheetControls.onDismiss?.());
 
     expect(onAddSymptoms).toHaveBeenCalledTimes(1);
@@ -248,6 +249,18 @@ describe('AddSheet', () => {
     act(() => mockBottomSheetControls.onDismiss?.());
 
     expect(onAddMood).toHaveBeenCalledTimes(1);
+  });
+
+  it('dismisses from Done without counting as an action', () => {
+    const onDismissWithoutAction = jest.fn();
+    const { ref, getByText } = renderAddSheet({ onDismissWithoutAction });
+
+    act(() => ref.current?.present());
+    fireEvent.press(getByText('Done'));
+    expect(mockBottomSheetControls.dismiss).toHaveBeenCalled();
+    act(() => mockBottomSheetControls.onDismiss?.());
+
+    expect(onDismissWithoutAction).toHaveBeenCalledTimes(1);
   });
 
   it('offers live start, activity, and past logging in the exercise submenu', () => {

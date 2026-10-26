@@ -77,3 +77,43 @@ export const ADD_MENU_ITEM_ICONS: Record<AddMenuItemKey, IconName> = {
   askSparky: 'sparkles',
   syncHealth: 'sync',
 };
+
+type AddMenuItemTint =
+  'accent' | 'green' | 'violet' | 'red' | 'amber' | 'sky' | 'pink';
+
+/** The colour of the tile behind each item's icon. */
+export const ADD_MENU_ITEM_TINTS: Record<AddMenuItemKey, AddMenuItemTint> = {
+  food: 'accent',
+  exercise: 'accent',
+  measurements: 'accent',
+  scanFood: 'accent',
+  progressPhotos: 'violet',
+  wellness: 'pink',
+  symptoms: 'red',
+  mood: 'amber',
+  mindfulness: 'sky',
+  askSparky: 'accent',
+  syncHealth: 'accent',
+};
+
+type AddMenuRowStyle = 'list' | 'compact' | 'action';
+
+/**
+ * How an item looks below the cards: `list` is a full-width row with a chevron,
+ * `compact` shares a line with another compact item, and `action` is a button
+ * at the foot of the sheet. Rows keep their arranged order within each style.
+ */
+export const ADD_MENU_ITEM_ROW_STYLES: Record<AddMenuItemKey, AddMenuRowStyle> =
+  {
+    food: 'list',
+    exercise: 'list',
+    measurements: 'list',
+    scanFood: 'list',
+    progressPhotos: 'list',
+    wellness: 'list',
+    symptoms: 'list',
+    mood: 'compact',
+    mindfulness: 'compact',
+    askSparky: 'action',
+    syncHealth: 'action',
+  };
