@@ -17,6 +17,7 @@ import {
   type ScreenHeaderConfig,
 } from '../../src/hooks/useScreenHeader';
 import { offerCheckinRemindersAfterLeaving } from '../../src/services/offerCheckinReminders';
+import { useGuidedCheckInStore } from '../../src/stores/guidedCheckInStore';
 import type { ProgressPhotoDay } from '../../src/types/checkInPhotos';
 import type { RootStackParamList } from '../../src/types/navigation';
 import { pickImageFromCamera } from '../../src/utils/pickImage';
@@ -139,9 +140,17 @@ type BeforeRemoveListener = (event: {
 }) => void;
 const beforeRemoveListeners = new Set<BeforeRemoveListener>();
 
+/** Calls the screen's beforeRemove listeners, as the navigator does. */
+const emitBeforeRemove = (type: string) => {
+  for (const listener of beforeRemoveListeners) {
+    listener({ data: { action: { type } } });
+  }
+};
+
 const navigation = {
   navigate: jest.fn(),
-  goBack: jest.fn(),
+  // The navigator reports the removal from inside goBack, before it returns.
+  goBack: jest.fn(() => emitBeforeRemove('GO_BACK')),
   replace: jest.fn(),
   isFocused: jest.fn(() => true),
   addListener: jest.fn((event: string, listener: BeforeRemoveListener) => {
@@ -154,11 +163,7 @@ const navigation = {
 
 /** What the navigator reports as it removes the screen with an action. */
 const removeScreen = (type: string) => {
-  act(() => {
-    for (const listener of beforeRemoveListeners) {
-      listener({ data: { action: { type } } });
-    }
-  });
+  act(() => emitBeforeRemove(type));
 };
 const route = { key: 'ProgressPhotos-key', name: 'ProgressPhotos' as const };
 type RouteParams = NonNullable<RootStackParamList['ProgressPhotos']>;
@@ -733,6 +738,25 @@ describe('ProgressPhotosScreen', () => {
       expect(toastShow).not.toHaveBeenCalled();
     });
 
+    it('Back after a photo was uploaded keeps the check-in counted as saved', async () => {
+      const { getByLabelText, getByRole } = renderInFlow();
+      await takeFrontPhoto(getByLabelText);
+
+      fireEvent.press(backButton(getByRole));
+
+      const flags = { offerReminders: false, saved: true };
+      expect(navigation.replace).toHaveBeenCalledWith('MeasurementsAdd', {
+        date: FLOW_DATE,
+        guidedCheckIn: flags,
+      });
+      // The recorded progress a later Continue opens says so too.
+      expect(useGuidedCheckInStore.getState().progress).toEqual({
+        date: FLOW_DATE,
+        step: 'MeasurementsAdd',
+        flags,
+      });
+    });
+
     it('keeps Back off and inert while a picked photo is still on its way', async () => {
       jest
         .mocked(pickImageFromCamera)
@@ -782,6 +806,55 @@ describe('ProgressPhotosScreen', () => {
       }
     );
 
+    describe('closed by the navigator while a photo is on its way', () => {
+      let settleUpload: { resolve: () => void; reject: (error: Error) => void };
+
+      beforeEach(() => {
+        uploadAsync.mockImplementationOnce(
+          () =>
+            new Promise<void>((resolve, reject) => {
+              settleUpload = { resolve, reject };
+            })
+        );
+      });
+
+      it('confirms the check-in once that photo has landed', async () => {
+        const { getByLabelText } = renderInFlow({ offerReminders: true });
+        await takeFrontPhoto(getByLabelText);
+        expect(uploadAsync).toHaveBeenCalledTimes(1);
+
+        removeScreen('GO_BACK');
+        // Nothing yet: the photo has not been saved.
+        expect(toastShow).not.toHaveBeenCalled();
+        expect(offerCheckinRemindersAfterLeaving).not.toHaveBeenCalled();
+
+        await act(async () => {
+          settleUpload.resolve();
+        });
+
+        expect(toastShow).toHaveBeenCalledTimes(1);
+        expect(toastShow).toHaveBeenCalledWith(successToast);
+        expect(offerCheckinRemindersAfterLeaving).toHaveBeenCalledTimes(1);
+        expect(navigation.goBack).not.toHaveBeenCalled();
+      });
+
+      it('confirms nothing for a photo that then fails, but still makes the held offer', async () => {
+        const { getByLabelText } = renderInFlow({ offerReminders: true });
+        await takeFrontPhoto(getByLabelText);
+
+        removeScreen('POP');
+        await act(async () => {
+          settleUpload.reject(new Error('network'));
+        });
+
+        expect(toastShow).toHaveBeenCalledWith(
+          expect.objectContaining({ type: 'error' })
+        );
+        expect(toastShow).not.toHaveBeenCalledWith(successToast);
+        expect(offerCheckinRemindersAfterLeaving).toHaveBeenCalledTimes(1);
+      });
+    });
+
     it('confirms nothing on a system Back when nothing was saved', () => {
       renderInFlow();
 
@@ -794,9 +867,9 @@ describe('ProgressPhotosScreen', () => {
     it('does not finish on its own Finish a second time', () => {
       renderInFlow({ saved: true, offerReminders: true });
 
+      // Finish's goBack reaches the navigator, which reports the removal
+      // from inside it.
       act(() => finishItem().onPress());
-      // Finish's goBack reaches the navigator, which reports the removal too.
-      removeScreen('GO_BACK');
 
       expect(navigation.goBack).toHaveBeenCalledTimes(1);
       expect(toastShow).toHaveBeenCalledTimes(1);

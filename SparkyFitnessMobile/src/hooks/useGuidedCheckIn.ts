@@ -37,13 +37,18 @@ export interface GuidedCheckIn {
   total: number;
   /** Hands over to the next step; on the last one it finishes. */
   advance: (result?: GuidedCheckInStepResult) => void;
-  /** Moves on without saving, asking first when the step has unsaved edits. */
-  skip: (hasUnsavedEdits: boolean) => void;
+  /**
+   * Moves on without saving, asking first when the step has unsaved edits.
+   * `result` is what the step had already saved, if anything.
+   */
+  skip: (hasUnsavedEdits: boolean, result?: GuidedCheckInStepResult) => void;
   /**
    * Opens the step before, asking first when this step has unsaved edits.
-   * Null on the first step.
+   * `result` is as for `skip`. Null on the first step.
    */
-  back: ((hasUnsavedEdits: boolean) => void) | null;
+  back:
+    | ((hasUnsavedEdits: boolean, result?: GuidedCheckInStepResult) => void)
+    | null;
   /** Leaves the flow from the last step. */
   finish: (result?: GuidedCheckInStepResult) => void;
   /**
@@ -191,10 +196,13 @@ export function useGuidedCheckIn({
       );
     };
 
-    const skip = (hasUnsavedEdits: boolean) => {
+    const skip = (
+      hasUnsavedEdits: boolean,
+      result?: GuidedCheckInStepResult
+    ) => {
       if (leftRef.current || confirmingRef.current) return;
       if (!hasUnsavedEdits) {
-        advance();
+        advance(result);
         return;
       }
       confirmDroppingEdits(
@@ -202,17 +210,17 @@ export function useGuidedCheckIn({
           defaultValue: 'Skip this step?',
         }),
         t('guidedCheckIn.skip', { defaultValue: 'Skip' }),
-        () => advance()
+        () => advance(result)
       );
     };
 
     const previous = STEPS[index - 1];
     const back = previous
-      ? (hasUnsavedEdits: boolean) => {
+      ? (hasUnsavedEdits: boolean, result?: GuidedCheckInStepResult) => {
           if (leftRef.current || confirmingRef.current) return;
           const goBackAStep = () => {
             if (!leave()) return;
-            open(previous, merged());
+            open(previous, merged(result));
           };
           if (!hasUnsavedEdits) {
             goBackAStep();

@@ -163,6 +163,9 @@ const ProgressPhotosScreen: React.FC<Props> = ({ navigation, route }) => {
   // would let Finish leave while it is still on its way.
   const [isPicking, setIsPicking] = useState(false);
   const uploadedRef = useRef(false);
+  // Set when the navigator closes the step while a photo is still on its way,
+  // so the check-in is confirmed once that photo has landed.
+  const closeWhenSettledRef = useRef<(() => void) | null>(null);
 
   const { days, isLoading, isError, refetch } = useCheckInPhotoGallery();
   const { photos: dayPhotos } = useCheckInPhotosByDate(selectedDate);
@@ -233,10 +236,11 @@ const ProgressPhotosScreen: React.FC<Props> = ({ navigation, route }) => {
     guidedCheckIn?.finish({ saved: uploadedRef.current });
   }, [guidedCheckIn]);
   const isPhotoPending = isPicking || isUploading || isDeleting;
-  // Photos are saved as they are added, so going back drops nothing.
+  // Photos are saved as they are added, so going back drops nothing, and
+  // the flow keeps knowing a photo was saved.
   const handleBack = useCallback(() => {
     if (pickerLock.current) return;
-    guidedCheckIn?.back?.(false);
+    guidedCheckIn?.back?.(false, { saved: uploadedRef.current });
   }, [guidedCheckIn]);
   // Pushed, the screen pads below the status bar only when it draws its own
   // header. In the check-in it is a sheet, which on iOS already starts below
@@ -251,9 +255,11 @@ const ProgressPhotosScreen: React.FC<Props> = ({ navigation, route }) => {
     if (!guidedCheckIn) return undefined;
     return navigation.addListener('beforeRemove', (event) => {
       const { type } = event.data.action;
-      if (type === 'GO_BACK' || type === 'POP') {
+      if (type !== 'GO_BACK' && type !== 'POP') return;
+      const close = () =>
         guidedCheckIn.onNavigatorClose({ saved: uploadedRef.current });
-      }
+      if (pickerLock.current) closeWhenSettledRef.current = close;
+      else close();
     });
   }, [guidedCheckIn, navigation]);
 
@@ -333,6 +339,8 @@ const ProgressPhotosScreen: React.FC<Props> = ({ navigation, route }) => {
       } finally {
         pickerLock.current = false;
         setIsPicking(false);
+        closeWhenSettledRef.current?.();
+        closeWhenSettledRef.current = null;
       }
     },
     [t, uploadAsync, selectedDate]

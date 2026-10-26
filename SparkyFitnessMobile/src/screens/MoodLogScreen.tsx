@@ -518,7 +518,8 @@ function CheckinEditLoader({
 }) {
   const { t } = useTranslation();
   const { navigation, date } = context;
-  const { checkins, isLoading, isError } = useMoodCheckinsForDate(date);
+  const { checkins, isLoading, isFetching, isError, refetch } =
+    useMoodCheckinsForDate(date);
   const found = checkins?.find((row) => row.id === checkinId) ?? null;
   // Hold on to the row once found: deleting it from this screen refetches the
   // day without it before the screen has closed, which must not flash the
@@ -529,6 +530,7 @@ function CheckinEditLoader({
   if (row) {
     return (
       <CheckinComposer
+        key={row.id}
         {...context}
         editing={row}
         guidedCheckIn={guidedCheckIn}
@@ -537,7 +539,10 @@ function CheckinEditLoader({
   }
 
   const title = t('mood.editCheckinTitle', { defaultValue: 'Edit check-in' });
-  if (isLoading) {
+  // In the check-in a missing row starts a new check-in, so a cached list
+  // still being refreshed (one cached before step 1 created the row) must not
+  // count as the answer.
+  if (isLoading || (guidedCheckIn && isFetching)) {
     return (
       <MoodLogLoading
         navigation={navigation}
@@ -552,6 +557,7 @@ function CheckinEditLoader({
   if (guidedCheckIn && !isError) {
     return (
       <CheckinComposer
+        key="new"
         {...context}
         editing={null}
         guidedCheckIn={guidedCheckIn}
@@ -578,13 +584,25 @@ function CheckinEditLoader({
                 defaultValue: 'This check-in no longer exists.',
               })}
         </Text>
-        <Button
-          variant="outline"
-          onPress={() => navigation.goBack()}
-          accessibilityRole="button"
-        >
-          {t('common.back', { defaultValue: 'Back' })}
-        </Button>
+        {/* In the check-in, Back here would close the whole flow (the steps
+            replace one another), so it offers a retry; Skip and the X stay. */}
+        {guidedCheckIn ? (
+          <Button
+            variant="outline"
+            onPress={() => void refetch()}
+            accessibilityRole="button"
+          >
+            {t('common.retry', { defaultValue: 'Retry' })}
+          </Button>
+        ) : (
+          <Button
+            variant="outline"
+            onPress={() => navigation.goBack()}
+            accessibilityRole="button"
+          >
+            {t('common.back', { defaultValue: 'Back' })}
+          </Button>
+        )}
       </View>
     </MoodLogFrame>
   );

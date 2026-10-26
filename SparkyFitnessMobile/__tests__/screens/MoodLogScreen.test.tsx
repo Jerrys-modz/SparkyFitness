@@ -34,6 +34,11 @@ const mockDeleteMutateAsync = jest.fn();
 let mockEntry: MoodEntry | null = null;
 let mockCheckins: MoodEntry[] | null = [];
 let mockCheckinsLoading = false;
+let mockCheckinsFetching = false;
+let mockCheckinsError = false;
+const mockCheckinsRefetch = jest.fn();
+/** The day the screen last asked for check-ins. */
+let mockCheckinsDate: string | undefined;
 jest.mock('../../src/hooks/useMood', () => ({
   useMoodEntryForDate: () => ({
     entry: mockEntry,
@@ -48,11 +53,16 @@ jest.mock('../../src/hooks/useMood', () => ({
     isLoading: false,
     isError: false,
   }),
-  useMoodCheckinsForDate: () => ({
-    checkins: mockCheckins,
-    isLoading: mockCheckinsLoading,
-    isError: false,
-  }),
+  useMoodCheckinsForDate: (date: string) => {
+    mockCheckinsDate = date;
+    return {
+      checkins: mockCheckins,
+      isLoading: mockCheckinsLoading,
+      isFetching: mockCheckinsLoading || mockCheckinsFetching,
+      isError: mockCheckinsError,
+      refetch: mockCheckinsRefetch,
+    };
+  },
   useCreateMoodCheckin: () => ({
     mutateAsync: mockCreateMutateAsync,
     isPending: false,
@@ -209,6 +219,9 @@ beforeEach(() => {
   mockSupported = true;
   mockCheckins = [];
   mockCheckinsLoading = false;
+  mockCheckinsFetching = false;
+  mockCheckinsError = false;
+  mockCheckinsDate = undefined;
   mockCheckinsSupport = {
     supported: false,
     isLoading: false,
@@ -1427,6 +1440,87 @@ describe('MoodLogScreen guided check-in', () => {
           ...toMeasurementsWith(flags)
         );
         expect(mockNavigation.goBack).not.toHaveBeenCalled();
+      });
+
+      it('looks the check-in up on the day it was saved on, not the flow day', () => {
+        // Tokyo: the check-in went on the zone's next day.
+        renderWithParams({
+          date: DATE,
+          guidedCheckIn: {
+            ...flags,
+            moodCheckin: { id: 'checkin-1', date: '2026-10-15' },
+          },
+        });
+
+        expect(mockCheckinsDate).toBe('2026-10-15');
+        expect(screen.getByText('Edit check-in')).toBeTruthy();
+      });
+
+      it('waits for a cached list being refreshed instead of starting a new check-in', () => {
+        // A list cached before step 1 created the check-in, still refreshing.
+        mockCheckins = [];
+        mockCheckinsFetching = true;
+        renderWithParams({ date: DATE, guidedCheckIn: flags });
+
+        expect(screen.queryByText('New check-in')).toBeNull();
+        expect(
+          screen.queryByRole('button', { name: 'Save & continue' })
+        ).toBeDisabled();
+        expect(screen.getByText('Check-in: Step 1 of 3')).toBeTruthy();
+
+        // The refreshed list has it: the step edits it.
+        mockCheckins = [savedEntry({ id: 'checkin-1' })];
+        mockCheckinsFetching = false;
+        screen.rerender(
+          <SafeAreaProvider
+            initialMetrics={{
+              insets: { top: 24, bottom: 48, left: 0, right: 0 },
+              frame,
+            }}
+          >
+            <MoodLogScreen
+              navigation={mockNavigation}
+              route={{
+                key: 'MoodLog-key',
+                name: 'MoodLog',
+                params: { date: DATE, guidedCheckIn: flags },
+              }}
+            />
+          </SafeAreaProvider>
+        );
+
+        expect(screen.getByText('Edit check-in')).toBeTruthy();
+        expect(mockCreateMutateAsync).not.toHaveBeenCalled();
+      });
+
+      it('offers Retry, not a Back that would close the check-in, when the day fails to load', async () => {
+        mockCheckins = null;
+        mockCheckinsError = true;
+        renderWithParams({ date: DATE, guidedCheckIn: flags });
+
+        expect(screen.getByText("Could not load this day's mood")).toBeTruthy();
+        expect(screen.queryByRole('button', { name: 'Back' })).toBeNull();
+        fireEvent.press(screen.getByRole('button', { name: 'Retry' }));
+        expect(mockCheckinsRefetch).toHaveBeenCalledTimes(1);
+        expect(mockNavigation.goBack).not.toHaveBeenCalled();
+
+        // Skip still moves on, with every flag.
+        fireEvent.press(skipButton());
+        expect(mockNavigation.replace).toHaveBeenCalledWith(
+          ...toMeasurementsWith(flags)
+        );
+      });
+
+      it('keeps Skip while the day is loading', () => {
+        mockCheckins = null;
+        mockCheckinsLoading = true;
+        renderWithParams({ date: DATE, guidedCheckIn: flags });
+
+        expect(screen.getByText('Check-in: Step 1 of 3')).toBeTruthy();
+        fireEvent.press(skipButton());
+        expect(mockNavigation.replace).toHaveBeenCalledWith(
+          ...toMeasurementsWith(flags)
+        );
       });
 
       it('starts a new check-in when the one it created is gone', async () => {

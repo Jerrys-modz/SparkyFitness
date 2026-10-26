@@ -693,14 +693,17 @@ describe('useGuidedCheckIn', () => {
       expect(toastShow).toHaveBeenCalledTimes(1);
     });
 
-    it('does nothing after finish, whose own goBack the navigator reports too', () => {
+    it("does nothing for finish's own goBack, which the navigator reports from inside it", () => {
       const { checkIn, goBack } = setup({
         step: 'ProgressPhotos',
         params: { saved: true, offerReminders: true },
       });
+      // React Navigation emits beforeRemove synchronously within goBack.
+      goBack.mockImplementation(() =>
+        checkIn().onNavigatorClose({ saved: true })
+      );
 
       checkIn().finish();
-      checkIn().onNavigatorClose({ saved: true });
 
       expect(goBack).toHaveBeenCalledTimes(1);
       expect(toastShow).toHaveBeenCalledTimes(1);

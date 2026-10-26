@@ -63,20 +63,6 @@ jest.mock('../../src/hooks/useCustomMeasurements', () => ({
   useDeleteCustomMeasurement: jest.fn(),
 }));
 
-jest.mock('../../src/hooks/useMindfulness', () => ({
-  useMindfulnessDay: () => ({
-    sessions: [],
-    totalMindfulMinutes: 0,
-    isLoading: false,
-    refetch: jest.fn(),
-  }),
-  useMindfulnessMutations: () => ({
-    saveSession: jest.fn(),
-    updateSession: jest.fn(),
-    deleteSession: jest.fn(),
-  }),
-}));
-
 jest.mock('../../src/components/Icon', () => {
   const { View } = require('react-native');
   return {
@@ -2339,14 +2325,6 @@ describe('MeasurementsAddScreen — guided check-in', () => {
     expect(screen.queryByTestId('calendar-sheet')).toBeNull();
   });
 
-  test("leaves the mindfulness card out, keeping the step to the day's measurements", () => {
-    const screen = renderInFlow();
-
-    expect(screen.getByText('Check-in: Step 2 of 3')).toBeTruthy();
-    expect(screen.queryByLabelText('Open mindfulness details')).toBeNull();
-    expect(screen.queryByText('Mindfulness')).toBeNull();
-  });
-
   test('saves a typed weight, then replaces itself with the photos step without a toast', async () => {
     const screen = renderInFlow();
 
@@ -2565,6 +2543,69 @@ describe('MeasurementsAddScreen — guided check-in', () => {
     );
   });
 
+  describe('after a partial save', () => {
+    beforeEach(() => {
+      setCustomCategories([customCategory({ id: 'c1', frequency: 'Daily' })]);
+      setCustomEntries([
+        customEntry({ id: 'e1', category_id: 'c1', value: '5' }),
+      ]);
+      setMeasurements({ weight: 80 });
+      mutateAsync.mockRejectedValueOnce(new Error('boom'));
+    });
+
+    /** The custom value goes through, the weight's upsert fails. */
+    const saveHalf = async (screen: FlowScreen) => {
+      fireEvent.changeText(screen.getByTestId('custom-input-c1'), '6');
+      fireEvent.changeText(getInput(screen, 'weight'), '81');
+      await pressContinue(screen);
+      expect(customMutations().save.mutateAsync).toHaveBeenCalledTimes(1);
+      expect(mockNavigation.replace).not.toHaveBeenCalled();
+    };
+
+    test('moving on with nothing left to send still counts the step as saved', async () => {
+      const screen = renderInFlow();
+      await saveHalf(screen);
+
+      // The refetch brings back the value that went through, and the user
+      // keeps the day's old weight after all.
+      setCustomEntries([
+        customEntry({ id: 'e1', category_id: 'c1', value: '6' }),
+      ]);
+      fireEvent.changeText(getInput(screen, 'weight'), '80');
+      await pressContinue(screen);
+
+      expect(mutateAsync).toHaveBeenCalledTimes(1);
+      expect(mockNavigation.replace).toHaveBeenCalledWith(
+        ...toPhotos({ offerReminders: false, saved: true })
+      );
+    });
+
+    test('Skip still counts the step as saved', async () => {
+      const screen = renderInFlow();
+      await saveHalf(screen);
+
+      fireEvent.press(skipButton(screen));
+      act(() => dialogButton('destructive')());
+
+      expect(mockNavigation.replace).toHaveBeenCalledWith(
+        ...toPhotos({ offerReminders: false, saved: true })
+      );
+    });
+
+    test('Back still counts the step as saved', async () => {
+      const screen = renderInFlow();
+      await saveHalf(screen);
+
+      fireEvent.press(backButton(screen));
+      act(() => dialogButton('destructive')());
+
+      expect(mockNavigation.replace).toHaveBeenCalledWith('MoodLog', {
+        date: ENTRY_DATE,
+        guidedCheckIn: { offerReminders: false, saved: true },
+      });
+    });
+  });
+
   test('Skip on an untouched form moves on without asking or writing', () => {
     setMeasurements({ weight: 80 });
     const screen = renderInFlow();
@@ -2697,7 +2738,10 @@ describe('MeasurementsAddScreen — guided check-in', () => {
     expect(screen.queryByText(/Check-in: Step/)).toBeNull();
     expect(screen.queryByRole('button', { name: 'Skip this step' })).toBeNull();
     expect(screen.getByTestId('calendar-sheet')).toBeTruthy();
-    expect(screen.getByLabelText('Open mindfulness details')).toBeTruthy();
+    // Mindfulness is logged from its own Add menu row and Dashboard card, so
+    // it is not offered among the measurements.
+    expect(screen.queryByLabelText('Open mindfulness details')).toBeNull();
+    expect(screen.queryByText('Mindfulness')).toBeNull();
 
     fireEvent.changeText(getInput(screen, 'weight'), '82.5');
     await pressSave(screen);

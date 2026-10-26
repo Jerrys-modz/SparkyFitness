@@ -33,11 +33,6 @@ import {
   useLatestMeasurementsOnOrBefore,
   useMeasurements,
 } from '../hooks/useMeasurements';
-import {
-  useMindfulnessDay,
-  useMindfulnessMutations,
-} from '../hooks/useMindfulness';
-import { MindfulnessCard } from '../components/mindfulness/MindfulnessCard';
 import { useUpsertCheckIn } from '../hooks/useUpsertCheckIn';
 import { usePreferences } from '../hooks/usePreferences';
 import { useProfile } from '../hooks/useProfile';
@@ -256,12 +251,6 @@ const MeasurementsAddScreen: React.FC<Props> = ({ navigation, route }) => {
     });
   const { preferences, isLoading: isPreferencesLoading } = usePreferences();
   const { profile } = useProfile();
-  const { sessions: mindfulSessions, totalMindfulMinutes } =
-    useMindfulnessDay(selectedDate);
-  const {
-    saveSession: saveMindfulSession,
-    deleteSession: deleteMindfulSession,
-  } = useMindfulnessMutations(selectedDate);
   // Weight supports a third "stones + lbs" mode that renders as two inputs.
   const weightMode: 'kg' | 'lbs' | 'st_lbs' =
     preferences?.default_weight_unit ?? 'kg';
@@ -489,6 +478,11 @@ const MeasurementsAddScreen: React.FC<Props> = ({ navigation, route }) => {
     navigation.goBack();
   }, [navigation]);
 
+  // Set once a write of this step reaches the server, so the check-in still
+  // counts the step as saved when a retry after a partial failure, Skip or
+  // Back then has nothing left to send.
+  const stepSavedRef = useRef(false);
+
   /**
    * Whether the form differs from what the day already holds. Compared by
    * value, so a field typed and then cleared again is not an edit.
@@ -690,7 +684,7 @@ const MeasurementsAddScreen: React.FC<Props> = ({ navigation, route }) => {
     // In the check-in an unchanged form moves on to the photos instead of
     // saving the same values again or showing "Nothing to save".
     if (guidedCheckIn && !hasUnsavedEdits()) {
-      guidedCheckIn.advance();
+      guidedCheckIn.advance({ saved: stepSavedRef.current });
       return;
     }
 
@@ -1047,7 +1041,7 @@ const MeasurementsAddScreen: React.FC<Props> = ({ navigation, route }) => {
       // With nothing to send, the check-in moves on rather than stopping on
       // "Nothing to save".
       if (guidedCheckIn) {
-        guidedCheckIn.advance();
+        guidedCheckIn.advance({ saved: stepSavedRef.current });
         return;
       }
       Toast.show({
@@ -1108,6 +1102,7 @@ const MeasurementsAddScreen: React.FC<Props> = ({ navigation, route }) => {
             // This operation reached the server successfully; it must not be
             // retried by a later partial-failure retry.
             if (op.rowKey) remainingDirtyCustom.delete(op.rowKey);
+            stepSavedRef.current = true;
           } catch {
             // Stop at the first failure; later operations remain pending.
             customSucceeded = false;
@@ -1118,6 +1113,7 @@ const MeasurementsAddScreen: React.FC<Props> = ({ navigation, route }) => {
         if (customSucceeded && hasAnyField) {
           try {
             await upsertMutation.mutateAsync(payload);
+            stepSavedRef.current = true;
           } catch {
             customSucceeded = false;
           }
@@ -1470,9 +1466,17 @@ const MeasurementsAddScreen: React.FC<Props> = ({ navigation, route }) => {
         <GuidedCheckInStepIndicator
           step={guidedCheckIn.step}
           total={guidedCheckIn.total}
-          onBack={() => guidedCheckIn.back?.(hasUnsavedEdits())}
+          onBack={() =>
+            guidedCheckIn.back?.(hasUnsavedEdits(), {
+              saved: stepSavedRef.current,
+            })
+          }
           backDisabled={isMutationPending}
-          onSkip={() => guidedCheckIn.skip(hasUnsavedEdits())}
+          onSkip={() =>
+            guidedCheckIn.skip(hasUnsavedEdits(), {
+              saved: stepSavedRef.current,
+            })
+          }
           skipDisabled={isMutationPending}
         />
       )}
@@ -1960,22 +1964,6 @@ const MeasurementsAddScreen: React.FC<Props> = ({ navigation, route }) => {
                   )}
                 </View>
               )
-            )}
-
-            {/* The check-in keeps this step to the day's measurements. */}
-            {!guidedCheckIn && (
-              <View className="mt-4 mb-2">
-                <MindfulnessCard
-                  sessions={mindfulSessions}
-                  totalMindfulMinutes={totalMindfulMinutes}
-                  selectedDate={selectedDate}
-                  onSaveSession={saveMindfulSession}
-                  onDeleteSession={deleteMindfulSession}
-                  onPressDetails={() =>
-                    navigation.navigate('MindfulnessDetail', { selectedDate })
-                  }
-                />
-              </View>
             )}
           </>
         )}
