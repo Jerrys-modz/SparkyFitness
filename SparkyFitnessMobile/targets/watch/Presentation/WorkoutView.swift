@@ -1159,28 +1159,46 @@ private struct CurrentSetView: View {
                     .minimumScaleFactor(0.8)
             }
 
-            DoneButton(isCompleted: store.isCompleted(step)) {
-                endCrownEditing()
-                if store.uncompleteStep(step) {
-                    session.sendSetUncompleted(step)
+            // Previous and next set either side of a still-wide Done: the dots
+            // jump within this exercise, these also cross into the next one.
+            HStack(spacing: 6) {
+                SquircleButton(systemImage: "chevron.left") {
+                    endCrownEditing()
+                    store.goToPreviousStep()
                 }
-            } onComplete: {
-                // The value on screen is what gets logged, settled or not.
-                endCrownEditing()
-                if checkIn.context.effectiveRpeEnabled {
-                    if let completed = store.completeCurrentSet(holdForEffort: true),
-                       let pending = store.pendingSetCompletion {
-                        onAwaitRpe(
-                            PendingRpe(
-                                step: completed,
-                                values: pending.values,
-                                completedAt: pending.completedAt
-                            )
-                        )
+                .frame(width: WatchStyle.s(40))
+                .disabled(store.currentStepIndex == 0)
+                .accessibilityLabel(String(localized: "watch.workout.previousSet", defaultValue: "Previous set"))
+                DoneButton(isCompleted: store.isCompleted(step)) {
+                    endCrownEditing()
+                    if store.uncompleteStep(step) {
+                        session.sendSetUncompleted(step)
                     }
-                } else if let completed = store.completeCurrentSet() {
-                    session.sendSetCompleted(completed, values: store.values(for: completed))
+                } onComplete: {
+                    // The value on screen is what gets logged, settled or not.
+                    endCrownEditing()
+                    if checkIn.context.effectiveRpeEnabled {
+                        if let completed = store.completeCurrentSet(holdForEffort: true),
+                           let pending = store.pendingSetCompletion {
+                            onAwaitRpe(
+                                PendingRpe(
+                                    step: completed,
+                                    values: pending.values,
+                                    completedAt: pending.completedAt
+                                )
+                            )
+                        }
+                    } else if let completed = store.completeCurrentSet() {
+                        session.sendSetCompleted(completed, values: store.values(for: completed))
+                    }
                 }
+                SquircleButton(systemImage: "chevron.right") {
+                    endCrownEditing()
+                    store.goToNextStep()
+                }
+                .frame(width: WatchStyle.s(40))
+                .disabled(store.currentStepIndex >= store.steps.count - 1)
+                .accessibilityLabel(String(localized: "watch.workout.nextSet", defaultValue: "Next set"))
             }
         }
         // The phone logging this set, or a jump from the exercise list, has
@@ -1714,12 +1732,24 @@ private struct ExerciseTitle: View {
                         .fill(supersetColor)
                         .frame(width: 4)
                 }
-                Text(name)
-                    .font(.headline)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.8)
-                    .multilineTextAlignment(.leading)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                VStack(alignment: .leading, spacing: 0) {
+                    // One line when the superset line follows, so a 40 mm
+                    // screen still has room for the buttons.
+                    Text(name)
+                        .font(.headline)
+                        .lineLimit(supersetWith == nil ? 2 : 1)
+                        .minimumScaleFactor(supersetWith == nil ? 0.8 : 0.7)
+                        .multilineTextAlignment(.leading)
+                    // Who this set alternates with: the bar's colour alone
+                    // does not say.
+                    if let supersetWith {
+                        Text(String(localized: "watch.workout.superset", defaultValue: "Superset · \(supersetWith)"))
+                            .font(.footnote)
+                            .foregroundStyle(supersetColor ?? Color.secondary)
+                            .lineLimit(1)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 Image(systemName: "list.bullet")
                     .font(.footnote.weight(.semibold))
                     .foregroundStyle(.secondary)
