@@ -27,7 +27,9 @@ import CalendarSheet, {
 } from '../components/CalendarSheet';
 import SegmentedControl, { type Segment } from '../components/SegmentedControl';
 import StatusView from '../components/StatusView';
+import GuidedCheckInStepIndicator from '../components/GuidedCheckInStepIndicator';
 import { useScreenHeader } from '../hooks/useScreenHeader';
+import { useGuidedCheckIn } from '../hooks/useGuidedCheckIn';
 import {
   useCheckInPhotoGallery,
   useCheckInPhotoDates,
@@ -137,17 +139,29 @@ const ProgressPhotosScreen: React.FC<Props> = ({ navigation, route }) => {
   const [selectedDate, setSelectedDate] = useState(
     route.params?.date ?? getTodayDate()
   );
+  // Step 3 of the guided check-in, which keeps the day the check-in started on.
+  const guidedCheckIn = useGuidedCheckIn({
+    navigation,
+    step: 'ProgressPhotos',
+    date: route.params?.date,
+    params: route.params?.guidedCheckIn,
+  });
   /** Angle whose action sheet is open; also the target of a pick. */
   const [sheetAngle, setSheetAngle] = useState<PhotoType>('front');
   const actionSheetRef = useRef<ActionSheetRef>(null);
   const calendarRef = useRef<CalendarSheetRef>(null);
   // The picker is a native modal; without this a double tap opens two.
   const pickerLock = useRef(false);
+  // A picked photo is shrunk before its upload starts, so `isUploading` alone
+  // would let Finish leave while it is still on its way.
+  const [isPicking, setIsPicking] = useState(false);
+  const uploadedRef = useRef(false);
 
   const { days, isLoading, isError, refetch } = useCheckInPhotoGallery();
   const { photos: dayPhotos } = useCheckInPhotosByDate(selectedDate);
-  const { dates: photoDates } = useCheckInPhotoDates();
-  const { uploadAsync, uploadingType, deleteAsync } =
+  // The check-in fixes the day, so it never opens the calendar these mark.
+  const { dates: photoDates } = useCheckInPhotoDates(!guidedCheckIn);
+  const { uploadAsync, uploadingType, isUploading, deleteAsync, isDeleting } =
     useCheckInPhotoMutations();
 
   const byType = useMemo(() => {
@@ -207,9 +221,32 @@ const ProgressPhotosScreen: React.FC<Props> = ({ navigation, route }) => {
   // these two for anything older, so they must not be off when it does.
   const canCompare = allRows.length >= 2;
 
+  const handleFinish = useCallback(() => {
+    if (pickerLock.current) return;
+    guidedCheckIn?.finish({ saved: uploadedRef.current });
+  }, [guidedCheckIn]);
+
   const header = useScreenHeader({
     title: t('progressPhotos.title', { defaultValue: 'Progress Photos' }),
-    left: { kind: 'back' },
+    // The steps replace one another, so in the check-in this leaves the flow
+    // rather than going back to step 2. Photos save as they are added, so on
+    // the last step closing is finishing, with the same confirmation.
+    left: guidedCheckIn
+      ? {
+          kind: 'dismiss',
+          onPress: () => guidedCheckIn.finish({ saved: uploadedRef.current }),
+          accessibilityLabel: t('common.close', { defaultValue: 'Close' }),
+        }
+      : { kind: 'back' },
+    right: guidedCheckIn
+      ? {
+          kind: 'primary',
+          label: t('guidedCheckIn.finish', { defaultValue: 'Finish' }),
+          onPress: handleFinish,
+          disabled: isPicking || isUploading || isDeleting,
+          identifier: 'guided-check-in-finish',
+        }
+      : undefined,
   });
 
   // Measurements owns weight entry, so the prompt hands the day over rather
@@ -226,6 +263,7 @@ const ProgressPhotosScreen: React.FC<Props> = ({ navigation, route }) => {
     async (source: 'camera' | 'library', type: PhotoType) => {
       if (pickerLock.current) return;
       pickerLock.current = true;
+      setIsPicking(true);
       try {
         let uri: string | undefined;
         if (source === 'camera') {
@@ -252,6 +290,7 @@ const ProgressPhotosScreen: React.FC<Props> = ({ navigation, route }) => {
         // The server upserts on (user_id, entry_date, photo_type), so an
         // upload over an existing angle replaces it with no delete first.
         await uploadAsync({ date: selectedDate, type, uri });
+        uploadedRef.current = true;
       } catch (err) {
         Toast.show({
           type: 'error',
@@ -262,6 +301,7 @@ const ProgressPhotosScreen: React.FC<Props> = ({ navigation, route }) => {
         });
       } finally {
         pickerLock.current = false;
+        setIsPicking(false);
       }
     },
     [t, uploadAsync, selectedDate]
@@ -441,30 +481,42 @@ const ProgressPhotosScreen: React.FC<Props> = ({ navigation, route }) => {
       style={usesNativeHeader ? undefined : { paddingTop: insets.top }}
     >
       {header}
+      {guidedCheckIn && (
+        <GuidedCheckInStepIndicator
+          step={guidedCheckIn.step}
+          total={guidedCheckIn.total}
+        />
+      )}
 
       {/* The day on show, with its own management. Its own card, and angle
           agnostic: the selector further down scopes the history, not this. */}
       <View className="mx-4 mt-2 bg-surface rounded-xl p-3 shadow-sm">
         <View className="flex-row items-center justify-between mb-2">
-          <TouchableOpacity
-            onPress={() => calendarRef.current?.present()}
-            activeOpacity={0.7}
-            className="flex-row items-center"
-            accessibilityRole="button"
-            accessibilityLabel={t('progressPhotos.chooseDayA11y', {
-              defaultValue: 'Choose the day',
-            })}
-          >
+          {guidedCheckIn ? (
             <Text className="text-text-primary text-base font-semibold">
               {formatDateLabel(selectedDate, t, dateLocale)}
             </Text>
-            <Icon
-              name="chevron-down"
-              size={12}
-              color={accentPrimary}
-              style={{ marginLeft: 4 }}
-            />
-          </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              onPress={() => calendarRef.current?.present()}
+              activeOpacity={0.7}
+              className="flex-row items-center"
+              accessibilityRole="button"
+              accessibilityLabel={t('progressPhotos.chooseDayA11y', {
+                defaultValue: 'Choose the day',
+              })}
+            >
+              <Text className="text-text-primary text-base font-semibold">
+                {formatDateLabel(selectedDate, t, dateLocale)}
+              </Text>
+              <Icon
+                name="chevron-down"
+                size={12}
+                color={accentPrimary}
+                style={{ marginLeft: 4 }}
+              />
+            </TouchableOpacity>
+          )}
           <PhotoDayWeight
             weight={selectedDay?.weight ?? null}
             mode={weightMode}
@@ -552,12 +604,14 @@ const ProgressPhotosScreen: React.FC<Props> = ({ navigation, route }) => {
 
       {renderBody()}
 
-      <CalendarSheet
-        ref={calendarRef}
-        markedDates={photoDates}
-        selectedDate={selectedDate}
-        onSelectDate={setSelectedDate}
-      />
+      {!guidedCheckIn && (
+        <CalendarSheet
+          ref={calendarRef}
+          markedDates={photoDates}
+          selectedDate={selectedDate}
+          onSelectDate={setSelectedDate}
+        />
+      )}
 
       <ActionSheet
         ref={actionSheetRef}

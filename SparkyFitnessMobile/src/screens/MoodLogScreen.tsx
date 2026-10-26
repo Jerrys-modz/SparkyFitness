@@ -9,6 +9,7 @@ import {
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import Toast from 'react-native-toast-message';
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
@@ -25,6 +26,7 @@ import type { RootStackParamList } from '../types/navigation';
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { FooterSaveBar } from '../components/FormScreenChrome';
+import GuidedCheckInStepIndicator from '../components/GuidedCheckInStepIndicator';
 import Button from '../components/ui/Button';
 import TimeSheet, { type TimeSheetRef } from '../components/TimeSheet';
 import MoodHistoryCard from '../components/mood/MoodHistoryCard';
@@ -44,6 +46,10 @@ import {
   useSaveMood,
   useUpdateMoodCheckin,
 } from '../hooks/useMood';
+import {
+  useGuidedCheckIn,
+  type GuidedCheckIn,
+} from '../hooks/useGuidedCheckIn';
 import { useMoodCheckinsSupport } from '../hooks/useMoodCheckinsSupport';
 import { useMoodRatingsSupport } from '../hooks/useMoodRatingsSupport';
 import { usePreferences } from '../hooks/usePreferences';
@@ -84,22 +90,43 @@ export default function MoodLogScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
   const { supported, isLoading, retry, retrying } = useMoodCheckinsSupport();
   const date = route.params?.date;
+  const checkinId = route.params?.checkinId;
+  // Step 1 of the guided check-in. Editing a check-in is never part of it.
+  const guidedCheckIn = useGuidedCheckIn({
+    navigation,
+    step: 'MoodLog',
+    date,
+    params: checkinId === undefined ? route.params?.guidedCheckIn : undefined,
+  });
   const title = t('mood.logTitle', { defaultValue: 'Mood' });
 
   if (isLoading) {
-    return <MoodLogLoading navigation={navigation} title={title} />;
+    return (
+      <MoodLogLoading
+        navigation={navigation}
+        title={title}
+        guidedCheckIn={guidedCheckIn}
+      />
+    );
   }
   if (supported === true) {
     return (
       <CheckinMoodLog
         navigation={navigation}
         date={date}
-        checkinId={route.params?.checkinId}
+        checkinId={checkinId}
+        guidedCheckIn={guidedCheckIn}
       />
     );
   }
   if (supported === false) {
-    return <LegacyMoodLog navigation={navigation} date={date} />;
+    return (
+      <LegacyMoodLog
+        navigation={navigation}
+        date={date}
+        guidedCheckIn={guidedCheckIn}
+      />
+    );
   }
   return (
     <MoodLogFrame
@@ -108,6 +135,7 @@ export default function MoodLogScreen({ navigation, route }: Props) {
       onSave={noop}
       saving={false}
       saveDisabled
+      guidedCheckIn={guidedCheckIn}
     >
       <MoodSupportCheckFailed onRetry={retry} retrying={retrying} />
     </MoodLogFrame>
@@ -124,7 +152,30 @@ interface MoodLogFrameProps {
   saveDisabled: boolean;
   /** Why Save is off, kept in view above the scrolling body. */
   hint?: string;
+  /** Set when the screen is step 1 of the guided check-in. */
+  guidedCheckIn?: GuidedCheckIn | null;
+  /** Whether Skip has to ask before dropping the form's edits. */
+  hasUnsavedEdits?: boolean;
   children: ReactNode;
+}
+
+/**
+ * Where a successful save leads: on to the next step of the guided check-in,
+ * or back, offering reminders once after a new check-in.
+ */
+function leaveAfterMoodSave(
+  navigation: Navigation,
+  t: TFunction,
+  guidedCheckIn: GuidedCheckIn | null | undefined,
+  isNewCheckin: boolean
+) {
+  if (guidedCheckIn) {
+    // The reminder offer waits for the end of the check-in.
+    guidedCheckIn.advance({ saved: true, offerReminders: isNewCheckin });
+    return;
+  }
+  navigation.goBack();
+  if (isNewCheckin) offerCheckinRemindersAfterLeaving(t);
 }
 
 /** Header, scrolling body and Save, the same in every mode. */
@@ -136,11 +187,16 @@ function MoodLogFrame({
   saving,
   saveDisabled,
   hint,
+  guidedCheckIn,
+  hasUnsavedEdits = false,
   children,
 }: MoodLogFrameProps) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const usesNativeHeader = useNativeIOSHeadersActive();
+  const saveLabel = guidedCheckIn
+    ? t('guidedCheckIn.saveAndContinue', { defaultValue: 'Save & continue' })
+    : t('common.save', { defaultValue: 'Save' });
 
   const header = useScreenHeader({
     title,
@@ -148,12 +204,15 @@ function MoodLogFrame({
     left: {
       kind: 'dismiss',
       onPress: onDismiss,
-      accessibilityLabel: t('common.cancel', { defaultValue: 'Cancel' }),
+      // In the check-in the X leaves the whole flow, not just this form.
+      accessibilityLabel: guidedCheckIn
+        ? t('common.close', { defaultValue: 'Close' })
+        : t('common.cancel', { defaultValue: 'Cancel' }),
     },
     right: [
       {
         kind: 'primary',
-        label: t('common.save', { defaultValue: 'Save' }),
+        label: saveLabel,
         onPress: onSave,
         busy: saving,
         disabled: saveDisabled,
@@ -169,6 +228,14 @@ function MoodLogFrame({
       style={usesNativeHeader ? undefined : { paddingTop: insets.top }}
     >
       {header}
+      {guidedCheckIn && (
+        <GuidedCheckInStepIndicator
+          step={guidedCheckIn.step}
+          total={guidedCheckIn.total}
+          onSkip={() => guidedCheckIn.skip(hasUnsavedEdits)}
+          skipDisabled={saving}
+        />
+      )}
       {hint && (
         <Text className="px-4 pt-2 text-xs text-text-muted text-center">
           {hint}
@@ -183,7 +250,12 @@ function MoodLogFrame({
         {children}
       </KeyboardAwareScrollView>
       {!usesNativeHeader && (
-        <FooterSaveBar onPress={onSave} busy={saving} disabled={saveDisabled} />
+        <FooterSaveBar
+          onPress={onSave}
+          busy={saving}
+          disabled={saveDisabled}
+          label={saveLabel}
+        />
       )}
     </View>
   );
@@ -193,10 +265,12 @@ function MoodLogLoading({
   navigation,
   title,
   nativeTitle,
+  guidedCheckIn,
 }: {
   navigation: Navigation;
   title: string;
   nativeTitle?: string;
+  guidedCheckIn?: GuidedCheckIn | null;
 }) {
   const { t } = useTranslation();
   return (
@@ -207,6 +281,7 @@ function MoodLogLoading({
       onSave={noop}
       saving={false}
       saveDisabled
+      guidedCheckIn={guidedCheckIn}
     >
       <ActivityIndicator
         className="py-8"
@@ -232,9 +307,11 @@ function MoodLogDateNote({ date }: { date: string }) {
 function LegacyMoodLog({
   navigation,
   date,
+  guidedCheckIn,
 }: {
   navigation: Navigation;
   date: string | undefined;
+  guidedCheckIn: GuidedCheckIn | null;
 }) {
   const { t } = useTranslation();
   const targetDate = date ?? getTodayDate();
@@ -275,9 +352,22 @@ function LegacyMoodLog({
 
   const isToday = targetDate === getTodayDate();
   const entryReady = !entryLoading && !entryError;
+  const hasUnsavedEdits =
+    moodOverride !== null ||
+    tagsOverride !== null ||
+    notesOverride !== null ||
+    energyOverride !== undefined ||
+    focusOverride !== undefined;
 
   const handleSave = async () => {
     if (!entryReady || saveMood.isPending) return;
+    if (guidedCheckIn?.hasLeft()) return;
+    // An untouched form would save the default mood, so the check-in just
+    // moves on.
+    if (guidedCheckIn && !hasUnsavedEdits) {
+      guidedCheckIn.advance();
+      return;
+    }
     const sendEnergy = showRatings && energyOverride !== undefined;
     const sendFocus = showRatings && focusOverride !== undefined;
     let saved: Awaited<ReturnType<typeof saveMood.mutateAsync>>;
@@ -306,10 +396,9 @@ function LegacyMoodLog({
         }),
       });
     }
-    navigation.goBack();
     // Saving over the day's existing entry is an edit, and only a new
     // check-in offers reminders, as in the composer.
-    if (!existing) offerCheckinRemindersAfterLeaving(t);
+    leaveAfterMoodSave(navigation, t, guidedCheckIn, !existing);
   };
 
   return (
@@ -319,6 +408,8 @@ function LegacyMoodLog({
       onSave={handleSave}
       saving={saveMood.isPending}
       saveDisabled={!entryReady || saveMood.isPending}
+      guidedCheckIn={guidedCheckIn}
+      hasUnsavedEdits={hasUnsavedEdits}
     >
       {entryLoading && (
         <Text className="text-xs text-text-muted">
@@ -358,10 +449,12 @@ function CheckinMoodLog({
   navigation,
   date,
   checkinId,
+  guidedCheckIn,
 }: {
   navigation: Navigation;
   date: string | undefined;
   checkinId: string | undefined;
+  guidedCheckIn: GuidedCheckIn | null;
 }) {
   const { preferences } = usePreferences();
   const tz = preferences?.timezone || getDeviceTimezone();
@@ -377,6 +470,7 @@ function CheckinMoodLog({
         tz={tz}
         timeFormat={timeFormat}
         editing={null}
+        guidedCheckIn={guidedCheckIn}
       />
     );
   }
@@ -463,7 +557,11 @@ function CheckinComposer({
   tz,
   timeFormat,
   editing,
-}: CheckinContext & { editing: MoodEntry | null }) {
+  guidedCheckIn,
+}: CheckinContext & {
+  editing: MoodEntry | null;
+  guidedCheckIn?: GuidedCheckIn | null;
+}) {
   const { t } = useTranslation();
   const customMoods = useCustomMoods();
   const createCheckin = useCreateMoodCheckin();
@@ -519,6 +617,9 @@ function CheckinComposer({
 
   const handleSave = async () => {
     if (saveDisabled) return;
+    // A create is not idempotent: once the check-in moved on, a press still
+    // queued behind the transition must not add a second check-in.
+    if (guidedCheckIn?.hasLeft()) return;
     if (editing && !checkinEditChanged(editing, draft, date, tz)) {
       // An edit that changes nothing sends nothing.
       navigation.goBack();
@@ -548,10 +649,9 @@ function CheckinComposer({
       );
       return;
     }
-    // The single success point after a save.
-    navigation.goBack();
-    // Only a new check-in prompts; an edit never does.
-    if (!editing) offerCheckinRemindersAfterLeaving(t);
+    // The single success point after a save. Only a new check-in prompts;
+    // an edit never does.
+    leaveAfterMoodSave(navigation, t, guidedCheckIn, !editing);
   };
 
   // Set at once rather than on the next render, so a second confirm sent
@@ -612,6 +712,8 @@ function CheckinComposer({
       onSave={handleSave}
       saving={saving}
       saveDisabled={saveDisabled}
+      guidedCheckIn={guidedCheckIn}
+      hasUnsavedEdits={Object.keys(changes).length > 0}
       hint={
         !hasContent
           ? t('mood.checkinNeedsContent', {

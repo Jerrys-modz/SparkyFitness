@@ -1,5 +1,6 @@
 import React from 'react';
 import { Text } from 'react-native';
+import Toast from 'react-native-toast-message';
 import { act, fireEvent, render } from '@testing-library/react-native';
 import ProgressPhotosScreen from '../../src/screens/ProgressPhotosScreen';
 import {
@@ -10,8 +11,15 @@ import {
 } from '../../src/hooks/useCheckInPhotos';
 import { useCheckInPhotoSource } from '../../src/hooks/useCheckInPhotoSource';
 import { usePreferences } from '../../src/hooks/usePreferences';
-import { useScreenHeader } from '../../src/hooks/useScreenHeader';
+import {
+  useScreenHeader,
+  type HeaderItem,
+  type ScreenHeaderConfig,
+} from '../../src/hooks/useScreenHeader';
+import { offerCheckinRemindersAfterLeaving } from '../../src/services/offerCheckinReminders';
 import type { ProgressPhotoDay } from '../../src/types/checkInPhotos';
+import type { RootStackParamList } from '../../src/types/navigation';
+import { pickImageFromCamera } from '../../src/utils/pickImage';
 import { paddingAbove } from './helpers/insetTestUtils';
 
 jest.mock('../../src/hooks/useCheckInPhotos', () => ({
@@ -69,9 +77,17 @@ jest.mock('../../src/components/ActionSheet', () => {
     }),
   };
 });
+const mockCalendarSheetRender = jest.fn();
 jest.mock('../../src/components/CalendarSheet', () => ({
   __esModule: true,
-  default: () => null,
+  default: () => {
+    mockCalendarSheetRender();
+    return null;
+  },
+}));
+// The guided check-in's last step makes the reminder offer step 1 held back.
+jest.mock('../../src/services/offerCheckinReminders', () => ({
+  offerCheckinRemindersAfterLeaving: jest.fn(),
 }));
 
 /** Items on the action sheet's latest render. */
@@ -118,8 +134,14 @@ const setDayPhotos = (angles: ('front' | 'back' | 'side')[]) => {
   } as unknown as ReturnType<typeof useCheckInPhotosByDate>);
 };
 
-const navigation = { navigate: jest.fn(), goBack: jest.fn() };
+const navigation = {
+  navigate: jest.fn(),
+  goBack: jest.fn(),
+  replace: jest.fn(),
+  isFocused: jest.fn(() => true),
+};
 const route = { key: 'ProgressPhotos-key', name: 'ProgressPhotos' as const };
+type RouteParams = NonNullable<RootStackParamList['ProgressPhotos']>;
 
 const dayWith = (
   entry_date: string,
@@ -149,7 +171,7 @@ const setGallery = (
   } as unknown as ReturnType<typeof useCheckInPhotoGallery>);
 };
 
-const renderScreen = () =>
+const renderScreen = (params?: RouteParams) =>
   render(
     <ProgressPhotosScreen
       navigation={
@@ -158,7 +180,9 @@ const renderScreen = () =>
         >['navigation']
       }
       route={
-        route as unknown as React.ComponentProps<
+        (params
+          ? { ...route, params }
+          : route) as unknown as React.ComponentProps<
           typeof ProgressPhotosScreen
         >['route']
       }
@@ -447,6 +471,239 @@ describe('ProgressPhotosScreen', () => {
 
       expect(getByLabelText('Add the front photo')).toBeTruthy();
       expect(getByLabelText('View the back photo full screen')).toBeTruthy();
+    });
+  });
+
+  // AddSheet → Check-In ends here as step 3 of 3, replaced in from
+  // MeasurementsAdd with the flow's day and the flags the earlier steps set.
+  describe('guided check-in', () => {
+    const FLOW_DATE = '2026-03-20';
+    const renderInFlow = (
+      guidedCheckIn: NonNullable<RouteParams['guidedCheckIn']> = {}
+    ) => renderScreen({ date: FLOW_DATE, guidedCheckIn });
+
+    type PrimaryItem = Extract<HeaderItem, { kind: 'primary' }>;
+    type DismissItem = Extract<HeaderItem, { kind: 'dismiss' }>;
+
+    /** The header config of the latest render. */
+    const headerConfig = (): ScreenHeaderConfig => {
+      const config = mockUseScreenHeader.mock.calls.at(-1)?.[0];
+      if (!config) throw new Error('useScreenHeader was not called');
+      return config;
+    };
+    const rightItems = (): HeaderItem[] => {
+      const right = headerConfig().right;
+      if (right == null) return [];
+      return Array.isArray(right) ? right : [right];
+    };
+    const finishItem = (): PrimaryItem => {
+      const [item] = rightItems();
+      if (item?.kind !== 'primary') throw new Error('no primary header item');
+      return item;
+    };
+    const closeItem = (): DismissItem => {
+      const left = headerConfig().left;
+      if (left?.kind !== 'dismiss') throw new Error('no dismiss header item');
+      return left;
+    };
+    /** Presses an item of the action sheet the way a tap would. */
+    const pressSheetItem = async (key: string) => {
+      const item = sheetItems()?.find((entry) => entry.key === key);
+      if (!item?.onPress) throw new Error(`no ${key} item on the sheet`);
+      await act(async () => {
+        item.onPress?.();
+      });
+    };
+    const takeFrontPhoto = async (
+      getByLabelText: ReturnType<typeof renderScreen>['getByLabelText']
+    ) => {
+      fireEvent.press(getByLabelText('Add the front photo'));
+      await pressSheetItem('camera');
+    };
+
+    const toastShow = jest.mocked(Toast.show);
+    const successToast = expect.objectContaining({
+      type: 'success',
+      text1: 'Check-in complete',
+    });
+
+    it('swaps Back for a Close X and puts a single Finish on the right', () => {
+      renderInFlow();
+
+      expect(headerConfig().left).toEqual(
+        expect.objectContaining({
+          kind: 'dismiss',
+          accessibilityLabel: 'Close',
+        })
+      );
+      expect(rightItems()).toHaveLength(1);
+      expect(finishItem()).toEqual(
+        expect.objectContaining({
+          kind: 'primary',
+          label: 'Finish',
+          disabled: false,
+        })
+      );
+    });
+
+    it('shows step 3 of 3 with no Skip, since Finish is the way on', () => {
+      const { getByText, queryByText, queryByRole } = renderInFlow();
+
+      expect(getByText('Check-in: Step 3 of 3')).toBeTruthy();
+      expect(queryByRole('button', { name: 'Skip this step' })).toBeNull();
+      expect(queryByText('Skip')).toBeNull();
+    });
+
+    it('locks the day the check-in started on', async () => {
+      const { queryByLabelText, getByLabelText } = renderInFlow();
+
+      // No day picker, no calendar sheet, and no request for the dates it marks.
+      expect(queryByLabelText('Choose the day')).toBeNull();
+      expect(mockCalendarSheetRender).not.toHaveBeenCalled();
+      expect(mockUseDates).toHaveBeenCalledWith(false);
+      expect(mockUseDates).not.toHaveBeenCalledWith(true);
+
+      await takeFrontPhoto(getByLabelText);
+
+      expect(uploadAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ date: FLOW_DATE, type: 'front' })
+      );
+    });
+
+    it.each([
+      ['an upload', { isUploading: true, isDeleting: false }],
+      ['a removal', { isUploading: false, isDeleting: true }],
+    ])('keeps Finish off while %s is in flight', (_what, pending) => {
+      mockUseMutations.mockReturnValue({
+        uploadAsync,
+        deleteAsync,
+        uploadingType: pending.isUploading ? 'front' : undefined,
+        ...pending,
+      } as unknown as ReturnType<typeof useCheckInPhotoMutations>);
+
+      renderInFlow();
+
+      expect(finishItem().disabled).toBe(true);
+    });
+
+    it('keeps Finish off and inert while a picked photo is still on its way', async () => {
+      // The pick (and the shrink after it) has not handed over to the upload.
+      jest
+        .mocked(pickImageFromCamera)
+        .mockImplementationOnce(() => new Promise<never>(() => {}));
+
+      const { getByLabelText } = renderInFlow();
+      await takeFrontPhoto(getByLabelText);
+
+      expect(finishItem().disabled).toBe(true);
+      act(() => finishItem().onPress());
+
+      expect(navigation.goBack).not.toHaveBeenCalled();
+      expect(uploadAsync).not.toHaveBeenCalled();
+      expect(toastShow).not.toHaveBeenCalled();
+    });
+
+    it('goes back and confirms the check-in once a photo was uploaded', async () => {
+      const { getByLabelText } = renderInFlow();
+      await takeFrontPhoto(getByLabelText);
+
+      expect(uploadAsync).toHaveBeenCalledTimes(1);
+      expect(finishItem().disabled).toBe(false);
+      expect(toastShow).not.toHaveBeenCalled();
+
+      act(() => finishItem().onPress());
+      // A second press after leaving moves nothing more.
+      act(() => finishItem().onPress());
+
+      expect(navigation.goBack).toHaveBeenCalledTimes(1);
+      expect(navigation.replace).not.toHaveBeenCalled();
+      expect(toastShow).toHaveBeenCalledTimes(1);
+      expect(toastShow).toHaveBeenCalledWith(successToast);
+    });
+
+    it('leaves without a confirmation when nothing was saved', () => {
+      renderInFlow();
+
+      act(() => finishItem().onPress());
+
+      expect(navigation.goBack).toHaveBeenCalledTimes(1);
+      expect(toastShow).not.toHaveBeenCalled();
+      expect(offerCheckinRemindersAfterLeaving).not.toHaveBeenCalled();
+    });
+
+    it('does not confirm a photo whose upload failed', async () => {
+      uploadAsync.mockRejectedValueOnce(new Error('network'));
+
+      const { getByLabelText } = renderInFlow();
+      await takeFrontPhoto(getByLabelText);
+
+      // The failure is reported, and Finish is usable again.
+      expect(toastShow).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'error' })
+      );
+      expect(finishItem().disabled).toBe(false);
+
+      act(() => finishItem().onPress());
+
+      expect(navigation.goBack).toHaveBeenCalledTimes(1);
+      expect(toastShow).not.toHaveBeenCalledWith(successToast);
+    });
+
+    it('confirms what an earlier step saved even with no new photo', () => {
+      renderInFlow({ saved: true });
+
+      act(() => finishItem().onPress());
+
+      expect(navigation.goBack).toHaveBeenCalledTimes(1);
+      expect(toastShow).toHaveBeenCalledWith(successToast);
+    });
+
+    it('makes the reminder offer step 1 held back once Finish leaves', () => {
+      renderInFlow({ offerReminders: true, saved: true });
+
+      expect(offerCheckinRemindersAfterLeaving).not.toHaveBeenCalled();
+      act(() => finishItem().onPress());
+
+      expect(navigation.goBack).toHaveBeenCalledTimes(1);
+      expect(offerCheckinRemindersAfterLeaving).toHaveBeenCalledTimes(1);
+      expect(offerCheckinRemindersAfterLeaving).toHaveBeenCalledWith(
+        expect.any(Function)
+      );
+    });
+
+    it('closes the last step like Finish, since its photos are already saved', async () => {
+      const { getByLabelText } = renderInFlow({ offerReminders: true });
+      await takeFrontPhoto(getByLabelText);
+
+      act(() => closeItem().onPress());
+      // A Finish press after the X moves nothing more.
+      act(() => finishItem().onPress());
+
+      expect(navigation.goBack).toHaveBeenCalledTimes(1);
+      expect(toastShow).toHaveBeenCalledWith(successToast);
+      expect(offerCheckinRemindersAfterLeaving).toHaveBeenCalledTimes(1);
+    });
+
+    it('closes without a confirmation when nothing was saved', () => {
+      renderInFlow();
+
+      act(() => closeItem().onPress());
+
+      expect(navigation.goBack).toHaveBeenCalledTimes(1);
+      expect(toastShow).not.toHaveBeenCalled();
+      expect(offerCheckinRemindersAfterLeaving).not.toHaveBeenCalled();
+    });
+
+    it('keeps Back, the day picker and no step indicator outside the check-in', () => {
+      const { getByLabelText, queryByText } = renderScreen({
+        date: FLOW_DATE,
+      });
+
+      expect(headerConfig().left).toEqual({ kind: 'back' });
+      expect(getByLabelText('Choose the day')).toBeTruthy();
+      expect(mockCalendarSheetRender).toHaveBeenCalled();
+      expect(mockUseDates).not.toHaveBeenCalledWith(false);
+      expect(queryByText(/Check-in: Step/)).toBeNull();
     });
   });
 

@@ -31,6 +31,9 @@ interface AddSheetProps {
   onAddMeasurements: () => void;
   onAddProgressPhotos: () => void;
   onAskSparky: () => void;
+  /** Starts the guided check-in; the row shows only with `showCheckIn`. */
+  onStartCheckIn?: () => void;
+  showCheckIn?: boolean;
   onAddSymptoms?: () => void;
   onAddMood?: () => void;
   onAddMindfulness?: () => void;
@@ -60,6 +63,8 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
       onAddMeasurements,
       onAddProgressPhotos,
       onAskSparky,
+      onStartCheckIn,
+      showCheckIn,
       onAddSymptoms,
       onAddMood,
       onAddMindfulness,
@@ -425,6 +430,13 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
                 {renderCard(cards[2])}
                 {renderCard(cards[3])}
               </View>
+              {showCheckIn && onStartCheckIn
+                ? renderSecondaryRow(
+                    t('addSheet.checkIn', { defaultValue: 'Check-In' }),
+                    'check-in',
+                    onStartCheckIn
+                  )
+                : null}
               {renderSecondaryRow(
                 t('addSheet.progressPhotos', {
                   defaultValue: 'Progress Photos',

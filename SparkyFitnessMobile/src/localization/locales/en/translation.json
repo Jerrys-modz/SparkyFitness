@@ -532,7 +532,8 @@
     "logCycle": "Log Cycle",
     "mindfulness": "Mindfulness",
     "recordActivity": "Record Activity",
-    "recordActivityHint": "Track a walk, run or ride with GPS"
+    "recordActivityHint": "Track a walk, run or ride with GPS",
+    "checkIn": "Check-In"
   },
   "screens": {
     "foods": "Foods",
@@ -1206,7 +1207,9 @@
     "summarySubtitle": "Show calories and macronutrients",
     "customNutrientDisplay": "Custom Nutrient Display",
     "limitDescription_one": "Up to {{count}} custom nutrients can be shown here.",
-    "limitDescription_other": "Up to {{count}} custom nutrients can be shown here."
+    "limitDescription_other": "Up to {{count}} custom nutrients can be shown here.",
+    "guidedCheckIn": "Guided check-in",
+    "guidedCheckInSubtitle": "Adds Check-In to the Add menu: log your mood, measurements and progress photos for the day, one step at a time."
   },
   "about": {
     "title": "About",
@@ -5478,6 +5481,16 @@
   "checkIn": {
     "saveFailed": "Save failed",
     "saveMessage": "Could not save measurements. Please try again."
+  },
+  "guidedCheckIn": {
+    "stepOfTotal": "Check-in: Step {{step}} of {{total}}",
+    "skip": "Skip",
+    "skipA11y": "Skip this step",
+    "saveAndContinue": "Save & continue",
+    "finish": "Finish",
+    "done": "Check-in complete",
+    "skipUnsavedTitle": "Skip this step?",
+    "skipUnsavedMessage": "Your changes on this step won't be saved."
   },
   "mood": {
     "logTitle": "Mood",

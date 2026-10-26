@@ -72,3 +72,15 @@ Upload **progress photos** to track your progress over time:
 ## Symptoms tab
 
 A quick way to log symptoms and episodes from your daily check-in. For templates, severity scales, location maps, triggers, and clinician-ready exports, see [Symptom & Episode Tracking](/features/symptom-tracking).
+
+## Guided check-in (mobile app)
+
+In the mobile app, turn on **Settings → Diary → Guided check-in** to add a **Check-In** button to the Add menu. It walks you through your daily check-in for the day the Diary is on, one screen after another:
+
+1. **Mood**: how you are feeling, with the same fields as the mood screen.
+2. **Measurements**: your weight and body measurements.
+3. **Progress photos**: front, back and side.
+
+Each screen shows **Step N of 3**. **Save & continue** saves the step and opens the next one, and moves on without saving when you changed nothing. **Skip** moves on without saving and asks first if you changed something. On the photos step, **Finish** closes the check-in. Anything you saved stays saved, even if you close the check-in part-way.
+
+The setting is off by default and is stored on the device, so turn it on again on each phone you use.

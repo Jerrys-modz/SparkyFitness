@@ -28,6 +28,7 @@ import CalendarSheet, {
   type CalendarSheetRef,
 } from '../components/CalendarSheet';
 import { FooterSaveBar } from '../components/FormScreenChrome';
+import GuidedCheckInStepIndicator from '../components/GuidedCheckInStepIndicator';
 import {
   useLatestMeasurementsOnOrBefore,
   useMeasurements,
@@ -91,6 +92,7 @@ import { isAutoHealthSyncCustomCategoryName } from '../utils/autoHealthSyncCateg
 import type { RootStackScreenProps } from '../types/navigation';
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import { useScreenHeader } from '../hooks/useScreenHeader';
+import { useGuidedCheckIn } from '../hooks/useGuidedCheckIn';
 import { useDiaryDateStore } from '../stores/diaryDateStore';
 import {
   useCustomCategories,
@@ -215,6 +217,13 @@ const MeasurementsAddScreen: React.FC<Props> = ({ navigation, route }) => {
   const initialDate =
     route.params?.date ?? useDiaryDateStore.getState().selectedDate;
   const [selectedDate, setSelectedDate] = useState<string>(initialDate);
+  // Step 2 of the guided check-in, which keeps the day the check-in started on.
+  const guidedCheckIn = useGuidedCheckIn({
+    navigation,
+    step: 'MeasurementsAdd',
+    date: route.params?.date,
+    params: route.params?.guidedCheckIn,
+  });
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [prefilledKeys, setPrefilledKeys] = useState<Set<FieldKey>>(
     () => new Set()
@@ -480,6 +489,17 @@ const MeasurementsAddScreen: React.FC<Props> = ({ navigation, route }) => {
     navigation.goBack();
   }, [navigation]);
 
+  /** Anything typed, cleared or deleted since the form loaded. */
+  const hasUnsavedEdits = useCallback(
+    () =>
+      dirtyFieldsRef.current.size > 0 ||
+      dirtyCustomKeysRef.current.size > 0 ||
+      Object.values(customFormRef.current).some(
+        (category) => category.deleted.length > 0
+      ),
+    []
+  );
+
   const setSingleCustomValue = useCallback(
     (categoryId: string, value: string) => {
       const existing = customFormRef.current[categoryId]?.rows[0] ?? null;
@@ -636,6 +656,14 @@ const MeasurementsAddScreen: React.FC<Props> = ({ navigation, route }) => {
   ]);
 
   const handleSave = useCallback(() => {
+    if (guidedCheckIn?.hasLeft()) return;
+    // In the check-in an untouched form moves on to the photos instead of
+    // saving the same values again or showing "Nothing to save".
+    if (guidedCheckIn && !hasUnsavedEdits()) {
+      guidedCheckIn.advance();
+      return;
+    }
+
     type FieldResult =
       | { kind: 'invalid' }
       | { kind: 'omit' }
@@ -986,6 +1014,12 @@ const MeasurementsAddScreen: React.FC<Props> = ({ navigation, route }) => {
     const customOps = customResult.operations;
 
     if (!hasAnyField && customOps.length === 0) {
+      // A value typed and then cleared leaves nothing to send; the check-in
+      // moves on rather than stopping on "Nothing to save".
+      if (guidedCheckIn) {
+        guidedCheckIn.advance();
+        return;
+      }
       Toast.show({
         type: 'info',
         text1: t('measurements.nothingToSave', {
@@ -1060,6 +1094,11 @@ const MeasurementsAddScreen: React.FC<Props> = ({ navigation, route }) => {
         }
 
         if (customSucceeded) {
+          if (guidedCheckIn) {
+            // The next step is the confirmation; a toast would cover its header.
+            guidedCheckIn.advance({ saved: true });
+            return;
+          }
           Toast.show({
             type: 'success',
             text1: t('measurements.saved', { defaultValue: 'Saved' }),
@@ -1156,6 +1195,8 @@ const MeasurementsAddScreen: React.FC<Props> = ({ navigation, route }) => {
     refetchCustomCategories,
     refetchCustomEntries,
     fieldLabel,
+    guidedCheckIn,
+    hasUnsavedEdits,
     t,
   ]);
 
@@ -1243,6 +1284,10 @@ const MeasurementsAddScreen: React.FC<Props> = ({ navigation, route }) => {
   const companionPlaceholder = (field: FieldKey, fallback: string): string =>
     standardHintFor(field)?.companionDisplay ?? fallback;
 
+  const saveLabel = guidedCheckIn
+    ? t('guidedCheckIn.saveAndContinue', { defaultValue: 'Save & continue' })
+    : t('common.save', { defaultValue: 'Save' });
+
   const header = useScreenHeader({
     title: t('screens.measurements', { defaultValue: 'Measurements' }),
     left: {
@@ -1252,7 +1297,7 @@ const MeasurementsAddScreen: React.FC<Props> = ({ navigation, route }) => {
     },
     right: {
       kind: 'primary',
-      label: t('common.save', { defaultValue: 'Save' }),
+      label: saveLabel,
       busyLabel: t('common.saving', { defaultValue: 'Saving…' }),
       busy: isSaving,
       disabled: isSaveDisabled,
@@ -1375,44 +1420,70 @@ const MeasurementsAddScreen: React.FC<Props> = ({ navigation, route }) => {
     );
   };
 
+  const dateLabel =
+    selectedDate === getTodayDate()
+      ? t('date.today', { defaultValue: 'Today' })
+      : selectedDate === addDays(getTodayDate(), -1)
+        ? t('date.yesterday', { defaultValue: 'Yesterday' })
+        : formatDate(
+            selectedDate,
+            i18n.language.startsWith('pl') ? 'pl-PL' : 'en-US'
+          );
+
   return (
     <View
       className="flex-1 bg-background"
       style={Platform.OS === 'android' ? { paddingTop: insets.top } : undefined}
     >
       {header}
+      {guidedCheckIn && (
+        <GuidedCheckInStepIndicator
+          step={guidedCheckIn.step}
+          total={guidedCheckIn.total}
+          onSkip={() => guidedCheckIn.skip(hasUnsavedEdits())}
+          skipDisabled={isMutationPending}
+        />
+      )}
 
       <KeyboardAwareScrollView
         contentContainerClassName="px-4 py-4"
         bottomOffset={80}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Date row */}
-        <TouchableOpacity
-          onPress={() => calendarSheetRef.current?.present()}
-          activeOpacity={0.7}
-          className="flex-row items-center mb-4"
-        >
-          <Text className="text-text-primary text-base">
-            {t('measurements.date', { defaultValue: 'Date' })}
-          </Text>
-          <Text className="text-accent-primary text-base font-medium mx-1.5">
-            {selectedDate === getTodayDate()
-              ? t('date.today', { defaultValue: 'Today' })
-              : selectedDate === addDays(getTodayDate(), -1)
-                ? t('date.yesterday', { defaultValue: 'Yesterday' })
-                : formatDate(
-                    selectedDate,
-                    i18n.language.startsWith('pl') ? 'pl-PL' : 'en-US'
-                  )}
-          </Text>
-          <Icon
-            name="chevron-down"
-            size={12}
-            color={accentPrimary}
-            weight="medium"
-          />
-        </TouchableOpacity>
+        {/* Date row. The check-in keeps every step on one day, so there it
+            only names the day. */}
+        {guidedCheckIn ? (
+          <View
+            testID="measurements-date-row"
+            className="flex-row items-center mb-4"
+          >
+            <Text className="text-text-primary text-base">
+              {t('measurements.date', { defaultValue: 'Date' })}
+            </Text>
+            <Text className="text-text-primary text-base font-medium mx-1.5">
+              {dateLabel}
+            </Text>
+          </View>
+        ) : (
+          <TouchableOpacity
+            onPress={() => calendarSheetRef.current?.present()}
+            activeOpacity={0.7}
+            className="flex-row items-center mb-4"
+          >
+            <Text className="text-text-primary text-base">
+              {t('measurements.date', { defaultValue: 'Date' })}
+            </Text>
+            <Text className="text-accent-primary text-base font-medium mx-1.5">
+              {dateLabel}
+            </Text>
+            <Icon
+              name="chevron-down"
+              size={12}
+              color={accentPrimary}
+              weight="medium"
+            />
+          </TouchableOpacity>
+        )}
 
         {isLoading || isPreferencesLoading ? (
           <View className="py-12 items-center">
@@ -1881,14 +1952,17 @@ const MeasurementsAddScreen: React.FC<Props> = ({ navigation, route }) => {
           onPress={handleSave}
           disabled={isSaveDisabled}
           busy={isMutationPending}
+          label={saveLabel}
         />
       )}
 
-      <CalendarSheet
-        ref={calendarSheetRef}
-        selectedDate={selectedDate}
-        onSelectDate={handleSelectDate}
-      />
+      {!guidedCheckIn && (
+        <CalendarSheet
+          ref={calendarSheetRef}
+          selectedDate={selectedDate}
+          onSelectDate={handleSelectDate}
+        />
+      )}
     </View>
   );
 };

@@ -1,0 +1,414 @@
+import { Alert, Keyboard, type AlertButton } from 'react-native';
+import Toast from 'react-native-toast-message';
+import { renderHook } from '@testing-library/react-native';
+
+import {
+  useGuidedCheckIn,
+  type GuidedCheckIn,
+} from '../../src/hooks/useGuidedCheckIn';
+import { initializeI18n } from '../../src/localization/i18n';
+import { offerCheckinRemindersAfterLeaving } from '../../src/services/offerCheckinReminders';
+
+jest.mock('react-native-toast-message', () => ({
+  __esModule: true,
+  default: { show: jest.fn() },
+}));
+jest.mock('../../src/services/offerCheckinReminders', () => ({
+  offerCheckinRemindersAfterLeaving: jest.fn(),
+}));
+
+type HookArgs = Parameters<typeof useGuidedCheckIn>[0];
+type Navigation = HookArgs['navigation'];
+type Step = HookArgs['step'];
+
+const DATE = '2026-10-26';
+
+const toastShow = jest.mocked(Toast.show);
+const offerReminders = jest.mocked(offerCheckinRemindersAfterLeaving);
+
+let alertSpy: jest.SpiedFunction<typeof Alert.alert>;
+let dismissSpy: jest.SpiedFunction<typeof Keyboard.dismiss>;
+
+function setup(overrides: Partial<Omit<HookArgs, 'navigation'>> = {}) {
+  const replace = jest.fn();
+  const goBack = jest.fn();
+  const isFocused = jest.fn(() => true);
+  const navigation: Navigation = { replace, goBack, isFocused };
+  const initialProps: HookArgs = {
+    navigation,
+    step: 'MoodLog',
+    date: DATE,
+    params: {},
+    ...overrides,
+  };
+  const hook = renderHook((props: HookArgs) => useGuidedCheckIn(props), {
+    initialProps,
+  });
+  const checkIn = (): GuidedCheckIn => {
+    const current = hook.result.current;
+    if (!current) throw new Error('Expected a guided check-in');
+    return current;
+  };
+  return { ...hook, initialProps, checkIn, replace, goBack, isFocused };
+}
+
+/** Presses a button of the most recent Alert.alert by its style. */
+function pressAlertButton(style: AlertButton['style']) {
+  const calls = alertSpy.mock.calls;
+  const buttons = calls[calls.length - 1]?.[2] ?? [];
+  const button = buttons.find((b) => b.style === style);
+  if (!button?.onPress) throw new Error(`No ${style} button on the alert`);
+  button.onPress();
+}
+
+describe('useGuidedCheckIn', () => {
+  beforeAll(async () => {
+    await initializeI18n('en');
+  });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    dismissSpy = jest.spyOn(Keyboard, 'dismiss').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    alertSpy.mockRestore();
+    dismissSpy.mockRestore();
+  });
+
+  it('returns null when the screen was opened outside the check-in', () => {
+    const { result } = setup({ params: undefined });
+
+    expect(result.current).toBeNull();
+  });
+
+  it('returns null without a date', () => {
+    const { result } = setup({ date: undefined });
+
+    expect(result.current).toBeNull();
+  });
+
+  it.each<[Step, number]>([
+    ['MoodLog', 1],
+    ['MeasurementsAdd', 2],
+    ['ProgressPhotos', 3],
+  ])('numbers the %s step %i of 3', (step, number) => {
+    const { checkIn } = setup({ step });
+
+    expect(checkIn().step).toBe(number);
+    expect(checkIn().total).toBe(3);
+  });
+
+  describe('advance', () => {
+    it.each<
+      [string, HookArgs['params'], Parameters<GuidedCheckIn['advance']>[0]]
+    >([
+      ['from the result', {}, { saved: true, offerReminders: true }],
+      ['from the params', { saved: true, offerReminders: true }, undefined],
+      ['from both', { offerReminders: true }, { saved: true }],
+    ])(
+      'replaces MoodLog with MeasurementsAdd, merging the flags %s',
+      (_label, params, stepResult) => {
+        const { checkIn, replace, goBack } = setup({ step: 'MoodLog', params });
+
+        checkIn().advance(stepResult);
+
+        expect(replace).toHaveBeenCalledTimes(1);
+        expect(replace).toHaveBeenCalledWith('MeasurementsAdd', {
+          date: DATE,
+          guidedCheckIn: { offerReminders: true, saved: true },
+        });
+        expect(goBack).not.toHaveBeenCalled();
+      }
+    );
+
+    it('hands over with both flags false when nothing was saved', () => {
+      const { checkIn, replace } = setup({ step: 'MoodLog' });
+
+      checkIn().advance();
+
+      expect(replace).toHaveBeenCalledWith('MeasurementsAdd', {
+        date: DATE,
+        guidedCheckIn: { offerReminders: false, saved: false },
+      });
+    });
+
+    it('replaces MeasurementsAdd with ProgressPhotos and never clears an earlier flag', () => {
+      const { checkIn, replace } = setup({
+        step: 'MeasurementsAdd',
+        params: { offerReminders: true, saved: true },
+      });
+
+      checkIn().advance({ saved: false, offerReminders: false });
+
+      expect(replace).toHaveBeenCalledTimes(1);
+      expect(replace).toHaveBeenCalledWith('ProgressPhotos', {
+        date: DATE,
+        guidedCheckIn: { offerReminders: true, saved: true },
+      });
+    });
+
+    it('does nothing while the step is not focused, and works once it is', () => {
+      const { checkIn, replace, isFocused } = setup({ step: 'MoodLog' });
+      isFocused.mockReturnValue(false);
+
+      checkIn().advance({ saved: true });
+
+      expect(replace).not.toHaveBeenCalled();
+      expect(dismissSpy).not.toHaveBeenCalled();
+      expect(checkIn().hasLeft()).toBe(false);
+
+      isFocused.mockReturnValue(true);
+      checkIn().advance({ saved: true });
+
+      expect(replace).toHaveBeenCalledTimes(1);
+      expect(checkIn().hasLeft()).toBe(true);
+    });
+
+    it('ignores every later advance, skip and finish once the step has left', () => {
+      const { checkIn, replace, goBack, rerender, initialProps } = setup({
+        step: 'MoodLog',
+      });
+      expect(checkIn().hasLeft()).toBe(false);
+
+      checkIn().advance({ saved: true });
+      expect(checkIn().hasLeft()).toBe(true);
+
+      checkIn().advance({ saved: true });
+      checkIn().skip(false);
+      checkIn().skip(true);
+      checkIn().finish({ saved: true, offerReminders: true });
+      // A new params object (a re-render) keeps the latch.
+      rerender({ ...initialProps, params: { saved: true } });
+      checkIn().advance();
+
+      expect(replace).toHaveBeenCalledTimes(1);
+      expect(goBack).not.toHaveBeenCalled();
+      expect(alertSpy).not.toHaveBeenCalled();
+      expect(toastShow).not.toHaveBeenCalled();
+      expect(offerReminders).not.toHaveBeenCalled();
+      expect(dismissSpy).toHaveBeenCalledTimes(1);
+      expect(checkIn().hasLeft()).toBe(true);
+    });
+
+    it('finishes from the last step instead of replacing it', () => {
+      const { checkIn, replace, goBack } = setup({ step: 'ProgressPhotos' });
+
+      checkIn().advance({ saved: true });
+
+      expect(replace).not.toHaveBeenCalled();
+      expect(goBack).toHaveBeenCalledTimes(1);
+      expect(toastShow).toHaveBeenCalledWith({
+        type: 'success',
+        text1: 'Check-in complete',
+      });
+      expect(checkIn().hasLeft()).toBe(true);
+    });
+
+    it('dismisses the keyboard before handing over', () => {
+      const { checkIn, replace } = setup({ step: 'MeasurementsAdd' });
+
+      checkIn().advance();
+
+      expect(dismissSpy).toHaveBeenCalledTimes(1);
+      expect(dismissSpy.mock.invocationCallOrder[0]).toBeLessThan(
+        replace.mock.invocationCallOrder[0]
+      );
+    });
+  });
+
+  describe('skip', () => {
+    it('moves on at once when the step has no unsaved edits', () => {
+      const { checkIn, replace } = setup({
+        step: 'MoodLog',
+        params: { saved: false },
+      });
+
+      checkIn().skip(false);
+
+      expect(alertSpy).not.toHaveBeenCalled();
+      expect(replace).toHaveBeenCalledWith('MeasurementsAdd', {
+        date: DATE,
+        guidedCheckIn: { offerReminders: false, saved: false },
+      });
+    });
+
+    it('asks first when the step has unsaved edits, and stays on Cancel', () => {
+      const { checkIn, replace } = setup({ step: 'MeasurementsAdd' });
+
+      checkIn().skip(true);
+
+      expect(alertSpy).toHaveBeenCalledTimes(1);
+      const [title, message, buttons, options] = alertSpy.mock.calls[0];
+      expect(title).toBe('Skip this step?');
+      expect(message).toBe("Your changes on this step won't be saved.");
+      expect(buttons).toEqual([
+        expect.objectContaining({ text: 'Cancel', style: 'cancel' }),
+        expect.objectContaining({ text: 'Skip', style: 'destructive' }),
+      ]);
+      expect(options).toEqual(expect.objectContaining({ cancelable: true }));
+      expect(replace).not.toHaveBeenCalled();
+
+      pressAlertButton('cancel');
+
+      expect(replace).not.toHaveBeenCalled();
+      expect(checkIn().hasLeft()).toBe(false);
+
+      checkIn().skip(true);
+
+      expect(alertSpy).toHaveBeenCalledTimes(2);
+      expect(replace).not.toHaveBeenCalled();
+    });
+
+    it('does not ask twice while the question is open', () => {
+      const { checkIn } = setup({ step: 'MoodLog' });
+
+      checkIn().skip(true);
+      checkIn().skip(true);
+      checkIn().skip(false);
+
+      expect(alertSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('asks again after the question is dismissed', () => {
+      const { checkIn, replace } = setup({ step: 'MoodLog' });
+
+      checkIn().skip(true);
+      alertSpy.mock.calls[0][3]?.onDismiss?.();
+      checkIn().skip(true);
+
+      expect(alertSpy).toHaveBeenCalledTimes(2);
+      expect(replace).not.toHaveBeenCalled();
+    });
+
+    it('moves on without saving when Skip is confirmed', () => {
+      const { checkIn, replace } = setup({
+        step: 'MeasurementsAdd',
+        params: { offerReminders: true, saved: true },
+      });
+
+      checkIn().skip(true);
+      pressAlertButton('destructive');
+
+      expect(replace).toHaveBeenCalledTimes(1);
+      expect(replace).toHaveBeenCalledWith('ProgressPhotos', {
+        date: DATE,
+        guidedCheckIn: { offerReminders: true, saved: true },
+      });
+      expect(checkIn().hasLeft()).toBe(true);
+      expect(dismissSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('finishes from the last step with what earlier steps saved', () => {
+      const { checkIn, replace, goBack } = setup({
+        step: 'ProgressPhotos',
+        params: { offerReminders: true, saved: true },
+      });
+
+      checkIn().skip(false);
+
+      expect(replace).not.toHaveBeenCalled();
+      expect(goBack).toHaveBeenCalledTimes(1);
+      expect(toastShow).toHaveBeenCalledTimes(1);
+      expect(offerReminders).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('finish', () => {
+    it('goes back, then confirms, then offers reminders, in that order', () => {
+      const { checkIn, goBack } = setup({
+        step: 'ProgressPhotos',
+        params: { offerReminders: true },
+      });
+
+      checkIn().finish({ saved: true });
+
+      expect(goBack).toHaveBeenCalledTimes(1);
+      expect(toastShow).toHaveBeenCalledTimes(1);
+      expect(toastShow).toHaveBeenCalledWith({
+        type: 'success',
+        text1: 'Check-in complete',
+      });
+      expect(offerReminders).toHaveBeenCalledTimes(1);
+      expect(offerReminders).toHaveBeenCalledWith(expect.any(Function));
+
+      const [dismissed] = dismissSpy.mock.invocationCallOrder;
+      const [wentBack] = goBack.mock.invocationCallOrder;
+      const [toasted] = toastShow.mock.invocationCallOrder;
+      const [offered] = offerReminders.mock.invocationCallOrder;
+      expect(dismissed).toBeLessThan(wentBack);
+      expect(wentBack).toBeLessThan(toasted);
+      expect(toasted).toBeLessThan(offered);
+    });
+
+    it('confirms when an earlier step saved, without offering reminders', () => {
+      const { checkIn, goBack } = setup({
+        step: 'ProgressPhotos',
+        params: { saved: true, offerReminders: false },
+      });
+
+      checkIn().finish();
+
+      expect(goBack).toHaveBeenCalledTimes(1);
+      expect(toastShow).toHaveBeenCalledTimes(1);
+      expect(offerReminders).not.toHaveBeenCalled();
+    });
+
+    it('offers reminders without a confirmation when nothing was saved', () => {
+      const { checkIn, goBack } = setup({
+        step: 'ProgressPhotos',
+        params: { offerReminders: true },
+      });
+
+      checkIn().finish();
+
+      expect(goBack).toHaveBeenCalledTimes(1);
+      expect(toastShow).not.toHaveBeenCalled();
+      expect(offerReminders).toHaveBeenCalledTimes(1);
+    });
+
+    it('only goes back when nothing was saved and no reminder is due', () => {
+      const { checkIn, goBack, replace } = setup({ step: 'ProgressPhotos' });
+
+      checkIn().finish();
+
+      expect(goBack).toHaveBeenCalledTimes(1);
+      expect(replace).not.toHaveBeenCalled();
+      expect(toastShow).not.toHaveBeenCalled();
+      expect(offerReminders).not.toHaveBeenCalled();
+    });
+
+    it('does nothing while the last step is not focused', () => {
+      const { checkIn, goBack, isFocused } = setup({
+        step: 'ProgressPhotos',
+        params: { saved: true, offerReminders: true },
+      });
+      isFocused.mockReturnValue(false);
+
+      checkIn().finish();
+
+      expect(goBack).not.toHaveBeenCalled();
+      expect(toastShow).not.toHaveBeenCalled();
+      expect(offerReminders).not.toHaveBeenCalled();
+      expect(dismissSpy).not.toHaveBeenCalled();
+      expect(checkIn().hasLeft()).toBe(false);
+    });
+
+    it('finishes only once', () => {
+      const { checkIn, goBack } = setup({
+        step: 'ProgressPhotos',
+        params: { saved: true, offerReminders: true },
+      });
+
+      checkIn().finish();
+      checkIn().finish();
+      checkIn().advance();
+
+      expect(goBack).toHaveBeenCalledTimes(1);
+      expect(toastShow).toHaveBeenCalledTimes(1);
+      expect(offerReminders).toHaveBeenCalledTimes(1);
+      expect(checkIn().hasLeft()).toBe(true);
+    });
+  });
+});

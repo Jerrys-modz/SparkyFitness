@@ -120,6 +120,7 @@ export const PREFERENCE_DEFAULTS = {
   activeWorkoutMetricColumn: 'rpe' as ActiveWorkoutMetricColumn,
   diarySummaryVisible: false,
   diarySummaryExpanded: false,
+  guidedCheckInEnabled: false,
   defaultRestSec: DEFAULT_REST_SEC as number,
   paceReferenceRace: null as PaceReferenceRace | null,
   paceReferenceOnWatch: false,
@@ -199,6 +200,8 @@ export type AppPreferencesData = {
   activeWorkoutMetricColumn: ActiveWorkoutMetricColumn;
   diarySummaryVisible: boolean;
   diarySummaryExpanded: boolean;
+  /** Adds the AddSheet's Check-In row (Settings > Diary). Off by default. */
+  guidedCheckInEnabled: boolean;
   defaultRestSec: number;
   /**
    * A recent race result the training paces are worked out from (device-local),
@@ -317,6 +320,7 @@ export interface AppPreferencesState extends AppPreferencesData {
   setActiveWorkoutMetricColumn: (value: ActiveWorkoutMetricColumn) => void;
   setDiarySummaryVisible: (value: boolean) => void;
   setDiarySummaryExpanded: (value: boolean) => void;
+  setGuidedCheckInEnabled: (value: boolean) => void;
   setDefaultRestSec: (value: number) => void;
   setPaceReferenceRace: (value: PaceReferenceRace | null) => void;
   setPaceReferenceOnWatch: (value: boolean) => void;
@@ -468,6 +472,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         set({ activeWorkoutMetricColumn: value }),
       setDiarySummaryVisible: (value) => set({ diarySummaryVisible: value }),
       setDiarySummaryExpanded: (value) => set({ diarySummaryExpanded: value }),
+      setGuidedCheckInEnabled: (value) => set({ guidedCheckInEnabled: value }),
       setDefaultRestSec: (value) => set({ defaultRestSec: value }),
       setPaceReferenceRace: (value) => set({ paceReferenceRace: value }),
       setPaceReferenceOnWatch: (value) => set({ paceReferenceOnWatch: value }),
@@ -629,6 +634,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         activeWorkoutMetricColumn: state.activeWorkoutMetricColumn,
         diarySummaryVisible: state.diarySummaryVisible,
         diarySummaryExpanded: state.diarySummaryExpanded,
+        guidedCheckInEnabled: state.guidedCheckInEnabled,
         defaultRestSec: state.defaultRestSec,
         paceReferenceRace: state.paceReferenceRace,
         paceReferenceOnWatch: state.paceReferenceOnWatch,

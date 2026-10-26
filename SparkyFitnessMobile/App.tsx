@@ -193,6 +193,7 @@ import ActiveWorkoutBar, {
 import { ActiveWorkoutTransitionScreenLayout } from './src/components/ActiveWorkoutTransitionProbe';
 import PendingPresetUpdatePrompt from './src/components/PendingPresetUpdatePrompt';
 import { usePendingPresetUpdateStore } from './src/stores/pendingPresetUpdateStore';
+import { useAppPreferencesStore } from './src/stores/appPreferencesStore';
 import ActiveWorkoutKeepAwake from './src/components/ActiveWorkoutKeepAwake';
 import MedicationReminderReconciler from './src/components/MedicationReminderReconciler';
 import MoodCheckinReminderReconciler from './src/components/MoodCheckinReminderReconciler';
@@ -368,6 +369,7 @@ function AppContent() {
     handleAddProgressPhotos,
     handleAddSymptoms,
     handleAddMood,
+    handleStartCheckIn,
     handleAddMindfulness,
     handleRecordActivity,
     handleAskSparky,
@@ -375,6 +377,7 @@ function AppContent() {
     handleSyncHealthData,
     handleAddSheetDismissWithoutAction,
   } = useAddSheetActions({ syncMutation });
+  const guidedCheckInEnabled = useAppPreferencesStore((s) => s.guidedCheckInEnabled);
 
   const { enabled: cycleEnabled, mode: cycleMode, discreetMode: cycleDiscreet } = useCycleMode();
   const cycleSheetLabel = cycleDiscreet
@@ -1383,6 +1386,8 @@ function AppContent() {
           onAddMindfulness={handleAddMindfulness}
           onRecordActivity={handleRecordActivity}
           onAskSparky={handleAskSparky}
+          onStartCheckIn={handleStartCheckIn}
+          showCheckIn={guidedCheckInEnabled}
           onOpenCycle={handleOpenCycle}
           showCycleCard={cycleEnabled}
           cycleLabel={cycleSheetLabel}
