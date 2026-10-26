@@ -11,7 +11,7 @@ export function splitName(t: TFunction, id: string): string {
   switch (id) {
     case 'full_body_3':
       return t('workoutSplits.splits.full_body_3.name', {
-        defaultValue: 'Full body, 3 days (gym)',
+        defaultValue: 'Full body, 3 days',
       });
     case 'linear_5x5':
       return t('workoutSplits.splits.linear_5x5.name', {
@@ -19,43 +19,43 @@ export function splitName(t: TFunction, id: string): string {
       });
     case 'upper_lower_4':
       return t('workoutSplits.splits.upper_lower_4.name', {
-        defaultValue: 'Upper / lower, 4 days (gym)',
+        defaultValue: 'Upper / lower, 4 days',
       });
     case 'push_pull_legs_3':
       return t('workoutSplits.splits.push_pull_legs_3.name', {
-        defaultValue: 'Push / pull / legs, 3 days (gym)',
+        defaultValue: 'Push / pull / legs, 3 days',
       });
     case 'push_pull_legs_6':
       return t('workoutSplits.splits.push_pull_legs_6.name', {
-        defaultValue: 'Push / pull / legs, 6 days (gym)',
+        defaultValue: 'Push / pull / legs, 6 days',
       });
     case 'body_part_5':
       return t('workoutSplits.splits.body_part_5.name', {
-        defaultValue: 'Body part split, 5 days (gym)',
+        defaultValue: 'Body part split, 5 days',
       });
     case 'full_body_3_garage':
       return t('workoutSplits.splits.full_body_3_garage.name', {
-        defaultValue: 'Full body, 3 days (garage)',
+        defaultValue: 'Full body, 3 days',
       });
     case 'upper_lower_4_garage':
       return t('workoutSplits.splits.upper_lower_4_garage.name', {
-        defaultValue: 'Upper / lower, 4 days (garage)',
+        defaultValue: 'Upper / lower, 4 days',
       });
     case 'push_pull_legs_3_garage':
       return t('workoutSplits.splits.push_pull_legs_3_garage.name', {
-        defaultValue: 'Push / pull / legs, 3 days (garage)',
+        defaultValue: 'Push / pull / legs, 3 days',
       });
     case 'full_body_3_home':
       return t('workoutSplits.splits.full_body_3_home.name', {
-        defaultValue: 'Full body, 3 days (home)',
+        defaultValue: 'Full body, 3 days',
       });
     case 'upper_lower_4_home':
       return t('workoutSplits.splits.upper_lower_4_home.name', {
-        defaultValue: 'Upper / lower, 4 days (home)',
+        defaultValue: 'Upper / lower, 4 days',
       });
     case 'push_pull_legs_3_home':
       return t('workoutSplits.splits.push_pull_legs_3_home.name', {
-        defaultValue: 'Push / pull / legs, 3 days (home)',
+        defaultValue: 'Push / pull / legs, 3 days',
       });
     default:
       return id;
