@@ -5,15 +5,19 @@ import { useHeartRateZones } from './useHeartRateZones';
 /**
  * The person's Zone 2 heart-rate range, from their own zones (a maximum or
  * resting rate they set, the zone method they chose). Null until zones are
- * known, and without a maximum from their date of birth or their own entry,
- * because a typical figure is not worth holding a run to.
+ * known, and for percent-of-maximum zones built on the fixed fallback maximum.
  */
 export function useZone2HeartRateBand(enabled = true): HeartRateBand | null {
   const { zones } = useHeartRateZones(enabled);
   const resolved = zones?.resolved;
   return useMemo(() => {
     if (!resolved) return null;
-    if (resolved.max_hr_source !== 'user' && resolved.max_hr_source !== 'age') {
+    // A typical fallback figure is not worth holding a run to, unless the
+    // person's own custom or heart-rate-reserve zones do not depend on it.
+    if (
+      resolved.max_hr_source === 'fallback' &&
+      resolved.effective_method === 'percent_max'
+    ) {
       return null;
     }
     return zone2HeartRateBand({
