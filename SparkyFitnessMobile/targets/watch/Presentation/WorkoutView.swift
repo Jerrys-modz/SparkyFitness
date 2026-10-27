@@ -1030,7 +1030,7 @@ private struct SetScreenMetricsLine: View {
 /// Time, heart rate and calories, one big reading per line as on Apple's
 /// Workout app. A swipe up from the set screen, so the set screen can stay
 /// about the set.
-private struct WorkoutMetricsPage: View {
+struct WorkoutMetricsPage: View {
     @EnvironmentObject private var store: WorkoutSessionStore
 
     var body: some View {

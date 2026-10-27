@@ -445,6 +445,13 @@ private struct ActiveWorkoutView: View {
                             .workoutPage(geo)
                             .id(WorkoutPageID.upNext)
                     }
+                    // The page stands in for the readings the strip on the set
+                    // screen is not showing.
+                    if !checkIn.context.effectiveSetScreenMetrics {
+                        WorkoutMetricsPage()
+                            .workoutPage(geo)
+                            .id(WorkoutPageID.metrics)
+                    }
                     if let step = store.currentStep {
                         SetOptionsPage(step: step)
                             .workoutPage(geo)
@@ -578,7 +585,7 @@ private struct ActiveWorkoutView: View {
 }
 
 private enum WorkoutPageID: Hashable {
-    case set, upNext, setOptions, exerciseOptions, actions
+    case set, upNext, metrics, setOptions, exerciseOptions, actions
 }
 
 /// Shown after the last set is logged. Finish used to live only in the
@@ -860,37 +867,45 @@ private struct MetricsStrip: View {
     var onBack: (() -> Void)?
 
     @EnvironmentObject private var store: WorkoutSessionStore
+    @EnvironmentObject private var checkIn: CheckInStore
 
     var body: some View {
         HStack(alignment: .center, spacing: 8) {
-            // The clock reads first, small and quiet; heart rate and calories
-            // sit under it so the two readings share a line.
-            VStack(alignment: .leading, spacing: 0) {
-                Text(Self.elapsed(store.elapsedSeconds))
-                    .font(.system(.callout, design: .rounded).weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .minimumScaleFactor(0.7)
-                HStack(spacing: 4) {
-                    if let bpm = store.latestBpm {
-                        // Never truncated: a three-digit rate used to lose
-                        // its last digits to the readings beside it.
-                        Self.metric("\(Int(bpm.rounded()))", systemImage: "heart.fill")
-                            .foregroundStyle(.red)
-                            .fixedSize()
-                            .layoutPriority(1)
+            // With the readings kept off the set screen (Settings → Apple
+            // Watch on the phone) they are on the metrics page instead, and
+            // only the list button stays here.
+            if checkIn.context.effectiveSetScreenMetrics {
+                // The clock reads first, small and quiet; heart rate and calories
+                // sit under it so the two readings share a line.
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(Self.elapsed(store.elapsedSeconds))
+                        .font(.system(.callout, design: .rounded).weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .minimumScaleFactor(0.7)
+                    HStack(spacing: 4) {
+                        if let bpm = store.latestBpm {
+                            // Never truncated: a three-digit rate used to lose
+                            // its last digits to the readings beside it.
+                            Self.metric("\(Int(bpm.rounded()))", systemImage: "heart.fill")
+                                .foregroundStyle(.red)
+                                .fixedSize()
+                                .layoutPriority(1)
+                        }
+                        if let kcal = store.activeEnergyKcal {
+                            Self.metric("\(Int(kcal))", systemImage: "flame.fill")
+                                .foregroundStyle(.orange)
+                                .fixedSize()
+                        }
                     }
-                    if let kcal = store.activeEnergyKcal {
-                        Self.metric("\(Int(kcal))", systemImage: "flame.fill")
-                            .foregroundStyle(.orange)
-                            .fixedSize()
-                    }
+                    .font(.caption2)
                 }
-                .font(.caption2)
+                // Takes every point the button leaves. Sized to its contents it
+                // was measured before the calorie reading arrived and clipped it,
+                // even at one digit.
+                .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                Spacer(minLength: 0)
             }
-            // Takes every point the button leaves. Sized to its contents it
-            // was measured before the calorie reading arrived and clipped it,
-            // even at one digit.
-            .frame(maxWidth: .infinity, alignment: .leading)
             // Opens the exercise list, so it wears the list icon.
             if let onBack = onBack {
                 ClassicSquircleButton(systemImage: "list.bullet", circular: true, action: onBack)
