@@ -36,6 +36,10 @@ async function ensureBackupDirectory() {
 }
 // Unfinished runs work under here; only a complete archive is renamed out.
 const BACKUP_TEMP_DIR = path.join(BACKUP_DIR, '.tmp');
+// Well past any real run, so only the leftovers of a killed process qualify.
+const STALE_WORK_DIR_AGE_MS = 24 * 60 * 60 * 1000;
+// Work directories of runs in this process that have not finished yet.
+const activeWorkDirNames = new Set<string>();
 
 const execFileAsync = promisify(execFile);
 interface ExecuteCommandOptions {
@@ -192,6 +196,59 @@ async function dumpDatabase(destination: string) {
   if (failure) throw failure.reason;
 }
 
+// Writing to a file leaves its directory's mtime alone, so a run another
+// process still has going is recognised by its newest file instead.
+async function lastWriteMs(entry: string) {
+  const stats = await fsp.lstat(entry);
+  if (!stats.isDirectory()) return stats.mtimeMs;
+  let newest = stats.mtimeMs;
+  for (const child of await fsp.readdir(entry)) {
+    const childStats = await fsp.lstat(path.join(entry, child));
+    newest = Math.max(newest, childStats.mtimeMs);
+  }
+  return newest;
+}
+
+// A killed process (SIGKILL, OOM, container stop) never reaches its own
+// cleanup, so each run clears what earlier ones left behind. lstat keeps a
+// symlink from being followed; rm on it removes the link, not its target.
+// A run still in progress is skipped whatever its age, since a slow dump can
+// outlast the cutoff.
+async function sweepStaleWorkDirs() {
+  let names: string[];
+  try {
+    // A .tmp that is itself a symlink would point the sweep at whatever it
+    // targets, so only a real directory is swept.
+    if (!(await fsp.lstat(BACKUP_TEMP_DIR)).isDirectory()) {
+      log('warn', `${BACKUP_TEMP_DIR} is not a directory; skipping sweep.`);
+      return;
+    }
+    names = await fsp.readdir(BACKUP_TEMP_DIR);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      log('warn', `Could not list ${BACKUP_TEMP_DIR}:`, error);
+    }
+    return;
+  }
+  const cutoff = Date.now() - STALE_WORK_DIR_AGE_MS;
+  for (const name of names) {
+    if (activeWorkDirNames.has(name)) continue;
+    const entry = path.join(BACKUP_TEMP_DIR, name);
+    try {
+      if ((await lastWriteMs(entry)) < cutoff) {
+        await fsp.rm(entry, { recursive: true, force: true });
+        log('info', `Removed stale backup work directory ${entry}`);
+      }
+    } catch (error) {
+      log(
+        'warn',
+        `Could not remove stale backup work directory ${entry}:`,
+        error
+      );
+    }
+  }
+}
+
 /**
  * Writes one full backup archive. Every piece is written under
  * BACKUP_DIR/.tmp/<run>/ and the finished archive is renamed into BACKUP_DIR
@@ -206,16 +263,16 @@ async function performBackup(isManual = false) {
     log('info', 'Automated backup is disabled. Skipping backup.');
     return { success: true, message: 'Automated backup is disabled.' };
   }
+  await sweepStaleWorkDirs();
   const startedAt = new Date();
   const timestamp = startedAt.toISOString().replace(/[:.]/g, '-');
   const dbBackupFileName = `sparkyfitness_db_backup_${timestamp}.sql.gz`;
   const uploadsBackupFileName = `sparkyfitness_uploads_backup_${timestamp}.tar.gz`;
   const fullBackupFileName = `sparkyfitness_full_backup_${timestamp}.tar.gz`;
-  const workDir = path.join(
-    BACKUP_TEMP_DIR,
-    `${timestamp}-${randomBytes(4).toString('hex')}`
-  );
+  const workDirName = `${timestamp}-${randomBytes(4).toString('hex')}`;
+  const workDir = path.join(BACKUP_TEMP_DIR, workDirName);
   const fullBackupPath = path.join(BACKUP_DIR, fullBackupFileName);
+  activeWorkDirNames.add(workDirName);
   try {
     await fsp.mkdir(workDir, { recursive: true });
     log('info', 'Starting database backup...');
@@ -258,6 +315,7 @@ async function performBackup(isManual = false) {
     await fsp.rm(workDir, { recursive: true, force: true }).catch((error) => {
       log('warn', `Could not remove backup work directory ${workDir}:`, error);
     });
+    activeWorkDirNames.delete(workDirName);
   }
 }
 // Restricts any filename reaching the filesystem to the backup naming shape,
@@ -542,6 +600,7 @@ export { BACKUP_DIR };
 export { UPLOADS_BASE_DIR };
 export { BACKUP_FILE_PATTERN };
 export { BACKUP_TEMP_DIR };
+export { STALE_WORK_DIR_AGE_MS };
 export { listBackups };
 export type { BackupFileStats };
 export default {
