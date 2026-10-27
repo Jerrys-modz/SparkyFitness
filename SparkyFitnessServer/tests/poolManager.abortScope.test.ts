@@ -9,6 +9,7 @@ const { pools } = vi.hoisted(() => ({
   pools: [] as Array<{
     options: { user?: string };
     connect: ReturnType<typeof vi.fn>;
+    on: ReturnType<typeof vi.fn>;
   }>,
 }));
 
@@ -34,6 +35,10 @@ process.env.SPARKY_FITNESS_DB_USER = 'owner_user';
 process.env.SPARKY_FITNESS_APP_DB_USER = 'app_user';
 const { getClient, getSystemClient } = await import('../db/poolManager.js');
 const [ownerPool, appPool] = pools;
+// Mock call history is cleared between tests, so keep what the pool registered.
+const appPoolHandlers = [...appPool!.on.mock.calls] as Array<
+  [string, (client: unknown) => void]
+>;
 
 function fakeClient() {
   return { query: vi.fn().mockResolvedValue({ rows: [] }), release: vi.fn() };
@@ -90,6 +95,26 @@ describe('connections inside stopped work', () => {
     );
 
     expect(onActivity).toHaveBeenCalledTimes(2);
+  });
+
+  it('reports each query on a held connection as activity', async () => {
+    const onActivity = vi.fn();
+    const client = { ...fakeClient(), on: vi.fn() };
+    const query = client.query;
+    for (const [event, handler] of appPoolHandlers) {
+      if (event === 'connect') handler(client);
+    }
+    expect(client.query).not.toBe(query);
+
+    await client.query('SELECT 1');
+    expect(onActivity).not.toHaveBeenCalled();
+    await runWithActivityListener(onActivity, async () => {
+      await client.query('INSERT 1');
+      await client.query('INSERT 2');
+    });
+
+    expect(onActivity).toHaveBeenCalledTimes(2);
+    expect(query).toHaveBeenCalledWith('INSERT 2');
   });
 
   it('lets cleanup outside the scope connect without counting it as progress', async () => {

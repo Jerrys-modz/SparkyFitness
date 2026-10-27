@@ -28,8 +28,8 @@ export function throwIfWorkAborted(): void {
 
 /**
  * Runs `work` so that `onActivity` is called each time it, however deep, gets
- * a database connection. A stalled sync is told apart from a slow one this
- * way. Inside another listener both are called.
+ * a database connection or runs a query. A stalled sync is told apart from a
+ * slow one this way. Inside another listener both are called.
  */
 export function runWithActivityListener<T>(
   onActivity: () => void,

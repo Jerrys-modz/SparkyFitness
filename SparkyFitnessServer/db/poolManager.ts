@@ -34,6 +34,21 @@ function handleConnectionLoss(pool: pg.Pool, name: string): void {
     });
   });
 }
+/**
+ * Counts each query as progress of the surrounding work (utils/abortScope.ts),
+ * so a sync writing through one connection it holds, such as a long import
+ * transaction, is not taken for a stalled one. The listener is looked up per
+ * call, so queries outside such work note nothing.
+ */
+function noteQueriesAsWorkActivity(pool: pg.Pool): void {
+  pool.on('connect', (client) => {
+    const query = client.query.bind(client) as (...args: unknown[]) => unknown;
+    client.query = ((...args: unknown[]) => {
+      noteWorkActivity();
+      return query(...args);
+    }) as typeof client.query;
+  });
+}
 function createOwnerPoolInstance() {
   const newPool = new Pool({
     user: process.env.SPARKY_FITNESS_DB_USER,
@@ -50,6 +65,7 @@ function createOwnerPoolInstance() {
     log('error', 'Unexpected error on idle owner client', err);
   });
   handleConnectionLoss(newPool, 'owner');
+  noteQueriesAsWorkActivity(newPool);
   return newPool;
 }
 function createAppPoolInstance() {
@@ -68,6 +84,7 @@ function createAppPoolInstance() {
     log('error', 'Unexpected error on idle app client', err);
   });
   handleConnectionLoss(newPool, 'app');
+  noteQueriesAsWorkActivity(newPool);
   return newPool;
 }
 function _getRawOwnerPool() {

@@ -23,7 +23,7 @@ export interface ProviderSyncClaim {
 // renews its claim well inside it, so a long sync never loses the claim.
 export const SYNC_CLAIM_EXPIRY_MINUTES = 30;
 export const SYNC_CLAIM_RENEW_MINUTES = 5;
-// A sync that has not taken a database connection for this long is treated as
+// A sync that has not touched the database for this long is treated as
 // wedged (a provider call that never returns): it is stopped so it cannot hold
 // the account forever. A long backfill that keeps saving data is never stopped.
 export const SYNC_STALL_MINUTES = 20;
@@ -118,11 +118,12 @@ const runningSyncs = new Set<RunningProviderSync>();
  * promise would wait for it.
  *
  * The sync is stopped when a renewal finds the claim gone, or after it took no
- * database connection for SYNC_STALL_MINUTES: `running` rejects with
- * ProviderSyncStoppedError at once (so a scheduled pass moves on), renewal
- * stops, and the sync's next database acquire throws; a transaction already
- * running on a connection it holds still finishes. A stopped sync that is
- * still running keeps its claim until it settles or the claim expires.
+ * database connection and ran no query for SYNC_STALL_MINUTES: `running`
+ * rejects with ProviderSyncStoppedError at once (so a scheduled pass moves
+ * on), renewal stops, and the sync's next database acquire throws; a
+ * transaction already running on a connection it holds still finishes. A
+ * stopped sync that is still running keeps its claim until it settles or the
+ * claim expires.
  */
 export async function startProviderSync<T>(
   target: SyncClaimTarget,
@@ -171,8 +172,8 @@ export async function startProviderSync<T>(
   renewTimer.unref();
   const stallMs = SYNC_STALL_MINUTES * 60 * 1000;
   let lastActivity = Date.now();
-  // Re-armed only when it fires rather than on every connection, which a busy
-  // sync takes many times a second.
+  // Re-armed only when it fires rather than on every query, which a busy
+  // sync runs many times a second.
   let stallTimer: NodeJS.Timeout;
   const checkStall = () => {
     const idleMs = Date.now() - lastActivity;
