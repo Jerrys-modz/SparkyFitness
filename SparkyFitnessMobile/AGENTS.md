@@ -1,6 +1,6 @@
 # AGENTS.md
 
-_Last updated: 2026-10-26_
+_Last updated: 2026-10-27_
 
 SparkyFitness Mobile is a React Native 0.86 + Expo SDK 57 app for syncing Apple Health / Health Connect data with the SparkyFitness backend, tracking nutrition, hydration, fasting, measurements, exercise, saved foods, meal templates, custom exercises, workout presets, iOS / Android widgets, the active workout HUD, and the Sparky AI chat.
 
@@ -306,7 +306,7 @@ npx expo prebuild --clean
 ## Styling And UI
 
 - Styling uses Uniwind with TailwindCSS v4 tokens in `global.css`.
-- `DESIGN.md` describes the current visual language (theme tokens with hex values per theme, typography roles, component styling, layout rules) in the five-section format AI UI design tools read, plus how to translate HTML/Tailwind mockups into this codebase. Read it before visual or redesign work, and update its color tables in the same change whenever a token in `global.css` is added, renamed, or retuned.
+- `DESIGN.md` describes the current visual language (theme tokens with hex values per theme, typography roles, component styling, layout rules) in the five-section format AI UI design tools read, plus how to translate HTML/Tailwind mockups into this codebase, and (section 10) the Apple Watch, watch complication and Wear OS design. Read it before visual or redesign work, and update its color tables in the same change whenever a token in `global.css` is added, renamed, or retuned.
 - Themes are Light, Dark, AMOLED, and System. `themeService.ts` owns persistence; `App.tsx` syncs Android navigation bar style.
 - Many visual components read CSS variables with `useCSSVariable`, especially Skia charts and themed controls.
 - Animate Skia paths from Reanimated `useSharedValue` / `useDerivedValue`, not Skia's deprecated animation API.
