@@ -10050,6 +10050,24 @@
     "printTotal": "Carbs so far",
     "printAmountValue": "{{grams}} g {{product}}",
     "printTotalValue": "{{grams}} g",
-    "printBlocked": "Allow pop-ups for this site to print the plan."
+    "printBlocked": "Allow pop-ups for this site to print the plan.",
+    "race": {
+      "date": "Race day (optional)",
+      "ramping": "If you start today, practise {{current}} g/h this week. The race target is {{target}} g/h.",
+      "holding": "Practise the race amount, {{target}} g/h, until race day.",
+      "short": "Under three weeks to go is not enough time to build up to {{target}} g/h. Stay at what your stomach already handles, or aim lower on race day.",
+      "week": "{{date}}: {{carbs}} g/h",
+      "use": "Plan this run at {{carbs}} g/h"
+    },
+    "drink": {
+      "title": "Drink plan",
+      "interval": "Every (min)",
+      "intervalUnit": "min",
+      "amount": "Each drink (ml)",
+      "amountUnit": "ml",
+      "summary": "{{ml}} ml every {{interval}} min, {{perHour}} ml an hour.",
+      "high": "That is a lot of fluid an hour. Drinking more than you lose can be harmful.",
+      "printLine": "Drink: {{summary}}"
+    }
   }
 }

@@ -7,10 +7,12 @@ import {
 } from '../../src/services/fuelingReminders';
 import {
   cancelScheduledNotification,
+  scheduleDrinkReminderNotifications,
   scheduleFuelingReminderNotifications,
 } from '../../src/services/notifications';
 
 jest.mock('../../src/services/notifications', () => ({
+  scheduleDrinkReminderNotifications: jest.fn(),
   scheduleFuelingReminderNotifications: jest.fn(),
   cancelScheduledNotification: jest.fn(),
 }));
@@ -19,6 +21,9 @@ const mockSchedule =
   scheduleFuelingReminderNotifications as jest.MockedFunction<
     typeof scheduleFuelingReminderNotifications
   >;
+const mockDrink = scheduleDrinkReminderNotifications as jest.MockedFunction<
+  typeof scheduleDrinkReminderNotifications
+>;
 const mockCancel = cancelScheduledNotification as jest.MockedFunction<
   typeof cancelScheduledNotification
 >;
@@ -40,6 +45,7 @@ beforeEach(async () => {
   __resetFuelingReminderStateForTests();
   await AsyncStorage.clear();
   mockSchedule.mockReset().mockResolvedValue(['n1', 'n2', 'n3']);
+  mockDrink.mockReset().mockResolvedValue(['d1', 'd2']);
   mockCancel.mockReset().mockResolvedValue(undefined);
 });
 
@@ -47,7 +53,11 @@ describe('startFuelingSession', () => {
   it('schedules every reminder and remembers the session', async () => {
     const result = await startFuelingSession(plan(), NOW);
 
-    expect(result).toEqual({ status: 'scheduled', reminderCount: 3 });
+    expect(result).toEqual({
+      status: 'scheduled',
+      reminderCount: 3,
+      drinkCount: 0,
+    });
     expect(mockSchedule).toHaveBeenCalledWith(
       [at(7, 30), at(8), at(8, 30)],
       25,
@@ -60,6 +70,7 @@ describe('startFuelingSession', () => {
       portionGrams: 25,
       productName: 'Energy gel',
       food: null,
+      drink: null,
       reminderCount: 3,
       notificationIds: ['n1', 'n2', 'n3'],
     });
@@ -152,6 +163,84 @@ describe('a session with a saved food', () => {
       })
     );
     expect((await getFuelingSession())?.food).toBeNull();
+  });
+});
+
+describe('a session with drink reminders', () => {
+  const drink = { offsetsMin: [20, 40], mlPerDrink: 150 };
+
+  it('schedules both chains and stops both together', async () => {
+    const result = await startFuelingSession(plan({ drink }), NOW);
+
+    expect(result).toEqual({
+      status: 'scheduled',
+      reminderCount: 3,
+      drinkCount: 2,
+    });
+    expect(mockDrink).toHaveBeenCalledWith([at(7, 20), at(7, 40)], 150);
+    const session = await getFuelingSession();
+    expect(session?.drink).toEqual({ reminderCount: 2, mlPerDrink: 150 });
+    expect(session?.notificationIds).toEqual(['n1', 'n2', 'n3', 'd1', 'd2']);
+
+    await cancelFuelingSession();
+    expect(mockCancel.mock.calls.map(([id]) => id)).toEqual([
+      'n1',
+      'n2',
+      'n3',
+      'd1',
+      'd2',
+    ]);
+  });
+
+  it('can run on drink reminders alone', async () => {
+    const result = await startFuelingSession(
+      plan({ offsetsMin: [], drink }),
+      NOW
+    );
+
+    expect(result).toEqual({
+      status: 'scheduled',
+      reminderCount: 0,
+      drinkCount: 2,
+    });
+    expect(mockSchedule).not.toHaveBeenCalled();
+    expect((await getFuelingSession())?.notificationIds).toEqual(['d1', 'd2']);
+  });
+
+  it('cancels the carbohydrate reminders if the drink ones cannot be set', async () => {
+    mockDrink.mockResolvedValueOnce([]);
+
+    const result = await startFuelingSession(plan({ drink }), NOW);
+
+    expect(result).toEqual({ status: 'not_permitted' });
+    expect(mockCancel.mock.calls.map(([id]) => id)).toEqual(['n1', 'n2', 'n3']);
+    expect(await getFuelingSession()).toBeNull();
+  });
+
+  it('has nothing to schedule when neither chain has a reminder left', async () => {
+    const result = await startFuelingSession(
+      plan({
+        startAt: at(1),
+        offsetsMin: [30],
+        drink: { ...drink, offsetsMin: [20] },
+      }),
+      NOW
+    );
+    expect(result).toEqual({ status: 'nothing_to_schedule' });
+  });
+
+  it('reads a session saved before drink reminders existed', async () => {
+    await AsyncStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        startAtMs: 1,
+        portionGrams: 25,
+        productName: 'Energy gel',
+        reminderCount: 1,
+        notificationIds: ['a'],
+      })
+    );
+    expect((await getFuelingSession())?.drink).toBeNull();
   });
 });
 

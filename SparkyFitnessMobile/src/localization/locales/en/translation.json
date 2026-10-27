@@ -334,6 +334,10 @@
     "fueling": {
       "title": "Time to fuel ⚡",
       "body": "Take {{grams}} g of carbs."
+    },
+    "fuelingDrink": {
+      "title": "Time to drink 💧",
+      "body": "Have a drink, about {{ml}} ml."
     }
   },
   "activeWorkout": {
@@ -7149,6 +7153,28 @@
     "foodNoCarbs": "That food has no carbohydrates listed.",
     "foodLinked": "Using {{name}}: {{carbs}} g of carbohydrate per serving.",
     "clearFood": "Clear",
+    "race": {
+      "title": "Race: {{name}}",
+      "titleNoName": "Your race",
+      "when_one": "{{date}}, in {{count}} day",
+      "when_other": "{{date}}, in {{count}} days",
+      "notStarted": "The build-up starts on {{date}}. Until then keep practising {{current}} g/h.",
+      "ramping": "This week practise {{current}} g/h. The race target is {{target}} g/h.",
+      "holding": "Practise the race amount, {{target}} g/h, until race day.",
+      "short": "Under three weeks to go is not enough time to build up to {{target}} g/h. Stay at what your stomach already handles, or aim lower on race day.",
+      "week": "{{date}}: {{carbs}} g/h",
+      "use": "Plan this run at {{carbs}} g/h"
+    },
+    "drink": {
+      "title": "Drink reminders",
+      "subtitle": "A separate reminder to drink during the run. How much you need depends on your sweat and the weather, so set what suits you.",
+      "interval": "Every (min)",
+      "amount": "Each drink (ml)",
+      "summary": "{{ml}} ml every {{interval}} min, {{perHour}} ml an hour.",
+      "high": "That is a lot of fluid an hour. Drinking more than you lose can be harmful.",
+      "running_one": "{{count}} drink reminder of {{ml}} ml is scheduled.",
+      "running_other": "{{count}} drink reminders of {{ml}} ml are scheduled."
+    },
     "productHint": "Name of what you carry, or pick a saved food. The Log it button on a reminder adds it to your diary as Snacks.",
     "logged": "Logged {{grams}} g of carbs.",
     "logFailed": "Could not log the carbs. Add them to your diary.",

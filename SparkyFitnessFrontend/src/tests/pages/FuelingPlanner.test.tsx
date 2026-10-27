@@ -4,6 +4,13 @@ import { toast } from '@/hooks/use-toast';
 
 jest.mock('@/hooks/use-toast', () => ({ toast: jest.fn() }));
 
+jest.mock('@/contexts/PreferencesContext', () => ({
+  usePreferences: () => ({ timezone: 'UTC' }),
+}));
+
+const dayFromToday = (days: number) =>
+  new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10);
+
 jest.mock('@/components/FoodSearch/FoodSearchDialog', () => ({
   __esModule: true,
   default: ({ open, onFoodSelect }: any) =>
@@ -164,5 +171,93 @@ describe('FuelingPlanner', () => {
       target: { value: '45' },
     });
     expect(screen.queryByText('Print schedule')).toBeNull();
+  });
+
+  describe('race day', () => {
+    it('shows nothing until a race day is entered', () => {
+      render(<FuelingPlanner />);
+      expect(screen.queryByTestId('fueling-race')).toBeNull();
+    });
+
+    it('builds up toward the race target', () => {
+      render(<FuelingPlanner />);
+      fireEvent.change(screen.getByLabelText('Race day (optional)'), {
+        target: { value: dayFromToday(70) },
+      });
+
+      expect(screen.getByTestId('fueling-race-status').textContent).toBe(
+        'If you start today, practise 35 g/h this week. The race target is 60 g/h.'
+      );
+      expect(screen.getByTestId('fueling-race-weeks').textContent).toContain(
+        'g/h'
+      );
+    });
+
+    it('warns when there is not enough time', () => {
+      render(<FuelingPlanner />);
+      fireEvent.change(screen.getByLabelText('Race day (optional)'), {
+        target: { value: dayFromToday(10) },
+      });
+      expect(screen.getByTestId('fueling-race-status').textContent).toContain(
+        'not enough time'
+      );
+    });
+
+    it("plans the run at this week's amount", () => {
+      render(<FuelingPlanner />);
+      fireEvent.change(screen.getByLabelText('Race day (optional)'), {
+        target: { value: dayFromToday(70) },
+      });
+      fireEvent.click(screen.getByText('Plan this run at 35 g/h'));
+
+      expect(
+        (screen.getByLabelText('Your carbs (g/h)') as HTMLInputElement).value
+      ).toBe('35');
+      // the race target stays the plan's own, not the amount just picked
+      expect(screen.getByTestId('fueling-race-status').textContent).toContain(
+        'race target is 60 g/h'
+      );
+    });
+  });
+
+  describe('drink plan', () => {
+    it('shows 150 ml every 20 minutes to start with', () => {
+      render(<FuelingPlanner />);
+      expect(screen.getByTestId('fueling-drink-summary').textContent).toBe(
+        '150 ml every 20 min, 450 ml an hour.'
+      );
+      expect(screen.queryByTestId('fueling-drink-warning')).toBeNull();
+    });
+
+    it('follows what is typed and warns about a lot of fluid', () => {
+      render(<FuelingPlanner />);
+      fireEvent.change(screen.getByLabelText('Every (min)'), {
+        target: { value: '10' },
+      });
+      fireEvent.change(screen.getByLabelText('Each drink (ml)'), {
+        target: { value: '200' },
+      });
+      expect(screen.getByTestId('fueling-drink-summary').textContent).toBe(
+        '200 ml every 10 min, 1200 ml an hour.'
+      );
+      expect(screen.getByTestId('fueling-drink-warning')).toBeTruthy();
+    });
+
+    it('adds the drink plan to the printout', () => {
+      const printWindow = {
+        document: document.implementation.createHTMLDocument('print'),
+        focus: jest.fn(),
+        print: jest.fn(),
+      };
+      const open = jest
+        .spyOn(window, 'open')
+        .mockReturnValue(printWindow as unknown as Window);
+      render(<FuelingPlanner />);
+      fireEvent.click(screen.getByText('Print schedule'));
+      expect(printWindow.document.body.textContent).toContain(
+        'Drink: 150 ml every 20 min, 450 ml an hour.'
+      );
+      open.mockRestore();
+    });
   });
 });
