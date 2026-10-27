@@ -74,6 +74,15 @@ export async function releaseProviderSync(
   }
 }
 
+interface RunningProviderSync {
+  /** Settles once the sync has finished and released its claim. */
+  done: Promise<void>;
+  /** Releases the claim now, even though the sync may still be running. */
+  release: () => Promise<void>;
+}
+
+const runningSyncs = new Set<RunningProviderSync>();
+
 /**
  * Claims the account and starts `sync`, or returns null when another sync
  * holds it. The claim is renewed while the sync runs and released when it
@@ -111,15 +120,52 @@ export async function startProviderSync<T>(
     SYNC_CLAIM_RENEW_MINUTES * 60 * 1000
   );
   timer.unref();
+  let released: Promise<void> | null = null;
+  const release = () => {
+    clearInterval(timer);
+    // Release with the latest renewed time, not one a renewal is replacing.
+    released ??= renewal.then(() => releaseProviderSync(claim));
+    return released;
+  };
+  const work = (async () => sync())();
+  const entry: RunningProviderSync = {
+    release,
+    done: work
+      .then(
+        () => undefined,
+        () => undefined
+      )
+      .then(release)
+      .finally(() => runningSyncs.delete(entry)),
+  };
+  runningSyncs.add(entry);
   const running = (async () => {
     try {
-      return await sync();
+      return await work;
     } finally {
-      clearInterval(timer);
-      // Release with the latest renewed time, not one a renewal is replacing.
-      await renewal;
-      await releaseProviderSync(claim);
+      await entry.done;
     }
   })();
   return { running };
+}
+
+export function runningProviderSyncCount(): number {
+  return runningSyncs.size;
+}
+
+/** Resolves once every sync running now, and any started meanwhile, has settled and released its claim. */
+export async function waitForProviderSyncs(): Promise<void> {
+  while (runningSyncs.size > 0) {
+    await Promise.all([...runningSyncs].map((entry) => entry.done));
+  }
+}
+
+/**
+ * For shutdown after the drain timeout: releases the claim of every sync
+ * still running, so the account can sync again at once after a restart
+ * instead of after the claim expiry. The process exits right after, which
+ * ends the syncs themselves.
+ */
+export async function releaseRunningProviderSyncs(): Promise<void> {
+  await Promise.all([...runningSyncs].map((entry) => entry.release()));
 }
