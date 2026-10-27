@@ -405,16 +405,36 @@ export const MessageTokenUsage: FC = () => {
   );
 };
 
-// Sum one usage field across messages; undefined when no message reported it,
-// so the line drops that segment instead of showing a misleading 0.
-const sumUsage = (
-  usages: TokenUsageCounts[],
-  key: keyof TokenUsageCounts
-): number | undefined => {
-  const values = usages
-    .map((u) => u[key])
-    .filter((v): v is number => v !== undefined);
-  return values.length ? values.reduce((a, b) => a + b, 0) : undefined;
+// Add up the session's usage over the messages that reported a total (derived
+// from input + output when the provider sent no total). A breakdown field is
+// shown only when every counted message reported it, so the segments always
+// cover the same messages as the total. A missing cached count means none.
+const sumSessionUsage = (
+  usages: TokenUsageCounts[]
+): TokenUsageCounts | undefined => {
+  const counted = usages.flatMap((u) => {
+    const totalTokens =
+      u.totalTokens ??
+      (u.inputTokens !== undefined && u.outputTokens !== undefined
+        ? u.inputTokens + u.outputTokens
+        : undefined);
+    return totalTokens === undefined ? [] : [{ ...u, totalTokens }];
+  });
+  if (counted.length === 0) return undefined;
+  const sum = (key: keyof TokenUsageCounts) =>
+    counted.every((u) => u[key] !== undefined)
+      ? counted.reduce((total, u) => total + (u[key] ?? 0), 0)
+      : undefined;
+  const inputTokens = sum('inputTokens');
+  return {
+    totalTokens: sum('totalTokens'),
+    inputTokens,
+    outputTokens: sum('outputTokens'),
+    cachedInputTokens:
+      inputTokens === undefined
+        ? undefined
+        : counted.reduce((total, u) => total + (u.cachedInputTokens ?? 0), 0),
+  };
 };
 
 // Session running total near the composer. The adapter helpers give
@@ -427,19 +447,17 @@ export const SessionTokenUsage: FC = () => {
   const { showTokenStats } = useChatbotVisibility();
   const messages = useAuiState((s) => s.thread.messages);
   if (!showTokenStats) return null;
-  const usages = messages
-    .map((m) => getThreadMessageTokenUsage(m))
-    .filter((u): u is TokenUsageCounts => u !== undefined);
-  const totalTokens = sumUsage(usages, 'totalTokens');
-  if (!totalTokens) return null;
+  const usage = sumSessionUsage(
+    messages
+      .map((m) => getThreadMessageTokenUsage(m))
+      .filter((u): u is TokenUsageCounts => u !== undefined)
+  );
+  if (!usage?.totalTokens) return null;
   return (
     <TokenUsageLine
       className="px-1"
       label={t('thread.thisSession', 'this session')}
-      inputTokens={sumUsage(usages, 'inputTokens')}
-      outputTokens={sumUsage(usages, 'outputTokens')}
-      totalTokens={totalTokens}
-      cachedInputTokens={sumUsage(usages, 'cachedInputTokens')}
+      {...usage}
     />
   );
 };

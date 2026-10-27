@@ -195,6 +195,67 @@ describe('SessionTokenUsage', () => {
     );
   });
 
+  it('derives a missing total from input and output', () => {
+    mockAuiState.current = {
+      thread: {
+        messages: [
+          { usage: { inputTokens: 900, outputTokens: 100 } },
+          { usage: { inputTokens: 400, outputTokens: 100, totalTokens: 500 } },
+        ],
+      },
+    };
+    const { container } = renderInProvider(<SessionTokenUsage />, true);
+    expect(container.querySelector(LINE)?.textContent).toBe(
+      'this session: 1.5K total · 1.3K in · 200 out'
+    );
+  });
+
+  it('drops a breakdown that does not cover every counted message', () => {
+    mockAuiState.current = {
+      thread: {
+        messages: [
+          { usage: { totalTokens: 1000 } },
+          {
+            usage: {
+              inputTokens: 400,
+              outputTokens: 100,
+              totalTokens: 500,
+              cachedInputTokens: 300,
+            },
+          },
+        ],
+      },
+    };
+    const { container } = renderInProvider(<SessionTokenUsage />, true);
+    expect(container.querySelector(LINE)?.textContent).toBe(
+      'this session: 1.5K total'
+    );
+  });
+
+  it('counts a message without cache reads as fully uncached', () => {
+    mockAuiState.current = {
+      thread: {
+        messages: [
+          {
+            usage: { inputTokens: 1000, outputTokens: 100, totalTokens: 1100 },
+          },
+          {
+            usage: {
+              inputTokens: 1000,
+              outputTokens: 100,
+              totalTokens: 1100,
+              cachedInputTokens: 900,
+            },
+          },
+        ],
+      },
+    };
+    const { container } = renderInProvider(<SessionTokenUsage />, true);
+    expect(container.querySelector(LINE)?.textContent).toBe(
+      'this session: 2.2K total · 900 cached · 1.1K uncached · 200 out'
+    );
+  });
+
   it('renders null on a fresh thread with no usage yet', () => {
     mockAuiState.current = { thread: { messages: [{}, {}] } };
     const { container } = renderInProvider(<SessionTokenUsage />, true);
