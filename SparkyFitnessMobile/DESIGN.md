@@ -791,7 +791,7 @@ Android home-screen widgets (`targets/android-widget`) and the iOS phone widget 
 - Swipe is the navigation on Apple Watch; there is no button to change page. Wear OS scrolls with rotary input (`wearRotaryScroll`).
 - Every tap that logs something gives a haptic. On Apple Watch it goes through `Haptics` (`Presentation/Haptics.swift`), which follows the phone's Settings → Haptics switch. Never call WatchKit haptics directly.
 - Works with the phone away: pages draw from the last persisted context, and writes (water taps, medication taps, check-ins) queue and resend.
-- Copy: Apple Watch strings use `String(localized:defaultValue:)` keys (`watch.<page>.<name>`), with the strings in `targets/watch/en.lproj`. The Wear OS screens currently use literal strings, so localization is an Apple Watch rule only (see 10.6).
+- Copy: new Apple Watch copy uses `String(localized:defaultValue:)` keys (`watch.<page>.<name>`), with the strings in `targets/watch/en.lproj`. Existing screens are not fully localized and the Wear OS screens use literal strings (see 10.6).
 
 ### 10.3 Apple Watch app
 
@@ -859,7 +859,7 @@ Take macro and nutrient colors from `GoalPalette` (`GoalPalette.color(forNutrien
 
 - The Wear OS palette is a Tailwind-style set unrelated to the Apple Watch `GoalPalette`, so the same macro is a different color on each watch: protein is amber on Apple Watch and cyan on Wear OS, and carbs is green on Apple Watch and amber on Wear OS.
 - The Apple Watch complications' macro tints (`MacroComplications.swift`: protein red, carbs yellow, fat blue) say they match `GoalPalette`, but they do not (protein amber, carbs green, fat light blue). Fasting uses `.orange` and Steps `.mint` as system colors.
-- Wear OS screens use literal English strings rather than Android string resources, unlike the localized Apple Watch app.
+- Localization is incomplete. `GoalSummaryView.swift` still has static literals ("Calories not synced yet", "Protein", "g"), as do some other Apple Watch views (for example `TrendView.swift`), and the Wear OS screens use literal English strings rather than Android string resources.
 - Neither watch palette is derived from `global.css`; the superset palette is the only hand-copied mirror.
 
 ### 10.7 Checklist for a watch change
@@ -870,4 +870,4 @@ Take macro and nutrient colors from `GoalPalette` (`GoalPalette.color(forNutrien
 - [ ] A new page is added to `WatchPage`, `WATCH_PAGE_KEYS` and the phone's Apple Watch settings together.
 - [ ] A new complication is added on both Apple Watch (`index.swift`) and Wear OS (service plus manifest entry), with its tap target (URL scheme on Apple Watch, `target_page` on Wear OS).
 - [ ] Payload or context changes are made on both watches and the phone by hand, and the Wear OS parity test still passes.
-- [ ] New Apple Watch strings are localized.
+- [ ] New Apple Watch strings are localized, and a localized string is not left beside new literals.
