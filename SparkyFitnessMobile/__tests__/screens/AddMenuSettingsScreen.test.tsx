@@ -59,15 +59,39 @@ describe('AddMenuSettingsScreen', () => {
   });
 
   test('lists every row in the saved order, adding ones it lacks', () => {
-    useAppPreferencesStore.setState({ addMenuOrder: ['askSparky', 'mood'] });
+    useAppPreferencesStore.setState({
+      addMenuOrder: ['syncHealth', 'askSparky'],
+    });
 
     renderScreen();
 
     const keys = orderedRowKeys();
-    expect(keys.slice(0, 2)).toEqual(['askSparky', 'mood']);
+    // Ordered within the group the sheet draws them in.
+    expect(keys.indexOf('syncHealth')).toBeLessThan(keys.indexOf('askSparky'));
     // Everything except the four cards is a row.
     expect(keys).toHaveLength(ADD_MENU_ITEM_KEYS.length - 4);
     expect(keys).not.toContain('food');
+  });
+
+  test('groups the rows the way the sheet draws them', () => {
+    renderScreen();
+
+    expect(screen.getByText('List')).toBeTruthy();
+    expect(screen.getByText('Pairs')).toBeTruthy();
+    expect(screen.getByText('Buttons')).toBeTruthy();
+    // List rows, then the pair, then the footer buttons.
+    const keys = orderedRowKeys();
+    expect(keys.indexOf('symptoms')).toBeLessThan(keys.indexOf('mood'));
+    expect(keys.indexOf('mindfulness')).toBeLessThan(keys.indexOf('askSparky'));
+  });
+
+  test('leaves out a group with nothing in it', () => {
+    useAppPreferencesStore
+      .getState()
+      .setAddMenuCards(['askSparky', 'syncHealth', 'food', 'exercise']);
+    renderScreen();
+
+    expect(screen.queryByText('Buttons')).toBeNull();
   });
 
   test('toggling a row hides and shows it', () => {

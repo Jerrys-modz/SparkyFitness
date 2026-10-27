@@ -3,6 +3,8 @@ import {
   DEFAULT_ADD_MENU_CARDS,
 } from '../../src/constants/addMenuItems';
 import {
+  groupRowsByStyle,
+  mergeGroupOrder,
   mergeRowOrder,
   placeInCardSlot,
   resolveAddMenuCards,
@@ -72,6 +74,41 @@ describe('addMenu', () => {
       const merged = mergeRowOrder(ADD_MENU_ITEM_KEYS, cards, reordered);
       expect(merged.slice(0, 4)).toEqual(cards);
       expect(rowKeys(merged, cards)).toEqual(reordered);
+    });
+  });
+
+  describe('groupRowsByStyle', () => {
+    it('splits rows by how the sheet draws them, keeping their order', () => {
+      expect(
+        groupRowsByStyle(['syncHealth', 'mood', 'symptoms', 'askSparky'])
+      ).toEqual({
+        list: ['symptoms'],
+        compact: ['mood'],
+        action: ['syncHealth', 'askSparky'],
+      });
+    });
+  });
+
+  describe('mergeGroupOrder', () => {
+    it('moves one group and leaves the other rows where they were', () => {
+      const cards = DEFAULT_ADD_MENU_CARDS;
+      const before = rowKeys(ADD_MENU_ITEM_KEYS, cards);
+      const merged = mergeGroupOrder(ADD_MENU_ITEM_KEYS, cards, [
+        'syncHealth',
+        'askSparky',
+      ]);
+      const after = rowKeys(merged, cards);
+
+      expect(groupRowsByStyle(after).action).toEqual([
+        'syncHealth',
+        'askSparky',
+      ]);
+      expect(groupRowsByStyle(after).list).toEqual(
+        groupRowsByStyle(before).list
+      );
+      expect(groupRowsByStyle(after).compact).toEqual(
+        groupRowsByStyle(before).compact
+      );
     });
   });
 });

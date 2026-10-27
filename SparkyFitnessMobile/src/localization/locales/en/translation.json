@@ -3717,7 +3717,11 @@
     "cardsTitle": "Tiles",
     "cardsDescription": "The four tiles at the top of Quick Actions. Tap one to choose what goes there. Choosing something already placed swaps the two.",
     "rowsTitle": "List",
-    "rowsDescription": "Everything else, listed under the tiles. Drag a row by its handle to move it. Toggle a row off to hide it.",
+    "rowsDescription": "Rows under the tiles. Drag a row by its handle to move it. Toggle a row off to hide it.",
+    "pairsTitle": "Pairs",
+    "pairsDescription": "Shown two to a line, under the list.",
+    "buttonsTitle": "Buttons",
+    "buttonsDescription": "Shown side by side at the bottom of the sheet.",
     "chooseCard": "Choose a tile",
     "slotLabel": "Tile {{number}}: {{name}}",
     "slotHint": "Opens a list to choose what goes here"

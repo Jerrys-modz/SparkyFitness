@@ -22,12 +22,16 @@ import { useSheetBackdrop, useSheetHardwareBack } from './ui/sheetChrome';
 import {
   ADD_MENU_CARD_LABELS,
   ADD_MENU_ITEM_ICONS,
-  ADD_MENU_ITEM_ROW_STYLES,
   ADD_MENU_ITEM_TINTS,
   type AddMenuItemKey,
+  type AddMenuRowStyle,
 } from '../constants/addMenuItems';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
-import { resolveAddMenuCards, rowKeys } from '../utils/addMenu';
+import {
+  groupRowsByStyle,
+  resolveAddMenuCards,
+  rowKeys,
+} from '../utils/addMenu';
 
 export interface AddSheetRef {
   present: (options?: { initialMenu?: 'exercise' }) => void;
@@ -561,12 +565,16 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
     // Below the cards, each style gathers in its own place, keeping the
     // arranged order within it: list rows and compact pairs in one panel,
     // actions side by side at the foot.
-    const shown = rowKeys(addMenuOrder, cardKeys).flatMap((key) => {
-      const def = itemDefs[key];
-      return def && !hiddenAddMenuItems.includes(key) ? [{ key, def }] : [];
-    });
-    const withStyle = (style: 'list' | 'compact' | 'action') =>
-      shown.filter(({ key }) => ADD_MENU_ITEM_ROW_STYLES[key] === style);
+    const shown = groupRowsByStyle(
+      rowKeys(addMenuOrder, cardKeys).filter(
+        (key) => itemDefs[key] && !hiddenAddMenuItems.includes(key)
+      )
+    );
+    const withStyle = (style: AddMenuRowStyle) =>
+      shown[style].flatMap((key) => {
+        const def = itemDefs[key];
+        return def ? [{ key, def }] : [];
+      });
     const listRows = withStyle('list').map(({ key, def }) =>
       renderListRow(key, def)
     );
