@@ -2196,23 +2196,33 @@ private struct MarqueeText: View {
             if reduceMotion {
                 Text(text).lineLimit(1)
             } else {
+                // The sizing text truncates, so it takes the width it is given
+                // and never more; the full-length copy is drawn over it and
+                // cannot widen the page (a fixed-size child inside the layout
+                // did, and pushed the whole screen off its edges).
                 Text(text)
                     .lineLimit(1)
-                    .fixedSize()
-                    .background(GeometryReader { proxy in
-                        Color.clear.preference(key: MarqueeTextWidthKey.self, value: proxy.size.width)
-                    })
-                    .offset(x: scrolled ? -overflow : 0)
+                    .opacity(0)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .clipped()
                     .background(GeometryReader { proxy in
                         Color.clear.preference(key: MarqueeContainerWidthKey.self, value: proxy.size.width)
                     })
+                    .overlay(alignment: .leading) {
+                        Text(text)
+                            .lineLimit(1)
+                            .fixedSize()
+                            .background(GeometryReader { proxy in
+                                Color.clear.preference(key: MarqueeTextWidthKey.self, value: proxy.size.width)
+                            })
+                            .offset(x: scrolled ? -overflow : 0)
+                    }
+                    .clipped()
                     .onPreferenceChange(MarqueeTextWidthKey.self) { textWidth = $0 }
                     .onPreferenceChange(MarqueeContainerWidthKey.self) { containerWidth = $0 }
                     .task(id: overflow) { await scroll() }
             }
         }
+        .accessibilityElement(children: .ignore)
         .accessibilityLabel(text)
     }
 
