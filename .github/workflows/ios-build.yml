@@ -209,6 +209,16 @@ jobs:
             shoot medications-dose none medications dose
             shoot fasting none fasting
             shoot fasting-running none fasting "" fast
+
+            # The same pages with larger text on, to compare with the
+            # original look above (this PR's "Larger text on the watch").
+            shoot workout-active-large active workout "" large
+            shoot workout-resting-large resting workout "" large
+            shoot workout-metrics-large active workout metrics large,nometrics
+            shoot workout-upnext-large active workout upnext large,upnext
+            shoot workout-exercise-options-large active workout exerciseoptions large
+            shoot workout-rpe-large active workout rpe large
+            shoot fasting-running-large none fasting "" large,fast
           done <<< "$DEVICES"
 
           ls -la screenshots
