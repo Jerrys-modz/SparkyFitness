@@ -1492,7 +1492,7 @@ Actions:
               const pinnedProvider = pinnedDetails
                 ? (await resolveFoodProviderOrder(userId, 'fatsecret'))[0]
                 : undefined;
-              const result = pinnedDetails
+              let result = pinnedDetails
                 ? {
                     source: 'fatsecret',
                     provider_id: pinnedProvider?.id,
@@ -1510,6 +1510,35 @@ Actions:
                     args.provider_type,
                     args.external_id
                   );
+              // Searching again by the product's full name often misses the
+              // item the lookup found under the user's words ("olive oil" vs
+              // "Organic Extra Virgin Olive Oil"). Fetch that exact ID before
+              // refusing, so the model doesn't loop on lookups or retype
+              // nutrition into create_food.
+              if (
+                !result.food &&
+                !pinnedDetails &&
+                args.external_id &&
+                args.provider_type
+              ) {
+                const provider = (
+                  await resolveFoodProviderOrder(userId, args.provider_type)
+                )[0];
+                const food = await fetchVerifiedProviderFood(
+                  userId,
+                  args.provider_type,
+                  args.external_id,
+                  provider?.id
+                );
+                if (food) {
+                  result = {
+                    source: args.provider_type,
+                    provider_id: provider?.id,
+                    food,
+                    alternatives: [],
+                  };
+                }
+              }
               if (result.source === 'ai_estimate' || !result.food) {
                 if (args.external_id && !pinnedDetails)
                   return ERRORS.VALIDATION(
