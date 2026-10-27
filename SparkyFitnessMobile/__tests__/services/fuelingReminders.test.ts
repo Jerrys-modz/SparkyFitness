@@ -32,6 +32,7 @@ const plan = (overrides: Record<string, unknown> = {}) => ({
   startAt: at(7),
   offsetsMin: [30, 60, 90],
   portionGrams: 25,
+  productName: 'Energy gel',
   ...overrides,
 });
 
@@ -49,12 +50,14 @@ describe('startFuelingSession', () => {
     expect(result).toEqual({ status: 'scheduled', reminderCount: 3 });
     expect(mockSchedule).toHaveBeenCalledWith(
       [at(7, 30), at(8), at(8, 30)],
-      25
+      25,
+      'Energy gel'
     );
     const session = await getFuelingSession();
     expect(session).toEqual({
       startAtMs: at(7).getTime(),
       portionGrams: 25,
+      productName: 'Energy gel',
       reminderCount: 3,
       notificationIds: ['n1', 'n2', 'n3'],
     });

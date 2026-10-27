@@ -14,6 +14,8 @@ On the web, open the **Exercises** page and scroll to **Fueling plan**. Enter yo
 
 In the mobile app, open **Library > Fueling plan**. Pick when to start, then tap **Set reminders** and the app sends a notification for each portion. Starting a new plan replaces the old one, and **Stop reminders** cancels it. Reminders need notifications turned on for the app.
 
+Type the name of what you carry in **Fuel product** (it starts as "Energy gel"). Each reminder has a **Log it** button: pressing it opens the app and adds one portion to today's diary under **Snacks**, with the portion as carbohydrates (4 kcal per gram) and the current time. Tapping the notification itself only opens the app. If the entry could not be saved, a message says so and you can add it yourself or press the button again.
+
 ## How the target is chosen
 
 The default target depends on how long you will be running:

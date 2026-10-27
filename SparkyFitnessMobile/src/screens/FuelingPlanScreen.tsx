@@ -97,6 +97,7 @@ const FuelingPlanScreen: React.FC<FuelingPlanScreenProps> = () => {
   const [startKey, setStartKey] = useState<StartKey>('0');
   const [carbsOverride, setCarbsOverride] = useState('');
   const [portionOverride, setPortionOverride] = useState('');
+  const [productName, setProductName] = useState('');
   const [session, setSession] = useState<FuelingSession | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -211,6 +212,9 @@ const FuelingPlanScreen: React.FC<FuelingPlanScreenProps> = () => {
         startAt: new Date(Date.now() + delayMin * 60_000),
         offsetsMin: plan.reminderOffsetsMin,
         portionGrams: plan.portionGrams,
+        productName:
+          productName.trim() ||
+          t('fuelingPlan.defaultProduct', { defaultValue: 'Energy gel' }),
       });
       if (result.status === 'scheduled') {
         Toast.show({
@@ -246,7 +250,7 @@ const FuelingPlanScreen: React.FC<FuelingPlanScreenProps> = () => {
     } finally {
       setBusy(false);
     }
-  }, [busy, plan, refreshSession, startKey, t]);
+  }, [busy, plan, productName, refreshSession, startKey, t]);
 
   const handleStop = useCallback(async () => {
     if (busy) return;
@@ -348,6 +352,30 @@ const FuelingPlanScreen: React.FC<FuelingPlanScreenProps> = () => {
             onChangeText={setPortionOverride}
           />
         </View>
+
+        <Text className="text-text-secondary text-sm mb-1">
+          {t('fuelingPlan.product', { defaultValue: 'Fuel product' })}
+        </Text>
+        <TextInput
+          testID="fueling-product"
+          accessibilityLabel={t('fuelingPlan.product', {
+            defaultValue: 'Fuel product',
+          })}
+          value={productName}
+          onChangeText={setProductName}
+          placeholder={t('fuelingPlan.defaultProduct', {
+            defaultValue: 'Energy gel',
+          })}
+          maxLength={60}
+          className="bg-raised rounded-lg px-3 mb-1 text-text-primary"
+          style={{ height: 44, paddingVertical: 0, fontSize: 16 }}
+        />
+        <Text className="text-text-secondary text-xs mb-4">
+          {t('fuelingPlan.productHint', {
+            defaultValue:
+              'Name of what you carry. The Log it button on a reminder adds it to your diary as Snacks.',
+          })}
+        </Text>
 
         <View className="bg-surface rounded-xl p-4 mb-4">
           {plan.needsFuel && plan.intervalMin !== null ? (
