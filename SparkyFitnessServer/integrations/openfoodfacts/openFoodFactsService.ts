@@ -1257,6 +1257,7 @@ function mapOpenFoodFactsProduct(
 export { searchOpenFoodFacts };
 export { searchOpenFoodFactsByBarcodeFields };
 export { mapOpenFoodFactsProduct };
+export { hasUsableOffCoreNutrition };
 export default {
   searchOpenFoodFacts,
   searchOpenFoodFactsByBarcodeFields,

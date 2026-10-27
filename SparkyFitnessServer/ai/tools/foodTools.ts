@@ -882,6 +882,7 @@ async function fetchVerifiedProviderFood(
       providerType,
       externalId,
       providerId,
+      requireNutrition: true,
     });
     if (
       !detail ||

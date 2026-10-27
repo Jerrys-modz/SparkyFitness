@@ -2002,6 +2002,7 @@ describe('log_external_food', () => {
         externalId: '1102644',
         providerType: 'usda',
         providerId: 'prov-1',
+        requireNutrition: true,
       })
     );
     expect(foodCoreService.createFood).toHaveBeenCalledWith(
