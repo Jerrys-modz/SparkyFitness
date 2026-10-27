@@ -21,6 +21,7 @@ import {
   registerLocalizedNotificationPresentation,
 } from '../services/notifications';
 import { initMoodCheckinNotificationResponses } from '../services/moodCheckinNotificationHandler';
+import { initFuelingNotificationResponses } from '../services/fuelingNotificationHandler';
 import { initMedicationNotificationActions } from '../services/medicationNotificationHandler';
 import { ensureSymptomNotificationCategory } from '../services/symptomReminderService';
 import { initWorkoutLiveActivity } from '../services/workoutLiveActivity';
@@ -80,6 +81,7 @@ export function useAppStartup({ shouldYieldObserverSync }: AppStartupArgs) {
     initWorkoutNotificationActions();
     initMedicationNotificationActions();
     const stopMoodCheckinResponses = initMoodCheckinNotificationResponses();
+    const stopFuelingResponses = initFuelingNotificationResponses();
     void ensureSymptomNotificationCategory();
 
     // Keeps the iOS Live Activity or Android ongoing notification in sync
@@ -181,6 +183,7 @@ export function useAppStartup({ shouldYieldObserverSync }: AppStartupArgs) {
       cancelled = true;
       i18n.off('languageChanged', onLanguageChanged);
       stopMoodCheckinResponses();
+      stopFuelingResponses();
       if (Platform.OS === 'ios') {
         stopObservers();
       }

@@ -45,6 +45,7 @@ import {
   SafePersonalRecords,
   SafeWatchRunLive,
   SafeRunPrograms,
+  SafeFuelingPlan,
   SafeRunProgramCalendar,
   SafeRunProgramEdit,
   SafeRoutes,
@@ -611,6 +612,11 @@ function AppContent() {
             name="RunPrograms"
             component={SafeRunPrograms}
             options={createStackScreenOptions(t('screens.runPrograms', { defaultValue: 'Training programs' }), { headerBackTitle: t('navigation.library', { defaultValue: 'Library' }) })}
+          />
+          <Stack.Screen
+            name="FuelingPlan"
+            component={SafeFuelingPlan}
+            options={createStackScreenOptions(t('screens.fuelingPlan', { defaultValue: 'Fueling plan' }), { headerBackTitle: t('navigation.library', { defaultValue: 'Library' }) })}
           />
           <Stack.Screen
             name="RunProgramCalendar"

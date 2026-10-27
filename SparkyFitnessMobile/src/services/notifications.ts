@@ -20,6 +20,10 @@ import {
 const CHANNEL_ID = 'workout-timer';
 const FASTING_CHANNEL_ID = 'fasting';
 const HYDRATION_CHANNEL_ID = 'hydration';
+const FUELING_CHANNEL_ID = 'fueling';
+export const FUELING_REMINDER_CATEGORY = 'fueling-reminder';
+export const FUELING_LOG_ACTION = 'fueling-log';
+export const FUELING_REMINDER_KIND = 'fueling';
 export const MOOD_CHECKIN_CHANNEL_ID = 'mood-checkin';
 export const MEDICATION_REMINDER_CHANNEL_ID = 'medication-reminders';
 const EXACT_ALARM_PROMPT_KEY = '@SparkyFitness/exactAlarmPromptShown';
@@ -87,6 +91,14 @@ export async function registerLocalizedNotificationPresentation(): Promise<void>
       importance: Notifications.AndroidImportance.HIGH,
       enableVibrate: true,
     });
+    await Notifications.setNotificationChannelAsync(FUELING_CHANNEL_ID, {
+      name: notificationCopy(
+        'notifications.channels.fueling',
+        'Fueling reminders'
+      ),
+      importance: Notifications.AndroidImportance.HIGH,
+      enableVibrate: true,
+    });
     await ensureMoodCheckinChannel();
     await Notifications.setNotificationChannelAsync(
       MEDICATION_REMINDER_CHANNEL_ID,
@@ -109,6 +121,15 @@ export async function registerLocalizedNotificationPresentation(): Promise<void>
     { minutes: snoozeMinutes }
   );
 
+  // Opens the app so the log goes through the normal signed-in client, and so a
+  // cold start can finish it from `getLastNotificationResponse`.
+  await Notifications.setNotificationCategoryAsync(FUELING_REMINDER_CATEGORY, [
+    {
+      identifier: FUELING_LOG_ACTION,
+      buttonTitle: notificationCopy('notifications.actions.logFuel', 'Log it'),
+      options: { opensAppToForeground: true },
+    },
+  ]);
   await Notifications.setNotificationCategoryAsync(REST_COMPLETE_CATEGORY, [
     {
       identifier: COMPLETE_SET_ACTION,
@@ -668,6 +689,128 @@ export async function scheduleWaterReminderNotifications(
       // and the signature guard then blocks a retry for the reminders that
       // never made it. Returning nothing keeps the caller on its "an empty
       // result is not persisted" path, so the next reconcile tries again.
+      await Promise.all(ids.map((id) => cancelScheduledNotification(id)));
+      return [];
+    }
+  }
+  return ids;
+}
+
+/**
+ * Schedules one fueling reminder per future time and returns the ids that were
+ * scheduled. Unlike the hydration chain this is something the person started on
+ * purpose, so it only needs notifications turned on and the OS permission.
+ * All or nothing: a half-scheduled plan would leave the person under-fueled
+ * with no sign anything was missing.
+ */
+export async function scheduleFuelingReminderNotifications(
+  times: Date[],
+  portionGrams: number,
+  productName: string,
+  food: {
+    foodId: string;
+    variantId: string;
+    servingSize: number;
+    servingUnit: string;
+  } | null = null
+): Promise<string[]> {
+  if (!useAppPreferencesStore.getState().notificationsEnabled) return [];
+  if (!(await hasNotificationPermission())) return [];
+
+  const nowMs = Date.now();
+  const ids: string[] = [];
+  for (const time of times) {
+    const timeMs = time.getTime();
+    if (Number.isNaN(timeMs) || timeMs <= nowMs) continue;
+    try {
+      const id = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: notificationCopy(
+            'notifications.fueling.title',
+            'Time to fuel ⚡'
+          ),
+          body: notificationCopy(
+            'notifications.fueling.body',
+            'Take {{grams}} g of carbs.',
+            { grams: portionGrams }
+          ),
+          sound: true,
+          categoryIdentifier: FUELING_REMINDER_CATEGORY,
+          data: {
+            kind: FUELING_REMINDER_KIND,
+            portionGrams: String(portionGrams),
+            productName,
+            ...(food
+              ? {
+                  foodId: food.foodId,
+                  variantId: food.variantId,
+                  servingSize: String(food.servingSize),
+                  servingUnit: food.servingUnit,
+                }
+              : {}),
+          },
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
+          date: time,
+          channelId: FUELING_CHANNEL_ID,
+        },
+      });
+      ids.push(id);
+    } catch (err) {
+      addLog(
+        `scheduleFuelingReminderNotifications failed: ${(err as Error).message}`,
+        'ERROR'
+      );
+      await Promise.all(ids.map((id) => cancelScheduledNotification(id)));
+      return [];
+    }
+  }
+  return ids;
+}
+
+/**
+ * Schedules one drink reminder per future time on the fueling channel, with the
+ * same all-or-nothing rule and permission gate as the carbohydrate reminders.
+ */
+export async function scheduleDrinkReminderNotifications(
+  times: Date[],
+  mlPerDrink: number
+): Promise<string[]> {
+  if (!useAppPreferencesStore.getState().notificationsEnabled) return [];
+  if (!(await hasNotificationPermission())) return [];
+
+  const nowMs = Date.now();
+  const ids: string[] = [];
+  for (const time of times) {
+    const timeMs = time.getTime();
+    if (Number.isNaN(timeMs) || timeMs <= nowMs) continue;
+    try {
+      const id = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: notificationCopy(
+            'notifications.fuelingDrink.title',
+            'Time to drink 💧'
+          ),
+          body: notificationCopy(
+            'notifications.fuelingDrink.body',
+            'Have a drink, about {{ml}} ml.',
+            { ml: mlPerDrink }
+          ),
+          sound: true,
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
+          date: time,
+          channelId: FUELING_CHANNEL_ID,
+        },
+      });
+      ids.push(id);
+    } catch (err) {
+      addLog(
+        `scheduleDrinkReminderNotifications failed: ${(err as Error).message}`,
+        'ERROR'
+      );
       await Promise.all(ids.map((id) => cancelScheduledNotification(id)));
       return [];
     }
