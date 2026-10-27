@@ -789,9 +789,9 @@ Android home-screen widgets (`targets/android-widget`) and the iOS phone widget 
 - Glanceable: one job per screen, a big number, one control. The Workout screens show one set at a time, because the wearer is mid-lift looking at a small screen.
 - Pure black canvas with flat dark cards. Color carries meaning only (a metric, a state), never decoration.
 - Swipe is the navigation on Apple Watch; there is no button to change page. Wear OS scrolls with rotary input (`wearRotaryScroll`).
-- Every tap that logs something gives a haptic through `Haptics` (`Presentation/Haptics.swift`), which follows the phone's Settings → Haptics switch. Never call WatchKit haptics directly.
+- Every tap that logs something gives a haptic. On Apple Watch it goes through `Haptics` (`Presentation/Haptics.swift`), which follows the phone's Settings → Haptics switch. Never call WatchKit haptics directly.
 - Works with the phone away: pages draw from the last persisted context, and writes (water taps, medication taps, check-ins) queue and resend.
-- Copy is localized through `String(localized:defaultValue:)` keys (`watch.<page>.<name>`), and the iOS watch strings live in `targets/watch/en.lproj`.
+- Copy: Apple Watch strings use `String(localized:defaultValue:)` keys (`watch.<page>.<name>`), with the strings in `targets/watch/en.lproj`. The Wear OS screens currently use literal strings, so localization is an Apple Watch rule only (see 10.6).
 
 ### 10.3 Apple Watch app
 
@@ -829,10 +829,10 @@ Take macro and nutrient colors from `GoalPalette` (`GoalPalette.color(forNutrien
 
 ### 10.4 Apple Watch complications
 
-- Families: circular gauge, rectangular and inline, drawn with `Gauge` / `ProgressView` tinted per metric. Tracks are `Color.secondary` at 25% opacity.
+- Families: circular, corner, rectangular and inline (`accessoryCircular`, `accessoryCorner`, `accessoryRectangular`, `accessoryInline`). Most draw `Gauge` / `ProgressView` tinted per metric; Energy and Water draw custom ring views (`CalorieRing`, `MacroGoalRing`, `WaterGoalRing`). Tracks are `Color.secondary` at 25% opacity.
 - Data comes from the app group (`APP_GROUP_IDENTIFIER` in the target's Info.plist), written by `ComplicationPublisher`. A snapshot for another day is ignored, and the placeholder shows a plausible mid-day value.
-- Timelines refresh every 15 minutes or at midnight, whichever is first.
-- Each complication opens the app on its page through the `sparkyfitness-watch` URL scheme (`ComplicationLinks.swift`). The scheme is declared in three copies that must stay in step: `targets/watch/expo-target.config.js`, `WatchDeepLink.scheme` and `ComplicationLink.scheme`.
+- Refresh differs by complication. Steps, Water, Energy and the macros reload after 15 minutes or at midnight, whichever is first. Fasting reloads hourly when no fast is active; during an active fast it provides a run of 15-minute entries and reloads `.atEnd`.
+- Each Apple Watch complication opens the app on its page through the `sparkyfitness-watch` URL scheme (`ComplicationLinks.swift`). The scheme is declared in three copies that must stay in step: `targets/watch/expo-target.config.js`, `WatchDeepLink.scheme` and `ComplicationLink.scheme`. Wear OS complications instead tap through a `PendingIntent` carrying a `target_page` extra (`ComplicationUpdater.tapPendingIntent`); Wear OS also accepts a separate `sparkyfitness://watch` deep link in `MainActivity`.
 - Tints: Water cyan, Steps mint, Fasting orange, Energy and the macros per the table above (see 10.6 for the macro mismatch).
 
 ### 10.5 Wear OS app
@@ -853,20 +853,21 @@ Take macro and nutrient colors from `GoalPalette` (`GoalPalette.color(forNutrien
 - Cards are `RoundedCornerShape(10.dp)` on `CardBg` with 10dp by 6dp padding; macro rows are a label (11sp medium, white), a value and a progress bar in the nutrient color.
 - Complications are `SuspendingComplicationDataSourceService` classes in `Complications.kt` (Energy, Protein, Carbs, Fat, Water, Fasting, Steps), registered in `AndroidManifest.xml`, with monochrome icons in `res/drawable/ic_complication_*.xml`.
 - The phone finds the watch by the `sparky_wear_companion` capability in `res/values/wear.xml`.
-- `WearOsParityTest` guards behavior parity with the Apple Watch payloads. Change a payload on both watches in the same change.
+- `WearOsParityTest` covers Wear OS payload parsing and builders against hard-coded JSON. It does not compare them with the Apple Watch definitions, so it cannot catch a one-sided schema change; keep both watches in step by hand.
 
 ### 10.6 Known gaps
 
 - The Wear OS palette is a Tailwind-style set unrelated to the Apple Watch `GoalPalette`, so the same macro is a different color on each watch: protein is amber on Apple Watch and cyan on Wear OS, and carbs is green on Apple Watch and amber on Wear OS.
 - The Apple Watch complications' macro tints (`MacroComplications.swift`: protein red, carbs yellow, fat blue) say they match `GoalPalette`, but they do not (protein amber, carbs green, fat light blue). Fasting uses `.orange` and Steps `.mint` as system colors.
+- Wear OS screens use literal English strings rather than Android string resources, unlike the localized Apple Watch app.
 - Neither watch palette is derived from `global.css`; the superset palette is the only hand-copied mirror.
 
 ### 10.7 Checklist for a watch change
 
 - [ ] Used `WatchStyle.s` for fixed sizes, `WatchStyle.fill` for cards and `SquircleButton` for controls (Apple Watch).
 - [ ] Took colors from `GoalPalette` / `SparkyColors` and updated the table above if a value changed.
-- [ ] Fired haptics through `Haptics`, and kept pages working with no phone connection.
+- [ ] Fired Apple Watch haptics through `Haptics`, and kept pages working with no phone connection.
 - [ ] A new page is added to `WatchPage`, `WATCH_PAGE_KEYS` and the phone's Apple Watch settings together.
-- [ ] A new complication is added on both Apple Watch (`index.swift`) and Wear OS (service plus manifest entry), with its deep link.
-- [ ] Payload or context changes are made on both watches and the phone, and the parity test still passes.
-- [ ] New strings are localized.
+- [ ] A new complication is added on both Apple Watch (`index.swift`) and Wear OS (service plus manifest entry), with its tap target (URL scheme on Apple Watch, `target_page` on Wear OS).
+- [ ] Payload or context changes are made on both watches and the phone by hand, and the Wear OS parity test still passes.
+- [ ] New Apple Watch strings are localized.
