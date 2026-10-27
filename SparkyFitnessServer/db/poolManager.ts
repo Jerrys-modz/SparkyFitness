@@ -1,6 +1,7 @@
 import pg from 'pg';
 import { log } from '../config/logging.js';
 import { AsyncLocalStorage } from 'node:async_hooks';
+import { noteWorkActivity, throwIfWorkAborted } from '../utils/abortScope.js';
 import { requestConnectRetry, retryOnConnectionError } from './connectRetry.js';
 const { Pool, types } = pg;
 
@@ -33,6 +34,21 @@ function handleConnectionLoss(pool: pg.Pool, name: string): void {
     });
   });
 }
+/**
+ * Counts each query as progress of the surrounding work (utils/abortScope.ts),
+ * so a sync writing through one connection it holds, such as a long import
+ * transaction, is not taken for a stalled one. The listener is looked up per
+ * call, so queries outside such work note nothing.
+ */
+function noteQueriesAsWorkActivity(pool: pg.Pool): void {
+  pool.on('connect', (client) => {
+    const query = client.query.bind(client) as (...args: unknown[]) => unknown;
+    client.query = ((...args: unknown[]) => {
+      noteWorkActivity();
+      return query(...args);
+    }) as typeof client.query;
+  });
+}
 function createOwnerPoolInstance() {
   const newPool = new Pool({
     user: process.env.SPARKY_FITNESS_DB_USER,
@@ -49,6 +65,7 @@ function createOwnerPoolInstance() {
     log('error', 'Unexpected error on idle owner client', err);
   });
   handleConnectionLoss(newPool, 'owner');
+  noteQueriesAsWorkActivity(newPool);
   return newPool;
 }
 function createAppPoolInstance() {
@@ -67,6 +84,7 @@ function createAppPoolInstance() {
     log('error', 'Unexpected error on idle app client', err);
   });
   handleConnectionLoss(newPool, 'app');
+  noteQueriesAsWorkActivity(newPool);
   return newPool;
 }
 function _getRawOwnerPool() {
@@ -85,7 +103,9 @@ function _getRawAppPool() {
  * Borrows a client with RLS context set for the target user and authenticated actor.
  * The caller must release it in a finally block; failed context setup discards it.
  * Connection errors while acquiring or setting the context are retried for a
- * few seconds; the caller's own statements are never retried.
+ * few seconds; the caller's own statements are never retried. Refuses inside
+ * work that was stopped (see utils/abortScope.ts), also when it was stopped
+ * while the acquire waited.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function getClient(
@@ -97,10 +117,11 @@ async function getClient(
       'userId is required for getClient to ensure RLS is applied.'
     );
   }
+  throwIfWorkAborted();
   const store = dbContextStorage.getStore();
   const actualAuthUserId =
     authenticatedUserId || store?.authenticatedUserId || userId;
-  return retryOnConnectionError(async () => {
+  const client = await retryOnConnectionError(async () => {
     const client = await _getRawAppPool().connect();
     try {
       await client.query('SELECT public.set_app_context($1, $2)', [
@@ -113,12 +134,27 @@ async function getClient(
       throw error;
     }
   }, requestConnectRetry);
+  return unlessWorkAborted(client);
 }
 async function getSystemClient() {
-  return retryOnConnectionError(
+  throwIfWorkAborted();
+  const client = await retryOnConnectionError(
     async () => _getRawOwnerPool().connect(),
     requestConnectRetry
   );
+  return unlessWorkAborted(client);
+}
+// The acquire can wait (queued behind a full pool, connect retries) past the
+// moment the work was stopped.
+function unlessWorkAborted<T extends { release(): void }>(client: T): T {
+  try {
+    throwIfWorkAborted();
+  } catch (error) {
+    client.release();
+    throw error;
+  }
+  noteWorkActivity();
+  return client;
 }
 // node-pg counters for the app pool, for the admin-only dev tools. Guards
 // against an uninitialized pool.
