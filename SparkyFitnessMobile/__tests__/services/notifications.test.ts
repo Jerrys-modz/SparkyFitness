@@ -567,7 +567,8 @@ describe('notifications service', () => {
 
       const ids = await scheduleFuelingReminderNotifications(
         [inHours(1), inHours(2)],
-        25
+        25,
+        'Energy gel'
       );
 
       expect(ids).toEqual(['fuel-1', 'fuel-2']);
@@ -575,6 +576,12 @@ describe('notifications service', () => {
         content: expect.objectContaining({
           title: 'Time to fuel ⚡',
           body: 'Take 25 g of carbs.',
+          categoryIdentifier: 'fueling-reminder',
+          data: {
+            kind: 'fueling',
+            portionGrams: '25',
+            productName: 'Energy gel',
+          },
         }),
         trigger: expect.objectContaining({
           type: Notifications.SchedulableTriggerInputTypes.DATE,
@@ -586,7 +593,8 @@ describe('notifications service', () => {
     it('skips times that are already in the past', async () => {
       const ids = await scheduleFuelingReminderNotifications(
         [new Date(Date.now() - 60 * 1000), inHours(1)],
-        25
+        25,
+        'Energy gel'
       );
       expect(ids).toEqual(['notif-id']);
       expect(mockSchedule).toHaveBeenCalledTimes(1);
@@ -599,7 +607,8 @@ describe('notifications service', () => {
 
       const ids = await scheduleFuelingReminderNotifications(
         [inHours(1), inHours(2)],
-        25
+        25,
+        'Energy gel'
       );
 
       expect(ids).toEqual([]);
@@ -609,7 +618,11 @@ describe('notifications service', () => {
     it('schedules nothing while the master notifications toggle is off', async () => {
       useAppPreferencesStore.getState().setNotificationsEnabled(false);
       expect(
-        await scheduleFuelingReminderNotifications([inHours(1)], 25)
+        await scheduleFuelingReminderNotifications(
+          [inHours(1)],
+          25,
+          'Energy gel'
+        )
       ).toEqual([]);
       expect(mockSchedule).not.toHaveBeenCalled();
     });
@@ -617,7 +630,11 @@ describe('notifications service', () => {
     it('never prompts and schedules nothing without OS permission', async () => {
       mockGetPerms.mockResolvedValue({ status: 'undetermined' } as any);
       expect(
-        await scheduleFuelingReminderNotifications([inHours(1)], 25)
+        await scheduleFuelingReminderNotifications(
+          [inHours(1)],
+          25,
+          'Energy gel'
+        )
       ).toEqual([]);
       expect(mockRequestPerms).not.toHaveBeenCalled();
       expect(mockSchedule).not.toHaveBeenCalled();

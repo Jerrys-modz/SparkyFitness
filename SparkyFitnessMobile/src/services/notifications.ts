@@ -21,6 +21,9 @@ const CHANNEL_ID = 'workout-timer';
 const FASTING_CHANNEL_ID = 'fasting';
 const HYDRATION_CHANNEL_ID = 'hydration';
 const FUELING_CHANNEL_ID = 'fueling';
+export const FUELING_REMINDER_CATEGORY = 'fueling-reminder';
+export const FUELING_LOG_ACTION = 'fueling-log';
+export const FUELING_REMINDER_KIND = 'fueling';
 export const MOOD_CHECKIN_CHANNEL_ID = 'mood-checkin';
 export const MEDICATION_REMINDER_CHANNEL_ID = 'medication-reminders';
 const EXACT_ALARM_PROMPT_KEY = '@SparkyFitness/exactAlarmPromptShown';
@@ -118,6 +121,15 @@ export async function registerLocalizedNotificationPresentation(): Promise<void>
     { minutes: snoozeMinutes }
   );
 
+  // Opens the app so the log goes through the normal signed-in client, and so a
+  // cold start can finish it from `getLastNotificationResponse`.
+  await Notifications.setNotificationCategoryAsync(FUELING_REMINDER_CATEGORY, [
+    {
+      identifier: FUELING_LOG_ACTION,
+      buttonTitle: notificationCopy('notifications.actions.logFuel', 'Log it'),
+      options: { opensAppToForeground: true },
+    },
+  ]);
   await Notifications.setNotificationCategoryAsync(REST_COMPLETE_CATEGORY, [
     {
       identifier: COMPLETE_SET_ACTION,
@@ -693,7 +705,8 @@ export async function scheduleWaterReminderNotifications(
  */
 export async function scheduleFuelingReminderNotifications(
   times: Date[],
-  portionGrams: number
+  portionGrams: number,
+  productName: string
 ): Promise<string[]> {
   if (!useAppPreferencesStore.getState().notificationsEnabled) return [];
   if (!(await hasNotificationPermission())) return [];
@@ -716,6 +729,12 @@ export async function scheduleFuelingReminderNotifications(
             { grams: portionGrams }
           ),
           sound: true,
+          categoryIdentifier: FUELING_REMINDER_CATEGORY,
+          data: {
+            kind: FUELING_REMINDER_KIND,
+            portionGrams: String(portionGrams),
+            productName,
+          },
         },
         trigger: {
           type: Notifications.SchedulableTriggerInputTypes.DATE,

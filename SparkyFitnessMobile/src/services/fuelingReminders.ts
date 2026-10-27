@@ -15,6 +15,7 @@ const FUELING_SESSION_STORAGE_KEY = '@SparkyFitness/fuelingSession';
 export interface FuelingSession {
   startAtMs: number;
   portionGrams: number;
+  productName: string;
   /** How many reminders were scheduled. */
   reminderCount: number;
   notificationIds: string[];
@@ -24,6 +25,7 @@ export interface StartFuelingSessionInput {
   startAt: Date;
   offsetsMin: readonly number[];
   portionGrams: number;
+  productName: string;
 }
 
 export type StartFuelingSessionResult =
@@ -51,6 +53,7 @@ async function readSession(): Promise<FuelingSession | null> {
     if (
       typeof parsed.startAtMs === 'number' &&
       typeof parsed.portionGrams === 'number' &&
+      typeof parsed.productName === 'string' &&
       typeof parsed.reminderCount === 'number' &&
       Array.isArray(parsed.notificationIds) &&
       parsed.notificationIds.every((id) => typeof id === 'string')
@@ -58,6 +61,7 @@ async function readSession(): Promise<FuelingSession | null> {
       return {
         startAtMs: parsed.startAtMs,
         portionGrams: parsed.portionGrams,
+        productName: parsed.productName,
         reminderCount: parsed.reminderCount,
         notificationIds: parsed.notificationIds,
       };
@@ -110,13 +114,15 @@ export function startFuelingSession(
 
     const notificationIds = await scheduleFuelingReminderNotifications(
       times,
-      input.portionGrams
+      input.portionGrams,
+      input.productName
     );
     if (notificationIds.length === 0) return { status: 'not_permitted' };
 
     const session: FuelingSession = {
       startAtMs: input.startAt.getTime(),
       portionGrams: input.portionGrams,
+      productName: input.productName,
       reminderCount: notificationIds.length,
       notificationIds,
     };
