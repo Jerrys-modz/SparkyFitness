@@ -4,6 +4,7 @@ import pg from 'pg';
 import { log } from './config/logging.js';
 import { handleConnectionLoss } from './db/poolManager.js';
 import { retryPoolConnects } from './db/connectRetry.js';
+import { applicationName } from './db/applicationName.js';
 import bcrypt from 'bcryptjs';
 import { syncUserGroups } from './utils/oidcGroupSync.js';
 import userRepository from './models/userRepository.js';
@@ -79,6 +80,7 @@ const authPool = new Pool({
   password: process.env.SPARKY_FITNESS_DB_PASSWORD,
   // @ts-expect-error
   port: process.env.SPARKY_FITNESS_DB_PORT || 5432,
+  application_name: applicationName('auth'),
   // Without it a connect to an unreachable host waits for the operating
   // system's TCP timeout, which the connect retry below cannot bound.
   connectionTimeoutMillis: 5000,
