@@ -236,6 +236,11 @@ jobs:
             # title should scroll rather than be cut off.
             shoot workout-longname active workout "" longname
             shoot workout-longname-large active workout "" longname,large
+            # Two later frames of the same screen: a scrolling title moves.
+            sleep 3
+            xcrun simctl io "$UDID" screenshot "screenshots/workout-longname-large-later-$SIZE.png"
+            sleep 3
+            xcrun simctl io "$UDID" screenshot "screenshots/workout-longname-large-later2-$SIZE.png"
             shoot workout-resting-longname-large resting workout "" longname,large
             shoot workout-rpe-longname active workout rpe longname
             shoot workout-rpe-longname-large active workout rpe longname,large

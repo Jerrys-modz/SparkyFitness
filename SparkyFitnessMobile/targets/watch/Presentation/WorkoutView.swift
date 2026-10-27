@@ -2184,12 +2184,6 @@ struct MarqueeText: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var textWidth: CGFloat = 0
     @State private var containerWidth: CGFloat = 0
-    /// When the scroll cycle began. The offset is worked out from the clock
-    /// against this, not stepped by a task or an animation: the workout
-    /// screen redraws every second, and anything started from state was
-    /// restarted by that before it got past its first pause.
-    @State private var start = Date()
-
     private static let pointsPerSecond: Double = 25
     private static let pause: Double = 1.5
     private static let returnDuration: Double = 0.4
@@ -2232,7 +2226,9 @@ struct MarqueeText: View {
                 Color.clear.preference(key: MarqueeContainerWidthKey.self, value: proxy.size.width)
             })
             .overlay(alignment: .leading) {
-                TimelineView(.animation(minimumInterval: 1.0 / 30, paused: overflow <= 0.5)) { context in
+                // Always running while this view is on screen (it is only built for a
+                // name too wide for its room), so nothing can leave it paused.
+                TimelineView(.animation(minimumInterval: 1.0 / 30)) { context in
                     Text(text)
                         .lineLimit(1)
                         .fixedSize()
@@ -2247,12 +2243,15 @@ struct MarqueeText: View {
             .onPreferenceChange(MarqueeContainerWidthKey.self) { containerWidth = $0 }
     }
 
-    /// Wait, scroll to the end, wait, then glide back, and again.
+    /// Wait, scroll to the end, wait, then glide back, and again. The phase
+    /// comes from the wall clock alone, so a view the workout screen's
+    /// once-a-second redraw rebuilt carries on where it was instead of
+    /// starting over (and never getting past its first pause).
     private func offset(at date: Date) -> CGFloat {
         guard overflow > 0.5 else { return 0 }
         let travel = Double(overflow) / Self.pointsPerSecond
         let cycle = Self.pause + travel + Self.pause + Self.returnDuration
-        let t = date.timeIntervalSince(start).truncatingRemainder(dividingBy: cycle)
+        let t = date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: cycle)
         let fraction: Double
         if t < Self.pause {
             fraction = 0
