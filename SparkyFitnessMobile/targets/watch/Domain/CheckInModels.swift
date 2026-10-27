@@ -587,10 +587,10 @@ struct WatchContext: Codable, Equatable {
         formatWaterMl(ml, unit: waterDisplayUnit ?? "ml")
     }
 
-    /// The keypad until the phone says otherwise, or when it names a style
-    /// this build doesn't know.
+    /// The Digital Crown until the phone says otherwise, or when it names a
+    /// style this build doesn't know.
     var effectiveSetInputStyle: SetInputStyle {
-        setInputStyle.flatMap(SetInputStyle.init(rawValue:)) ?? .keypad
+        setInputStyle.flatMap(SetInputStyle.init(rawValue:)) ?? .crown
     }
 
     /// The pages to swipe between, in order — see `WatchPage.visible`.

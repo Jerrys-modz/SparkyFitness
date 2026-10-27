@@ -149,7 +149,7 @@ export const PREFERENCE_DEFAULTS = {
   activeWorkoutNowCard: false,
   watchNutrientOrder: [] as string[],
   shownWatchNutrients: [...DEFAULT_WATCH_NUTRIENTS] as string[],
-  watchSetInputStyle: 'keypad' as WatchSetInputStyle,
+  watchSetInputStyle: 'crown' as WatchSetInputStyle,
   reportOrder: [...REPORT_KEYS] as ReportKey[],
   hiddenReports: [] as ReportKey[],
   reportDefaultRange: DEFAULT_REPORT_RANGE as TrendRange,

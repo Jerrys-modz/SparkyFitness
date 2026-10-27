@@ -235,13 +235,13 @@ describe('WatchSettingsScreen', () => {
     });
   });
 
-  test('the set input control switches the watch to the Digital Crown', () => {
+  test('the set input control switches the watch between the Digital Crown and the keypad', () => {
     renderScreen();
 
-    expect(useAppPreferencesStore.getState().watchSetInputStyle).toBe('keypad');
-    fireEvent.press(screen.getByText('Digital Crown'));
     expect(useAppPreferencesStore.getState().watchSetInputStyle).toBe('crown');
     fireEvent.press(screen.getByText('Keypad'));
     expect(useAppPreferencesStore.getState().watchSetInputStyle).toBe('keypad');
+    fireEvent.press(screen.getByText('Digital Crown'));
+    expect(useAppPreferencesStore.getState().watchSetInputStyle).toBe('crown');
   });
 });
