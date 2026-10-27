@@ -34,7 +34,7 @@ jobs:
   build:
     name: Compile iOS app and watchOS companion
     runs-on: ${{ inputs.runner == 'xcode-27' && 'xcode-27' || 'macos-latest' }}
-    timeout-minutes: 60
+    timeout-minutes: 100
     permissions:
       contents: read
       actions: write
@@ -231,7 +231,9 @@ jobs:
 
           ls -la screenshots
 
+      # Also on a timeout or failure, so the shots taken so far are kept.
       - name: Upload watch screenshots
+        if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
           name: watch-screenshots
