@@ -2196,39 +2196,52 @@ private struct MarqueeText: View {
             if reduceMotion {
                 Text(text).lineLimit(1)
             } else {
-                // The sizing text truncates, so it takes the width it is given
-                // and never more; the full-length copy is drawn over it and
-                // cannot widen the page (a fixed-size child inside the layout
-                // did, and pushed the whole screen off its edges).
-                Text(text)
-                    .lineLimit(1)
-                    .opacity(0)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(GeometryReader { proxy in
-                        Color.clear.preference(key: MarqueeContainerWidthKey.self, value: proxy.size.width)
-                    })
-                    .overlay(alignment: .leading) {
-                        Text(text)
-                            .lineLimit(1)
-                            .fixedSize()
-                            .background(GeometryReader { proxy in
-                                Color.clear.preference(key: MarqueeTextWidthKey.self, value: proxy.size.width)
-                            })
-                            .offset(x: scrolled ? -overflow : 0)
-                    }
-                    .clipped()
-                    .onPreferenceChange(MarqueeTextWidthKey.self) { textWidth = $0 }
-                    .onPreferenceChange(MarqueeContainerWidthKey.self) { containerWidth = $0 }
-                    .task(id: overflow) { await scroll() }
+                // A name that fits is plain text and never moves. Only one
+                // too wide for its room (the first child does not fit, so
+                // `ViewThatFits` falls through) is scrolled.
+                ViewThatFits(in: .horizontal) {
+                    Text(text)
+                        .lineLimit(1)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    scrolling
+                }
             }
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(text)
     }
 
+    /// The sizing text truncates, so it takes the width it is given and never
+    /// more; the full-length copy is drawn over it and cannot widen the page (a
+    /// fixed-size child inside the layout did, and pushed the whole screen off
+    /// its edges).
+    private var scrolling: some View {
+        Text(text)
+            .lineLimit(1)
+            .opacity(0)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(GeometryReader { proxy in
+                Color.clear.preference(key: MarqueeContainerWidthKey.self, value: proxy.size.width)
+            })
+            .overlay(alignment: .leading) {
+                Text(text)
+                    .lineLimit(1)
+                    .fixedSize()
+                    .background(GeometryReader { proxy in
+                        Color.clear.preference(key: MarqueeTextWidthKey.self, value: proxy.size.width)
+                    })
+                    .offset(x: scrolled ? -overflow : 0)
+            }
+            .clipped()
+            .onPreferenceChange(MarqueeTextWidthKey.self) { textWidth = $0 }
+            .onPreferenceChange(MarqueeContainerWidthKey.self) { containerWidth = $0 }
+            .task(id: overflow) { await scroll() }
+    }
+
     private func scroll() async {
         scrolled = false
-        guard overflow > 0.5 else { return }
+        // Nothing to do until both widths are known.
+        guard containerWidth > 0, overflow > 0.5 else { return }
         let travel = Double(overflow) / Self.pointsPerSecond
         do {
             while true {
