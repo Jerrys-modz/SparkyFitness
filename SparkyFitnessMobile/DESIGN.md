@@ -858,7 +858,7 @@ Take macro and nutrient colors from `GoalPalette` (`GoalPalette.color(forNutrien
 ### 10.6 Known gaps
 
 - The Wear OS palette is a Tailwind-style set unrelated to the Apple Watch `GoalPalette`, so the same macro is a different color on each watch: protein is amber on Apple Watch and cyan on Wear OS, and carbs is green on Apple Watch and amber on Wear OS.
-- Apple Watch voice cues in `Infrastructure/WatchRunCues.swift` (for example "Ten seconds to go.", "Halfway there.", the milestone and countdown lines) are still English literals, because the speech voice is tied to their language. The Wear OS screens use literal English strings rather than Android string resources.
+- The Wear OS screens use literal English strings rather than Android string resources, unlike the localized Apple Watch app.
 - Neither watch palette is derived from `global.css`; the superset palette is the only hand-copied mirror.
 
 ### 10.7 Checklist for a watch change

@@ -306,7 +306,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
         let id = UUID().uuidString
         pendingCues[id] = fallback
         WCSession.default.sendMessage(
-            OutboundPayloads.runCue(id: id, text: text, interrupt: interrupt),
+            OutboundPayloads.runCue(id: id, text: text, interrupt: interrupt, language: WatchRunCues.languageTag),
             replyHandler: nil
         ) { [weak self] _ in
             Task { @MainActor in self?.failCue(id) }
