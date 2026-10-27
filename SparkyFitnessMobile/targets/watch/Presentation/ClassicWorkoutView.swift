@@ -438,6 +438,13 @@ private struct ActiveWorkoutView: View {
                     setScreen
                         .workoutPage(geo, alignment: .top)
                         .id(WorkoutPageID.set)
+                    // The wearer's choice (Settings → Apple Watch on the
+                    // phone); the page is shared with the larger layout.
+                    if checkIn.context.effectiveUpNextPage {
+                        UpNextPage(onOpenList: { showingExercises = true })
+                            .workoutPage(geo)
+                            .id(WorkoutPageID.upNext)
+                    }
                     if let step = store.currentStep {
                         SetOptionsPage(step: step)
                             .workoutPage(geo)
@@ -571,7 +578,7 @@ private struct ActiveWorkoutView: View {
 }
 
 private enum WorkoutPageID: Hashable {
-    case set, setOptions, exerciseOptions, actions
+    case set, upNext, setOptions, exerciseOptions, actions
 }
 
 /// Shown after the last set is logged. Finish used to live only in the

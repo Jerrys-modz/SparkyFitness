@@ -873,7 +873,7 @@ private struct SquircleLabel: View {
 /// The next exercise, one swipe up from the set screen, so what comes after
 /// this one can be checked without opening the list: its name, how many sets
 /// and the first set's target, and the exercise after it. A tap opens the list.
-private struct UpNextPage: View {
+struct UpNextPage: View {
     let onOpenList: () -> Void
 
     @EnvironmentObject private var store: WorkoutSessionStore
@@ -911,7 +911,7 @@ private struct UpNextPage: View {
         Button(action: Haptics.tapping(onOpenList)) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(String(localized: "watch.workout.upNextTitle", defaultValue: "Up Next"))
-                    .font(.footnote.weight(.semibold))
+                    .watchFont(.footnote.weight(.semibold), classic: .caption2)
                     .foregroundStyle(.secondary)
                 if let next = upcoming.first {
                     Text(next.exerciseName)
@@ -931,21 +931,21 @@ private struct UpNextPage: View {
                     .accessibilityLabel(String(localized: "watch.workout.upNextSetCount", defaultValue: "Sets: \(next.setCount)"))
                     if let target = RestView.target(for: next, store: store, unit: checkIn.context.effectiveWeightUnit, carry: checkIn.context.effectiveCarryUnit) {
                         Text(target)
-                            .font(.body)
+                            .watchFont(.body, classic: .footnote)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                             .minimumScaleFactor(0.8)
                     }
                     if upcoming.count > 1 {
                         Text(String(localized: "watch.workout.upNextThen", defaultValue: "Then \(upcoming[1].exerciseName)"))
-                            .font(.footnote)
+                            .watchFont(.footnote, classic: .caption2)
                             .foregroundStyle(.secondary)
                             .lineLimit(2)
                             .padding(.top, 4)
                     }
                 } else {
                     Text(String(localized: "watch.workout.lastExercise", defaultValue: "This is the last exercise"))
-                        .font(.body)
+                        .watchFont(.body, classic: .footnote)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
