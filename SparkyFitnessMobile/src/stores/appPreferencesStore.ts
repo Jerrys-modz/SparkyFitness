@@ -274,7 +274,7 @@ export type AppPreferencesData = {
   addMenuCards: AddMenuItemKey[];
   /** Order of the rows under the cards in the + sheet. */
   addMenuOrder: AddMenuItemKey[];
-  /** + sheet rows turned off in Settings → Add menu. */
+  /** + sheet rows turned off in Settings → Quick Actions. */
   hiddenAddMenuItems: AddMenuItemKey[];
   /** Swipe order of the Apple Watch app's pages; sent to the watch. */
   watchPageOrder: WatchPageKey[];

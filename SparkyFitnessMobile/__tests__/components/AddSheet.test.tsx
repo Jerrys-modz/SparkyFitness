@@ -270,7 +270,7 @@ describe('AddSheet', () => {
       act(() => ref.current?.present());
 
       expect(getByText('Progress Photos')).toBeTruthy();
-      expect(queryByText('Check-In')).toBeNull();
+      expect(queryByText('Daily Check-In')).toBeNull();
     });
 
     it('stays hidden while showCheckIn is off, even with a handler, and appears once it is on', () => {
@@ -281,11 +281,11 @@ describe('AddSheet', () => {
       });
 
       act(() => ref.current?.present());
-      expect(queryByText('Check-In')).toBeNull();
+      expect(queryByText('Daily Check-In')).toBeNull();
 
       rerender(<AddSheet ref={ref} {...props} showCheckIn />);
 
-      expect(getByText('Check-In')).toBeTruthy();
+      expect(getByText('Daily Check-In')).toBeTruthy();
       expect(onStartCheckIn).not.toHaveBeenCalled();
     });
 
@@ -298,10 +298,10 @@ describe('AddSheet', () => {
 
       act(() => ref.current?.present());
 
-      const rowLabels = getAllByText(/^(Check-In|Progress Photos|Mood)$/).map(
-        (node) => node.props.children
-      );
-      expect(rowLabels).toEqual(['Check-In', 'Progress Photos', 'Mood']);
+      const rowLabels = getAllByText(
+        /^(Daily Check-In|Progress Photos|Mood)$/
+      ).map((node) => node.props.children);
+      expect(rowLabels).toEqual(['Daily Check-In', 'Progress Photos', 'Mood']);
     });
 
     it('invokes onStartCheckIn when the Check-In row is pressed', () => {
@@ -316,7 +316,7 @@ describe('AddSheet', () => {
       });
 
       act(() => ref.current?.present());
-      fireEvent.press(getByText('Check-In'));
+      fireEvent.press(getByText('Daily Check-In'));
       act(() => mockBottomSheetControls.onDismiss?.());
 
       expect(onStartCheckIn).toHaveBeenCalledTimes(1);

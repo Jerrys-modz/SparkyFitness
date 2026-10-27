@@ -93,8 +93,8 @@ describe('AddMenuSettingsScreen', () => {
     );
 
     const state = useAppPreferencesStore.getState();
-    expect(rowKeys(state.addMenuOrder, state.addMenuCards).slice(0, 2)).toEqual(
-      ['wellness', 'progressPhotos']
+    expect(rowKeys(state.addMenuOrder, state.addMenuCards).slice(0, 3)).toEqual(
+      ['checkIn', 'wellness', 'progressPhotos']
     );
   });
 
@@ -102,12 +102,21 @@ describe('AddMenuSettingsScreen', () => {
     renderScreen();
 
     expect(screen.getByTestId('add-menu-slot-0').props.accessibilityLabel).toBe(
-      'Big button 1: Food'
+      'Tile 1: Food'
     );
     expect(screen.getByTestId('add-menu-slot-3').props.accessibilityLabel).toBe(
-      'Big button 4: Scan Food'
+      'Tile 4: Scan Food'
     );
     expect(orderedRowKeys()).not.toContain('scanFood');
+  });
+
+  test('a card slot uses the short name the sheet shows', () => {
+    renderScreen();
+
+    expect(screen.getByText('Scan')).toBeTruthy();
+    expect(screen.getByText('Measure')).toBeTruthy();
+    expect(screen.getAllByText('Sync Health').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Symptoms & Health').length).toBeGreaterThan(0);
   });
 
   test('putting a row item on a card sends the old card to the rows', () => {

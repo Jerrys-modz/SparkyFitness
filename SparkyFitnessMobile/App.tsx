@@ -1270,7 +1270,7 @@ function AppContent() {
           <Stack.Screen
             name="AddMenuSettings"
             component={SafeAddMenuSettings}
-            options={createStackScreenOptions(t('screens.addMenuSettings', { defaultValue: 'Add menu' }), { headerBackTitle: t('navigation.settings', { defaultValue: 'Settings' }) })}
+            options={createStackScreenOptions(t('screens.addMenuSettings', { defaultValue: 'Quick Actions' }), { headerBackTitle: t('navigation.settings', { defaultValue: 'Settings' }) })}
           />
           <Stack.Screen
             name="WorkoutSettings"

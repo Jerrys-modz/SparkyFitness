@@ -175,7 +175,7 @@
       "reports": "Reports",
       "heartRateZones": "Heart Rate Zones",
       "heartRateZonesSubtitle": "Max and resting heart rate, zone method",
-      "addMenu": "Add menu",
+      "addMenu": "Quick Actions",
       "profile": "Profile & Account",
       "customMeasurements": "Custom Measurements"
     },
@@ -554,7 +554,8 @@
     "mindfulnessHint": "Breathing, zen",
     "recordActivity": "Record Activity",
     "recordActivityHint": "Track a walk, run or ride with GPS",
-    "checkIn": "Check-In"
+    "checkIn": "Daily Check-In",
+    "checkInHint": "Habits"
   },
   "screens": {
     "foods": "Foods",
@@ -712,7 +713,7 @@
     "labResultDetail": "Lab result",
     "labResultAdd": "Add lab result",
     "labReportImport": "Import report",
-    "addMenuSettings": "Add menu",
+    "addMenuSettings": "Quick Actions",
     "compareReport": "Compare",
     "segmentCreate": "New segment",
     "segments": "Segments",
@@ -9481,14 +9482,14 @@
   },
   "addMenuSettings": {
     "reorder": "Reorder {{name}}",
-    "reorderHint": "Changes where this row sits in the + menu",
+    "reorderHint": "Changes where this row sits in Quick Actions",
     "reset": "Reset to default",
-    "cardsTitle": "Big buttons",
-    "cardsDescription": "The four buttons at the top of the + menu. Tap one to choose what goes there. Choosing something already placed swaps the two.",
-    "rowsTitle": "Rows",
-    "rowsDescription": "Everything else, listed under the buttons. Drag a row by its handle to move it. Toggle a row off to hide it.",
-    "chooseCard": "Choose a big button",
-    "slotLabel": "Big button {{number}}: {{name}}",
+    "cardsTitle": "Tiles",
+    "cardsDescription": "The four tiles at the top of Quick Actions. Tap one to choose what goes there. Choosing something already placed swaps the two.",
+    "rowsTitle": "List",
+    "rowsDescription": "Everything else, listed under the tiles. Drag a row by its handle to move it. Toggle a row off to hide it.",
+    "chooseCard": "Choose a tile",
+    "slotLabel": "Tile {{number}}: {{name}}",
     "slotHint": "Opens a list to choose what goes here"
   },
   "customCategories": {

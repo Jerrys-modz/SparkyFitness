@@ -5,14 +5,18 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCSSVariable } from 'uniwind';
 
 import { useActiveWorkoutBarPadding } from '../components/ActiveWorkoutBar';
+import AddMenuIconTile, {
+  useAddMenuTintColors,
+} from '../components/AddMenuIconTile';
 import BottomSheetPicker from '../components/BottomSheetPicker';
-import Icon from '../components/Icon';
 import { ReorderSwitchList } from '../components/ReorderSwitchList';
 import Button from '../components/ui/Button';
 import {
+  ADD_MENU_CARD_LABELS,
   ADD_MENU_ITEM_ICONS,
   ADD_MENU_ITEM_KEYS,
   ADD_MENU_ITEM_LABELS,
+  ADD_MENU_ITEM_TINTS,
   DEFAULT_ADD_MENU_CARDS,
   type AddMenuItemKey,
 } from '../constants/addMenuItems';
@@ -42,10 +46,8 @@ const AddMenuSettingsScreen: React.FC<AddMenuSettingsScreenProps> = () => {
   const insets = useSafeAreaInsets();
   const activeWorkoutBarPadding = useActiveWorkoutBarPadding('stack');
   const usesNativeHeader = useNativeIOSHeadersActive();
-  const [accentPrimary, raisedBg] = useCSSVariable([
-    '--color-accent-primary',
-    '--color-raised',
-  ]) as [string, string];
+  const raisedBg = String(useCSSVariable('--color-raised'));
+  const tintColors = useAddMenuTintColors();
 
   const savedCards = useAppPreferencesStore((s) => s.addMenuCards);
   const addMenuOrder = useAppPreferencesStore((s) => s.addMenuOrder);
@@ -65,8 +67,15 @@ const AddMenuSettingsScreen: React.FC<AddMenuSettingsScreenProps> = () => {
       rowKeys(addMenuOrder, cards).map((key) => ({
         key,
         label: ADD_MENU_ITEM_LABELS[key](t),
+        leading: (
+          <AddMenuIconTile
+            icon={ADD_MENU_ITEM_ICONS[key]}
+            color={tintColors[ADD_MENU_ITEM_TINTS[key]]}
+            size="row"
+          />
+        ),
       })),
-    [addMenuOrder, cards, t]
+    [addMenuOrder, cards, t, tintColors]
   );
   const pickerOptions = useMemo(
     () =>
@@ -84,7 +93,7 @@ const AddMenuSettingsScreen: React.FC<AddMenuSettingsScreenProps> = () => {
     );
 
   const header = useScreenHeader({
-    title: t('screens.addMenuSettings', { defaultValue: 'Add menu' }),
+    title: t('screens.addMenuSettings', { defaultValue: 'Quick Actions' }),
     left: { kind: 'back' },
   });
 
@@ -99,14 +108,14 @@ const AddMenuSettingsScreen: React.FC<AddMenuSettingsScreenProps> = () => {
           setAddMenuCards(placeInCardSlot(cards, slotIndex, picked))
         }
         title={t('addMenuSettings.chooseCard', {
-          defaultValue: 'Choose a big button',
+          defaultValue: 'Choose a tile',
         })}
         renderTrigger={({ onPress }) => (
           <Pressable
             testID={`add-menu-slot-${slotIndex}`}
             accessibilityRole="button"
             accessibilityLabel={t('addMenuSettings.slotLabel', {
-              defaultValue: 'Big button {{number}}: {{name}}',
+              defaultValue: 'Tile {{number}}: {{name}}',
               number: slotIndex + 1,
               name: ADD_MENU_ITEM_LABELS[key](t),
             })}
@@ -114,22 +123,21 @@ const AddMenuSettingsScreen: React.FC<AddMenuSettingsScreenProps> = () => {
               defaultValue: 'Opens a list to choose what goes here',
             })}
             onPress={onPress}
-            className="flex-1 mx-1.5 py-5 rounded-xl items-center"
-            style={({ pressed }) => ({
-              backgroundColor: raisedBg,
-              opacity: pressed ? 0.7 : 1,
-            })}
+            className="flex-1 items-center px-0.5"
+            style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
           >
-            <Icon
-              name={ADD_MENU_ITEM_ICONS[key]}
-              size={32}
-              color={accentPrimary}
+            <AddMenuIconTile
+              icon={ADD_MENU_ITEM_ICONS[key]}
+              color={tintColors[ADD_MENU_ITEM_TINTS[key]]}
+              size="card"
             />
             <Text
               className="text-text-primary text-sm font-medium mt-2 text-center"
               numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.8}
             >
-              {ADD_MENU_ITEM_LABELS[key](t)}
+              {ADD_MENU_CARD_LABELS[key]?.(t) ?? ADD_MENU_ITEM_LABELS[key](t)}
             </Text>
           </Pressable>
         )}
@@ -154,30 +162,28 @@ const AddMenuSettingsScreen: React.FC<AddMenuSettingsScreenProps> = () => {
         }
       >
         <Text className="text-text-primary text-base font-semibold mb-1">
-          {t('addMenuSettings.cardsTitle', { defaultValue: 'Big buttons' })}
+          {t('addMenuSettings.cardsTitle', { defaultValue: 'Tiles' })}
         </Text>
         <Text className="text-text-secondary text-sm mb-4">
           {t('addMenuSettings.cardsDescription', {
             defaultValue:
-              'The four buttons at the top of the + menu. Tap one to choose what goes there. Choosing something already placed swaps the two.',
+              'The four tiles at the top of Quick Actions. Tap one to choose what goes there. Choosing something already placed swaps the two.',
           })}
         </Text>
-        <View className="-mx-1.5">
-          <View className="flex-row mb-3">
-            {[0, 1].map((slot) => renderSlot(slot))}
-          </View>
-          <View className="flex-row">
-            {[2, 3].map((slot) => renderSlot(slot))}
-          </View>
+        <View
+          className="flex-row rounded-2xl px-2 py-4"
+          style={{ backgroundColor: raisedBg }}
+        >
+          {[0, 1, 2, 3].map((slot) => renderSlot(slot))}
         </View>
 
         <Text className="text-text-primary text-base font-semibold mt-8 mb-1">
-          {t('addMenuSettings.rowsTitle', { defaultValue: 'Rows' })}
+          {t('addMenuSettings.rowsTitle', { defaultValue: 'List' })}
         </Text>
         <Text className="text-text-secondary text-sm mb-4">
           {t('addMenuSettings.rowsDescription', {
             defaultValue:
-              'Everything else, listed under the buttons. Drag a row by its handle to move it. Toggle a row off to hide it.',
+              'Everything else, listed under the tiles. Drag a row by its handle to move it. Toggle a row off to hide it.',
           })}
         </Text>
         <ReorderSwitchList
@@ -195,7 +201,7 @@ const AddMenuSettingsScreen: React.FC<AddMenuSettingsScreenProps> = () => {
             })
           }
           reorderA11yHint={t('addMenuSettings.reorderHint', {
-            defaultValue: 'Changes where this row sits in the + menu',
+            defaultValue: 'Changes where this row sits in Quick Actions',
           })}
         />
         <View className="mt-6">
