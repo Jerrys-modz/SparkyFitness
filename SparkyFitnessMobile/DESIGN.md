@@ -9,6 +9,7 @@ How to use:
 - Generate a screen: give sections 1–5 to a UI design or mockup tool together with a screenshot of the closest existing screen.
 - Implement a design: sections 6–7 explain how an HTML + web Tailwind mockup becomes React Native + Uniwind code in this repo.
 - Plan cleanup: section 8 lists known inconsistencies. They describe the current state, not rules to copy.
+- Design or change a watch surface (Apple Watch app, watch complications, Wear OS app): section 10. Sections 1–9 describe the phone app only and do not apply to the watches.
 - Build or extend a screen in code: section 9 picks the screen type and walks route wiring, header, layout, states, data, copy, theming, accessibility and tests, with templates and a pre-PR checklist.
 
 ## 1. Visual Theme & Atmosphere
@@ -768,3 +769,104 @@ Variants:
 - [ ] Mutations invalidate every affected query key.
 - [ ] From `SparkyFitnessMobile/`: `pnpm run format`, then `pnpm exec jest --watchman=false --runInBand __tests__/navigation/nativeHeaderContract.test.ts <your test files>`, then `pnpm run validate` (typecheck, lint, i18n audit, Knip, Prettier check), then the full `pnpm exec jest --watchman=false --runInBand`.
 - [ ] DESIGN.md is updated in the same change when a token, primitive or shared pattern changes; `AGENTS.md` when a route family or convention is added.
+
+## 10. Watch Apps (Apple Watch, watch complications, Wear OS)
+
+The watches are native, not React Native, so sections 2–9 (Uniwind tokens, `global.css`, Tailwind classes) do not apply to them. They are always dark, have no Light or AMOLED variants, and share only data and the phone-owned settings. This section describes the code as it exists today.
+
+### 10.1 Targets
+
+| Surface                       | Code                                                                                                                     | UI toolkit                            |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------- |
+| Apple Watch app               | `targets/watch` (`Presentation/`, `Domain/`, `Application/`, `Infrastructure/`, `Adapters/`)                             | SwiftUI                               |
+| Apple Watch complications     | `targets/watch-widget` (`index.swift` lists them: Energy, Water, Protein, Carbs, Fat, Fasting, Steps)                    | WidgetKit                             |
+| Wear OS app and complications | `targets/wearos/src/main/java/com/sparkyapps/sparkyfitness/wear` (`Screens.kt`, `WorkoutScreens.kt`, `Complications.kt`) | Compose for Wear OS (`MaterialTheme`) |
+
+Android home-screen widgets (`targets/android-widget`) and the iOS phone widget (`targets/widget`) are separate from these.
+
+### 10.2 Principles
+
+- Glanceable: one job per screen, a big number, one control. The Workout screens show one set at a time, because the wearer is mid-lift looking at a small screen.
+- Pure black canvas with flat dark cards. Color carries meaning only (a metric, a state), never decoration.
+- Swipe is the navigation on Apple Watch; there is no button to change page. Wear OS scrolls with rotary input (`wearRotaryScroll`).
+- Every tap that logs something gives a haptic through `Haptics` (`Presentation/Haptics.swift`), which follows the phone's Settings → Haptics switch. Never call WatchKit haptics directly.
+- Works with the phone away: pages draw from the last persisted context, and writes (water taps, medication taps, check-ins) queue and resend.
+- Copy is localized through `String(localized:defaultValue:)` keys (`watch.<page>.<name>`), and the iOS watch strings live in `targets/watch/en.lproj`.
+
+### 10.3 Apple Watch app
+
+**Pages.** `WatchPage` order is the factory swipe order: Goals, Water, Medications, Entry (weight check-in), Trend, Workout, Fasting, Steps. Now Playing is inserted right after Workout, only while a workout, wrist run or phone GPS recording is live. The wearer orders and hides pages from the phone (Settings → Apple Watch). The raw values are wire strings shared with `src/constants/watchPages.ts` (`WATCH_PAGE_KEYS`); rename a page in both places in the same change. A hidden Workout page still shows while a workout is running, and an order that hides everything shows everything. A first-run gate asks for weight and body fat before the pages appear.
+
+**Scaling.** Sizes are drawn for the 44 mm watch (224pt screen height) and passed through `WatchStyle.s(_)`, which scales by screen height between 0.82 and 1.1 and rounds. Use `WatchStyle.s` for any fixed size, so a 40 mm screen does not push content under the clock.
+
+**Surfaces.**
+
+- Canvas: system black. Card and control fill: `WatchStyle.fill` (`Color(white: 0.14)`), corner `WatchStyle.s(20)`, continuous (squircle) corners via `WatchStyle.shape`.
+- Control: `SquircleButton`, a flat dark squircle with a glyph, 44pt tall in a row and a 28pt round button in a header, glyph 20pt semibold at 60% white. `prominent` is the one main action on a screen (white fill, black glyph); `tint` colors the glyph for a control that must be told apart (a red finish). Disabled controls drop to 35% opacity. The whole box takes the tap.
+- List rows use `WatchStyle.shape.fill(WatchStyle.fill)` as the row background. A 3pt category-color rail marks superset runs.
+- Destructive actions use `Button(role: .destructive)` and are confirmed; finishing a workout lives in the overview list, not on the set screen, so it is never one tap from the set tick.
+
+**Typography.** System fonts only (SF), Dynamic Type styles first: `.footnote` (labels, rows), `.body`, `.headline`, `.title2`/`.title3`, with `.semibold` or `.medium` for emphasis. Big numbers and compact layouts use `.system(size: WatchStyle.s(n), weight:)` (sizes in use: 11–16 for labels and values, 22–30 for hero numbers). Use monospaced digits for anything that ticks (timers, pace, heart rate).
+
+**Color.** The watch has its own palette, not the phone tokens.
+
+| Role            | Value                                                                                                                                          | Where                              |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| Calories        | `GoalPalette.calories` (0.537, 0.573, 0.863)                                                                                                   | Goals, Energy complication         |
+| Protein         | `GoalPalette.protein` (0.859, 0.690, 0.435)                                                                                                    | Goals                              |
+| Carbs           | `GoalPalette.carbs` (0.592, 0.776, 0.573)                                                                                                      | Goals                              |
+| Fat             | `GoalPalette.fat` (0.541, 0.761, 0.855)                                                                                                        | Goals                              |
+| Water           | `Color.cyan`                                                                                                                                   | Water, Water complication          |
+| Medication      | `Color.mint`                                                                                                                                   | Medications                        |
+| Extra nutrients | five fixed colors in `GoalPalette.extra`, by list position                                                                                     | rows past the three macros         |
+| Steps           | `.mint`                                                                                                                                        | Steps page, Steps complication     |
+| Fasting         | `.orange`                                                                                                                                      | Fasting page, Fasting complication |
+| Superset runs   | `SupersetPalette` in `WorkoutView.swift`: eight colors copied from the dark `--color-cat-*` values (see the sync note at the top of this file) | Workout                            |
+
+Take macro and nutrient colors from `GoalPalette` (`GoalPalette.color(forNutrient:index:)`); do not add new literals in views.
+
+**Workout and run screens.** `WorkoutView` (strength), `WatchRunView` and `CardioLiveLayout` (wrist runs), `WatchRouteView` (route following) and `RecordingView` (phone GPS) are the live screens. Live screens keep the value cards flat and large, put the single main action in a `prominent` squircle, and use haptic cues (`Haptics.pace`, `heartRate`, `routeCue`, `offRoute`, `onRoute`) for alerts so the wearer does not have to look. Heart rate zones come from `shared/src/utils/heartRateZones.ts` through the context the phone sends; never re-derive them on the watch.
+
+### 10.4 Apple Watch complications
+
+- Families: circular gauge, rectangular and inline, drawn with `Gauge` / `ProgressView` tinted per metric. Tracks are `Color.secondary` at 25% opacity.
+- Data comes from the app group (`APP_GROUP_IDENTIFIER` in the target's Info.plist), written by `ComplicationPublisher`. A snapshot for another day is ignored, and the placeholder shows a plausible mid-day value.
+- Timelines refresh every 15 minutes or at midnight, whichever is first.
+- Each complication opens the app on its page through the `sparkyfitness-watch` URL scheme (`ComplicationLinks.swift`). The scheme is declared in three copies that must stay in step: `targets/watch/expo-target.config.js`, `WatchDeepLink.scheme` and `ComplicationLink.scheme`.
+- Tints: Water cyan, Steps mint, Fasting orange, Energy and the macros per the table above (see 10.6 for the macro mismatch).
+
+### 10.5 Wear OS app
+
+- Dark Compose for Wear OS under `MaterialTheme`; there is no light theme. Colors are the fixed `SparkyColors` object in `Screens.kt`.
+
+| Name   | Value   | Use             |
+| ------ | ------- | --------------- |
+| Cyan   | #38BDF8 | Protein         |
+| Amber  | #F59E0B | Carbs           |
+| Rose   | #F43F5E | Fat             |
+| Green  | #22C55E | Fiber           |
+| Purple | #A855F7 | Sugars          |
+| Blue   | #3B82F6 | Other nutrients |
+| CardBg | #1E293B | Cards and rows  |
+| Muted  | #94A3B8 | Secondary text  |
+
+- Cards are `RoundedCornerShape(10.dp)` on `CardBg` with 10dp by 6dp padding; macro rows are a label (11sp medium, white), a value and a progress bar in the nutrient color.
+- Complications are `SuspendingComplicationDataSourceService` classes in `Complications.kt` (Energy, Protein, Carbs, Fat, Water, Fasting, Steps), registered in `AndroidManifest.xml`, with monochrome icons in `res/drawable/ic_complication_*.xml`.
+- The phone finds the watch by the `sparky_wear_companion` capability in `res/values/wear.xml`.
+- `WearOsParityTest` guards behavior parity with the Apple Watch payloads. Change a payload on both watches in the same change.
+
+### 10.6 Known gaps
+
+- The Wear OS palette is a Tailwind-style set unrelated to the Apple Watch `GoalPalette`, so the same macro is a different color on each watch: protein is amber on Apple Watch and cyan on Wear OS, and carbs is green on Apple Watch and amber on Wear OS.
+- The Apple Watch complications' macro tints (`MacroComplications.swift`: protein red, carbs yellow, fat blue) say they match `GoalPalette`, but they do not (protein amber, carbs green, fat light blue). Fasting uses `.orange` and Steps `.mint` as system colors.
+- Neither watch palette is derived from `global.css`; the superset palette is the only hand-copied mirror.
+
+### 10.7 Checklist for a watch change
+
+- [ ] Used `WatchStyle.s` for fixed sizes, `WatchStyle.fill` for cards and `SquircleButton` for controls (Apple Watch).
+- [ ] Took colors from `GoalPalette` / `SparkyColors` and updated the table above if a value changed.
+- [ ] Fired haptics through `Haptics`, and kept pages working with no phone connection.
+- [ ] A new page is added to `WatchPage`, `WATCH_PAGE_KEYS` and the phone's Apple Watch settings together.
+- [ ] A new complication is added on both Apple Watch (`index.swift`) and Wear OS (service plus manifest entry), with its deep link.
+- [ ] Payload or context changes are made on both watches and the phone, and the parity test still passes.
+- [ ] New strings are localized.
