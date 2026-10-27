@@ -2177,6 +2177,75 @@ private struct PendingRpe: Identifiable {
     }
 }
 
+/// One line of text that scrolls sideways to its end and back when it is wider
+/// than the space it has, so a long exercise name can be read in full. A name
+/// that fits stays still, and with Reduce Motion on it truncates instead.
+private struct MarqueeText: View {
+    let text: String
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var textWidth: CGFloat = 0
+    @State private var containerWidth: CGFloat = 0
+    @State private var scrolled = false
+
+    private static let pointsPerSecond: Double = 25
+    private static let pause: Double = 1.5
+
+    private var overflow: CGFloat { max(0, textWidth - containerWidth) }
+
+    var body: some View {
+        Group {
+            if reduceMotion {
+                Text(text).lineLimit(1)
+            } else {
+                Text(text)
+                    .lineLimit(1)
+                    .fixedSize()
+                    .background(GeometryReader { proxy in
+                        Color.clear.preference(key: MarqueeTextWidthKey.self, value: proxy.size.width)
+                    })
+                    .offset(x: scrolled ? -overflow : 0)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .clipped()
+                    .background(GeometryReader { proxy in
+                        Color.clear.preference(key: MarqueeContainerWidthKey.self, value: proxy.size.width)
+                    })
+                    .onPreferenceChange(MarqueeTextWidthKey.self) { textWidth = $0 }
+                    .onPreferenceChange(MarqueeContainerWidthKey.self) { containerWidth = $0 }
+                    .task(id: overflow) { await scroll() }
+            }
+        }
+        .accessibilityLabel(text)
+    }
+
+    private func scroll() async {
+        scrolled = false
+        guard overflow > 0.5 else { return }
+        let travel = Double(overflow) / Self.pointsPerSecond
+        do {
+            while true {
+                try await Task.sleep(nanoseconds: UInt64(Self.pause * 1_000_000_000))
+                withAnimation(.linear(duration: travel)) { scrolled = true }
+                try await Task.sleep(nanoseconds: UInt64((travel + Self.pause) * 1_000_000_000))
+                withAnimation(.easeInOut(duration: 0.4)) { scrolled = false }
+                try await Task.sleep(nanoseconds: 400_000_000)
+            }
+        } catch {
+            // Cancelled when the text or its room changes, or the view goes.
+        }
+    }
+}
+
+private struct MarqueeTextWidthKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
+}
+
+private struct MarqueeContainerWidthKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
+}
+
 /// Effort picked after a set: the set it is for, one big value card the Digital
 /// Crown changes through the scale, what that value means in reps left, and
 /// Skip / Save. Same flat dark squircles as the set screens. `onDone(nil)` skips.
@@ -2248,15 +2317,14 @@ private struct RpePickerView: View {
     var body: some View {
         VStack(spacing: 3) {
             VStack(alignment: .leading, spacing: 0) {
-                Text(title)
+                MarqueeText(text: title)
                     .font(.headline)
-                    .lineLimit(1)
                 Text(summary)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
+                    .minimumScaleFactor(0.75)
             }
-            .minimumScaleFactor(0.75)
             // Room for the system clock, which sits over the top right.
             .padding(.trailing, 52)
             .frame(maxWidth: .infinity, alignment: .leading)
