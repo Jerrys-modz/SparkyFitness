@@ -789,7 +789,7 @@ Android home-screen widgets (`targets/android-widget`) and the iOS phone widget 
 - Glanceable: one job per screen, a big number, one control. The Workout screens show one set at a time, because the wearer is mid-lift looking at a small screen.
 - Pure black canvas with flat dark cards. Color carries meaning only (a metric, a state), never decoration.
 - Swipe is the navigation on Apple Watch; there is no button to change page. Wear OS scrolls with rotary input (`wearRotaryScroll`).
-- Every tap that logs something gives a haptic. On Apple Watch it goes through `Haptics` (`Presentation/Haptics.swift`), which follows the phone's Settings → Haptics switch. Never call WatchKit haptics directly.
+- Every tap that logs something gives a haptic. New Apple Watch haptics go through `Haptics` (`Presentation/Haptics.swift`), which follows the phone's Settings → Haptics switch (`WatchContext.effectiveHapticsEnabled`); do not call `WKInterfaceDevice.current().play` directly. Existing code still does in places (see 10.6), so the switch does not silence every watch haptic.
 - Works with the phone away: pages draw from the last persisted context, and writes (water taps, medication taps, check-ins) queue and resend.
 - Copy: new Apple Watch copy uses `String(localized:defaultValue:)` keys (`watch.<page>.<name>`), with the strings in `targets/watch/en.lproj`. Existing screens are not fully localized and the Wear OS screens use literal strings (see 10.6).
 
@@ -860,13 +860,14 @@ Take macro and nutrient colors from `GoalPalette` (`GoalPalette.color(forNutrien
 - The Wear OS palette is a Tailwind-style set unrelated to the Apple Watch `GoalPalette`, so the same macro is a different color on each watch: protein is amber on Apple Watch and cyan on Wear OS, and carbs is green on Apple Watch and amber on Wear OS.
 - The Apple Watch complications' macro tints (`MacroComplications.swift`: protein red, carbs yellow, fat blue) say they match `GoalPalette`, but they do not (protein amber, carbs green, fat light blue). Fasting uses `.orange` and Steps `.mint` as system colors.
 - Localization is incomplete. `GoalSummaryView.swift` still has static literals ("Calories not synced yet", "Protein", "g"), as do some other Apple Watch views (for example `TrendView.swift`), and the Wear OS screens use literal English strings rather than Android string resources.
+- Some Apple Watch haptics bypass `Haptics` and the phone's haptics setting by calling `WKInterfaceDevice.current().play` directly: `WaterIntakeView`, `ClassicWaterIntakeView`, `MedicationsView`, `TrendView`, `CheckInEntryView`, `WatchAppDelegate` and the run start and stop in `WatchRunStore`.
 - Neither watch palette is derived from `global.css`; the superset palette is the only hand-copied mirror.
 
 ### 10.7 Checklist for a watch change
 
 - [ ] Used `WatchStyle.s` for fixed sizes, `WatchStyle.fill` for cards and `SquircleButton` for controls (Apple Watch).
 - [ ] Took colors from `GoalPalette` / `SparkyColors` and updated the table above if a value changed.
-- [ ] Fired Apple Watch haptics through `Haptics`, and kept pages working with no phone connection.
+- [ ] Fired Apple Watch haptics through `Haptics`, never `WKInterfaceDevice` directly, and kept pages working with no phone connection.
 - [ ] A new page is added to `WatchPage`, `WATCH_PAGE_KEYS` and the phone's Apple Watch settings together.
 - [ ] A new complication is added on both Apple Watch (`index.swift`) and Wear OS (service plus manifest entry), with its tap target (URL scheme on Apple Watch, `target_page` on Wear OS).
 - [ ] Payload or context changes are made on both watches and the phone by hand, and the Wear OS parity test still passes.
