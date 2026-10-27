@@ -13,6 +13,7 @@ import type {
 import { useTranslation } from 'react-i18next';
 import { toast as sonnerToast } from 'sonner';
 import { formatDateToYYYYMMDD } from '@/lib/utils';
+import { keepMostDetailedSleepEntries } from '@workspace/shared';
 import {
   formatSecondsToHHMM,
   formatTimeInZone,
@@ -34,8 +35,10 @@ const SleepReport = ({ startDate, endDate }: SleepReportProps) => {
   const { t } = useTranslation();
   const { formatDateInUserTimezone, dateFormat, timeFormat, timezone } =
     usePreferences();
-  const { data: sleepEntries = [], isLoading: loadingEntries } =
+  const { data: storedEntries = [], isLoading: loadingEntries } =
     useSleepEntriesQuery(startDate, endDate);
+  // A night two sources recorded counts once, from the more detailed record.
+  const sleepEntries = keepMostDetailedSleepEntries(storedEntries);
   const { data: sleepDebtData, isLoading: loadingDebt } = useSleepDebtQuery();
 
   const loading = loadingEntries || loadingDebt;

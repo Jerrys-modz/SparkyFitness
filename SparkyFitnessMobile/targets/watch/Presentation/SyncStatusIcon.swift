@@ -30,7 +30,7 @@ struct SyncStatusIcon: View {
             }
         } label: {
             Image(systemName: state.symbol)
-                .font(.caption2)
+                .font(.footnote)
                 .foregroundStyle(color(for: state))
         }
         .buttonStyle(.plain)

@@ -10,6 +10,10 @@
 - **`config.disablePasskeyLogin`** — sets `SPARKY_FITNESS_DISABLE_PASSKEY_LOGIN` to turn off passkey sign-in and new passkey registration (default `false`).
 - **`config.forcePasskeyLogin`** — sets `SPARKY_FITNESS_FORCE_PASSKEY_LOGIN`, a fail-safe that keeps passkey login on even when it is turned off in the admin settings or by `config.disablePasskeyLogin` (default `false`).
 
+### Bug Fixes
+
+- **Server pods get a `startupProbe`** (`server.startupProbe`, up to 5 minutes). The server only answers `/api/health` after migrations and startup finish, so a long upgrade was restarted by the liveness probe after about 80 s, mid-migration, and kept crash-looping. Set `server.startupProbe: null` to drop it.
+
 ## 0.3.0 — 2026-05-08
 
 ### Security
