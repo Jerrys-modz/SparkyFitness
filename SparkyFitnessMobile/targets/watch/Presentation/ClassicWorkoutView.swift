@@ -542,6 +542,8 @@ private struct ActiveWorkoutView: View {
                 showingExercises = true
             }
             switch ScreenshotSeed.workoutPage {
+            case "upnext", "swap": page = .upNext
+            case "metrics": page = .metrics
             case "setoptions": page = .setOptions
             case "exerciseoptions": page = .exerciseOptions
             case "actions": page = .actions
