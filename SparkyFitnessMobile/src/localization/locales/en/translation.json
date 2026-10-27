@@ -8353,8 +8353,8 @@
         "save": "Could not save your goals. Please try again."
       }
     },
-    "openCalendar": "Open the program calendar",
-    "openCalendarHint": "Every workout on a month view",
+    "openCalendar": "Open the training calendar",
+    "openCalendarHint": "Program and plan workouts, done and to come",
     "monthGrid": {
       "previous": "Previous month",
       "next": "Next month",
