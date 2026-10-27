@@ -590,6 +590,30 @@ describe('notifications service', () => {
       });
     });
 
+    it('carries the saved food in the reminder data', async () => {
+      await scheduleFuelingReminderNotifications([inHours(1)], 22, 'Gel', {
+        foodId: 'food-1',
+        variantId: 'variant-1',
+        servingSize: 60,
+        servingUnit: 'ml',
+      });
+
+      expect(mockSchedule).toHaveBeenCalledWith({
+        content: expect.objectContaining({
+          data: {
+            kind: 'fueling',
+            portionGrams: '22',
+            productName: 'Gel',
+            foodId: 'food-1',
+            variantId: 'variant-1',
+            servingSize: '60',
+            servingUnit: 'ml',
+          },
+        }),
+        trigger: expect.anything(),
+      });
+    });
+
     it('skips times that are already in the past', async () => {
       const ids = await scheduleFuelingReminderNotifications(
         [new Date(Date.now() - 60 * 1000), inHours(1)],

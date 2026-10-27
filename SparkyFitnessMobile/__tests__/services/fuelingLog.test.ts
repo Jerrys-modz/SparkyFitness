@@ -56,6 +56,50 @@ describe('logFuelingPortion', () => {
     expect(mockInvalidate).toHaveBeenCalledWith({}, '2026-10-27');
   });
 
+  const food = {
+    foodId: 'food-1',
+    variantId: 'variant-1',
+    servingSize: 1,
+    servingUnit: 'serving',
+  };
+
+  it('logs one serving of the saved food when one was chosen', async () => {
+    await logFuelingPortion({ productName: 'Gel', portionGrams: 22, food });
+
+    expect(mockCreate).toHaveBeenCalledTimes(1);
+    expect(mockCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        food_id: 'food-1',
+        variant_id: 'variant-1',
+        quantity: 1,
+        unit: 'serving',
+      })
+    );
+  });
+
+  it('falls back to a standalone entry when the saved food is gone', async () => {
+    mockCreate
+      .mockRejectedValueOnce(new Error('Food or variant not found'))
+      .mockResolvedValueOnce({ entry_date: '2026-10-27' });
+
+    await logFuelingPortion({ productName: 'Gel', portionGrams: 22, food });
+
+    expect(mockCreate).toHaveBeenCalledTimes(2);
+    expect(mockCreate.mock.calls[1][0]).toEqual(
+      expect.objectContaining({ food_name: 'Gel', carbs: 22 })
+    );
+    expect(mockCreate.mock.calls[1][0].food_id).toBeUndefined();
+    expect(mockInvalidate).toHaveBeenCalledTimes(1);
+  });
+
+  it('still fails when even the standalone entry is refused', async () => {
+    mockCreate.mockRejectedValue(new Error('offline'));
+    await expect(
+      logFuelingPortion({ productName: 'Gel', portionGrams: 22, food })
+    ).rejects.toThrow('offline');
+    expect(mockInvalidate).not.toHaveBeenCalled();
+  });
+
   it('ignores hidden meal types', async () => {
     mockMealTypes.mockResolvedValue([
       mealType('s', 'Snacks', false),

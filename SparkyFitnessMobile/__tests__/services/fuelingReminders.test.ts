@@ -51,13 +51,15 @@ describe('startFuelingSession', () => {
     expect(mockSchedule).toHaveBeenCalledWith(
       [at(7, 30), at(8), at(8, 30)],
       25,
-      'Energy gel'
+      'Energy gel',
+      null
     );
     const session = await getFuelingSession();
     expect(session).toEqual({
       startAtMs: at(7).getTime(),
       portionGrams: 25,
       productName: 'Energy gel',
+      food: null,
       reminderCount: 3,
       notificationIds: ['n1', 'n2', 'n3'],
     });
@@ -115,6 +117,41 @@ describe('startFuelingSession', () => {
     expect(mockSchedule).toHaveBeenCalledTimes(2);
     // the second pass cancelled the first one's ids before scheduling
     expect(mockCancel).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe('a session with a saved food', () => {
+  const food = {
+    foodId: 'food-1',
+    variantId: 'variant-1',
+    servingSize: 1,
+    servingUnit: 'serving',
+  };
+
+  it('passes the food to the reminders and remembers it', async () => {
+    await startFuelingSession(plan({ food }), NOW);
+
+    expect(mockSchedule).toHaveBeenCalledWith(
+      [at(7, 30), at(8), at(8, 30)],
+      25,
+      'Energy gel',
+      food
+    );
+    expect((await getFuelingSession())?.food).toEqual(food);
+  });
+
+  it('reads an older session saved without a food', async () => {
+    await AsyncStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        startAtMs: 1,
+        portionGrams: 25,
+        productName: 'Energy gel',
+        reminderCount: 1,
+        notificationIds: ['a'],
+      })
+    );
+    expect((await getFuelingSession())?.food).toBeNull();
   });
 });
 

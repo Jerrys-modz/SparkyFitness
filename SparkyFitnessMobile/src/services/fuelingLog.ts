@@ -6,11 +6,13 @@ import { getTodayDate } from '../utils/dateUtils';
 import {
   buildFuelingEntryPayload,
   pickFuelingMealTypeId,
+  type FuelingFoodRef,
 } from '../utils/fuelingLog';
 
 export interface LogFuelingPortionInput {
   productName: string;
   portionGrams: number;
+  food?: FuelingFoodRef | null;
 }
 
 const pad = (value: number) => String(value).padStart(2, '0');
@@ -30,14 +32,24 @@ export async function logFuelingPortion(
   const mealTypeId = pickFuelingMealTypeId(mealTypes);
   if (!mealTypeId) throw new Error('No meal type available to log fuel into');
 
-  const entry = await createFoodEntry(
+  const build = (food: LogFuelingPortionInput['food']) =>
     buildFuelingEntryPayload({
       productName: input.productName,
       portionGrams: input.portionGrams,
+      food,
       mealTypeId,
       entryDate: getTodayDate(),
       entryTime: `${pad(now.getHours())}:${pad(now.getMinutes())}`,
-    })
-  );
+    });
+
+  let entry;
+  try {
+    entry = await createFoodEntry(build(input.food));
+  } catch (error) {
+    // The saved food may have been deleted since the plan was made; the carbs
+    // are still worth logging, so fall back to a standalone entry.
+    if (!input.food) throw error;
+    entry = await createFoodEntry(build(null));
+  }
   invalidateFoodCache(queryClient, entry.entry_date);
 }
