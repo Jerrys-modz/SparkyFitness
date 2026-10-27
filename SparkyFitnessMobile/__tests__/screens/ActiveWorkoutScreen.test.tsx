@@ -11,7 +11,10 @@ import {
   __resetActiveWorkoutStoreForTests,
   useActiveWorkoutStore,
 } from '../../src/stores/activeWorkoutStore';
-import { __resetAppPreferencesStoreForTests } from '../../src/stores/appPreferencesStore';
+import {
+  __resetAppPreferencesStoreForTests,
+  useAppPreferencesStore,
+} from '../../src/stores/appPreferencesStore';
 import { SET_ACCESSORY_BAR_HEIGHT } from '../../src/components/SetRowChrome';
 import type { ActionSheetItem } from '../../src/components/ActionSheet';
 import type { PresetSessionResponse } from '@workspace/shared';
@@ -394,6 +397,7 @@ describe('ActiveWorkoutScreen overflow menu wiring', () => {
     expect(sheetItemKeys()).toEqual([
       'view',
       'notes',
+      'do-now',
       'superset-with',
       'warmups',
       'replace',
@@ -405,6 +409,49 @@ describe('ActiveWorkoutScreen overflow menu wiring', () => {
     // Menu item must show the full action "Remove exercise", not the short
     // destructive alert button text "Remove".
     expect(remove?.label).toBe('Remove exercise');
+  });
+
+  it('lists the upcoming exercises to do now, and does the picked one first', () => {
+    const { getByTestId } = renderScreen();
+
+    fireEvent.press(getByTestId('card-ex-a-overflow'));
+    pressSheetItem('do-now');
+
+    expect(mockSheet.props?.title).toBe('Swap Bench Press');
+    expect(sheetItemKeys()).toEqual(['ex-b', 'ex-c', 'replace']);
+
+    pressSheetItem('ex-b');
+    const state = useActiveWorkoutStore.getState();
+    expect(state.session!.exercises.map((e) => e.id)).toEqual([
+      'ex-b',
+      'ex-a',
+      'ex-c',
+    ]);
+    expect(
+      state.session!.exercises[0].sets.some(
+        (set) => String(set.id) === state.activeSetId
+      )
+    ).toBe(true);
+  });
+
+  it('pins the Now card only when its setting is on', () => {
+    const first = renderScreen();
+    expect(first.queryByTestId('active-workout-now-card')).toBeNull();
+    first.unmount();
+
+    act(() => {
+      useAppPreferencesStore.getState().setActiveWorkoutNowCard(true);
+    });
+    const { getByTestId } = renderScreen();
+    expect(getByTestId('active-workout-now-card')).toBeTruthy();
+  });
+
+  it('offers Do now only on the exercise the cursor is on', () => {
+    const { getByTestId } = renderScreen();
+
+    fireEvent.press(getByTestId('card-ex-b-overflow'));
+
+    expect(sheetItemKeys()).not.toContain('do-now');
   });
 
   it('uses short "Remove" for the destructive alert button, not "Remove exercise"', () => {
