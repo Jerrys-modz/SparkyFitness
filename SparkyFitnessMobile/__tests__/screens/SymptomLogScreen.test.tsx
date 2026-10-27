@@ -194,12 +194,35 @@ describe('SymptomLogScreen back-dating', () => {
   });
 
   it('keeps the diary day when the start was not moved', async () => {
-    const screen = renderScreen();
-    await logEpisode(screen);
-    await save(screen);
+    // Freeze only Date so a midnight rollover cannot split the expected day
+    // from the day the screen computes while rendering.
+    jest.useFakeTimers({
+      now: new Date(2024, 5, 15, 12, 0, 0),
+      doNotFake: [
+        'hrtime',
+        'nextTick',
+        'performance',
+        'queueMicrotask',
+        'requestAnimationFrame',
+        'cancelAnimationFrame',
+        'requestIdleCallback',
+        'cancelIdleCallback',
+        'setImmediate',
+        'clearImmediate',
+        'setInterval',
+        'clearInterval',
+        'setTimeout',
+        'clearTimeout',
+      ],
+    });
+    try {
+      const screen = renderScreen();
+      await logEpisode(screen);
+      await save(screen);
 
-    expect(logMutateAsync.mock.calls[0][0].entry_date).toEqual(
-      expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/)
-    );
+      expect(logMutateAsync.mock.calls[0][0].entry_date).toBe('2024-06-15');
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });
