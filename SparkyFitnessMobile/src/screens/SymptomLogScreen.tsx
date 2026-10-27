@@ -114,7 +114,6 @@ export default function SymptomLogScreen({ navigation, route }: Props) {
   const [startedAt, setStartedAt] = useState<string | null>(
     existingEntry?.started_at ?? null
   );
-  const [startedAtEdited, setStartedAtEdited] = useState(false);
   // Stable fallback for the pickers until a start is chosen.
   const [openedAt] = useState(() => Date.now());
   const calendarSheetRef = useRef<CalendarSheetRef>(null);
@@ -186,21 +185,20 @@ export default function SymptomLogScreen({ navigation, route }: Props) {
   };
 
   // An episode cannot start in the future, so a picked moment is clamped to now.
-  // Picking the minute already shown (the time sheet reports Done even when
-  // nothing moved) is not an edit, so the diary day is kept.
   const applyStartedAt = (d: Date) => {
     const now = new Date();
-    const next = d > now ? now : d;
-    const current = new Date(startedAt ?? openedAt);
-    if (
-      Math.floor(next.getTime() / 60000) ===
-      Math.floor(current.getTime() / 60000)
-    ) {
-      return;
-    }
-    setStartedAt(next.toISOString());
-    setStartedAtEdited(true);
+    setStartedAt((d > now ? now : d).toISOString());
   };
+
+  // The start counts as moved only when it differs from the one the form
+  // opened with, to the minute: the time sheet reports Done even when nothing
+  // moved, and a change that is undone leaves the diary day alone.
+  const originalStartMinute = Math.floor(
+    new Date(existingEntry?.started_at ?? openedAt).getTime() / 60000
+  );
+  const startMoved =
+    startedAt !== null &&
+    Math.floor(new Date(startedAt).getTime() / 60000) !== originalStartMinute;
 
   // Back-dating offset handler
   const handleBackdate = (minutesBack: number) => {
@@ -274,7 +272,7 @@ export default function SymptomLogScreen({ navigation, route }: Props) {
       symptom_id: symptomId,
       severity,
       // A moved start re-derives the day on the server, in the profile timezone.
-      entry_date: isEpisodic && startedAtEdited ? undefined : effectiveDate,
+      entry_date: isEpisodic && startMoved ? undefined : effectiveDate,
       started_at: isEpisodic
         ? startedAt || new Date(openedAt).toISOString()
         : null,

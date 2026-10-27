@@ -259,4 +259,37 @@ describe('SymptomLogScreen back-dating', () => {
       jest.useRealTimers();
     }
   });
+
+  it('keeps the diary day when a changed start is put back', async () => {
+    jest.useFakeTimers({
+      now: new Date(2024, 5, 15, 12, 0, 0),
+      doNotFake: [
+        'hrtime',
+        'nextTick',
+        'performance',
+        'queueMicrotask',
+        'requestAnimationFrame',
+        'cancelAnimationFrame',
+        'requestIdleCallback',
+        'cancelIdleCallback',
+        'setImmediate',
+        'clearImmediate',
+        'setInterval',
+        'clearInterval',
+        'setTimeout',
+        'clearTimeout',
+      ],
+    });
+    try {
+      const screen = renderScreen();
+      await logEpisode(screen);
+      act(() => mockCalendarProps?.onSelectDate('2024-06-10'));
+      act(() => mockCalendarProps?.onSelectDate('2024-06-15'));
+      await save(screen);
+
+      expect(logMutateAsync.mock.calls[0][0].entry_date).toBe('2024-06-15');
+    } finally {
+      jest.useRealTimers();
+    }
+  });
 });
