@@ -20,6 +20,7 @@ import {
 const CHANNEL_ID = 'workout-timer';
 const FASTING_CHANNEL_ID = 'fasting';
 const HYDRATION_CHANNEL_ID = 'hydration';
+const FUELING_CHANNEL_ID = 'fueling';
 export const MOOD_CHECKIN_CHANNEL_ID = 'mood-checkin';
 export const MEDICATION_REMINDER_CHANNEL_ID = 'medication-reminders';
 const EXACT_ALARM_PROMPT_KEY = '@SparkyFitness/exactAlarmPromptShown';
@@ -83,6 +84,14 @@ export async function registerLocalizedNotificationPresentation(): Promise<void>
       name: notificationCopy(
         'notifications.channels.hydration',
         'Hydration reminders'
+      ),
+      importance: Notifications.AndroidImportance.HIGH,
+      enableVibrate: true,
+    });
+    await Notifications.setNotificationChannelAsync(FUELING_CHANNEL_ID, {
+      name: notificationCopy(
+        'notifications.channels.fueling',
+        'Fueling reminders'
       ),
       importance: Notifications.AndroidImportance.HIGH,
       enableVibrate: true,
@@ -668,6 +677,58 @@ export async function scheduleWaterReminderNotifications(
       // and the signature guard then blocks a retry for the reminders that
       // never made it. Returning nothing keeps the caller on its "an empty
       // result is not persisted" path, so the next reconcile tries again.
+      await Promise.all(ids.map((id) => cancelScheduledNotification(id)));
+      return [];
+    }
+  }
+  return ids;
+}
+
+/**
+ * Schedules one fueling reminder per future time and returns the ids that were
+ * scheduled. Unlike the hydration chain this is something the person started on
+ * purpose, so it only needs notifications turned on and the OS permission.
+ * All or nothing: a half-scheduled plan would leave the person under-fueled
+ * with no sign anything was missing.
+ */
+export async function scheduleFuelingReminderNotifications(
+  times: Date[],
+  portionGrams: number
+): Promise<string[]> {
+  if (!useAppPreferencesStore.getState().notificationsEnabled) return [];
+  if (!(await hasNotificationPermission())) return [];
+
+  const nowMs = Date.now();
+  const ids: string[] = [];
+  for (const time of times) {
+    const timeMs = time.getTime();
+    if (Number.isNaN(timeMs) || timeMs <= nowMs) continue;
+    try {
+      const id = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: notificationCopy(
+            'notifications.fueling.title',
+            'Time to fuel ⚡'
+          ),
+          body: notificationCopy(
+            'notifications.fueling.body',
+            'Take {{grams}} g of carbs.',
+            { grams: portionGrams }
+          ),
+          sound: true,
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
+          date: time,
+          channelId: FUELING_CHANNEL_ID,
+        },
+      });
+      ids.push(id);
+    } catch (err) {
+      addLog(
+        `scheduleFuelingReminderNotifications failed: ${(err as Error).message}`,
+        'ERROR'
+      );
       await Promise.all(ids.map((id) => cancelScheduledNotification(id)));
       return [];
     }

@@ -16,6 +16,7 @@ import {
   maybePromptForExactAlarmPermission,
   scheduleFastGoalNotification,
   scheduleRestNotification,
+  scheduleFuelingReminderNotifications,
   scheduleWaterReminderNotifications,
   setNotificationsEnabled,
   setRestTimerNotificationsEnabled,
@@ -550,6 +551,74 @@ describe('notifications service', () => {
       expect(await scheduleWaterReminderNotifications([inHours(1)])).toEqual(
         []
       );
+      expect(mockRequestPerms).not.toHaveBeenCalled();
+      expect(mockSchedule).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('scheduleFuelingReminderNotifications', () => {
+    const inHours = (hours: number) =>
+      new Date(Date.now() + hours * 60 * 60 * 1000);
+
+    it('schedules each future time on the fueling channel with the portion', async () => {
+      mockSchedule
+        .mockResolvedValueOnce('fuel-1' as any)
+        .mockResolvedValueOnce('fuel-2' as any);
+
+      const ids = await scheduleFuelingReminderNotifications(
+        [inHours(1), inHours(2)],
+        25
+      );
+
+      expect(ids).toEqual(['fuel-1', 'fuel-2']);
+      expect(mockSchedule).toHaveBeenCalledWith({
+        content: expect.objectContaining({
+          title: 'Time to fuel ⚡',
+          body: 'Take 25 g of carbs.',
+        }),
+        trigger: expect.objectContaining({
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
+          channelId: 'fueling',
+        }),
+      });
+    });
+
+    it('skips times that are already in the past', async () => {
+      const ids = await scheduleFuelingReminderNotifications(
+        [new Date(Date.now() - 60 * 1000), inHours(1)],
+        25
+      );
+      expect(ids).toEqual(['notif-id']);
+      expect(mockSchedule).toHaveBeenCalledTimes(1);
+    });
+
+    it('cancels what it scheduled when a later reminder fails', async () => {
+      mockSchedule
+        .mockResolvedValueOnce('fuel-1' as any)
+        .mockRejectedValueOnce(new Error('scheduling unavailable'));
+
+      const ids = await scheduleFuelingReminderNotifications(
+        [inHours(1), inHours(2)],
+        25
+      );
+
+      expect(ids).toEqual([]);
+      expect(mockCancel).toHaveBeenCalledWith('fuel-1');
+    });
+
+    it('schedules nothing while the master notifications toggle is off', async () => {
+      useAppPreferencesStore.getState().setNotificationsEnabled(false);
+      expect(
+        await scheduleFuelingReminderNotifications([inHours(1)], 25)
+      ).toEqual([]);
+      expect(mockSchedule).not.toHaveBeenCalled();
+    });
+
+    it('never prompts and schedules nothing without OS permission', async () => {
+      mockGetPerms.mockResolvedValue({ status: 'undetermined' } as any);
+      expect(
+        await scheduleFuelingReminderNotifications([inHours(1)], 25)
+      ).toEqual([]);
       expect(mockRequestPerms).not.toHaveBeenCalled();
       expect(mockSchedule).not.toHaveBeenCalled();
     });

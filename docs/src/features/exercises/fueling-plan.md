@@ -12,6 +12,8 @@ These numbers are starting points taken from published sports-nutrition guidance
 
 On the web, open the **Exercises** page and scroll to **Fueling plan**. Enter your duration, effort and gut training to see the plan.
 
+In the mobile app, open **Library > Fueling plan**. Pick when to start, then tap **Set reminders** and the app sends a notification for each portion. Starting a new plan replaces the old one, and **Stop reminders** cancels it. Reminders need notifications turned on for the app.
+
 ## How the target is chosen
 
 The default target depends on how long you will be running:
