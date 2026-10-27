@@ -9159,6 +9159,13 @@
     "sendMessage": "Send message",
     "stopGenerating": "Stop generating",
     "thisSession": "this session",
+    "tokenUsage": {
+      "total": "{{value}} total",
+      "cached": "{{value}} cached",
+      "uncached": "{{value}} uncached",
+      "input": "{{value}} in",
+      "output": "{{value}} out"
+    },
     "copy": "Copy",
     "refresh": "Refresh",
     "more": "More",
