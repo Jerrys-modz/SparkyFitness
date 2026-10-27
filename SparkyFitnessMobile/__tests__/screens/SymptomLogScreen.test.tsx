@@ -8,7 +8,6 @@ import {
   useSymptomEntriesDetailed,
   useSymptomEntry,
 } from '../../src/hooks/useSymptoms';
-import { getTodayDate } from '../../src/utils/dateUtils';
 import { initializeI18n } from '../../src/localization/i18n';
 import type { RootStackScreenProps } from '../../src/types/navigation';
 
@@ -195,11 +194,35 @@ describe('SymptomLogScreen back-dating', () => {
   });
 
   it('keeps the diary day when the start was not moved', async () => {
-    const expectedDay = getTodayDate();
-    const screen = renderScreen();
-    await logEpisode(screen);
-    await save(screen);
+    // Freeze only Date so a midnight rollover cannot split the expected day
+    // from the day the screen computes while rendering.
+    jest.useFakeTimers({
+      now: new Date(2024, 5, 15, 12, 0, 0),
+      doNotFake: [
+        'hrtime',
+        'nextTick',
+        'performance',
+        'queueMicrotask',
+        'requestAnimationFrame',
+        'cancelAnimationFrame',
+        'requestIdleCallback',
+        'cancelIdleCallback',
+        'setImmediate',
+        'clearImmediate',
+        'setInterval',
+        'clearInterval',
+        'setTimeout',
+        'clearTimeout',
+      ],
+    });
+    try {
+      const screen = renderScreen();
+      await logEpisode(screen);
+      await save(screen);
 
-    expect(logMutateAsync.mock.calls[0][0].entry_date).toBe(expectedDay);
+      expect(logMutateAsync.mock.calls[0][0].entry_date).toBe('2024-06-15');
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });
