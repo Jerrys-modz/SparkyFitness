@@ -219,6 +219,14 @@ jobs:
             shoot workout-exercise-options-large active workout exerciseoptions large
             shoot workout-rpe-large active workout rpe large
             shoot fasting-running-large none fasting "" large,fast
+
+            # A name too long to fit: the set screen and effort picker
+            # title should scroll rather than be cut off.
+            shoot workout-longname active workout "" longname
+            shoot workout-longname-large active workout "" longname,large
+            shoot workout-resting-longname-large resting workout "" longname,large
+            shoot workout-rpe-longname active workout rpe longname
+            shoot workout-rpe-longname-large active workout rpe longname,large
           done <<< "$DEVICES"
 
           ls -la screenshots

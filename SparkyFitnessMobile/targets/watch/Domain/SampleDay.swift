@@ -195,7 +195,9 @@ enum SampleDay {
         exercises: [
             PlannedExercise(
                 exerciseEntryId: "preview-ex-1",
-                name: "Barbell Bench Press",
+                // `longname` swaps in a name too long for any watch, to check
+                // that the title scrolls instead of being cut off.
+                name: ScreenshotSeed.has("longname") ? "Seated Cable Row (Close Grip, Machine)" : "Barbell Bench Press",
                 supersetRun: 0,
                 sets: [
                     // A warmup first, so the label above the values is
