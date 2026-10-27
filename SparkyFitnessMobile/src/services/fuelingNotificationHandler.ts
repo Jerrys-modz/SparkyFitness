@@ -33,7 +33,16 @@ function logIfActioned(response: Notifications.NotificationResponse): boolean {
     return true;
   }
 
-  void logFuelingPortion({ productName, portionGrams })
+  const servingSize = Number(content.data?.servingSize);
+  const foodId = String(content.data?.foodId ?? '');
+  const variantId = String(content.data?.variantId ?? '');
+  const servingUnit = String(content.data?.servingUnit ?? '');
+  const food =
+    foodId && variantId && servingUnit && servingSize > 0
+      ? { foodId, variantId, servingSize, servingUnit }
+      : null;
+
+  void logFuelingPortion({ productName, portionGrams, food })
     .then(() => {
       Toast.show({
         type: 'success',

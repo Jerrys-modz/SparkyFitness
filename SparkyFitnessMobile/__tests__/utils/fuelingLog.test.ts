@@ -55,6 +55,36 @@ describe('buildFuelingEntryPayload', () => {
   });
 });
 
+describe('buildFuelingEntryPayload with a saved food', () => {
+  it('points at the food and leaves its nutrition to the server', () => {
+    const payload = buildFuelingEntryPayload({
+      productName: 'SIS gel',
+      portionGrams: 22,
+      food: {
+        foodId: 'food-1',
+        variantId: 'variant-1',
+        servingSize: 60,
+        servingUnit: 'ml',
+      },
+      mealTypeId: 'meal-1',
+      entryDate: '2026-10-27',
+      entryTime: '07:35',
+    });
+
+    expect(payload).toEqual({
+      meal_type_id: 'meal-1',
+      entry_date: '2026-10-27',
+      entry_time: '07:35',
+      quantity: 60,
+      unit: 'ml',
+      food_id: 'food-1',
+      variant_id: 'variant-1',
+    });
+    expect(payload.carbs).toBeUndefined();
+    expect(payload.food_name).toBeUndefined();
+  });
+});
+
 describe('pickFuelingMealTypeId', () => {
   it('prefers Snacks', () => {
     const types = [mealType('b', 'Breakfast', 1), mealType('s', 'Snacks', 4)];

@@ -6,6 +6,7 @@ import {
   scheduleFuelingReminderNotifications,
 } from './notifications';
 import { fuelingReminderTimes } from '../utils/fuelingReminder';
+import type { FuelingFoodRef } from '../utils/fuelingLog';
 
 // One fueling session at a time: starting a plan replaces the previous one.
 // Every operation goes through one promise queue so a double tap on Start
@@ -16,6 +17,8 @@ export interface FuelingSession {
   startAtMs: number;
   portionGrams: number;
   productName: string;
+  /** The saved food a portion stands for, when one was chosen. */
+  food: FuelingFoodRef | null;
   /** How many reminders were scheduled. */
   reminderCount: number;
   notificationIds: string[];
@@ -26,6 +29,7 @@ export interface StartFuelingSessionInput {
   offsetsMin: readonly number[];
   portionGrams: number;
   productName: string;
+  food?: FuelingFoodRef | null;
 }
 
 export type StartFuelingSessionResult =
@@ -45,6 +49,17 @@ function enqueue<T>(task: () => Promise<T>): Promise<T> {
   return run;
 }
 
+function isFoodRef(value: unknown): value is FuelingFoodRef {
+  if (!value || typeof value !== 'object') return false;
+  const food = value as Partial<FuelingFoodRef>;
+  return (
+    typeof food.foodId === 'string' &&
+    typeof food.variantId === 'string' &&
+    typeof food.servingSize === 'number' &&
+    typeof food.servingUnit === 'string'
+  );
+}
+
 async function readSession(): Promise<FuelingSession | null> {
   try {
     const raw = await AsyncStorage.getItem(FUELING_SESSION_STORAGE_KEY);
@@ -62,6 +77,7 @@ async function readSession(): Promise<FuelingSession | null> {
         startAtMs: parsed.startAtMs,
         portionGrams: parsed.portionGrams,
         productName: parsed.productName,
+        food: isFoodRef(parsed.food) ? parsed.food : null,
         reminderCount: parsed.reminderCount,
         notificationIds: parsed.notificationIds,
       };
@@ -115,7 +131,8 @@ export function startFuelingSession(
     const notificationIds = await scheduleFuelingReminderNotifications(
       times,
       input.portionGrams,
-      input.productName
+      input.productName,
+      input.food ?? null
     );
     if (notificationIds.length === 0) return { status: 'not_permitted' };
 
@@ -123,6 +140,7 @@ export function startFuelingSession(
       startAtMs: input.startAt.getTime(),
       portionGrams: input.portionGrams,
       productName: input.productName,
+      food: input.food ?? null,
       reminderCount: notificationIds.length,
       notificationIds,
     };

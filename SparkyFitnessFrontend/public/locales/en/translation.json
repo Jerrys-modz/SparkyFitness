@@ -10034,6 +10034,22 @@
     "schedule": "Schedule",
     "scheduleItem": "{{time}}: {{grams}} g",
     "notNeeded": "Runs under an hour usually do not need fueling. Enter your own carbs per hour to plan one anyway.",
-    "disclaimer": "General guidance, not medical advice. Practise your plan in training before race day."
+    "disclaimer": "General guidance, not medical advice. Practise your plan in training before race day.",
+    "product": "Fuel product",
+    "defaultProduct": "Energy gel",
+    "chooseFood": "Choose a saved food",
+    "chooseFoodTitle": "Choose your fuel",
+    "chooseFoodDescription": "Pick a food to use its carbohydrates per serving as the portion size.",
+    "foodNoCarbs": "That food has no carbohydrates listed.",
+    "portionCount": "That is about {{count}} × {{product}}.",
+    "print": "Print schedule",
+    "printTitle": "Fueling plan",
+    "printDetail": "{{product}}, {{count}} portions over {{duration}}.",
+    "printTime": "Time into the run",
+    "printAmount": "Take",
+    "printTotal": "Carbs so far",
+    "printAmountValue": "{{grams}} g {{product}}",
+    "printTotalValue": "{{grams}} g",
+    "printBlocked": "Allow pop-ups for this site to print the plan."
   }
 }
