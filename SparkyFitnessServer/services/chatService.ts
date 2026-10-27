@@ -54,6 +54,7 @@ interface ChatMessagePart {
   image_url?: { url: string };
   input?: unknown;
   output?: unknown;
+  toolName?: string;
 }
 
 interface ProcessedMessagePart {
@@ -540,7 +541,10 @@ async function prepareChatContext(
   latestImageDataUrl?: string | null,
   serviceConfigId?: string | null,
   foodResearchTool?: Tool,
-  latestUserText?: string
+  latestUserText?: string,
+  // Auto mode only: tools held back from this turn's base selection (see
+  // ON_DEMAND_TOOLS). Escalating their category still brings them in.
+  heldBackTools: readonly string[] = []
 ) {
   const { chatTz, customCategoriesList } =
     await chatContextInputsCache.getOrLoad(authenticatedUserId, async () => {
@@ -628,11 +632,13 @@ async function prepareChatContext(
     );
     tools = surface.tools;
     activeToolNames = [
-      ...new Set(
-        [...selectedCategories].flatMap(
-          (slug: ChatToolCategorySlug) => surface.toolNamesByCategory[slug]
-        )
-      ),
+      ...[
+        ...new Set(
+          [...selectedCategories].flatMap(
+            (slug: ChatToolCategorySlug) => surface.toolNamesByCategory[slug]
+          )
+        ),
+      ].filter((name) => !heldBackTools.includes(name)),
       ENABLE_TOOLS_TOOL_NAME,
       // Quick-reply chips: full profile only. The tool belongs to no category,
       // so it is never pulled in by the classifier — it has to be added here.
@@ -834,7 +840,8 @@ const RETENTION_24H_MODEL_PREFIXES = [
 // OpenAI-compatible services still need the SDK-only systemMessageMode override:
 // reasoning-model IDs otherwise convert Sparky's system prompt to `developer`,
 // which older compatible gateways may not recognize as system instructions.
-// (Anthropic caches on the tools — see ai/tools/index.ts; Gemini auto-caches.)
+// Anthropic gets top-level automatic caching (see buildChatSystem); Gemini
+// auto-caches.
 function buildFoodResearchTool(
   serviceType: string,
   modelName: string,
@@ -856,6 +863,13 @@ export function buildChatProviderOptions(
   if (serviceType === 'openai_compatible') {
     return { openai: { systemMessageMode: 'system' } };
   }
+  if (serviceType === 'anthropic') {
+    // Top-level automatic caching: Anthropic moves this breakpoint to the last
+    // block of every request, so each agent step reads the previous step's
+    // prefix (tools, system prompt, history and tool results) from cache
+    // instead of paying full price for it again.
+    return { anthropic: { cacheControl: { type: 'ephemeral' } } };
+  }
   if (serviceType !== 'openai') return undefined;
   const openai: Record<string, JSONValue> = {
     promptCacheKey: `sparky-chat-${userId}`,
@@ -869,6 +883,22 @@ export function buildChatProviderOptions(
     openai.promptCacheRetention = '24h';
   }
   return { openai };
+}
+
+// The chat system prompt as the AI SDK `system` option. For Anthropic it
+// carries its own cache breakpoint, so a new turn (whose history differs from
+// the last cached step) still reads tools + system prompt from cache. With the
+// tool-block marker and the automatic one this is 3 of Anthropic's 4
+// breakpoints.
+export function buildChatSystem(serviceType: string, content: string) {
+  if (serviceType !== 'anthropic') return content;
+  return {
+    role: 'system' as const,
+    content,
+    providerOptions: {
+      anthropic: { cacheControl: { type: 'ephemeral' as const } },
+    },
+  };
 }
 
 interface LlmMessage {
@@ -1016,6 +1046,58 @@ function extractTextFromAgentOutput(output: unknown): string | null {
   }
 
   return texts.length > 0 ? texts.join('\n\n') : null;
+}
+
+// OpenRouter caches Claude only when asked. Other OpenRouter models cache on
+// their own, and a plain OpenAI-compatible server (Ollama, vLLM, LM Studio)
+// may reject unknown fields, so only Claude models on openrouter.ai get the
+// markers. Also covers a custom service pointed at OpenRouter.
+function wantsOpenRouterCacheControl(
+  baseURL: string | undefined,
+  modelName: string
+): boolean {
+  if (!baseURL || !/claude/i.test(modelName)) return false;
+  try {
+    return new URL(baseURL).hostname === 'openrouter.ai';
+  } catch {
+    return false;
+  }
+}
+
+// The OpenAI chat adapter has no passthrough for request fields, so the cache
+// hints are added to the body here. The top-level cache_control is automatic
+// caching (the breakpoint follows the last block, so each agent step reads the
+// one before it); the one on the system message keeps tools + system prompt
+// cached across turns, mirroring buildChatSystem on the direct Anthropic path.
+function createOpenRouterCacheFetch(baseFetch?: typeof fetch): typeof fetch {
+  return async (input, init) => {
+    const send = baseFetch ?? fetch;
+    if (typeof init?.body !== 'string') return send(input, init);
+    let body: {
+      messages?: Array<{ role?: string; content?: unknown }>;
+      cache_control?: unknown;
+    };
+    try {
+      body = JSON.parse(init.body);
+    } catch {
+      return send(input, init);
+    }
+    if (!Array.isArray(body.messages)) return send(input, init);
+    body.cache_control = { type: 'ephemeral' };
+    const system = body.messages.find(
+      (m) => m.role === 'system' || m.role === 'developer'
+    );
+    if (system && typeof system.content === 'string') {
+      system.content = [
+        {
+          type: 'text',
+          text: system.content,
+          cache_control: { type: 'ephemeral' },
+        },
+      ];
+    }
+    return send(input, { ...init, body: JSON.stringify(body) });
+  };
 }
 
 function createPerplexityFetch(baseFetch: typeof fetch = fetch): typeof fetch {
@@ -1474,6 +1556,9 @@ function createChatModelInstance(
     } else if (requiresUserSuppliedAiUrl(aiService.service_type)) {
       providerOptions.fetch = createGuardedFetch(networkPolicy);
     }
+    if (wantsOpenRouterCacheControl(baseURL, modelName)) {
+      providerOptions.fetch = createOpenRouterCacheFetch(providerOptions.fetch);
+    }
     return createOpenAI(providerOptions).chat(modelName);
   }
   throw new Error(`Unsupported service type: ${aiService.service_type}`);
@@ -1840,6 +1925,42 @@ const KEYWORD_RULES: { category: ChatToolCategorySlug; keywords: RegExp }[] = [
   },
 ];
 
+// Large tools that only some requests in their category need. In auto mode
+// each stays out of the request until a user message in the conversation
+// matches its keywords or an earlier step already called it, so plain food
+// logging doesn't resend their schemas on every step. Both signals only grow
+// as the chat goes on, so a tool never drops out again mid-conversation (which
+// would invalidate the cached tool block). sparky_enable_tools with the tool's
+// category brings it in for anything the keywords miss.
+const ON_DEMAND_TOOLS: { tool: string; keywords: RegExp }[] = [
+  {
+    tool: 'sparky_food_assistant_state',
+    keywords:
+      /\b(recipes?|ingredients?|meal\s*plan\w*|plan\w*|import\w*|shopping|grocer\w*|prefer\w*|remember\w*|forget|always|never|tasks?|resume|continue|drafts?|bulk)\b/i,
+  },
+  {
+    tool: 'sparky_get_caffeine_kinetics',
+    keywords:
+      /\b(caffeine|coffee|espresso|latte|cappuccino|tea|energy\s+drinks?|cola|bedtime|sleep|half-?life)\b/i,
+  },
+];
+
+// Exported for unit testing.
+export function heldBackChatTools(messages: ChatMessage[]): string[] {
+  const userText = messages
+    .filter((m) => m.role === 'user')
+    .map(extractMessageText)
+    .join('\n');
+  const parts = messages.flatMap((m) =>
+    Array.isArray(m.parts) ? m.parts : Array.isArray(m.content) ? m.content : []
+  );
+  return ON_DEMAND_TOOLS.filter(
+    ({ tool, keywords }) =>
+      !keywords.test(userText) &&
+      !parts.some((p) => p.type === `tool-${tool}` || p.toolName === tool)
+  ).map(({ tool }) => tool);
+}
+
 function extractMessageText(msg: ChatMessage): string {
   const partsSource = Array.isArray(msg.parts)
     ? msg.parts
@@ -2098,7 +2219,8 @@ async function processChatMessage(
           role: 'user',
           content: '',
         }
-      )
+      ),
+      heldBackChatTools(messages)
     );
 
     const chatProviderOptions = buildChatProviderOptions(
@@ -2125,7 +2247,7 @@ async function processChatMessage(
       (sendTemperature) =>
         generateText({
           model: modelInstance,
-          system: systemPromptContent,
+          system: buildChatSystem(aiService.service_type, systemPromptContent),
           messages: llmMessages as NonNullable<
             Parameters<typeof generateText>[0]['messages']
           >,
@@ -2633,7 +2755,8 @@ async function processChatMessageStream(
           role: 'user',
           content: '',
         }
-      )
+      ),
+      heldBackChatTools(messages)
     );
 
     const chatProviderOptions = buildChatProviderOptions(
@@ -2659,7 +2782,7 @@ async function processChatMessageStream(
 
     const result = streamText({
       model: modelInstance,
-      system: systemPromptContent,
+      system: buildChatSystem(aiService.service_type, systemPromptContent),
       messages: llmMessages as NonNullable<
         Parameters<typeof streamText>[0]['messages']
       >,
@@ -2856,6 +2979,7 @@ export { processFoodOptionsRequest };
 export { testAiServiceConnection };
 export { processChatMessageStream };
 export { createPerplexityFetch };
+export { createChatModelInstance };
 export default {
   handleAiServiceSettings,
   getAiServiceSettings,
