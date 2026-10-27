@@ -21,6 +21,7 @@ import RunProgramsScreen from '../screens/RunProgramsScreen';
 import WorkoutFinderScreen from '../screens/WorkoutFinderScreen';
 import WorkoutSplitImportScreen from '../screens/WorkoutSplitImportScreen';
 import WorkoutSplitsScreen from '../screens/WorkoutSplitsScreen';
+import FuelingPlanScreen from '../screens/FuelingPlanScreen';
 import RunProgramCalendarScreen from '../screens/RunProgramCalendarScreen';
 import RunProgramRaceScreen from '../screens/RunProgramRaceScreen';
 import FitnessTestScreen from '../screens/FitnessTestScreen';
@@ -156,6 +157,7 @@ export const SafeRunPrograms = withErrorBoundary(RunProgramsScreen, 'RunPrograms
 export const SafeWorkoutSplits = withErrorBoundary(WorkoutSplitsScreen, 'WorkoutSplits', { canGoBack: true });
 export const SafeWorkoutFinder = withErrorBoundary(WorkoutFinderScreen, 'WorkoutFinder', { canGoBack: true });
 export const SafeWorkoutSplitImport = withErrorBoundary(WorkoutSplitImportScreen, 'WorkoutSplitImport', { canGoBack: true });
+export const SafeFuelingPlan = withErrorBoundary(FuelingPlanScreen, 'FuelingPlan', { canGoBack: true });
 export const SafeRunProgramRace = withErrorBoundary(RunProgramRaceScreen, 'RunProgramRace', { canGoBack: true });
 export const SafeFitnessTest = withErrorBoundary(FitnessTestScreen, 'FitnessTest', { canGoBack: true });
 export const SafeFitnessTestResult = withErrorBoundary(FitnessTestResultScreen, 'FitnessTestResult', { canGoBack: true });
