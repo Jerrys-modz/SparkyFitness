@@ -83,7 +83,8 @@ export function mergeRowOrder(
  * is arranged there is what the sheet shows.
  */
 export function groupRowsByStyle(
-  keys: readonly AddMenuItemKey[]
+  keys: readonly AddMenuItemKey[],
+  overrides: AddMenuRowStyleOverrides = {}
 ): Record<AddMenuRowStyle, AddMenuItemKey[]> {
   const groups: Record<AddMenuRowStyle, AddMenuItemKey[]> = {
     list: [],
@@ -92,10 +93,26 @@ export function groupRowsByStyle(
   };
   for (const style of ADD_MENU_ROW_STYLES) {
     groups[style] = keys.filter(
-      (key) => ADD_MENU_ITEM_ROW_STYLES[key] === style
+      (key) => resolveRowStyle(key, overrides) === style
     );
   }
   return groups;
+}
+
+/** How the person chose to show each item, where it differs from its default. */
+export type AddMenuRowStyleOverrides = Partial<
+  Record<AddMenuItemKey, AddMenuRowStyle>
+>;
+
+/** An item's style: the saved choice if it is a style we know, else its default. */
+export function resolveRowStyle(
+  key: AddMenuItemKey,
+  overrides: AddMenuRowStyleOverrides
+): AddMenuRowStyle {
+  const saved = overrides[key];
+  return saved && ADD_MENU_ROW_STYLES.includes(saved)
+    ? saved
+    : ADD_MENU_ITEM_ROW_STYLES[key];
 }
 
 /**

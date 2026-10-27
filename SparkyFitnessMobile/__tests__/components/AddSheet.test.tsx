@@ -171,6 +171,18 @@ describe('AddSheet', () => {
     __resetAppPreferencesStoreForTests();
   });
 
+  it('shows an item as the style the person chose', () => {
+    __resetAppPreferencesStoreForTests();
+    useAppPreferencesStore.getState().setAddMenuRowStyle('symptoms', 'action');
+    const onAddSymptoms = jest.fn();
+    const { getByText } = renderAddSheet({ onAddSymptoms });
+
+    // A button now, and it still works.
+    fireEvent.press(getByText('Symptoms & Health'));
+    expect(onAddSymptoms).toHaveBeenCalledTimes(1);
+    __resetAppPreferencesStoreForTests();
+  });
+
   it('opens the exercise sub-menu from a row', () => {
     __resetAppPreferencesStoreForTests();
     useAppPreferencesStore.setState({

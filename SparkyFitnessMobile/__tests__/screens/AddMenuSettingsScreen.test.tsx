@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
 
 import AddMenuSettingsScreen from '../../src/screens/AddMenuSettingsScreen';
 import { ADD_MENU_ITEM_KEYS } from '../../src/constants/addMenuItems';
@@ -76,13 +76,43 @@ describe('AddMenuSettingsScreen', () => {
   test('groups the rows the way the sheet draws them', () => {
     renderScreen();
 
-    expect(screen.getByText('List')).toBeTruthy();
+    // "List" is also a style option on every row's picker.
+    expect(screen.getAllByText('List').length).toBeGreaterThan(0);
     expect(screen.getByText('Pairs')).toBeTruthy();
     expect(screen.getByText('Buttons')).toBeTruthy();
     // List rows, then the pair, then the footer buttons.
     const keys = orderedRowKeys();
     expect(keys.indexOf('symptoms')).toBeLessThan(keys.indexOf('mood'));
     expect(keys.indexOf('mindfulness')).toBeLessThan(keys.indexOf('askSparky'));
+  });
+
+  test('each row says how it is shown, and a choice moves it', () => {
+    renderScreen();
+
+    expect(
+      screen.getByTestId('add-menu-style-mood').props.accessibilityLabel
+    ).toBe('Show as Pair');
+
+    // A block body: the store's setter can return a promise, which would make
+    // act wait asynchronously.
+    act(() => {
+      useAppPreferencesStore.getState().setAddMenuRowStyle('mood', 'action');
+    });
+
+    expect(
+      screen.getByTestId('add-menu-style-mood').props.accessibilityLabel
+    ).toBe('Show as Button');
+    const keys = orderedRowKeys();
+    expect(keys.indexOf('mindfulness')).toBeLessThan(keys.indexOf('mood'));
+  });
+
+  test('reset clears the style choices', () => {
+    useAppPreferencesStore.getState().setAddMenuRowStyle('mood', 'list');
+    renderScreen();
+
+    fireEvent.press(screen.getByTestId('add-menu-reset'));
+
+    expect(useAppPreferencesStore.getState().addMenuRowStyles).toEqual({});
   });
 
   test('leaves out a group with nothing in it', () => {

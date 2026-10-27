@@ -112,6 +112,9 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
     const [showExerciseMenu, setShowExerciseMenu] = useState(false);
     const addMenuCards = useAppPreferencesStore((st) => st.addMenuCards);
     const addMenuOrder = useAppPreferencesStore((st) => st.addMenuOrder);
+    const addMenuRowStyles = useAppPreferencesStore(
+      (st) => st.addMenuRowStyles
+    );
     const hiddenAddMenuItems = useAppPreferencesStore(
       (st) => st.hiddenAddMenuItems
     );
@@ -568,7 +571,8 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
     const shown = groupRowsByStyle(
       rowKeys(addMenuOrder, cardKeys).filter(
         (key) => itemDefs[key] && !hiddenAddMenuItems.includes(key)
-      )
+      ),
+      addMenuRowStyles
     );
     const withStyle = (style: AddMenuRowStyle) =>
       shown[style].flatMap((key) => {
@@ -584,9 +588,9 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
       const line = compactItems
         .slice(start, start + 2)
         .map(({ key, def }) => renderCompactRow(key, def));
-      if (line.length === 1) {
-        line.push(<View key={`spacer-${start}`} className="flex-1" />);
-      } else {
+      // A pair puts a hairline between its two; one on its own takes the
+      // whole line.
+      if (line.length === 2) {
         line.splice(
           1,
           0,

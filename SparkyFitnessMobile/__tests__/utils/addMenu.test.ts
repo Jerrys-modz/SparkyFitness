@@ -6,6 +6,7 @@ import {
   groupRowsByStyle,
   mergeGroupOrder,
   mergeRowOrder,
+  resolveRowStyle,
   placeInCardSlot,
   resolveAddMenuCards,
   rowKeys,
@@ -86,6 +87,28 @@ describe('addMenu', () => {
         compact: ['mood'],
         action: ['syncHealth', 'askSparky'],
       });
+    });
+  });
+
+  describe('row style choices', () => {
+    it('moves an item to the group the person chose', () => {
+      expect(
+        groupRowsByStyle(['symptoms', 'mood', 'askSparky'], {
+          symptoms: 'action',
+          mood: 'list',
+        })
+      ).toEqual({
+        list: ['mood'],
+        compact: [],
+        action: ['symptoms', 'askSparky'],
+      });
+    });
+
+    it('falls back to the default for a style it does not know', () => {
+      expect(resolveRowStyle('mood', { mood: 'sideways' as never })).toBe(
+        'compact'
+      );
+      expect(resolveRowStyle('mood', {})).toBe('compact');
     });
   });
 
