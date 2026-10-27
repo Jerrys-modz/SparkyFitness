@@ -543,7 +543,9 @@
     "moodHint": "Track state",
     "mindfulnessHint": "Breathing, zen",
     "recordActivity": "Record Activity",
-    "recordActivityHint": "Track a walk, run or ride with GPS"
+    "recordActivityHint": "Track a walk, run or ride with GPS",
+    "checkIn": "Daily Check-In",
+    "checkInHint": "Habits"
   },
   "screens": {
     "foods": "Foods",
@@ -1218,7 +1220,9 @@
     "summarySubtitle": "Show calories and macronutrients",
     "customNutrientDisplay": "Custom Nutrient Display",
     "limitDescription_one": "Up to {{count}} custom nutrients can be shown here.",
-    "limitDescription_other": "Up to {{count}} custom nutrients can be shown here."
+    "limitDescription_other": "Up to {{count}} custom nutrients can be shown here.",
+    "guidedCheckIn": "Guided check-in",
+    "guidedCheckInSubtitle": "Adds Check-In to the Add menu: log your mood, measurements and progress photos for the day, one step at a time."
   },
   "about": {
     "title": "About",
@@ -5503,6 +5507,21 @@
     "saveFailed": "Save failed",
     "saveMessage": "Could not save measurements. Please try again."
   },
+  "guidedCheckIn": {
+    "stepOfTotal": "Check-in: Step {{step}} of {{total}}",
+    "skip": "Skip",
+    "skipA11y": "Skip this step",
+    "saveAndContinue": "Save & continue",
+    "finish": "Finish",
+    "done": "Check-in complete",
+    "skipUnsavedTitle": "Skip this step?",
+    "skipUnsavedMessage": "Your changes on this step won't be saved.",
+    "backA11y": "Go back to the previous step",
+    "backUnsavedTitle": "Go back a step?",
+    "resumeTitle": "Continue your check-in?",
+    "resumeMessage": "You stopped at step {{step}} of {{total}}.",
+    "startOver": "Start over"
+  },
   "mood": {
     "logTitle": "Mood",
     "overall": "Overall mood",
@@ -6529,7 +6548,14 @@
     "setInputTitle": "Set input",
     "setInputDescription": "How you enter weight and reps on the watch during a workout: type them on a keypad, or tap a value and turn the Digital Crown or drag it, 0.5 at a time for weight.",
     "setInputKeypad": "Keypad",
-    "setInputCrown": "Digital Crown"
+    "setInputCrown": "Digital Crown",
+    "layoutTitle": "Layout",
+    "setScreenMetricsTitle": "Metrics on the set screen",
+    "setScreenMetricsSubtitle": "Elapsed time, heart rate and calories. Off moves them to their own page after the set screen (after Up Next, when that page is on).",
+    "upNextTitle": "Up Next page",
+    "upNextSubtitle": "A page one swipe up from the set screen with the next exercise, its target, and a Swap button to do another exercise first.",
+    "largeGoalsWaterTitle": "Larger text on Goals and Water",
+    "largeGoalsWaterSubtitle": "A bigger calorie ring and full-width water containers, in larger type."
   },
   "progressPhotos": {
     "card": {
@@ -6587,6 +6613,7 @@
     "historySection": "History",
     "historyDescription": "Your photos for this angle, newest first.",
     "historyDescriptionCapped": "Your {{limit}} most recent. Compare or Time-lapse look further back.",
+    "historyDescriptionCappedCheckIn": "Your {{limit}} most recent, newest first.",
     "slotSheetTitle": "Progress photo",
     "removeTitle": "Remove photo?",
     "removeMessage": "This deletes the photo from this day.",

@@ -93,8 +93,8 @@ describe('AddMenuSettingsScreen', () => {
     );
 
     const state = useAppPreferencesStore.getState();
-    expect(rowKeys(state.addMenuOrder, state.addMenuCards).slice(0, 2)).toEqual(
-      ['wellness', 'progressPhotos']
+    expect(rowKeys(state.addMenuOrder, state.addMenuCards).slice(0, 3)).toEqual(
+      ['checkIn', 'wellness', 'progressPhotos']
     );
   });
 

@@ -154,9 +154,17 @@ struct ContentView: View {
     private func view(for page: WatchPage) -> some View {
         switch page {
         case .goals:
-            GoalSummaryView()
+            if store.context.effectiveLargeGoalsWater {
+                GoalSummaryView()
+            } else {
+                ClassicGoalSummaryView()
+            }
         case .water:
-            WaterIntakeView()
+            if store.context.effectiveLargeGoalsWater {
+                WaterIntakeView()
+            } else {
+                ClassicWaterIntakeView()
+            }
         case .medications:
             MedicationsView()
         case .fasting:
@@ -223,10 +231,10 @@ struct FirstRunEntryView: View {
         ScrollView {
             VStack(spacing: 6) {
                 Text(String(localized: "watch.checkin.first.title", defaultValue: "First check-in"))
-                    .font(.caption)
+                    .font(.footnote)
                     .foregroundStyle(.secondary)
                 Text(String(localized: "watch.checkin.first.body", defaultValue: "Type today's numbers once — after this the Digital Crown starts from your last value."))
-                    .font(.caption2)
+                    .font(.footnote)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
 
