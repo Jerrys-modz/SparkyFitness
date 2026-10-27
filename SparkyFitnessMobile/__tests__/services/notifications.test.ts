@@ -16,6 +16,7 @@ import {
   maybePromptForExactAlarmPermission,
   scheduleFastGoalNotification,
   scheduleRestNotification,
+  scheduleDrinkReminderNotifications,
   scheduleFuelingReminderNotifications,
   scheduleWaterReminderNotifications,
   setNotificationsEnabled,
@@ -661,6 +662,62 @@ describe('notifications service', () => {
         )
       ).toEqual([]);
       expect(mockRequestPerms).not.toHaveBeenCalled();
+      expect(mockSchedule).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('scheduleDrinkReminderNotifications', () => {
+    const inMinutes = (minutes: number) =>
+      new Date(Date.now() + minutes * 60 * 1000);
+
+    it('schedules each future time on the fueling channel with the amount', async () => {
+      mockSchedule
+        .mockResolvedValueOnce('drink-1' as any)
+        .mockResolvedValueOnce('drink-2' as any);
+
+      const ids = await scheduleDrinkReminderNotifications(
+        [inMinutes(20), inMinutes(40)],
+        150
+      );
+
+      expect(ids).toEqual(['drink-1', 'drink-2']);
+      expect(mockSchedule).toHaveBeenCalledWith({
+        content: expect.objectContaining({
+          title: 'Time to drink 💧',
+          body: 'Have a drink, about 150 ml.',
+        }),
+        trigger: expect.objectContaining({
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
+          channelId: 'fueling',
+        }),
+      });
+    });
+
+    it('cancels what it scheduled when a later reminder fails', async () => {
+      mockSchedule
+        .mockResolvedValueOnce('drink-1' as any)
+        .mockRejectedValueOnce(new Error('scheduling unavailable'));
+
+      const ids = await scheduleDrinkReminderNotifications(
+        [inMinutes(20), inMinutes(40)],
+        150
+      );
+
+      expect(ids).toEqual([]);
+      expect(mockCancel).toHaveBeenCalledWith('drink-1');
+    });
+
+    it('schedules nothing while notifications are off or not allowed', async () => {
+      useAppPreferencesStore.getState().setNotificationsEnabled(false);
+      expect(
+        await scheduleDrinkReminderNotifications([inMinutes(20)], 150)
+      ).toEqual([]);
+
+      useAppPreferencesStore.getState().setNotificationsEnabled(true);
+      mockGetPerms.mockResolvedValue({ status: 'denied' } as any);
+      expect(
+        await scheduleDrinkReminderNotifications([inMinutes(20)], 150)
+      ).toEqual([]);
       expect(mockSchedule).not.toHaveBeenCalled();
     });
   });

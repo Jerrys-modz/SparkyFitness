@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { addLog } from './LogService';
 import {
   cancelScheduledNotification,
+  scheduleDrinkReminderNotifications,
   scheduleFuelingReminderNotifications,
 } from './notifications';
 import { fuelingReminderTimes } from '../utils/fuelingReminder';
@@ -19,8 +20,11 @@ export interface FuelingSession {
   productName: string;
   /** The saved food a portion stands for, when one was chosen. */
   food: FuelingFoodRef | null;
-  /** How many reminders were scheduled. */
+  /** How many carbohydrate reminders were scheduled. */
   reminderCount: number;
+  /** The separate drink reminders, when they were switched on. */
+  drink: { reminderCount: number; mlPerDrink: number } | null;
+  /** Every scheduled notification, carbohydrate and drink, so Stop reaches all. */
   notificationIds: string[];
 }
 
@@ -30,10 +34,12 @@ export interface StartFuelingSessionInput {
   portionGrams: number;
   productName: string;
   food?: FuelingFoodRef | null;
+  /** Drink reminders to run beside the carbohydrate ones. */
+  drink?: { offsetsMin: readonly number[]; mlPerDrink: number } | null;
 }
 
 export type StartFuelingSessionResult =
-  | { status: 'scheduled'; reminderCount: number }
+  | { status: 'scheduled'; reminderCount: number; drinkCount: number }
   /** No reminder is left in the future for this plan. */
   | { status: 'nothing_to_schedule' }
   /** Notifications are off or the OS permission is missing. */
@@ -60,6 +66,15 @@ function isFoodRef(value: unknown): value is FuelingFoodRef {
   );
 }
 
+function isDrinkSession(value: unknown): value is FuelingSession['drink'] {
+  if (!value || typeof value !== 'object') return false;
+  const drink = value as Partial<NonNullable<FuelingSession['drink']>>;
+  return (
+    typeof drink.reminderCount === 'number' &&
+    typeof drink.mlPerDrink === 'number'
+  );
+}
+
 async function readSession(): Promise<FuelingSession | null> {
   try {
     const raw = await AsyncStorage.getItem(FUELING_SESSION_STORAGE_KEY);
@@ -78,6 +93,7 @@ async function readSession(): Promise<FuelingSession | null> {
         portionGrams: parsed.portionGrams,
         productName: parsed.productName,
         food: isFoodRef(parsed.food) ? parsed.food : null,
+        drink: isDrinkSession(parsed.drink) ? parsed.drink : null,
         reminderCount: parsed.reminderCount,
         notificationIds: parsed.notificationIds,
       };
@@ -123,25 +139,58 @@ export function startFuelingSession(
       offsetsMin: input.offsetsMin,
       now,
     });
-    if (times.length === 0) return { status: 'nothing_to_schedule' };
+    const drinkTimes = input.drink
+      ? fuelingReminderTimes({
+          startAt: input.startAt,
+          offsetsMin: input.drink.offsetsMin,
+          now,
+        })
+      : [];
+    if (times.length === 0 && drinkTimes.length === 0) {
+      return { status: 'nothing_to_schedule' };
+    }
 
     const stored = await readSession();
     if (stored) await clearSession(stored);
 
-    const notificationIds = await scheduleFuelingReminderNotifications(
-      times,
-      input.portionGrams,
-      input.productName,
-      input.food ?? null
-    );
-    if (notificationIds.length === 0) return { status: 'not_permitted' };
+    const carbIds =
+      times.length > 0
+        ? await scheduleFuelingReminderNotifications(
+            times,
+            input.portionGrams,
+            input.productName,
+            input.food ?? null
+          )
+        : [];
+    if (times.length > 0 && carbIds.length === 0) {
+      return { status: 'not_permitted' };
+    }
+    const drinkIds =
+      input.drink && drinkTimes.length > 0
+        ? await scheduleDrinkReminderNotifications(
+            drinkTimes,
+            input.drink.mlPerDrink
+          )
+        : [];
+    if (drinkTimes.length > 0 && drinkIds.length === 0) {
+      await Promise.all(carbIds.map((id) => cancelScheduledNotification(id)));
+      return { status: 'not_permitted' };
+    }
+    const notificationIds = [...carbIds, ...drinkIds];
 
     const session: FuelingSession = {
       startAtMs: input.startAt.getTime(),
       portionGrams: input.portionGrams,
       productName: input.productName,
       food: input.food ?? null,
-      reminderCount: notificationIds.length,
+      reminderCount: carbIds.length,
+      drink:
+        input.drink && drinkIds.length > 0
+          ? {
+              reminderCount: drinkIds.length,
+              mlPerDrink: input.drink.mlPerDrink,
+            }
+          : null,
       notificationIds,
     };
     try {
@@ -157,7 +206,11 @@ export function startFuelingSession(
       );
       throw error;
     }
-    return { status: 'scheduled', reminderCount: notificationIds.length };
+    return {
+      status: 'scheduled',
+      reminderCount: carbIds.length,
+      drinkCount: drinkIds.length,
+    };
   });
 }
 

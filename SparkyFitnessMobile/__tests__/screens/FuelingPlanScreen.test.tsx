@@ -74,6 +74,10 @@ jest.mock('../../src/services/fuelingReminders', () => ({
   cancelFuelingSession: jest.fn(),
 }));
 
+jest.mock('../../src/hooks/useRunGoals', () => ({
+  useRunGoals: () => ({ data: null, loaded: true }),
+}));
+
 jest.mock('../../src/services/notifications', () => ({
   requestNotificationPermission: jest.fn(),
 }));
@@ -242,5 +246,65 @@ describe('FuelingPlanScreen', () => {
       fireEvent.press(stop);
     });
     expect(mockCancel).toHaveBeenCalledTimes(1);
+  });
+
+  describe('drink reminders', () => {
+    it('shows the drink plan once switched on', () => {
+      const { getByTestId, queryByTestId } = renderScreen();
+      expect(queryByTestId('fueling-drink-summary')).toBeNull();
+
+      fireEvent(getByTestId('fueling-drink-switch'), 'valueChange', true);
+      expect(getByTestId('fueling-drink-summary').props.children).toBe(
+        '150 ml every 20 min, 450 ml an hour.'
+      );
+      expect(queryByTestId('fueling-drink-warning')).toBeNull();
+    });
+
+    it('warns about a lot of fluid', () => {
+      const { getByTestId } = renderScreen();
+      fireEvent(getByTestId('fueling-drink-switch'), 'valueChange', true);
+      fireEvent.changeText(getByTestId('fueling-drink-interval'), '10');
+      fireEvent.changeText(getByTestId('fueling-drink-ml'), '200');
+      expect(getByTestId('fueling-drink-warning')).toBeTruthy();
+    });
+
+    it('sends the drink reminders with the carbohydrate ones', async () => {
+      const { getByTestId } = renderScreen();
+      fireEvent(getByTestId('fueling-drink-switch'), 'valueChange', true);
+      await act(async () => {
+        fireEvent.press(getByTestId('fueling-start'));
+      });
+
+      const call = mockStart.mock.calls[0][0];
+      expect(call.drink?.mlPerDrink).toBe(150);
+      expect(call.drink?.offsetsMin[0]).toBe(20);
+      expect(call.offsetsMin).toHaveLength(7);
+    });
+
+    it('sends no drink reminders when switched off', async () => {
+      const { getByTestId } = renderScreen();
+      await act(async () => {
+        fireEvent.press(getByTestId('fueling-start'));
+      });
+      expect(mockStart.mock.calls[0][0].drink).toBeNull();
+    });
+
+    it('can remind to drink on a run that needs no fuel', async () => {
+      const { getByTestId } = renderScreen();
+      fireEvent.changeText(getByTestId('fueling-hours'), '0');
+      fireEvent.changeText(getByTestId('fueling-minutes'), '45');
+      await act(async () => {
+        fireEvent.press(getByTestId('fueling-start'));
+      });
+      expect(mockStart).not.toHaveBeenCalled();
+
+      fireEvent(getByTestId('fueling-drink-switch'), 'valueChange', true);
+      await act(async () => {
+        fireEvent.press(getByTestId('fueling-start'));
+      });
+      const call = mockStart.mock.calls[0][0];
+      expect(call.offsetsMin).toEqual([]);
+      expect(call.drink?.offsetsMin).toEqual([20, 40]);
+    });
   });
 });
