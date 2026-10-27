@@ -195,7 +195,7 @@ private struct WaitingForWorkoutView: View {
                     choosingCardio = true
                 } label: {
                     Label(String(localized: "watch.cardio.title", defaultValue: "Cardio"), systemImage: "figure.run")
-                        .font(.system(size: WatchStyle.s(16), weight: .semibold))
+                        .font(.system(size: WatchStyle.s(19), weight: .semibold))
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal, 12)
@@ -273,7 +273,7 @@ private struct WaitingForWorkoutView: View {
                             start(presetId: workout.presetId)
                         } label: {
                             Text(startingId == workout.presetId ? "Starting…" : workout.name)
-                                .font(.system(size: WatchStyle.s(16), weight: .semibold))
+                                .font(.system(size: WatchStyle.s(19), weight: .semibold))
                                 .foregroundStyle(.white)
                                 .multilineTextAlignment(.leading)
                                 .lineLimit(2)
@@ -311,11 +311,11 @@ private struct WaitingForWorkoutView: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
             }
-            .font(.footnote.weight(.semibold))
+            .font(.callout.weight(.semibold))
             .foregroundStyle(blue)
             HStack(spacing: 8) {
                 Text(startingId == workout.presetId ? "Starting…" : workout.name)
-                    .font(.system(size: WatchStyle.s(16), weight: .semibold))
+                    .font(.system(size: WatchStyle.s(19), weight: .semibold))
                     .foregroundStyle(.white)
                     .multilineTextAlignment(.leading)
                     .lineLimit(2)

@@ -90,12 +90,12 @@ struct MedicationsView: View {
     private func emptyState(synced: Bool) -> some View {
         VStack(spacing: 8) {
             Image(systemName: "pills.fill")
-                .font(.title2)
+                .watchFont(.title2, classic: .system(size: 20))
                 .foregroundStyle(GoalPalette.medication)
             Text(synced
                  ? String(localized: "watch.medications.nothingToday", defaultValue: "Nothing scheduled today")
                  : String(localized: "watch.medications.notSynced", defaultValue: "Open SparkyFitness on your iPhone to see your medications"))
-                .font(.body)
+                .watchFont(.body, classic: .system(size: 10))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
         }
@@ -164,11 +164,11 @@ private struct MedicationDoseRow: View {
             MedicationIcon(dose: dose)
             VStack(alignment: .leading, spacing: 2) {
                 Text(dose.name)
-                    .font(.headline)
+                    .watchFont(.headline, classic: .system(size: 12, weight: .medium))
                     .lineLimit(2)
                 if let caption {
                     Text(caption)
-                        .font(.footnote)
+                        .watchFont(.footnote, classic: .system(size: 9))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
@@ -194,7 +194,7 @@ private struct MedicationDoseRow: View {
             // Orange until the phone has it, as on the Water page.
             let queued = store.medicationTap(for: dose.id)?.state == .queued
             Image(systemName: "checkmark.circle.fill")
-                .font(.title3)
+                .watchFont(.title3, classic: .system(size: 18))
                 .foregroundStyle(queued ? Color.orange : Color.green)
         }
     }
@@ -216,18 +216,18 @@ struct MedicationDoseView: View {
                 MedicationIcon(dose: dose, size: 32)
                 VStack(spacing: 2) {
                     Text(dose.name)
-                        .font(.title3.weight(.semibold))
+                        .watchFont(.title3.weight(.semibold), classic: .system(size: 14, weight: .semibold))
                         .multilineTextAlignment(.center)
                     let caption = [dose.detail, dose.time].filter { !$0.isEmpty }.joined(separator: " · ")
                     if !caption.isEmpty {
                         Text(caption)
-                            .font(.footnote)
+                            .watchFont(.footnote, classic: .caption2)
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
                     }
                     if let text = Self.statusText(status) {
                         Text(text)
-                            .font(.footnote.weight(.semibold))
+                            .watchFont(.footnote.weight(.semibold), classic: .caption2.weight(.semibold))
                             .foregroundStyle(status == .taken ? Color.green : Color.secondary)
                     }
                 }
