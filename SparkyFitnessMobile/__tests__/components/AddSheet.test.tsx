@@ -263,6 +263,69 @@ describe('AddSheet', () => {
     expect(onDismissWithoutAction).toHaveBeenCalledTimes(1);
   });
 
+  describe('guided check-in row', () => {
+    it('is hidden by default', () => {
+      const { ref, getByText, queryByText } = renderAddSheet();
+
+      act(() => ref.current?.present());
+
+      expect(getByText('Progress Photos')).toBeTruthy();
+      expect(queryByText('Check-In')).toBeNull();
+    });
+
+    it('stays hidden while showCheckIn is off, even with a handler, and appears once it is on', () => {
+      const onStartCheckIn = jest.fn();
+      const { ref, props, queryByText, getByText, rerender } = renderAddSheet({
+        onStartCheckIn,
+        showCheckIn: false,
+      });
+
+      act(() => ref.current?.present());
+      expect(queryByText('Check-In')).toBeNull();
+
+      rerender(<AddSheet ref={ref} {...props} showCheckIn />);
+
+      expect(getByText('Check-In')).toBeTruthy();
+      expect(onStartCheckIn).not.toHaveBeenCalled();
+    });
+
+    it('shows the Check-In row before Progress Photos, first among the secondary rows', () => {
+      const { ref, getAllByText } = renderAddSheet({
+        onStartCheckIn: jest.fn(),
+        showCheckIn: true,
+        onAddMood: jest.fn(),
+      });
+
+      act(() => ref.current?.present());
+
+      const rowLabels = getAllByText(/^(Check-In|Progress Photos|Mood)$/).map(
+        (node) => node.props.children
+      );
+      expect(rowLabels).toEqual(['Check-In', 'Progress Photos', 'Mood']);
+    });
+
+    it('invokes onStartCheckIn when the Check-In row is pressed', () => {
+      const onStartCheckIn = jest.fn();
+      const onAddMood = jest.fn();
+      const onDismissWithoutAction = jest.fn();
+      const { ref, getByText } = renderAddSheet({
+        onStartCheckIn,
+        showCheckIn: true,
+        onAddMood,
+        onDismissWithoutAction,
+      });
+
+      act(() => ref.current?.present());
+      fireEvent.press(getByText('Check-In'));
+      act(() => mockBottomSheetControls.onDismiss?.());
+
+      expect(onStartCheckIn).toHaveBeenCalledTimes(1);
+      expect(mockBottomSheetControls.dismiss).toHaveBeenCalledTimes(1);
+      expect(onAddMood).not.toHaveBeenCalled();
+      expect(onDismissWithoutAction).not.toHaveBeenCalled();
+    });
+  });
+
   it('offers live start, activity, and past logging in the exercise submenu', () => {
     const { ref, props, getByText, queryByText } = renderAddSheet();
 

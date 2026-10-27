@@ -14,6 +14,7 @@ import liftosaurService from '../integrations/liftosaur/liftosaurService.js';
 import intervalsService from '../integrations/intervals/intervalsService.js';
 import { log } from '../config/logging.js';
 import { startProviderSync } from './providerSyncClaim.js';
+import { isShuttingDown } from '../utils/shutdownHooks.js';
 
 export interface ProviderSyncTarget {
   id: string;
@@ -146,6 +147,13 @@ export const runProviderSync = async (
     const providers = providerBatches.flat() as unknown as ProviderSyncTarget[];
 
     for (const provider of providers) {
+      if (isShuttingDown()) {
+        log(
+          'info',
+          `[CRON] ${config.name} sync stopped for shutdown before user ${provider.user_id}.`
+        );
+        return;
+      }
       if (provider.is_active && provider.sync_frequency !== 'manual') {
         try {
           const started = await startProviderSync(

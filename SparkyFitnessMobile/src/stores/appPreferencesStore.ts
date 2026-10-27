@@ -132,6 +132,7 @@ export const PREFERENCE_DEFAULTS = {
   activeWorkoutMetricColumn: 'rpe' as ActiveWorkoutMetricColumn,
   diarySummaryVisible: false,
   diarySummaryExpanded: false,
+  guidedCheckInEnabled: false,
   defaultRestSec: DEFAULT_REST_SEC as number,
   treadmillCorrectionEnabled: false,
   treadmillCorrectionPercent: 0,
@@ -162,6 +163,7 @@ export const PREFERENCE_DEFAULTS = {
   watchSetScreenMetrics: true,
   watchUpNextPage: false,
   watchLargeGoalsWater: false,
+  activeWorkoutNowCard: false,
   watchNutrientOrder: [] as string[],
   shownWatchNutrients: [...DEFAULT_WATCH_NUTRIENTS] as string[],
   watchSetInputStyle: 'keypad' as WatchSetInputStyle,
@@ -221,6 +223,8 @@ export type AppPreferencesData = {
   activeWorkoutMetricColumn: ActiveWorkoutMetricColumn;
   diarySummaryVisible: boolean;
   diarySummaryExpanded: boolean;
+  /** Adds the AddSheet's Check-In row (Settings > Diary). Off by default. */
+  guidedCheckInEnabled: boolean;
   defaultRestSec: number;
   /**
    * Treadmill display correction (device-local): when on, a distance typed or
@@ -304,6 +308,8 @@ export type AppPreferencesData = {
   watchUpNextPage: boolean;
   /** Whether the watch's Goals and Water pages use the larger-text layout. */
   watchLargeGoalsWater: boolean;
+  /** Whether the active workout pins the Now card under the exercise rail. */
+  activeWorkoutNowCard: boolean;
   /**
    * Order of the nutrients the watch's Goals page can list (standard keys and
    * custom nutrient names). Empty until the wearer drags one.
@@ -363,6 +369,7 @@ export interface AppPreferencesState extends AppPreferencesData {
   setActiveWorkoutMetricColumn: (value: ActiveWorkoutMetricColumn) => void;
   setDiarySummaryVisible: (value: boolean) => void;
   setDiarySummaryExpanded: (value: boolean) => void;
+  setGuidedCheckInEnabled: (value: boolean) => void;
   setDefaultRestSec: (value: number) => void;
   setPaceReferenceRace: (value: PaceReferenceRace | null) => void;
   setPaceReferenceOnWatch: (value: boolean) => void;
@@ -401,6 +408,7 @@ export interface AppPreferencesState extends AppPreferencesData {
   setWatchSetScreenMetrics: (value: boolean) => void;
   setWatchUpNextPage: (value: boolean) => void;
   setWatchLargeGoalsWater: (value: boolean) => void;
+  setActiveWorkoutNowCard: (value: boolean) => void;
   setWatchNutrientOrder: (order: string[]) => void;
   setWatchNutrientShown: (key: string, isShown: boolean) => void;
   setWatchSetInputStyle: (value: WatchSetInputStyle) => void;
@@ -543,6 +551,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         set({ activeWorkoutMetricColumn: value }),
       setDiarySummaryVisible: (value) => set({ diarySummaryVisible: value }),
       setDiarySummaryExpanded: (value) => set({ diarySummaryExpanded: value }),
+      setGuidedCheckInEnabled: (value) => set({ guidedCheckInEnabled: value }),
       setDefaultRestSec: (value) => set({ defaultRestSec: value }),
       setPaceReferenceRace: (value) => set({ paceReferenceRace: value }),
       setPaceReferenceOnWatch: (value) => set({ paceReferenceOnWatch: value }),
@@ -671,6 +680,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         set({ watchSetScreenMetrics: value }),
       setWatchUpNextPage: (value) => set({ watchUpNextPage: value }),
       setWatchLargeGoalsWater: (value) => set({ watchLargeGoalsWater: value }),
+      setActiveWorkoutNowCard: (value) => set({ activeWorkoutNowCard: value }),
       setWatchPageHidden: (key, isHidden) =>
         set((state) => ({
           hiddenWatchPages: withMembership(
@@ -746,6 +756,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         activeWorkoutMetricColumn: state.activeWorkoutMetricColumn,
         diarySummaryVisible: state.diarySummaryVisible,
         diarySummaryExpanded: state.diarySummaryExpanded,
+        guidedCheckInEnabled: state.guidedCheckInEnabled,
         defaultRestSec: state.defaultRestSec,
         treadmillCorrectionEnabled: state.treadmillCorrectionEnabled,
         treadmillCorrectionPercent: state.treadmillCorrectionPercent,
@@ -776,6 +787,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         watchSetScreenMetrics: state.watchSetScreenMetrics,
         watchUpNextPage: state.watchUpNextPage,
         watchLargeGoalsWater: state.watchLargeGoalsWater,
+        activeWorkoutNowCard: state.activeWorkoutNowCard,
         watchNutrientOrder: state.watchNutrientOrder,
         shownWatchNutrients: state.shownWatchNutrients,
         watchSetInputStyle: state.watchSetInputStyle,

@@ -512,7 +512,16 @@
       "liveHeartRateFor": "Current heart rate for {{name}}",
       "heartRateUnit": "bpm"
     },
-    "nextSet": "Next Set"
+    "nextSet": "Next Set",
+    "now": {
+      "label": "Now",
+      "upNext": "Up next",
+      "swap": "Swap",
+      "swapLabel": "Swap {{name}}",
+      "setOf": "Set {{number}} of {{total}}",
+      "warmupOf": "Warm-up {{number}} of {{total}}",
+      "then": "Then {{name}}"
+    }
   },
   "addSheet": {
     "food": "Food",
@@ -544,7 +553,8 @@
     "moodHint": "Track state",
     "mindfulnessHint": "Breathing, zen",
     "recordActivity": "Record Activity",
-    "recordActivityHint": "Track a walk, run or ride with GPS"
+    "recordActivityHint": "Track a walk, run or ride with GPS",
+    "checkIn": "Check-In"
   },
   "screens": {
     "foods": "Foods",
@@ -1237,7 +1247,9 @@
     "summarySubtitle": "Show calories and macronutrients",
     "customNutrientDisplay": "Custom Nutrient Display",
     "limitDescription_one": "Up to {{count}} custom nutrients can be shown here.",
-    "limitDescription_other": "Up to {{count}} custom nutrients can be shown here."
+    "limitDescription_other": "Up to {{count}} custom nutrients can be shown here.",
+    "guidedCheckIn": "Guided check-in",
+    "guidedCheckInSubtitle": "Adds Check-In to the Add menu: log your mood, measurements and progress photos for the day, one step at a time."
   },
   "about": {
     "title": "About",
@@ -1323,7 +1335,9 @@
     "warmupCalculator": "Warm-up calculator",
     "warmupCalculatorSubtitle": "The ramp, and the weights it rounds to, for warm-up sets you add to an exercise.",
     "treadmillStride": "Treadmill & stride",
-    "treadmillStrideSubtitle": "See and set the stride used to estimate indoor distance, and correct a treadmill that reads long or short."
+    "treadmillStrideSubtitle": "See and set the stride used to estimate indoor distance, and correct a treadmill that reads long or short.",
+    "nowCard": "Now card",
+    "nowCardSubtitle": "Pin the set to do now above the exercise list: its target in large type, the exercise photo, what comes next, and Swap to do another exercise first."
   },
   "restPeriod": {
     "title": "Rest period",
@@ -2336,7 +2350,12 @@
     "repCount_other": "{{formattedCount}} reps",
     "modalityWeightDistance": "Weight & Distance (carries)",
     "modalityWeightDuration": "Weight & Duration (loaded holds)",
-    "addWarmups": "Add warm-ups"
+    "addWarmups": "Add warm-ups",
+    "replaceWithOther": "Replace with another exercise…",
+    "doAnotherFirst": "Do another exercise first…",
+    "swapTitle": "Swap {{name}}",
+    "doNowSets_one": "Do now · {{count}} set",
+    "doNowSets_other": "Do now · {{count}} sets"
   },
   "cycleCard": {
     "mode": {
@@ -6660,6 +6679,7 @@
     "historySection": "History",
     "historyDescription": "Your photos for this angle, newest first.",
     "historyDescriptionCapped": "Your {{limit}} most recent. Compare or Time-lapse look further back.",
+    "historyDescriptionCappedCheckIn": "Your {{limit}} most recent, newest first.",
     "slotSheetTitle": "Progress photo",
     "removeTitle": "Remove photo?",
     "removeMessage": "This deletes the photo from this day.",
@@ -10040,5 +10060,20 @@
       "shoulders": "Shoulders",
       "legs": "Legs"
     }
+  },
+  "guidedCheckIn": {
+    "stepOfTotal": "Check-in: Step {{step}} of {{total}}",
+    "skip": "Skip",
+    "skipA11y": "Skip this step",
+    "saveAndContinue": "Save & continue",
+    "finish": "Finish",
+    "done": "Check-in complete",
+    "skipUnsavedTitle": "Skip this step?",
+    "skipUnsavedMessage": "Your changes on this step won't be saved.",
+    "backA11y": "Go back to the previous step",
+    "backUnsavedTitle": "Go back a step?",
+    "resumeTitle": "Continue your check-in?",
+    "resumeMessage": "You stopped at step {{step}} of {{total}}.",
+    "startOver": "Start over"
   }
 }

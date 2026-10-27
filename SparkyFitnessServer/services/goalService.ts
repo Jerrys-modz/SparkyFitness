@@ -13,7 +13,11 @@ import type { AdaptiveTdeeResult } from './AdaptiveTdeeService.js';
 import { ageOnDay } from '../utils/dateHelpers.js';
 import { log } from '../config/logging.js';
 import { addDays, format, getDay, isAfter, parseISO } from 'date-fns';
-import { localDateToDay, maintenancePeriodOnDay } from '@workspace/shared';
+import {
+  localDateToDay,
+  maintenancePeriodOnDay,
+  weeklyGoalPlanInForce,
+} from '@workspace/shared';
 import { loadUserTimezone } from '../utils/timezoneLoader.js';
 import {
   todayInZone,
@@ -71,8 +75,12 @@ async function getUserGoalsForRange(
       g,
     ])
   );
-  const activeWeeklyPlan =
-    await weeklyGoalPlanRepository.getActiveWeeklyGoalPlan(userId, startDate);
+  const weeklyPlans =
+    await weeklyGoalPlanRepository.getActiveWeeklyGoalPlansInRange(
+      userId,
+      startDate,
+      endDate
+    );
   const presetCache: Record<string, unknown> = {};
   const getPreset = async (presetId: string) => {
     if (!presetCache[presetId]) {
@@ -99,7 +107,7 @@ async function getUserGoalsForRange(
     'thursday_preset_id',
     'friday_preset_id',
     'saturday_preset_id',
-  ];
+  ] as const;
 
   let currentFallback = (fallback ?? DEFAULT_GOALS) as Record<string, unknown>;
   const result: Record<string, unknown> = {};
@@ -230,8 +238,9 @@ async function getUserGoalsForRange(
 
     if (goals) {
       currentFallback = goals;
-    } else if (activeWeeklyPlan) {
-      const presetId = activeWeeklyPlan[DAY_PRESETS[getDay(cursor)]];
+    } else {
+      const weeklyPlan = weeklyGoalPlanInForce(weeklyPlans, dateStr);
+      const presetId = weeklyPlan?.[DAY_PRESETS[getDay(cursor)]];
       if (presetId) {
         goals = await getPreset(presetId);
       }

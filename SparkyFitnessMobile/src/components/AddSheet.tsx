@@ -45,6 +45,9 @@ interface AddSheetProps {
   onAddMeasurements: () => void;
   onAddProgressPhotos: () => void;
   onAskSparky: () => void;
+  /** Starts the guided check-in; the row shows only with `showCheckIn`. */
+  onStartCheckIn?: () => void;
+  showCheckIn?: boolean;
   onAddSymptoms?: () => void;
   onAddMood?: () => void;
   onAddMindfulness?: () => void;
@@ -113,6 +116,8 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
       onAddMeasurements,
       onAddProgressPhotos,
       onAskSparky,
+      onStartCheckIn,
+      showCheckIn,
       onAddSymptoms,
       onAddMood,
       onAddMindfulness,
@@ -539,6 +544,14 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
         icon: ADD_MENU_ITEM_ICONS.scanFood,
         onPress: onBarcodeScan,
       },
+      checkIn:
+        showCheckIn && onStartCheckIn
+          ? {
+              label: t('addSheet.checkIn', { defaultValue: 'Check-In' }),
+              icon: ADD_MENU_ITEM_ICONS.checkIn,
+              onPress: onStartCheckIn,
+            }
+          : undefined,
       progressPhotos: {
         label: t('addSheet.progressPhotos', {
           defaultValue: 'Progress Photos',
