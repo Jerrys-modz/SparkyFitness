@@ -83,7 +83,7 @@ struct TrendView: View {
             isHapticFeedbackEnabled: false
         )
         .onChange(of: currentMetric) {
-            WKInterfaceDevice.current().play(.click)
+            Haptics.tap()
         }
     }
 

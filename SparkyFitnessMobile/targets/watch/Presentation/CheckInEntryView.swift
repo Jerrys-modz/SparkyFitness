@@ -311,7 +311,7 @@ struct CheckInEntryView: View {
         )
         let state = session.send(checkIn)
         store.markState(state, for: checkIn)
-        WKInterfaceDevice.current().play(.success)
+        Haptics.saved()
         onSaved()
     }
 }
