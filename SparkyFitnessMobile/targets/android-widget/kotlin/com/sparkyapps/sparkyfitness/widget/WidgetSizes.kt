@@ -90,10 +90,21 @@ internal object WidgetSizes {
      */
     private val WATER_WIDE = 300.dp
 
+    /**
+     * From here the compact water layout puts a status under the amount
+     * instead of in its place: 16 padding + 26.9 amount (16 sp) + 2 + 20.7
+     * status (12 sp) + 4 + 28 bar and buttons row = 98 dp at font scale 1.3,
+     * so a Pixel's one-row widget (102 dp) keeps its amount after a failed
+     * tap; a HyperOS row (75 dp) has no room for both.
+     */
+    private val WATER_STATUS_UNDER_AMOUNT_HEIGHT = 98.dp
+
     val waterSizes: Set<DpSize> = setOf(
         WATER_MIN,
+        DpSize(WATER_MIN.width, WATER_STATUS_UNDER_AMOUNT_HEIGHT),
         DpSize(WATER_MIN.width, WATER_CLASSIC_HEIGHT),
         DpSize(WATER_WIDE, WATER_MIN.height),
+        DpSize(WATER_WIDE, WATER_STATUS_UNDER_AMOUNT_HEIGHT),
         DpSize(WATER_WIDE, WATER_CLASSIC_HEIGHT),
     )
 
@@ -108,6 +119,9 @@ internal object WidgetSizes {
      * status line at font scale 1.3 makes it 74), for a HyperOS 4x1 (75 dp).
      */
     fun isShortWater(size: DpSize): Boolean = size.height < WATER_CLASSIC_HEIGHT
+
+    fun fitsWaterStatusUnderAmount(size: DpSize): Boolean =
+        size.height >= WATER_STATUS_UNDER_AMOUNT_HEIGHT
 
     fun isCompactCalorie(size: DpSize): Boolean = size.height < CALORIE_CLASSIC_HEIGHT
 }

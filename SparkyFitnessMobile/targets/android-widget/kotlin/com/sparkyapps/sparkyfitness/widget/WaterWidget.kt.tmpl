@@ -117,7 +117,11 @@ class WaterWidget : GlanceAppWidget() {
         ) {
             when {
                 wide -> SideBySide(widgetContext = widgetContext, snapshot = snapshot, short = short)
-                short -> Compact(widgetContext = widgetContext, snapshot = snapshot)
+                short -> Compact(
+                    widgetContext = widgetContext,
+                    snapshot = snapshot,
+                    roomForStatus = WidgetSizes.fitsWaterStatusUnderAmount(size),
+                )
                 else -> Column(modifier = GlanceModifier.fillMaxWidth()) {
                     WaterTitle(context = widgetContext)
                     Spacer(modifier = GlanceModifier.height(8.dp))
@@ -193,17 +197,20 @@ class WaterWidget : GlanceAppWidget() {
     }
 
     /**
-     * One row tall and narrow: the amount on top (a status in its place) and
-     * the bar with smaller buttons beside it, so neither is cut off.
+     * Short and narrow: the amount on top and the bar with smaller buttons
+     * beside it, so neither is cut off. A status goes under the amount when
+     * [roomForStatus], and takes its place on a shorter row (a HyperOS 2x1).
      */
     @Composable
-    private fun Compact(widgetContext: Context, snapshot: WaterSnapshot?) {
+    private fun Compact(widgetContext: Context, snapshot: WaterSnapshot?, roomForStatus: Boolean) {
         Column(modifier = GlanceModifier.fillMaxWidth()) {
             val status = statusRes(snapshot)
-            if (status != null) {
-                StatusText(context = widgetContext, res = status, maxLines = 1)
-            } else {
+            if (status == null || roomForStatus) {
                 AmountText(context = widgetContext, snapshot = snapshot, fontSize = 16)
+            }
+            if (status != null) {
+                if (roomForStatus) Spacer(modifier = GlanceModifier.height(2.dp))
+                StatusText(context = widgetContext, res = status, maxLines = 1)
             }
             Spacer(modifier = GlanceModifier.height(4.dp))
             Row(

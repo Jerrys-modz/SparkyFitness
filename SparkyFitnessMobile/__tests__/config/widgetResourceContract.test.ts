@@ -916,11 +916,19 @@ describe('Android widget localization contract', () => {
       expect([
         ...src.matchAll(/WaterButtons\(\s*widgetContext = /g),
       ]).toHaveLength(3);
-      // A one-row layout has no room for a status line: the status takes the
-      // place of the amount (compact) or of the bar (side by side).
+      // The short layouts have no room for the status line under the bar: the
+      // status goes under the amount (compact, when tall enough), in its
+      // place (compact, on a shorter row) or in place of the bar (side by
+      // side), so the amount stays wherever it can.
       expect([
         ...src.matchAll(/val status = statusRes\(snapshot\)/g),
       ]).toHaveLength(2);
+      expect(src).toMatch(
+        /if \(status == null \|\| roomForStatus\) \{\s*AmountText\(/
+      );
+      expect(src).toMatch(
+        /roomForStatus = WidgetSizes\.fitsWaterStatusUnderAmount\(size\)/
+      );
     });
 
     it('never uses SizeMode.Exact or lambda actions in the Glance widgets', () => {
