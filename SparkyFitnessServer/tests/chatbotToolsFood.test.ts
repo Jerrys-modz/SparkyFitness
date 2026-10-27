@@ -1969,6 +1969,49 @@ describe('log_external_food', () => {
     expect(foodEntryService.createFoodEntry).not.toHaveBeenCalled();
   });
 
+  it('fetches the selected ID directly when a search by its full name misses it', async () => {
+    mockUsdaLookup([usdaApple]);
+    vi.mocked(fetchProviderFoodDetails).mockResolvedValue({
+      ...usdaApple,
+      name: 'Apples, raw, with skin',
+      provider_external_id: '1102644',
+    });
+    vi.mocked(foodCoreService.createFood).mockResolvedValue({
+      id: FOOD_ID,
+      name: 'Apples, raw, with skin',
+      default_variant: { ...usdaApple.default_variant, id: VARIANT_ID },
+    });
+    vi.mocked(foodEntryService.createFoodEntry).mockResolvedValue({
+      id: ENTRY_ID,
+      food_name: 'Apples, raw, with skin',
+    });
+    const result = await tools.sparky_manage_food.execute!(
+      {
+        action: 'log_external_food',
+        food_name: 'Apples, raw, with skin',
+        provider_type: 'usda',
+        external_id: '1102644',
+        quantity: 150,
+        unit: 'g',
+        meal_type: 'lunch',
+      },
+      opts
+    );
+    expect(fetchProviderFoodDetails).toHaveBeenCalledWith(
+      expect.objectContaining({
+        externalId: '1102644',
+        providerType: 'usda',
+        providerId: 'prov-1',
+        requireNutrition: true,
+      })
+    );
+    expect(foodCoreService.createFood).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({ name: 'Apples, raw, with skin' })
+    );
+    expect(result).toContain('Saved "Apples, raw, with skin"');
+  });
+
   it('preserves a provider failure without inventing or saving a food', async () => {
     vi.mocked(fetchProviderFoodDetails).mockRejectedValueOnce(
       new Error('FatSecret unavailable')
