@@ -302,7 +302,7 @@ private struct WaitingForWorkoutView: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
             }
-            .watchFont(.callout.weight(.semibold), classic: .system(size: ClassicWatchStyle.s(11), weight: .semibold))
+            .watchFont(.footnote.weight(.semibold), classic: .system(size: ClassicWatchStyle.s(11), weight: .semibold))
             .foregroundStyle(blue)
             HStack(spacing: 8) {
                 Text(startingId == workout.presetId ? "Starting…" : workout.name)

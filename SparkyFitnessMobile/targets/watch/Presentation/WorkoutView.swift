@@ -311,7 +311,7 @@ private struct WaitingForWorkoutView: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
             }
-            .font(.callout.weight(.semibold))
+            .font(.footnote.weight(.semibold))
             .foregroundStyle(blue)
             HStack(spacing: 8) {
                 Text(startingId == workout.presetId ? "Starting…" : workout.name)
@@ -2183,71 +2183,57 @@ struct MarqueeText: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var textWidth: CGFloat = 0
-    @State private var containerWidth: CGFloat = 0
+
     private static let pointsPerSecond: Double = 25
     private static let pause: Double = 1.5
     private static let returnDuration: Double = 0.4
-
-    /// How far the text is wider than its room. Zero until both are known.
-    private var overflow: CGFloat {
-        containerWidth > 0 ? max(0, textWidth - containerWidth) : 0
-    }
 
     var body: some View {
         Group {
             if reduceMotion {
                 Text(text).lineLimit(1)
             } else {
-                // A name that fits is plain text and never moves. Only one
-                // too wide for its room (the first child does not fit, so
-                // `ViewThatFits` falls through) is scrolled.
-                ViewThatFits(in: .horizontal) {
-                    Text(text)
-                        .lineLimit(1)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    scrolling
-                }
+                // The sizing text truncates, so it takes the width it is given
+                // and never more; the full-length copy is drawn over it and
+                // cannot widen the page (a fixed-size child inside the layout
+                // did, and pushed the whole screen off its edges). The room the
+                // copy has is read from the overlay's own geometry in the same
+                // pass, and the text's own width is written straight into state
+                // rather than sent up through a preference, which was not
+                // delivered reliably on the workout screen.
+                Text(text)
+                    .lineLimit(1)
+                    .opacity(0)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .overlay(alignment: .leading) {
+                        GeometryReader { geo in
+                            TimelineView(.animation(minimumInterval: 1.0 / 30)) { context in
+                                Text(text)
+                                    .lineLimit(1)
+                                    .fixedSize()
+                                    .background(GeometryReader { proxy in
+                                        Color.clear
+                                            .onAppear { textWidth = proxy.size.width }
+                                            .onChange(of: proxy.size.width) { textWidth = proxy.size.width }
+                                    })
+                                    .offset(x: offset(at: context.date, room: geo.size.width))
+                                    .frame(width: geo.size.width, alignment: .leading)
+                            }
+                        }
+                    }
+                    .clipped()
             }
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(text)
     }
 
-    /// The sizing text truncates, so it takes the width it is given and never
-    /// more; the full-length copy is drawn over it and cannot widen the page (a
-    /// fixed-size child inside the layout did, and pushed the whole screen off
-    /// its edges).
-    private var scrolling: some View {
-        Text(text)
-            .lineLimit(1)
-            .opacity(0)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(GeometryReader { proxy in
-                Color.clear.preference(key: MarqueeContainerWidthKey.self, value: proxy.size.width)
-            })
-            .overlay(alignment: .leading) {
-                // Always running while this view is on screen (it is only built for a
-                // name too wide for its room), so nothing can leave it paused.
-                TimelineView(.animation(minimumInterval: 1.0 / 30)) { context in
-                    Text(text)
-                        .lineLimit(1)
-                        .fixedSize()
-                        .background(GeometryReader { proxy in
-                            Color.clear.preference(key: MarqueeTextWidthKey.self, value: proxy.size.width)
-                        })
-                        .offset(x: offset(at: context.date))
-                }
-            }
-            .clipped()
-            .onPreferenceChange(MarqueeTextWidthKey.self) { textWidth = $0 }
-            .onPreferenceChange(MarqueeContainerWidthKey.self) { containerWidth = $0 }
-    }
-
     /// Wait, scroll to the end, wait, then glide back, and again. The phase
     /// comes from the wall clock alone, so a view the workout screen's
     /// once-a-second redraw rebuilt carries on where it was instead of
     /// starting over (and never getting past its first pause).
-    private func offset(at date: Date) -> CGFloat {
+    private func offset(at date: Date, room: CGFloat) -> CGFloat {
+        let overflow = room > 0 ? max(0, textWidth - room) : 0
         guard overflow > 0.5 else { return 0 }
         let travel = Double(overflow) / Self.pointsPerSecond
         let cycle = Self.pause + travel + Self.pause + Self.returnDuration
@@ -2264,16 +2250,6 @@ struct MarqueeText: View {
         }
         return -overflow * CGFloat(min(max(fraction, 0), 1))
     }
-}
-
-private struct MarqueeTextWidthKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
-}
-
-private struct MarqueeContainerWidthKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
 }
 
 /// Effort picked after a set: the set it is for, one big value card the Digital
