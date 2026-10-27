@@ -5806,6 +5806,10 @@
     "orCustomName": "Or type custom symptom...",
     "ongoingEpisode": "Track as ongoing episode",
     "startedWhen": "Started when:",
+    "startDate": "Date",
+    "startDateA11y": "Start date, {{date}}",
+    "startTime": "Time",
+    "startTimeA11y": "Start time, {{time}}",
     "endEpisodeNow": "End Episode Now",
     "severityTitle": "Severity",
     "location": "Location",
@@ -5879,6 +5883,7 @@
       "m15": "-15m",
       "h1": "-1h",
       "h3": "-3h",
+      "d1": "-1d",
       "started": "Started",
       "episode": "Episode"
     },
