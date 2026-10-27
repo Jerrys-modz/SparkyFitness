@@ -249,6 +249,11 @@ jobs:
             shoot workout-active-large-classic active workout "" large,classicworkout
             shoot workout-longname-large-classic active workout "" longname,large,classicworkout
             shoot workout-rpe-longname-large-classic active workout rpe longname,large,classicworkout
+
+            # The workout picker and medications follow the text size too.
+            shoot workout-idle-large none workout "" large
+            shoot medications-large none medications "" large
+            shoot medications-dose-large none medications dose large
           done <<< "$DEVICES"
 
           ls -la screenshots
