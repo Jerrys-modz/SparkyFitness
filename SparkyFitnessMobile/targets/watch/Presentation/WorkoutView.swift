@@ -1781,12 +1781,13 @@ private struct ExerciseTitle: View {
                         .frame(width: 4)
                 }
                 VStack(alignment: .leading, spacing: 0) {
-                    // One line when the superset line follows, so a 40 mm
-                    // screen still has room for the buttons.
+                    // A step smaller when the superset line follows, so a
+                    // long name still wraps to two lines instead of being
+                    // cut off, and a 40 mm screen has room for the buttons.
                     Text(name)
-                        .font(.headline)
-                        .lineLimit(supersetWith == nil ? 2 : 1)
-                        .minimumScaleFactor(supersetWith == nil ? 0.8 : 0.7)
+                        .font(supersetWith == nil ? .headline : .subheadline.weight(.semibold))
+                        .lineLimit(2)
+                        .minimumScaleFactor(supersetWith == nil ? 0.8 : 0.75)
                         .multilineTextAlignment(.leading)
                     // Who this set alternates with: the bar's colour alone
                     // does not say.
