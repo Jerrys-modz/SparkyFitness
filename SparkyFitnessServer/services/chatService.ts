@@ -1936,7 +1936,7 @@ const ON_DEMAND_TOOLS: { tool: string; keywords: RegExp }[] = [
   {
     tool: 'sparky_food_assistant_state',
     keywords:
-      /\b(recipes?|ingredients?|meal\s*plan\w*|plan\w*|import\w*|shopping|grocer\w*|prefer\w*|remember\w*|forget|always|never|tasks?|resume|continue|drafts?|bulk)\b/i,
+      /\b(recipes?|ingredients?|meal\s*plan\w*|plan\w*|import\w*|shopping|grocer\w*|prefer\w*|remember\w*|forget|always|never|tasks?|resume|continue|drafts?|bulk|entries)\b/i,
   },
   {
     tool: 'sparky_get_caffeine_kinetics',

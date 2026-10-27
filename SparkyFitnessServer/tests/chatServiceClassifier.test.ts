@@ -310,6 +310,14 @@ describe('heldBackChatTools', () => {
     ).not.toContain('sparky_get_caffeine_kinetics');
   });
 
+  it('keeps the task tool for an edit across several diary entries', () => {
+    expect(
+      heldBackChatTools([
+        user("Update yesterday's breakfast and dinner entries"),
+      ])
+    ).not.toContain('sparky_food_assistant_state');
+  });
+
   it('keeps a tool an earlier step already called', () => {
     expect(
       heldBackChatTools([
