@@ -239,6 +239,11 @@ jobs:
             shoot workout-resting-longname-large resting workout "" longname,large
             shoot workout-rpe-longname active workout rpe longname
             shoot workout-rpe-longname-large active workout rpe longname,large
+
+            # Larger text on everywhere else, with the original workout page.
+            shoot workout-active-large-classic active workout "" large,classicworkout
+            shoot workout-longname-large-classic active workout "" longname,large,classicworkout
+            shoot workout-rpe-longname-large-classic active workout rpe longname,large,classicworkout
           done <<< "$DEVICES"
 
           ls -la screenshots

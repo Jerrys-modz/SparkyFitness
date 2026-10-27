@@ -61,6 +61,12 @@ const WatchSettingsScreen: React.FC<WatchSettingsScreenProps> = () => {
   const setWatchLargerText = useAppPreferencesStore(
     (s) => s.setWatchLargerText
   );
+  const watchClassicWorkout = useAppPreferencesStore(
+    (s) => s.watchClassicWorkout
+  );
+  const setWatchClassicWorkout = useAppPreferencesStore(
+    (s) => s.setWatchClassicWorkout
+  );
   const setWatchRpeEnabled = useAppPreferencesStore(
     (s) => s.setWatchRpeEnabled
   );
@@ -268,6 +274,25 @@ const WatchSettingsScreen: React.FC<WatchSettingsScreenProps> = () => {
                 />
               }
             />
+            {watchLargerText && (
+              <SettingsRow
+                title={t('watchSettings.classicWorkoutTitle', {
+                  defaultValue: 'Original workout page',
+                })}
+                subtitle={t('watchSettings.classicWorkoutSubtitle', {
+                  defaultValue:
+                    'Keep the original workout screen while larger text is on everywhere else. With larger text off the workout always uses it.',
+                })}
+                subtitleNumberOfLines={0}
+                rightAccessory={
+                  <Switch
+                    testID="watch-classic-workout-switch"
+                    value={watchClassicWorkout}
+                    onValueChange={setWatchClassicWorkout}
+                  />
+                }
+              />
+            )}
           </>
         )}
 

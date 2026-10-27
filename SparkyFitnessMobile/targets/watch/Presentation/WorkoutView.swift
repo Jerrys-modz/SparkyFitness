@@ -2178,7 +2178,7 @@ private struct PendingRpe: Identifiable {
 /// One line of text that scrolls sideways to its end and back when it is wider
 /// than the space it has, so a long exercise name can be read in full. A name
 /// that fits stays still, and with Reduce Motion on it truncates instead.
-private struct MarqueeText: View {
+struct MarqueeText: View {
     let text: String
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion

@@ -516,6 +516,9 @@ struct WatchContext: Codable, Equatable {
     /// The larger-text Goals and Water pages (`largerText`). Nil means
     /// off, the original layout.
     var largerText: Bool? = nil
+    /// Keep the original workout page while larger text is on
+    /// (`classicWorkout`). Nil means off.
+    var classicWorkout: Bool? = nil
     /// The fast running now. Nil with `fastSynced` true means "not fasting".
     var fast: WatchFast? = nil
     /// True once the phone has said anything about fasting, so "not fasting"
@@ -627,6 +630,11 @@ struct WatchContext: Codable, Equatable {
     var effectiveSetScreenMetrics: Bool { setScreenMetrics ?? true }
     var effectiveUpNextPage: Bool { upNextPage ?? false }
     var effectiveLargerText: Bool { largerText ?? false }
+    var effectiveClassicWorkout: Bool { classicWorkout ?? false }
+
+    /// The original workout page: always with larger text off, and with it on
+    /// when the wearer asked to keep it.
+    var usesClassicWorkout: Bool { !effectiveLargerText || effectiveClassicWorkout }
 
     /// Stale seeds are worse than no seed: every morning would start from a lie
     /// and the delta line would reassure falsely.

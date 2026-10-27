@@ -122,6 +122,26 @@ describe('WatchSettingsScreen', () => {
     expect(prefs().watchLargerText).toBe(true);
   });
 
+  test('the original workout page switch only shows while larger text is on', () => {
+    renderScreen();
+    const prefs = () => useAppPreferencesStore.getState();
+
+    expect(screen.queryByTestId('watch-classic-workout-switch')).toBeNull();
+    fireEvent(
+      screen.getByTestId('watch-larger-text-switch'),
+      'valueChange',
+      true
+    );
+    expect(prefs().watchClassicWorkout).toBe(false);
+
+    fireEvent(
+      screen.getByTestId('watch-classic-workout-switch'),
+      'valueChange',
+      true
+    );
+    expect(prefs().watchClassicWorkout).toBe(true);
+  });
+
   test('toggling a page hides and shows it', () => {
     renderScreen();
 

@@ -146,6 +146,7 @@ export const PREFERENCE_DEFAULTS = {
   watchSetScreenMetrics: true,
   watchUpNextPage: false,
   watchLargerText: false,
+  watchClassicWorkout: false,
   activeWorkoutNowCard: false,
   watchNutrientOrder: [] as string[],
   shownWatchNutrients: [...DEFAULT_WATCH_NUTRIENTS] as string[],
@@ -276,6 +277,8 @@ export type AppPreferencesData = {
   watchUpNextPage: boolean;
   /** Whether the watch's Goals and Water pages use the larger-text layout. */
   watchLargerText: boolean;
+  /** Keep the original workout page while larger text is on. */
+  watchClassicWorkout: boolean;
   /** Whether the active workout pins the Now card under the exercise rail. */
   activeWorkoutNowCard: boolean;
   /**
@@ -368,6 +371,7 @@ export interface AppPreferencesState extends AppPreferencesData {
   setWatchSetScreenMetrics: (value: boolean) => void;
   setWatchUpNextPage: (value: boolean) => void;
   setWatchLargerText: (value: boolean) => void;
+  setWatchClassicWorkout: (value: boolean) => void;
   setActiveWorkoutNowCard: (value: boolean) => void;
   setWatchNutrientOrder: (order: string[]) => void;
   setWatchNutrientShown: (key: string, isShown: boolean) => void;
@@ -590,6 +594,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         set({ watchSetScreenMetrics: value }),
       setWatchUpNextPage: (value) => set({ watchUpNextPage: value }),
       setWatchLargerText: (value) => set({ watchLargerText: value }),
+      setWatchClassicWorkout: (value) => set({ watchClassicWorkout: value }),
       setActiveWorkoutNowCard: (value) => set({ activeWorkoutNowCard: value }),
       setWatchPageHidden: (key, isHidden) =>
         set((state) => ({
@@ -684,6 +689,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         watchSetScreenMetrics: state.watchSetScreenMetrics,
         watchUpNextPage: state.watchUpNextPage,
         watchLargerText: state.watchLargerText,
+        watchClassicWorkout: state.watchClassicWorkout,
         activeWorkoutNowCard: state.activeWorkoutNowCard,
         watchNutrientOrder: state.watchNutrientOrder,
         shownWatchNutrients: state.shownWatchNutrients,

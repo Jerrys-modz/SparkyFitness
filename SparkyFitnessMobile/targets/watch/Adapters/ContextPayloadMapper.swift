@@ -85,6 +85,7 @@ enum ContextPayloadMapper {
             setScreenMetrics: payload["setScreenMetrics"] as? Bool ?? previous.setScreenMetrics,
             upNextPage: payload["upNextPage"] as? Bool ?? previous.upNextPage,
             largerText: payload["largerText"] as? Bool ?? previous.largerText,
+            classicWorkout: payload["classicWorkout"] as? Bool ?? previous.classicWorkout,
             fast: fastKnown(in: payload) ? fast(from: payload["fast"]) : previous.fast,
             fastSynced: fastKnown(in: payload) ? true : previous.fastSynced,
             steps: steps(from: payload["steps"]),

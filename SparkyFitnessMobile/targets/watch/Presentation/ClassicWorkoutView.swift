@@ -1012,10 +1012,9 @@ private struct CurrentSetView: View {
     var body: some View {
         VStack(spacing: 4) {
             VStack(alignment: .leading, spacing: 0) {
-                Text(step.exerciseName)
+                // Scrolls when the name is too wide, so it is never cut off.
+                MarqueeText(text: step.exerciseName)
                     .font(.headline)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
                 if let partners = step.supersetWith {
                     Text(String(localized: "watch.workout.superset", defaultValue: "Superset · \(partners)"))
                         .font(.system(size: 9))
@@ -1960,15 +1959,14 @@ private struct RpePickerView: View {
     var body: some View {
         VStack(spacing: 3) {
             VStack(alignment: .leading, spacing: 0) {
-                Text(title)
+                MarqueeText(text: title)
                     .font(.system(size: 14, weight: .bold))
-                    .lineLimit(1)
                 Text(summary)
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             }
-            .minimumScaleFactor(0.8)
             // Room for the system clock, which sits over the top right.
             .padding(.trailing, 52)
             .frame(maxWidth: .infinity, alignment: .leading)
