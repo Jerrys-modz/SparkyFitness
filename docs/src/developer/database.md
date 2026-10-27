@@ -329,7 +329,7 @@ Example: `20240315103000_add_exercise_tracking.sql`
 
 3. **`db_schema_backup.sql` updates itself** — after merge, CI regenerates it from the migrations and opens an automated sync PR; never edit it by hand
 
-4. **Apply RLS policies** (these are reapplied automatically on startup from `db/rls_policies.sql`)
+4. **Apply RLS policies** (startup applies `db/rls_policies.sql` again whenever the file or the policies in the database changed; it records what it applied in `system.rls_policy_state`)
 
 ### Migration Best Practices
 

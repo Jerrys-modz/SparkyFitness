@@ -1,7 +1,7 @@
 -- File: rls_policies.sql
 -- =============================================================================
 -- THIS FILE IS THE SINGLE SOURCE OF TRUTH FOR ALL RLS POLICIES IN THE APPLICATION.
--- It is executed on every server startup after migrations to ensure a consistent security state.
+-- Server startup applies it after migrations whenever it, or the policies it defines in the database, changed.
 -- This script is generated from the db_schema_backup.sql to ensure all custom policies are included.
 -- =============================================================================
 
