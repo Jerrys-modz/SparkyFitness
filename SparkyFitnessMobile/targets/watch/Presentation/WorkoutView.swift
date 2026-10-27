@@ -1000,8 +1000,9 @@ struct SwapExerciseSheet: View {
 private struct SetScreenMetricsLine: View {
     @EnvironmentObject private var store: WorkoutSessionStore
 
-    /// The clock's width at the top right, measured on 40 and 46 mm.
-    private static var clockWidth: CGFloat { WatchStyle.s(54) }
+    /// The clock's width at the top right, measured on 40 and 46 mm, with a
+    /// gap so the calories do not touch its running glyph.
+    private static var clockWidth: CGFloat { WatchStyle.s(64) }
 
     var body: some View {
         // One Text, so a 40 mm screen shrinks the line as a whole rather than
@@ -1204,7 +1205,7 @@ private struct CurrentSetView: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+                    .minimumScaleFactor(0.6)
             }
 
             // Previous and next set either side of a still-wide Done: the dots
