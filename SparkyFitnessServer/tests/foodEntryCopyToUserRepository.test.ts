@@ -20,6 +20,8 @@ const row = {
   quantity: 100,
   food_id: null,
   variant_id: null,
+  meal_id: 'source-meal-template',
+  meal_plan_template_id: 'source-plan-template',
   food_entry_meal_id: 'source-container',
   food_name: 'Saved food',
   serving_size: 100,
@@ -57,7 +59,7 @@ const selectedInput = () => ({
   ],
 });
 
-describe('copy-to-family atomic repository', () => {
+describe('family copy atomic repository', () => {
   const query = vi.fn();
   const release = vi.fn();
   beforeEach(() => {
@@ -72,7 +74,7 @@ describe('copy-to-family atomic repository', () => {
           rows: [
             {
               id: 'source-container',
-              meal_template_id: null,
+              meal_template_id: row.meal_id,
               name: 'Saved meal',
               description: 'Meal description',
               notes: 'Meal note',
@@ -152,6 +154,76 @@ describe('copy-to-family atomic repository', () => {
     expect(query).toHaveBeenLastCalledWith('COMMIT');
   });
 
+  it.each([
+    ['whole', 'to-user'],
+    ['selected', 'to-user'],
+    ['whole', 'from-user'],
+    ['selected', 'from-user'],
+  ] as const)(
+    'detaches source library references from %s %s copies while preserving diary grouping',
+    async (mode, direction) => {
+      const sourceUserId = direction === 'to-user' ? 'actor' : 'family';
+      const targetUserId = direction === 'to-user' ? 'family' : 'actor';
+      const sourceRow = { ...row, user_id: sourceUserId };
+      const normalQuery = query.getMockImplementation()!;
+      query.mockImplementation(async (sql: string) =>
+        sql.includes('FROM food_entries fe')
+          ? { rows: [sourceRow] }
+          : normalQuery(sql)
+      );
+      const copyInput = {
+        ...baseInput,
+        sourceUserId,
+        targetUserId,
+        fingerprintVersion: direction === 'to-user' ? direction : undefined,
+      };
+      const reviewedEntry = {
+        entryId: sourceRow.id,
+        sourceFingerprint:
+          direction === 'to-user'
+            ? foodEntryCopyToUserFingerprint(sourceRow)
+            : foodEntryCopyFingerprint(sourceRow),
+      };
+
+      const copied =
+        mode === 'whole'
+          ? await copyReviewedFoodEntriesFromUser({
+              ...copyInput,
+              sourceMealTypeId: sourceRow.meal_type_id,
+              reviewedEntries: [reviewedEntry],
+            })
+          : await copySelectedFoodEntriesFromUser({
+              ...copyInput,
+              selections: [{ ...reviewedEntry, quantity: 175 }],
+            });
+
+      expect(copied).toEqual([{ id: 'copied-row' }]);
+      expect(getClient).toHaveBeenCalledExactlyOnceWith(targetUserId, 'actor');
+      const entryInserts = query.mock.calls.filter(([sql]) =>
+        String(sql).includes('INSERT INTO food_entries')
+      );
+      expect(entryInserts).toHaveLength(1);
+      const values = entryInserts[0][1];
+      expect(values[0]).toBe(targetUserId);
+      expect(values[3]).toBe(mode === 'whole' ? sourceRow.quantity : 175);
+      expect(values[8]).toBeNull(); // No source meal-plan assignment.
+      expect(values[9]).toBe(mode === 'whole' ? 'copied-container' : null);
+      expect(values[12]).toBe(sourceRow.food_name);
+      expect(values[16]).toBe(sourceRow.calories);
+      expect(values[38]).toBe(sourceRow.notes);
+      expect(values[39]).toBeNull(); // meal_id would cascade on template deletion.
+      const mealInserts = query.mock.calls.filter(([sql]) =>
+        String(sql).includes('INSERT INTO food_entry_meals')
+      );
+      expect(mealInserts).toHaveLength(mode === 'whole' ? 1 : 0);
+      if (mode === 'whole') {
+        // This optional container link uses ON DELETE SET NULL.
+        expect(mealInserts[0][1][1]).toBe(sourceRow.meal_id);
+      }
+      expect(query).toHaveBeenLastCalledWith('COMMIT');
+    }
+  );
+
   it.each(['whole', 'selected'] as const)(
     'rejects source changes after preliminary validation for %s copies before creating any rows',
     async (mode) => {
@@ -205,13 +277,49 @@ describe('copy-to-family atomic repository', () => {
   });
 
   it.each([
-    ['matching catalog identity', 'food', 'variant', 0],
-    ['legacy null variant', 'food', null, 1],
-    ['unlinked snapshot', null, null, 1],
+    [
+      'selected',
+      'from-user',
+      'matching catalog identity',
+      'food',
+      'variant',
+      0,
+    ],
+    ['selected', 'from-user', 'legacy null variant', 'food', null, 1],
+    ['selected', 'from-user', 'unlinked snapshot', null, null, 1],
+    [
+      'selected',
+      'to-user',
+      'explicit selection with a variant',
+      'food',
+      'variant',
+      1,
+    ],
+    [
+      'selected',
+      'to-user',
+      'explicit selection without a variant',
+      'food',
+      null,
+      1,
+    ],
+    ['whole', 'from-user', 'matching catalog identity', 'food', 'variant', 0],
+    ['whole', 'from-user', 'matching null variant', 'food', null, 0],
+    ['whole', 'to-user', 'matching catalog identity', 'food', 'variant', 0],
+    ['whole', 'to-user', 'matching null variant', 'food', null, 0],
   ] as const)(
-    'preserves legacy selected duplicate behavior for %s',
-    async (_case, foodId, variantId, expectedCopies) => {
-      const sourceRow = { ...row, food_id: foodId, variant_id: variantId };
+    '%s %s copies preserve %s behavior when the recipient already has that food',
+    async (mode, direction, _case, foodId, variantId, expectedCopies) => {
+      const sourceUserId = direction === 'to-user' ? 'actor' : 'family';
+      const targetUserId = direction === 'to-user' ? 'family' : 'actor';
+      const sourceRow = {
+        ...row,
+        user_id: sourceUserId,
+        food_id: foodId,
+        meal_id: foodId === null ? row.meal_id : null,
+        variant_id: variantId,
+        food_entry_meal_id: mode === 'whole' ? null : row.food_entry_meal_id,
+      };
       const normalQuery = query.getMockImplementation()!;
       query.mockImplementation(async (sql: string) => {
         if (sql.includes('FROM food_entries fe')) return { rows: [sourceRow] };
@@ -219,23 +327,41 @@ describe('copy-to-family atomic repository', () => {
           return { rows: [{ food_id: foodId, variant_id: variantId }] };
         return normalQuery(sql);
       });
-      const result = await copySelectedFoodEntriesFromUser({
+      const copyInput = {
         ...baseInput,
-        fingerprintVersion: undefined,
-        selections: [
-          {
-            entryId: row.id,
-            sourceFingerprint: foodEntryCopyFingerprint(sourceRow),
-            quantity: 125,
-          },
-        ],
-      });
+        sourceUserId,
+        targetUserId,
+        fingerprintVersion: direction === 'to-user' ? direction : undefined,
+      };
+      const reviewedEntry = {
+        entryId: row.id,
+        sourceFingerprint:
+          direction === 'to-user'
+            ? foodEntryCopyToUserFingerprint(sourceRow)
+            : foodEntryCopyFingerprint(sourceRow),
+      };
+      const result =
+        mode === 'whole'
+          ? await copyReviewedFoodEntriesFromUser({
+              ...copyInput,
+              sourceMealTypeId: sourceRow.meal_type_id,
+              reviewedEntries: [reviewedEntry],
+            })
+          : await copySelectedFoodEntriesFromUser({
+              ...copyInput,
+              selections: [{ ...reviewedEntry, quantity: 125 }],
+            });
       expect(result).toHaveLength(expectedCopies);
-      expect(
-        query.mock.calls.filter(([sql]) =>
-          String(sql).includes('INSERT INTO food_entries')
-        )
-      ).toHaveLength(expectedCopies);
+      const inserts = query.mock.calls.filter(([sql]) =>
+        String(sql).includes('INSERT INTO food_entries')
+      );
+      expect(inserts).toHaveLength(expectedCopies);
+      if (expectedCopies > 0) {
+        expect(inserts[0][1][3]).toBe(125);
+        expect(inserts[0][1][9]).toBeNull();
+        expect(inserts[0][1][16]).toBe(sourceRow.calories);
+        expect(inserts[0][1][38]).toBe(sourceRow.notes);
+      }
     }
   );
 

@@ -153,7 +153,7 @@ const FamilyCopyReviewScreen: React.FC<FamilyCopyReviewScreenProps> = ({
     direction,
     onSuccess: (request) => {
       if (toFamily) {
-        navigation.navigate('FamilyDiary', {
+        navigation.replace('FamilyDiary', {
           familyUser,
           date: request.payload.targetDate,
         });

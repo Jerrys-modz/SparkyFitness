@@ -53,6 +53,7 @@ const sauce: FoodEntry = {
 const navigation = {
   goBack: jest.fn(),
   navigate: jest.fn(),
+  replace: jest.fn(),
   popTo: jest.fn(),
   setOptions: jest.fn(),
 };
@@ -246,7 +247,7 @@ describe('FamilyCopyReviewScreen', () => {
     expect(sauce.quantity).toBe(50);
   });
 
-  test('copies an unchanged whole meal to family once and opens their target day without changing the own date', () => {
+  test('copies an unchanged whole meal to family once and replaces the submitted review with their target day', () => {
     const screen = renderReview({ direction: 'to-family' });
     fireEvent.press(
       screen.getByRole('button', { name: 'Copy to Alex Family' })
@@ -270,10 +271,11 @@ describe('FamilyCopyReviewScreen', () => {
       },
     });
     onCopySuccess?.(copyEntriesAsync.mock.calls[0][0]);
-    expect(navigation.navigate).toHaveBeenCalledWith('FamilyDiary', {
+    expect(navigation.replace).toHaveBeenCalledWith('FamilyDiary', {
       familyUser,
       date: '2026-08-24',
     });
+    expect(navigation.navigate).not.toHaveBeenCalled();
     expect(useDiaryDateStore.getState().selectedDate).toBe('2026-08-23');
   });
 
@@ -551,6 +553,7 @@ describe('FamilyCopyReviewScreen', () => {
       screen: 'Diary',
       params: { selectedDate: '2026-08-24' },
     });
+    expect(navigation.replace).not.toHaveBeenCalled();
   });
 
   test('retains edited quantities and allows a retry after a copy failure', async () => {

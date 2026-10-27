@@ -1085,11 +1085,12 @@ async function copyFoodEntriesWithReview({
         if (
           entry.food_id !== null &&
           entry.food_id !== undefined &&
-          // Legacy selected copies never deduplicated a NULL variant because
-          // their SQL used equality. Retain that behavior for installed apps.
+          // Explicit outbound selections always add their adjusted snapshot.
+          // Legacy inbound selections only deduplicated non-NULL variants.
           (!selections ||
-            fingerprintVersion === 'to-user' ||
-            (entry.variant_id !== null && entry.variant_id !== undefined)) &&
+            (fingerprintVersion !== 'to-user' &&
+              entry.variant_id !== null &&
+              entry.variant_id !== undefined)) &&
           existingStandaloneKeys.has(standaloneKey)
         )
           continue;
@@ -1150,7 +1151,8 @@ async function copyFoodEntriesWithReview({
           entry.glycemic_index,
           sanitizeCustomNutrients(entry.custom_nutrients),
           sanitizeNotes(entry.notes) ?? null,
-          entry.meal_id ?? null,
+          // A source meal deletion must not cascade into the copied snapshot.
+          null,
         ]
       );
       copiedEntries.push(...inserted.rows);
