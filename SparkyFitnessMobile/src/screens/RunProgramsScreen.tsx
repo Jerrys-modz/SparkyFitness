@@ -299,7 +299,7 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
         </View>
         <View className="flex-1">
           <Button
-            variant="secondary"
+            variant="primary"
             onPress={() => navigation.navigate('RunProgramEdit')}
             testID="custom-plan-new"
           >
@@ -382,10 +382,10 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
           <ProgramActionList>
             <ProgramActionRow
               label={t('runPrograms.openCalendar', {
-                defaultValue: 'Open the program calendar',
+                defaultValue: 'Open the training calendar',
               })}
               hint={t('runPrograms.openCalendarHint', {
-                defaultValue: 'Every workout on a month view',
+                defaultValue: 'Program and plan workouts, done and to come',
               })}
               onPress={() => navigation.navigate('RunProgramCalendar')}
             />

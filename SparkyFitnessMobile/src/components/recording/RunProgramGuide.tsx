@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
+import { findProgram } from '@workspace/shared';
 import Icon from '../Icon';
 import { programName } from './RunProgramCard';
 
@@ -185,6 +186,9 @@ const RunProgramGuide: React.FC<{
 }> = ({ programId, defaultOpen = false }) => {
   const { t } = useTranslation();
   const [open, setOpen] = useState(defaultOpen);
+  // Pace advice for walking only matters when the program (or none yet) is a walk.
+  const program = programId ? findProgram(programId) : undefined;
+  const programWalks = !program || program.activity === 'walk';
   const title = t('runPrograms.guide.title', {
     defaultValue: 'How the plans work',
   });
@@ -253,16 +257,18 @@ const RunProgramGuide: React.FC<{
                 'Enter a recent race time under Your race pace and the Record screen can suggest a pace range for each kind of stretch. They are estimates: heat, hills or a tired week will change them, so use them as a guide and go by effort when the two disagree.',
             })}
           </Section>
-          <Section
-            title={t('runPrograms.guide.walk.title', {
-              defaultValue: 'How fast to walk',
-            })}
-          >
-            {t('runPrograms.guide.walk.body', {
-              defaultValue:
-                'Walk briskly but comfortably, about 5 to 6 km/h (3 to 3.5 mph), which is roughly 10 to 12 minutes per kilometer or 16 to 19 minutes per mile. Keep moving rather than stopping: the walks are for getting your breath back, so you should be able to talk normally by the end of each one. The warm-up and cool-down walks can be a little easier.',
-            })}
-          </Section>
+          {programWalks ? (
+            <Section
+              title={t('runPrograms.guide.walk.title', {
+                defaultValue: 'How fast to walk',
+              })}
+            >
+              {t('runPrograms.guide.walk.body', {
+                defaultValue:
+                  'Walk briskly but comfortably, about 5 to 6 km/h (3 to 3.5 mph), which is roughly 10 to 12 minutes per kilometer or 16 to 19 minutes per mile. Keep moving rather than stopping: the walks are for getting your breath back, so you should be able to talk normally by the end of each one. The warm-up and cool-down walks can be a little easier.',
+              })}
+            </Section>
+          ) : null}
           {programId && programRest(t, programId) ? (
             <Section
               title={t('runPrograms.guide.rest.title', {

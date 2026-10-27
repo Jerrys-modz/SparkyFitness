@@ -36,6 +36,16 @@ describe('RunProgramGuide', () => {
     expect(screen.getByText(/under Your race pace/)).toBeTruthy();
   });
 
+  it('leaves out walking pace for a running program but keeps it for a walking one', () => {
+    const { unmount } = render(
+      <RunProgramGuide programId="beginner5k" defaultOpen />
+    );
+    expect(screen.queryByText('How fast to walk')).toBeNull();
+    unmount();
+    render(<RunProgramGuide programId="walkFit" defaultOpen />);
+    expect(screen.getByText('How fast to walk')).toBeTruthy();
+  });
+
   it('describes every program', () => {
     for (const program of RUN_PROGRAMS) {
       expect(

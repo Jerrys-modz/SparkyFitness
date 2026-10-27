@@ -345,7 +345,7 @@ describe('RunProgramsScreen', () => {
     });
     const props = RunProgramsProps();
     renderScreen(props);
-    fireEvent.press(screen.getByText('Open the program calendar'));
+    fireEvent.press(screen.getByText('Open the training calendar'));
     expect(props.navigation.navigate).toHaveBeenCalledWith(
       'RunProgramCalendar'
     );
