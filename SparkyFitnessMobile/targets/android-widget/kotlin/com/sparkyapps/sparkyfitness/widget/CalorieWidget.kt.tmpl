@@ -52,9 +52,9 @@ import org.json.JSONObject
  * The classic composition (one-line kcal heading, 8dp progress bar, flexible
  * space and the 32dp search/scan row) is drawn wherever it fits, which is the
  * default 2x1 on most launchers. The widget can be resized, and each step in
- * [WidgetSizes.calorieSizes] adds to it rather than drawing something else:
+ * [WidgetSizes.calorieSizes] keeps that content:
  * - shorter than the classic layout (a HyperOS 2x1 row is about 75dp), the
- *   shortcuts move beside the bar so they are not cut off;
+ *   shortcuts move beside the bar, smaller, so they are not cut off;
  * - wide, Diary and fasting shortcuts join search and scan;
  * - wide and tall, Goal / Food / Burned fill the flexible space.
  * Strings, accessibility labels and numbers follow the app/system language.
@@ -253,7 +253,11 @@ class CalorieWidget : GlanceAppWidget() {
         }
     }
 
-    /** Goal / Food / Burned as three columns, numbers only, as on the iOS medium widget. */
+    /**
+     * Goal / Food / Burned as three columns, numbers only, laid out like the
+     * iOS medium widget. That widget shows the snapshot's `goal`, which can
+     * be lower than the Goal here (see [CalorieFigures]).
+     */
     @Composable
     private fun FiguresRow(context: Context, figures: CalorieFigures) {
         Row(
@@ -300,8 +304,9 @@ class CalorieWidget : GlanceAppWidget() {
 
     /**
      * Goal is the day's food budget, food eaten plus calories remaining: the
-     * goal the Dashboard shows (the snapshot's `goal` is the base goal, before
-     * any exercise credit), and the figure the bar above is measured against.
+     * goal the Dashboard shows, and the figure the bar above is measured
+     * against. The snapshot's `goal` leaves out the exercise calories that the
+     * dynamic and percentage modes add back.
      */
     internal data class CalorieFigures(
         val goal: Double,

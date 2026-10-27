@@ -33,7 +33,8 @@ jest.mock('../../src/services/dailySummaryService', () => ({
 
 const summary = {
   date: '2026-10-19',
-  // Supplements are folded into the balance's eaten, not into this one.
+  // Differs from the balance's eaten only so the tests can tell which one
+  // the macro snapshot reads.
   caloriesConsumed: 1500,
   calorieBalance: {
     eaten: 1540,

@@ -714,8 +714,8 @@ describe('Android widget localization contract', () => {
 
   describe('widget provider contract (resizable, classic default)', () => {
     // The widgets can be resized (#2050). Their default footprint and classic
-    // composition stay as they were, and every size step only adds to that
-    // composition: the steps live in WidgetSizes.kt.
+    // composition stay as they were, and every other size step keeps that
+    // content: the steps live in WidgetSizes.kt.
     const MIN_RESIZE: Record<string, [string, string]> = {
       'sparky_calorie_widget_info.xml': ['110dp', '40dp'],
       'sparky_macro_widget_info.xml': ['110dp', '110dp'],
@@ -886,12 +886,18 @@ describe('Android widget localization contract', () => {
 
       // A Pixel 2x1 is about 102 dp tall, so the default calorie widget keeps
       // the classic layout there; the steps that add content are sized for
-      // that content at font scale 1.3 (figures 154 dp, large macro 252 dp).
+      // that content at font scale 1.3 (figures 154 dp), or a little under it
+      // so a HyperOS 4x3 (260 dp) still gets the large macro layout.
       const calorieHeights = readWidgetSizes('calorieSizes').map(([, h]) => h);
       expect(calorieHeights).toContain(96);
       expect(Math.max(...calorieHeights)).toBeGreaterThanOrEqual(154);
       const macroHeights = readWidgetSizes('macroSizes').map(([, h]) => h);
       expect(Math.max(...macroHeights)).toBeGreaterThanOrEqual(252);
+      // The classic water layout needs about 132 dp at font scale 1.0, and a
+      // HyperOS 2x2 (167 dp) must keep it at the default size.
+      const waterHeights = readWidgetSizes('waterSizes').map(([, h]) => h);
+      expect(Math.max(...waterHeights)).toBeGreaterThanOrEqual(132);
+      expect(Math.max(...waterHeights)).toBeLessThanOrEqual(167);
     });
 
     it('keeps the classic water layout at its default size and the buttons in every layout', () => {
@@ -924,8 +930,8 @@ describe('Android widget localization contract', () => {
         'WaterWidget.kt.tmpl',
       ]) {
         const src = fs.readFileSync(path.join(KOTLIN_ROOT, template), 'utf8');
-        // Exact rebuilds the widget on every resize; Responsive lets the
-        // launcher pick a layout without waking the app.
+        // Exact rebuilds the widget on every resize; with Responsive the
+        // launcher picks among the layouts already sent (Android 12L and up).
         expect(src).not.toMatch(/SizeMode\.Exact/);
         // With several sizes each layout is composed separately, so a lambda
         // action would run once per size.
@@ -968,9 +974,18 @@ describe('Android widget localization contract', () => {
         expect(src).toContain(`R.string.${key}`);
       }
       // Goal is eaten + remaining, as on the Dashboard; the snapshot's `goal`
-      // is the base goal, before exercise credit.
+      // leaves out the exercise calories some modes add back. No figures
+      // without a goal, as on the Dashboard.
       expect(src).toMatch(
-        /CalorieFigures\(goal = food \+ remaining, food = food, burned = burned\)/
+        /figures = if \(goal > 0\.0 && food != null && burned != null\) \{\s*CalorieFigures\(goal = food \+ remaining, food = food, burned = burned\)/
+      );
+      // Only wide and tall enough; the default 2x1 never shows them.
+      expect(src).toMatch(
+        /val figures = snapshot\?\.figures\?\.takeIf \{\s*wide && size\.height >= WidgetSizes\.CALORIE_FIGURES_HEIGHT\s*\}/
+      );
+      // Each label over its own value, in the order Goal, Food, Burned.
+      expect(src).toMatch(
+        /Figure\(context\.getString\(R\.string\.widget_goal\), formatInt\(context, figures\.goal\)\)\s*Figure\(context\.getString\(R\.string\.widget_food\), formatInt\(context, figures\.food\)\)\s*Figure\(context\.getString\(R\.string\.widget_burned\), formatInt\(context, figures\.burned\)\)/
       );
       // food and burned are optional, so a snapshot stored by an older app
       // still reads and just shows no figures.
@@ -1077,10 +1092,18 @@ describe('Android widget localization contract', () => {
           /widgetContext\.getString\(R\.string\.widget_open_fasting\)/
         );
       }
-      // The fasting link needs its own entry in the app's linking config.
-      expect(
-        fs.readFileSync(path.join(__dirname, '../../App.tsx'), 'utf8')
-      ).toMatch(/FastingDetail: 'fasting'/);
+      // The fasting link needs its own entry in the app's linking config, on
+      // the root stack beside the scan and search links (not under Tabs, and
+      // not commented out).
+      const app = fs.readFileSync(
+        path.join(__dirname, '../../App.tsx'),
+        'utf8'
+      );
+      const rootLink = app.match(/^( +)FoodScan: 'scan',$/m);
+      expect(rootLink).not.toBeNull();
+      expect(app).toMatch(
+        new RegExp(`^${rootLink?.[1]}FastingDetail: 'fasting',$`, 'm')
+      );
     });
   });
 

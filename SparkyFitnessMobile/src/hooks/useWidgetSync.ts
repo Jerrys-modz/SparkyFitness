@@ -53,10 +53,10 @@ export function useWidgetSync(
       return;
     }
 
-    const calorieSnapshot = buildCalorieWidgetSnapshot(summary);
     const lastUpdated = Math.floor(Date.now() / 1000);
 
     if (Platform.OS === 'ios') {
+      const calorieSnapshot = buildCalorieWidgetSnapshot(summary);
       try {
         if (!iosAppGroup) {
           addLog(

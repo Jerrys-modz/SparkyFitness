@@ -94,8 +94,10 @@ export function buildAndroidWidgetSnapshots(summary: DailySummary): {
       protein: summary.protein.consumed,
       carbs: summary.carbs.consumed,
       fat: summary.fat.consumed,
-      // The eaten figure the Dashboard and the calorie widget show (supplements
-      // included); the flat `caloriesConsumed` leaves them out.
+      // From the same balance as `remaining`: the eaten figure the Dashboard
+      // and the calorie widget show. The flat `caloriesConsumed` can differ
+      // from it slightly (it is not rounded, and the server counts a few
+      // entries differently).
       calories: balance ? balance.eaten : summary.caloriesConsumed,
       remaining: balance?.remaining,
       proteinGoal: summary.protein.goal,

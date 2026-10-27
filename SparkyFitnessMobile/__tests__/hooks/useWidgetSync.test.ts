@@ -163,7 +163,17 @@ describe('useWidgetSync', () => {
   });
 
   it('writes the iOS calorie snapshot unchanged', () => {
-    renderHook(() => useWidgetSync(makeSummary()));
+    // The flat totals differ from the balance only so this test can tell
+    // which ones the payload reads: iOS has always read the balance.
+    renderHook(() =>
+      useWidgetSync(
+        makeSummary({
+          caloriesConsumed: 1500,
+          caloriesBurned: 180,
+          calorieGoal: 2100,
+        })
+      )
+    );
 
     const calorieCall = setMock.mock.calls.find(
       (call) => call[0] === 'calorieSnapshot'
@@ -458,8 +468,8 @@ describe('useWidgetSync', () => {
     const payload = JSON.parse(
       androidSetMacroSnapshot.mock.calls[1][0] as string
     );
-    // The kcal eaten come from the calorie balance, as on the Dashboard; the
-    // flat caloriesConsumed (supplements left out) is not what is shown.
+    // The kcal eaten come from the calorie balance, as on the Dashboard, not
+    // from the flat caloriesConsumed.
     expect(payload).toMatchObject({
       calories: 1540,
       protein: 100,
