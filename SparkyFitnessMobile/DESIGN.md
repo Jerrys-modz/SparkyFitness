@@ -833,7 +833,7 @@ Take macro and nutrient colors from `GoalPalette` (`GoalPalette.color(forNutrien
 - Data comes from the app group (`APP_GROUP_IDENTIFIER` in the target's Info.plist), written by `ComplicationPublisher`. The daily metric snapshots (steps, water, energy, macros) carry a date, and one for another day is ignored. The fasting snapshot has no date, because a fast can span midnight. The placeholder shows a plausible mid-day value.
 - Refresh differs by complication. Steps, Water, Energy and the macros reload after 15 minutes or at midnight, whichever is first. Fasting reloads hourly when no fast is active; during an active fast it provides a run of 15-minute entries and reloads `.atEnd`.
 - Each Apple Watch complication opens the app on its page through the `sparkyfitness-watch` URL scheme (`ComplicationLinks.swift`). The scheme is declared in three copies that must stay in step: `targets/watch/expo-target.config.js`, `WatchDeepLink.scheme` and `ComplicationLink.scheme`. Wear OS complications instead tap through a `PendingIntent` carrying a `target_page` extra (`ComplicationUpdater.tapPendingIntent`); Wear OS also accepts a separate `sparkyfitness://watch` deep link in `MainActivity`.
-- Tints: Water cyan, Steps mint, Fasting orange, Energy and the macros per the table above (see 10.6 for the macro mismatch).
+- Tints today: Water cyan, Steps mint, Fasting orange. The Energy complication's rings use the `GoalPalette` calorie and macro colors from the table above. The standalone macro complications (`MacroComplications.swift`) currently use system red (protein), yellow (carbs) and blue (fat), which differ from `GoalPalette` (see 10.6). `GoalPalette` is the intended palette.
 
 ### 10.5 Wear OS app
 
@@ -858,7 +858,7 @@ Take macro and nutrient colors from `GoalPalette` (`GoalPalette.color(forNutrien
 ### 10.6 Known gaps
 
 - The Wear OS palette is a Tailwind-style set unrelated to the Apple Watch `GoalPalette`, so the same macro is a different color on each watch: protein is amber on Apple Watch and cyan on Wear OS, and carbs is green on Apple Watch and amber on Wear OS.
-- The Apple Watch complications' macro tints (`MacroComplications.swift`: protein red, carbs yellow, fat blue) say they match `GoalPalette`, but they do not (protein amber, carbs green, fat light blue). Fasting uses `.orange` and Steps `.mint` as system colors.
+- The Apple Watch complications' macro tints (`MacroComplications.swift`: protein red, carbs yellow, fat blue) have a comment saying they match `GoalPalette`, but they do not; fixing them means changing the Swift (protein amber, carbs green, fat light blue). Fasting uses `.orange` and Steps `.mint` as system colors.
 - Localization is incomplete. `GoalSummaryView.swift` still has static literals ("Calories not synced yet", "Protein", "g"), as do some other Apple Watch views (for example `TrendView.swift`), and the Wear OS screens use literal English strings rather than Android string resources.
 - Some Apple Watch haptics bypass `Haptics` and the phone's haptics setting by calling `WKInterfaceDevice.current().play` directly: `WaterIntakeView`, `ClassicWaterIntakeView`, `MedicationsView`, `TrendView`, `CheckInEntryView` and the run auto-pause and resume in `WatchRunStore`. `WatchAppDelegate` also calls it directly, but checks the haptics setting first (the rest-finished buzz uses `effectiveRestBuzzEnabled`, which adds the phone's rest-alerts setting).
 - Neither watch palette is derived from `global.css`; the superset palette is the only hand-copied mirror.
