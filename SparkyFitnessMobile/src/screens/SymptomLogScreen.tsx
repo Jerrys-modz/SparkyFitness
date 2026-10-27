@@ -186,9 +186,19 @@ export default function SymptomLogScreen({ navigation, route }: Props) {
   };
 
   // An episode cannot start in the future, so a picked moment is clamped to now.
+  // Picking the minute already shown (the time sheet reports Done even when
+  // nothing moved) is not an edit, so the diary day is kept.
   const applyStartedAt = (d: Date) => {
     const now = new Date();
-    setStartedAt((d > now ? now : d).toISOString());
+    const next = d > now ? now : d;
+    const current = new Date(startedAt ?? openedAt);
+    if (
+      Math.floor(next.getTime() / 60000) ===
+      Math.floor(current.getTime() / 60000)
+    ) {
+      return;
+    }
+    setStartedAt(next.toISOString());
     setStartedAtEdited(true);
   };
 
