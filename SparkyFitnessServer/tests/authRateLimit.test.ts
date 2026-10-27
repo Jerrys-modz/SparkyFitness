@@ -242,6 +242,24 @@ describe('/mfa-factors inline rate limiter', () => {
     const resultsAfterWindow = await sendMfaRequests(middleware, 1, '10.2.0.4');
     expect(resultsAfterWindow[0]).toBeNull();
   });
+  it('starts a new window as soon as the old one ends, even right after another IP triggered a sweep', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2100-06-01T00:00:00Z'));
+    // A fresh module, so no sweep from an earlier test shifts the timing.
+    vi.resetModules();
+    router = (await import('../routes/auth/authCoreRoutes.js')).default;
+    const middleware = getRateLimitMiddleware();
+    await sendMfaRequests(middleware, 2, '10.2.2.1');
+    vi.advanceTimersByTime(1000);
+    const blocked = await sendMfaRequests(middleware, 6, '10.2.2.2');
+    expect(blocked.filter((r) => r === 429)).toHaveLength(1);
+    // Another IP's request sweeps while this window still has a second left.
+    vi.advanceTimersByTime(29 * 1000);
+    await sendMfaRequests(middleware, 1, '10.2.2.1');
+    vi.advanceTimersByTime(1500);
+    const [afterWindow] = await sendMfaRequests(middleware, 1, '10.2.2.2');
+    expect(afterWindow).toBeNull();
+  });
   it('should track limits independently for different IPs', async () => {
     const middleware = getRateLimitMiddleware();
     // Exhaust limit for one IP
