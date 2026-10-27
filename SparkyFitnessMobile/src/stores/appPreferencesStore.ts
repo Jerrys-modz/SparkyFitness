@@ -145,11 +145,12 @@ export const PREFERENCE_DEFAULTS = {
   watchRpeEnabled: false,
   watchSetScreenMetrics: true,
   watchUpNextPage: false,
-  watchLargeGoalsWater: false,
+  watchLargerText: false,
+  watchClassicWorkout: false,
   activeWorkoutNowCard: false,
   watchNutrientOrder: [] as string[],
   shownWatchNutrients: [...DEFAULT_WATCH_NUTRIENTS] as string[],
-  watchSetInputStyle: 'keypad' as WatchSetInputStyle,
+  watchSetInputStyle: 'crown' as WatchSetInputStyle,
   reportOrder: [...REPORT_KEYS] as ReportKey[],
   hiddenReports: [] as ReportKey[],
   reportDefaultRange: DEFAULT_REPORT_RANGE as TrendRange,
@@ -275,7 +276,9 @@ export type AppPreferencesData = {
   /** Whether the watch workout has the Up Next page after the set screen. */
   watchUpNextPage: boolean;
   /** Whether the watch's Goals and Water pages use the larger-text layout. */
-  watchLargeGoalsWater: boolean;
+  watchLargerText: boolean;
+  /** Keep the original workout page while larger text is on. */
+  watchClassicWorkout: boolean;
   /** Whether the active workout pins the Now card under the exercise rail. */
   activeWorkoutNowCard: boolean;
   /**
@@ -367,7 +370,8 @@ export interface AppPreferencesState extends AppPreferencesData {
   setWatchRpeEnabled: (value: boolean) => void;
   setWatchSetScreenMetrics: (value: boolean) => void;
   setWatchUpNextPage: (value: boolean) => void;
-  setWatchLargeGoalsWater: (value: boolean) => void;
+  setWatchLargerText: (value: boolean) => void;
+  setWatchClassicWorkout: (value: boolean) => void;
   setActiveWorkoutNowCard: (value: boolean) => void;
   setWatchNutrientOrder: (order: string[]) => void;
   setWatchNutrientShown: (key: string, isShown: boolean) => void;
@@ -589,7 +593,8 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
       setWatchSetScreenMetrics: (value) =>
         set({ watchSetScreenMetrics: value }),
       setWatchUpNextPage: (value) => set({ watchUpNextPage: value }),
-      setWatchLargeGoalsWater: (value) => set({ watchLargeGoalsWater: value }),
+      setWatchLargerText: (value) => set({ watchLargerText: value }),
+      setWatchClassicWorkout: (value) => set({ watchClassicWorkout: value }),
       setActiveWorkoutNowCard: (value) => set({ activeWorkoutNowCard: value }),
       setWatchPageHidden: (key, isHidden) =>
         set((state) => ({
@@ -683,7 +688,8 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         watchRpeEnabled: state.watchRpeEnabled,
         watchSetScreenMetrics: state.watchSetScreenMetrics,
         watchUpNextPage: state.watchUpNextPage,
-        watchLargeGoalsWater: state.watchLargeGoalsWater,
+        watchLargerText: state.watchLargerText,
+        watchClassicWorkout: state.watchClassicWorkout,
         activeWorkoutNowCard: state.activeWorkoutNowCard,
         watchNutrientOrder: state.watchNutrientOrder,
         shownWatchNutrients: state.shownWatchNutrients,

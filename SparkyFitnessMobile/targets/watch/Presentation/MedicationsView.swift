@@ -90,12 +90,12 @@ struct MedicationsView: View {
     private func emptyState(synced: Bool) -> some View {
         VStack(spacing: 8) {
             Image(systemName: "pills.fill")
-                .font(.title2)
+                .watchFont(.title2, classic: .title3)
                 .foregroundStyle(GoalPalette.medication)
             Text(synced
                  ? String(localized: "watch.medications.nothingToday", defaultValue: "Nothing scheduled today")
                  : String(localized: "watch.medications.notSynced", defaultValue: "Open SparkyFitness on your iPhone to see your medications"))
-                .font(.body)
+                .watchFont(.body, classic: .footnote)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
         }
@@ -164,7 +164,7 @@ private struct MedicationDoseRow: View {
             MedicationIcon(dose: dose)
             VStack(alignment: .leading, spacing: 2) {
                 Text(dose.name)
-                    .font(.headline)
+                    .watchFont(.headline, classic: .subheadline.weight(.medium))
                     .lineLimit(2)
                 if let caption {
                     Text(caption)
@@ -194,7 +194,7 @@ private struct MedicationDoseRow: View {
             // Orange until the phone has it, as on the Water page.
             let queued = store.medicationTap(for: dose.id)?.state == .queued
             Image(systemName: "checkmark.circle.fill")
-                .font(.title3)
+                .watchFont(.title3, classic: .body)
                 .foregroundStyle(queued ? Color.orange : Color.green)
         }
     }
@@ -216,7 +216,7 @@ struct MedicationDoseView: View {
                 MedicationIcon(dose: dose, size: 32)
                 VStack(spacing: 2) {
                     Text(dose.name)
-                        .font(.title3.weight(.semibold))
+                        .watchFont(.title3.weight(.semibold), classic: .headline)
                         .multilineTextAlignment(.center)
                     let caption = [dose.detail, dose.time].filter { !$0.isEmpty }.joined(separator: " · ")
                     if !caption.isEmpty {

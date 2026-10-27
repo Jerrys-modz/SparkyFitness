@@ -513,9 +513,12 @@ struct WatchContext: Codable, Equatable {
     var setScreenMetrics: Bool? = nil
     /// The Up Next page after the set screen (`upNextPage`). Nil means off.
     var upNextPage: Bool? = nil
-    /// The larger-text Goals and Water pages (`largeGoalsWater`). Nil means
+    /// The larger-text Goals and Water pages (`largerText`). Nil means
     /// off, the original layout.
-    var largeGoalsWater: Bool? = nil
+    var largerText: Bool? = nil
+    /// Keep the original workout page while larger text is on
+    /// (`classicWorkout`). Nil means off.
+    var classicWorkout: Bool? = nil
     /// The fast running now. Nil with `fastSynced` true means "not fasting".
     var fast: WatchFast? = nil
     /// True once the phone has said anything about fasting, so "not fasting"
@@ -587,10 +590,10 @@ struct WatchContext: Codable, Equatable {
         formatWaterMl(ml, unit: waterDisplayUnit ?? "ml")
     }
 
-    /// The keypad until the phone says otherwise, or when it names a style
-    /// this build doesn't know.
+    /// The Digital Crown until the phone says otherwise, or when it names a
+    /// style this build doesn't know.
     var effectiveSetInputStyle: SetInputStyle {
-        setInputStyle.flatMap(SetInputStyle.init(rawValue:)) ?? .keypad
+        setInputStyle.flatMap(SetInputStyle.init(rawValue:)) ?? .crown
     }
 
     /// The pages to swipe between, in order — see `WatchPage.visible`.
@@ -626,7 +629,12 @@ struct WatchContext: Codable, Equatable {
     var effectiveRpeEnabled: Bool { rpeEnabled ?? false }
     var effectiveSetScreenMetrics: Bool { setScreenMetrics ?? true }
     var effectiveUpNextPage: Bool { upNextPage ?? false }
-    var effectiveLargeGoalsWater: Bool { largeGoalsWater ?? false }
+    var effectiveLargerText: Bool { largerText ?? false }
+    var effectiveClassicWorkout: Bool { classicWorkout ?? false }
+
+    /// The original workout page: always with larger text off, and with it on
+    /// when the wearer asked to keep it.
+    var usesClassicWorkout: Bool { !effectiveLargerText || effectiveClassicWorkout }
 
     /// Stale seeds are worse than no seed: every morning would start from a lie
     /// and the delta line would reassure falsely.
