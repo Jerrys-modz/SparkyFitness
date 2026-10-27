@@ -2659,6 +2659,12 @@ describe('log_external_food', () => {
 });
 
 describe('create_food', () => {
+  it('describes nutrient values as per quantity × unit', () => {
+    expect(tools.sparky_manage_food.description).toContain(
+      'Nutrients are per quantity × unit.'
+    );
+  });
+
   it('splits a count-bearing unit ("4 pieces") into serving_size + bare unit', async () => {
     // Regression: quantity=1, unit="4 pieces" used to store serving_size=1,
     // serving_unit="4 pieces", which rendered as the nonsense "14 pieces" and
