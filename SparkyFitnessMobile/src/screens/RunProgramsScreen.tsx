@@ -321,7 +321,7 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
         </View>
         <View className="flex-1">
           <Button
-            variant="secondary"
+            variant="primary"
             onPress={() => navigation.navigate('RunProgramEdit')}
             testID="custom-plan-new"
           >
