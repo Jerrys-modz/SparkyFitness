@@ -8,6 +8,10 @@ These numbers are starting points taken from published sports-nutrition guidance
 
 ---
 
+## Where to find it
+
+On the web, open the **Exercises** page and scroll to **Fueling plan**. Enter your duration, effort and gut training to see the plan.
+
 ## How the target is chosen
 
 The default target depends on how long you will be running:

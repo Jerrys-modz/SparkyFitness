@@ -41,6 +41,7 @@ import type { ExerciseOwnershipFilter } from '@/types/exercises';
 import { localizeMuscle, localizeEquipment } from '@/utils/exerciseTaxonomy';
 import WorkoutPresetsManager from './WorkoutPresetsManager';
 import EquipmentManager from '@/pages/Exercises/EquipmentManager';
+import FuelingPlanner from '@/pages/Exercises/FuelingPlanner';
 import WorkoutPlansManager from '@/pages/Exercises/WorkoutPlansManager';
 import TrainingProgramsEntry from '@/pages/Exercises/TrainingPrograms/TrainingProgramsEntry';
 import WorkoutSplitsEntry from '@/pages/Exercises/WorkoutSplits/WorkoutSplitsEntry';
@@ -698,6 +699,9 @@ const ExerciseDatabaseManager = () => {
 
       {/* Equipment Section (shoes and their mileage) */}
       <EquipmentManager />
+
+      {/* Fueling plan for long runs and races */}
+      <FuelingPlanner />
 
       <AddExerciseDialog
         open={isAddExerciseDialogOpen}
