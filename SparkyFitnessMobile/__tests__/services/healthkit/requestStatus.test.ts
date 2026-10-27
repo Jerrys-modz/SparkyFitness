@@ -72,6 +72,25 @@ describe('hasUnrequestedHealthPermissions', () => {
     );
   });
 
+  // Health keeps reporting the workout effort rating as never requested, so
+  // counting it showed the sheet on every visit to the sync options.
+  it('leaves the workout effort rating out of the check but still requests it', async () => {
+    statusMock.mockResolvedValue(AuthorizationRequestStatus.unnecessary);
+    (requestAuthorization as jest.Mock).mockClear();
+    const exerciseSessions = [
+      { accessType: 'read', recordType: 'ExerciseSession' },
+    ] as Parameters<typeof hasUnrequestedHealthPermissions>[0];
+
+    await hasUnrequestedHealthPermissions(exerciseSessions);
+    await requestHealthPermissions(exerciseSessions);
+
+    const effort = 'HKQuantityTypeIdentifierWorkoutEffortScore';
+    expect(statusMock.mock.calls[0][0].toRead).not.toContain(effort);
+    expect(
+      (requestAuthorization as jest.Mock).mock.calls[0][0].toRead
+    ).toContain(effort);
+  });
+
   it('asks again when the check fails', async () => {
     statusMock.mockRejectedValue(new Error('boom'));
 

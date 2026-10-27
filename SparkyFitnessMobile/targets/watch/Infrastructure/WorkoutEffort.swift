@@ -10,6 +10,21 @@ enum WorkoutEffort {
         return nil
     }
 
+    private static let askedKey = "workoutEffortShareAsked"
+
+    /// The effort type to add to a write request, or nil once it has been asked
+    /// for. Health keeps reporting it as never requested, so adding it to every
+    /// workout start would show the permission sheet each time.
+    static func shareTypeToRequest() -> HKSampleType? {
+        guard !UserDefaults.standard.bool(forKey: askedKey) else { return nil }
+        return shareType
+    }
+
+    /// Records that the request carrying the effort type has been shown.
+    static func markShareAsked() {
+        UserDefaults.standard.set(true, forKey: askedKey)
+    }
+
     /// True when this watchOS can attach a rating to a saved workout.
     static var isSupported: Bool {
         if #available(watchOS 11.0, *) { return true }
