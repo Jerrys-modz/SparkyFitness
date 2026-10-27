@@ -291,6 +291,7 @@ export * from './utils/racePaceZones.ts';
 export * from './utils/heartRateTargets.ts';
 export * from './utils/heartRateZones.ts';
 export * from './utils/zone2Guidance.ts';
+export * from './utils/fuelingPlan.ts';
 export * from './utils/runPrograms.ts';
 export * from './utils/workoutSplits.ts';
 export * from './utils/workoutTrainer.ts';
