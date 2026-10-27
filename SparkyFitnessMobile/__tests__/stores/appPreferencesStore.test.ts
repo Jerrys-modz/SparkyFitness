@@ -76,6 +76,28 @@ describe('appPreferencesStore', () => {
     });
   });
 
+  describe('add menu row styles', () => {
+    it('keeps a choice that differs from the default and drops one that matches it', () => {
+      const { setAddMenuRowStyle } = useAppPreferencesStore.getState();
+
+      setAddMenuRowStyle('mood', 'action');
+      expect(useAppPreferencesStore.getState().addMenuRowStyles).toEqual({
+        mood: 'action',
+      });
+
+      // Mood's own style is a pair.
+      setAddMenuRowStyle('mood', 'compact');
+      expect(useAppPreferencesStore.getState().addMenuRowStyles).toEqual({});
+    });
+
+    it('is cleared by resetting the menu', () => {
+      useAppPreferencesStore.getState().setAddMenuRowStyle('mood', 'list');
+      useAppPreferencesStore.getState().resetAddMenu();
+
+      expect(useAppPreferencesStore.getState().addMenuRowStyles).toEqual({});
+    });
+  });
+
   describe('health trend preferences', () => {
     it('defaults to the full registry order with nothing hidden', () => {
       const state = useAppPreferencesStore.getState();

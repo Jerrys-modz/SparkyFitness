@@ -16,6 +16,8 @@ export interface ReorderSwitchListItem<K extends string> {
   label: string;
   /** Shown before the label, e.g. an icon tile. */
   leading?: ReactNode;
+  /** Shown under the label, e.g. a tappable choice. */
+  detail?: ReactNode;
 }
 
 interface ReorderSwitchListProps<K extends string> {
@@ -91,7 +93,7 @@ export function ReorderSwitchList<K extends string>({
 
   return (
     <View className="bg-surface rounded-xl overflow-hidden shadow-sm">
-      {items.map(({ key, label, leading }, index) => (
+      {items.map(({ key, label, leading, detail }, index) => (
         <ReorderSwitchRow
           key={key}
           testID={`${testIDPrefix}-row-${key}`}
@@ -101,6 +103,7 @@ export function ReorderSwitchList<K extends string>({
           lastIndex={items.length - 1}
           title={label}
           leading={leading}
+          detail={detail}
           isEnabled={isEnabled(key)}
           switchDisabled={isSwitchDisabled?.(key) ?? false}
           onToggle={(enabled) => onToggle(key, enabled)}

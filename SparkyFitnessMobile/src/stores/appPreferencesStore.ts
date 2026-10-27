@@ -21,10 +21,15 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import {
   ADD_MENU_ITEM_KEYS,
+  ADD_MENU_ITEM_ROW_STYLES,
   DEFAULT_ADD_MENU_CARDS,
   type AddMenuItemKey,
+  type AddMenuRowStyle,
 } from '../constants/addMenuItems';
-import { resolveAddMenuCards } from '../utils/addMenu';
+import {
+  resolveAddMenuCards,
+  type AddMenuRowStyleOverrides,
+} from '../utils/addMenu';
 import {
   DASHBOARD_CARD_KEYS,
   type DashboardCardKey,
@@ -156,6 +161,7 @@ export const PREFERENCE_DEFAULTS = {
   addMenuCards: [...DEFAULT_ADD_MENU_CARDS] as AddMenuItemKey[],
   addMenuOrder: [...ADD_MENU_ITEM_KEYS] as AddMenuItemKey[],
   hiddenAddMenuItems: [] as AddMenuItemKey[],
+  addMenuRowStyles: {} as AddMenuRowStyleOverrides,
   watchPageOrder: [...WATCH_PAGE_KEYS] as WatchPageKey[],
   hiddenWatchPages: [] as WatchPageKey[],
   watchDoubleTapEnabled: true,
@@ -276,6 +282,8 @@ export type AppPreferencesData = {
   addMenuOrder: AddMenuItemKey[];
   /** + sheet rows turned off in Settings → Quick Actions. */
   hiddenAddMenuItems: AddMenuItemKey[];
+  /** Items shown as another style than their default (list, pair or button). */
+  addMenuRowStyles: AddMenuRowStyleOverrides;
   /** Swipe order of the Apple Watch app's pages; sent to the watch. */
   watchPageOrder: WatchPageKey[];
   /** Watch pages turned off in Settings → Apple Watch. */
@@ -393,6 +401,8 @@ export interface AppPreferencesState extends AppPreferencesData {
   setAddMenuCards: (cards: AddMenuItemKey[]) => void;
   setAddMenuOrder: (order: AddMenuItemKey[]) => void;
   setAddMenuItemHidden: (key: AddMenuItemKey, isHidden: boolean) => void;
+  /** Shows an item as `style`; its own default style clears the choice. */
+  setAddMenuRowStyle: (key: AddMenuItemKey, style: AddMenuRowStyle) => void;
   resetAddMenu: () => void;
   setWatchPageOrder: (order: WatchPageKey[]) => void;
   setWatchPageHidden: (key: WatchPageKey, isHidden: boolean) => void;
@@ -617,11 +627,22 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
             isHidden
           ),
         })),
+      setAddMenuRowStyle: (key, style) =>
+        set((state) => {
+          const { [key]: _previous, ...rest } = state.addMenuRowStyles;
+          return {
+            addMenuRowStyles:
+              style === ADD_MENU_ITEM_ROW_STYLES[key]
+                ? rest
+                : { ...rest, [key]: style },
+          };
+        }),
       resetAddMenu: () =>
         set({
           addMenuCards: [...DEFAULT_ADD_MENU_CARDS],
           addMenuOrder: [...ADD_MENU_ITEM_KEYS],
           hiddenAddMenuItems: [],
+          addMenuRowStyles: {},
         }),
       setWatchPageOrder: (order) => set({ watchPageOrder: order }),
       setReportOrder: (order) => set({ reportOrder: order }),
@@ -780,6 +801,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         addMenuCards: state.addMenuCards,
         addMenuOrder: state.addMenuOrder,
         hiddenAddMenuItems: state.hiddenAddMenuItems,
+        addMenuRowStyles: state.addMenuRowStyles,
         watchPageOrder: state.watchPageOrder,
         hiddenWatchPages: state.hiddenWatchPages,
         watchDoubleTapEnabled: state.watchDoubleTapEnabled,

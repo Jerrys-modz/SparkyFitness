@@ -109,7 +109,14 @@ export const ADD_MENU_ITEM_TINTS: Record<AddMenuItemKey, AddMenuItemTint> = {
   syncHealth: 'accent',
 };
 
-type AddMenuRowStyle = 'list' | 'compact' | 'action';
+export type AddMenuRowStyle = 'list' | 'compact' | 'action';
+
+/** The order the sheet lays the styles out in, and settings lists them. */
+export const ADD_MENU_ROW_STYLES: readonly AddMenuRowStyle[] = [
+  'list',
+  'compact',
+  'action',
+];
 
 /**
  * How an item looks below the cards: `list` is a full-width row with a chevron,

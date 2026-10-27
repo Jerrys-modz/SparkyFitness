@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCSSVariable } from 'uniwind';
 
 import { useActiveWorkoutBarPadding } from '../components/ActiveWorkoutBar';
+import Icon from '../components/Icon';
 import AddMenuIconTile, {
   useAddMenuTintColors,
 } from '../components/AddMenuIconTile';
@@ -19,13 +20,15 @@ import {
   ADD_MENU_ITEM_TINTS,
   DEFAULT_ADD_MENU_CARDS,
   type AddMenuItemKey,
+  type AddMenuRowStyle,
 } from '../constants/addMenuItems';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import type { RootStackScreenProps } from '../types/navigation';
 import {
-  mergeRowOrder,
+  groupRowsByStyle,
+  mergeGroupOrder,
   placeInCardSlot,
   resolveAddMenuCards,
   rowKeys,
@@ -48,6 +51,7 @@ const AddMenuSettingsScreen: React.FC<AddMenuSettingsScreenProps> = () => {
   const usesNativeHeader = useNativeIOSHeadersActive();
   const raisedBg = String(useCSSVariable('--color-raised'));
   const tintColors = useAddMenuTintColors();
+  const accentColor = tintColors.accent;
 
   const savedCards = useAppPreferencesStore((s) => s.addMenuCards);
   const addMenuOrder = useAppPreferencesStore((s) => s.addMenuOrder);
@@ -59,24 +63,93 @@ const AddMenuSettingsScreen: React.FC<AddMenuSettingsScreenProps> = () => {
   const setAddMenuItemHidden = useAppPreferencesStore(
     (s) => s.setAddMenuItemHidden
   );
+  const addMenuRowStyles = useAppPreferencesStore((s) => s.addMenuRowStyles);
+  const setAddMenuRowStyle = useAppPreferencesStore(
+    (s) => s.setAddMenuRowStyle
+  );
   const resetAddMenu = useAppPreferencesStore((s) => s.resetAddMenu);
 
   const cards = useMemo(() => resolveAddMenuCards(savedCards), [savedCards]);
-  const rows = useMemo(
-    () =>
-      rowKeys(addMenuOrder, cards).map((key) => ({
-        key,
-        label: ADD_MENU_ITEM_LABELS[key](t),
-        leading: (
-          <AddMenuIconTile
-            icon={ADD_MENU_ITEM_ICONS[key]}
-            color={tintColors[ADD_MENU_ITEM_TINTS[key]]}
-            size="row"
-          />
-        ),
-      })),
-    [addMenuOrder, cards, t, tintColors]
+  // The rows grouped as the sheet draws them: a list, pairs side by side and
+  // buttons at the foot. Each group is arranged on its own, so the order
+  // shown here is the order the sheet shows.
+  const styleOptions = useMemo(
+    () => [
+      {
+        value: 'list' as const,
+        label: t('addMenuSettings.styleList', { defaultValue: 'List' }),
+      },
+      {
+        value: 'compact' as const,
+        label: t('addMenuSettings.stylePair', { defaultValue: 'Pair' }),
+      },
+      {
+        value: 'action' as const,
+        label: t('addMenuSettings.styleButton', { defaultValue: 'Button' }),
+      },
+    ],
+    [t]
   );
+  const rowGroups = useMemo(() => {
+    const groups = groupRowsByStyle(
+      rowKeys(addMenuOrder, cards),
+      addMenuRowStyles
+    );
+    const toItem = (key: AddMenuItemKey, style: AddMenuRowStyle) => ({
+      key,
+      label: ADD_MENU_ITEM_LABELS[key](t),
+      leading: (
+        <AddMenuIconTile
+          icon={ADD_MENU_ITEM_ICONS[key]}
+          color={tintColors[ADD_MENU_ITEM_TINTS[key]]}
+          size="row"
+        />
+      ),
+      detail: (
+        <BottomSheetPicker<AddMenuRowStyle>
+          value={style}
+          options={styleOptions}
+          onSelect={(picked) => setAddMenuRowStyle(key, picked)}
+          title={t('addMenuSettings.showAs', { defaultValue: 'Show as' })}
+          renderTrigger={({ onPress, selectedOption }) => (
+            <Pressable
+              testID={`add-menu-style-${key}`}
+              onPress={onPress}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={t('addMenuSettings.showAsValue', {
+                defaultValue: 'Show as {{style}}',
+                style: selectedOption?.label,
+              })}
+              className="flex-row items-center mt-0.5 self-start"
+            >
+              <Text className="text-xs" style={{ color: accentColor }}>
+                {t('addMenuSettings.showAsValue', {
+                  defaultValue: 'Show as {{style}}',
+                  style: selectedOption?.label,
+                })}
+              </Text>
+              <Icon name="chevron-expand" size={12} color={accentColor} />
+            </Pressable>
+          )}
+        />
+      ),
+    });
+    return {
+      list: groups.list.map((key) => toItem(key, 'list')),
+      compact: groups.compact.map((key) => toItem(key, 'compact')),
+      action: groups.action.map((key) => toItem(key, 'action')),
+    };
+  }, [
+    accentColor,
+    addMenuOrder,
+    addMenuRowStyles,
+    cards,
+    setAddMenuRowStyle,
+    styleOptions,
+    t,
+    tintColors,
+  ]);
   const pickerOptions = useMemo(
     () =>
       ADD_MENU_ITEM_KEYS.map((key) => ({
@@ -87,6 +160,7 @@ const AddMenuSettingsScreen: React.FC<AddMenuSettingsScreenProps> = () => {
   );
   const isDefault =
     hiddenAddMenuItems.length === 0 &&
+    Object.keys(addMenuRowStyles).length === 0 &&
     cards.every((key, index) => key === DEFAULT_ADD_MENU_CARDS[index]) &&
     resolveKeyOrder(addMenuOrder, ADD_MENU_ITEM_KEYS).every(
       (key, index) => key === ADD_MENU_ITEM_KEYS[index]
@@ -145,6 +219,36 @@ const AddMenuSettingsScreen: React.FC<AddMenuSettingsScreenProps> = () => {
     );
   };
 
+  const sections: {
+    style: AddMenuRowStyle;
+    title: string;
+    description: string;
+  }[] = [
+    {
+      style: 'list',
+      title: t('addMenuSettings.rowsTitle', { defaultValue: 'List' }),
+      description: t('addMenuSettings.rowsDescription', {
+        defaultValue:
+          'Rows under the tiles. Drag a row by its handle to move it. Toggle a row off to hide it.',
+      }),
+    },
+    {
+      style: 'compact',
+      title: t('addMenuSettings.pairsTitle', { defaultValue: 'Pairs' }),
+      description: t('addMenuSettings.pairsDescription', {
+        defaultValue:
+          'Shown two to a line, under the list. One on its own takes the whole line.',
+      }),
+    },
+    {
+      style: 'action',
+      title: t('addMenuSettings.buttonsTitle', { defaultValue: 'Buttons' }),
+      description: t('addMenuSettings.buttonsDescription', {
+        defaultValue: 'Shown side by side at the bottom of the sheet.',
+      }),
+    },
+  ];
+
   return (
     <View
       className="flex-1 bg-background"
@@ -177,33 +281,40 @@ const AddMenuSettingsScreen: React.FC<AddMenuSettingsScreenProps> = () => {
           {[0, 1, 2, 3].map((slot) => renderSlot(slot))}
         </View>
 
-        <Text className="text-text-primary text-base font-semibold mt-8 mb-1">
-          {t('addMenuSettings.rowsTitle', { defaultValue: 'List' })}
-        </Text>
-        <Text className="text-text-secondary text-sm mb-4">
-          {t('addMenuSettings.rowsDescription', {
-            defaultValue:
-              'Everything else, listed under the tiles. Drag a row by its handle to move it. Toggle a row off to hide it.',
-          })}
-        </Text>
-        <ReorderSwitchList
-          items={rows}
-          testIDPrefix="add-menu"
-          isEnabled={(key) => !hiddenAddMenuItems.includes(key)}
-          onToggle={(key, enabled) => setAddMenuItemHidden(key, !enabled)}
-          onReorder={(reordered) =>
-            setAddMenuOrder(mergeRowOrder(addMenuOrder, cards, reordered))
-          }
-          reorderA11yLabel={(name) =>
-            t('addMenuSettings.reorder', {
-              defaultValue: 'Reorder {{name}}',
-              name,
-            })
-          }
-          reorderA11yHint={t('addMenuSettings.reorderHint', {
-            defaultValue: 'Changes where this row sits in Quick Actions',
-          })}
-        />
+        {sections.map(({ style, title, description }) => {
+          const items = rowGroups[style];
+          if (items.length === 0) return null;
+          return (
+            <View key={style}>
+              <Text className="text-text-primary text-base font-semibold mt-8 mb-1">
+                {title}
+              </Text>
+              <Text className="text-text-secondary text-sm mb-4">
+                {description}
+              </Text>
+              <ReorderSwitchList
+                items={items}
+                testIDPrefix="add-menu"
+                isEnabled={(key) => !hiddenAddMenuItems.includes(key)}
+                onToggle={(key, enabled) => setAddMenuItemHidden(key, !enabled)}
+                onReorder={(reordered) =>
+                  setAddMenuOrder(
+                    mergeGroupOrder(addMenuOrder, cards, reordered)
+                  )
+                }
+                reorderA11yLabel={(name) =>
+                  t('addMenuSettings.reorder', {
+                    defaultValue: 'Reorder {{name}}',
+                    name,
+                  })
+                }
+                reorderA11yHint={t('addMenuSettings.reorderHint', {
+                  defaultValue: 'Changes where this row sits in Quick Actions',
+                })}
+              />
+            </View>
+          );
+        })}
         <View className="mt-6">
           <Button
             variant="secondary"

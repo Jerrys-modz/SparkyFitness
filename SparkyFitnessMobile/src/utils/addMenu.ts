@@ -1,8 +1,11 @@
 import {
   ADD_MENU_CARD_COUNT,
+  ADD_MENU_ITEM_ROW_STYLES,
+  ADD_MENU_ROW_STYLES,
   ADD_MENU_ITEM_KEYS,
   DEFAULT_ADD_MENU_CARDS,
   type AddMenuItemKey,
+  type AddMenuRowStyle,
 } from '../constants/addMenuItems';
 import { resolveKeyOrder } from './reorderUtils';
 
@@ -72,4 +75,60 @@ export function mergeRowOrder(
   return full.map((key) =>
     cards.includes(key) ? key : (queue.shift() ?? key)
   );
+}
+
+/**
+ * The rows split by how the sheet draws them, each keeping its given order, in
+ * the order the sheet shows the styles. Settings lists the same groups so what
+ * is arranged there is what the sheet shows.
+ */
+export function groupRowsByStyle(
+  keys: readonly AddMenuItemKey[],
+  overrides: AddMenuRowStyleOverrides = {}
+): Record<AddMenuRowStyle, AddMenuItemKey[]> {
+  const groups: Record<AddMenuRowStyle, AddMenuItemKey[]> = {
+    list: [],
+    compact: [],
+    action: [],
+  };
+  for (const style of ADD_MENU_ROW_STYLES) {
+    groups[style] = keys.filter(
+      (key) => resolveRowStyle(key, overrides) === style
+    );
+  }
+  return groups;
+}
+
+/** How the person chose to show each item, where it differs from its default. */
+export type AddMenuRowStyleOverrides = Partial<
+  Record<AddMenuItemKey, AddMenuRowStyle>
+>;
+
+/** An item's style: the saved choice if it is a style we know, else its default. */
+export function resolveRowStyle(
+  key: AddMenuItemKey,
+  overrides: AddMenuRowStyleOverrides
+): AddMenuRowStyle {
+  const saved = overrides[key];
+  return saved && ADD_MENU_ROW_STYLES.includes(saved)
+    ? saved
+    : ADD_MENU_ITEM_ROW_STYLES[key];
+}
+
+/**
+ * The full saved order after one group of rows was rearranged: the group's
+ * items take the places the group held, in their new order, and every other
+ * row stays where it was.
+ */
+export function mergeGroupOrder(
+  order: readonly string[],
+  cards: readonly AddMenuItemKey[],
+  reorderedGroup: readonly AddMenuItemKey[]
+): AddMenuItemKey[] {
+  const rows = rowKeys(order, cards);
+  const queue = [...reorderedGroup];
+  const next = rows.map((key) =>
+    reorderedGroup.includes(key) ? (queue.shift() ?? key) : key
+  );
+  return mergeRowOrder(order, cards, next);
 }
