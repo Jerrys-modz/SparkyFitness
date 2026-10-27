@@ -189,7 +189,8 @@ describe('SymptomLogScreen back-dating', () => {
     const startedMs = new Date(
       logMutateAsync.mock.calls[0][0].started_at
     ).getTime();
-    expect(startedMs).toBeGreaterThanOrEqual(before);
+    // Clamped to now, which is the minute the form already showed.
+    expect(startedMs).toBeGreaterThanOrEqual(before - 60 * 1000);
     expect(startedMs).toBeLessThanOrEqual(Date.now());
   });
 
@@ -218,6 +219,72 @@ describe('SymptomLogScreen back-dating', () => {
     try {
       const screen = renderScreen();
       await logEpisode(screen);
+      await save(screen);
+
+      expect(logMutateAsync.mock.calls[0][0].entry_date).toBe('2024-06-15');
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('keeps the diary day when the time sheet is confirmed unchanged', async () => {
+    jest.useFakeTimers({
+      now: new Date(2024, 5, 15, 12, 0, 0),
+      doNotFake: [
+        'hrtime',
+        'nextTick',
+        'performance',
+        'queueMicrotask',
+        'requestAnimationFrame',
+        'cancelAnimationFrame',
+        'requestIdleCallback',
+        'cancelIdleCallback',
+        'setImmediate',
+        'clearImmediate',
+        'setInterval',
+        'clearInterval',
+        'setTimeout',
+        'clearTimeout',
+      ],
+    });
+    try {
+      const screen = renderScreen();
+      await logEpisode(screen);
+      // Done on the sheet with the time it already showed.
+      act(() => mockTimeProps?.onSelectTime('12:00'));
+      await save(screen);
+
+      expect(logMutateAsync.mock.calls[0][0].entry_date).toBe('2024-06-15');
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('keeps the diary day when a changed start is put back', async () => {
+    jest.useFakeTimers({
+      now: new Date(2024, 5, 15, 12, 0, 0),
+      doNotFake: [
+        'hrtime',
+        'nextTick',
+        'performance',
+        'queueMicrotask',
+        'requestAnimationFrame',
+        'cancelAnimationFrame',
+        'requestIdleCallback',
+        'cancelIdleCallback',
+        'setImmediate',
+        'clearImmediate',
+        'setInterval',
+        'clearInterval',
+        'setTimeout',
+        'clearTimeout',
+      ],
+    });
+    try {
+      const screen = renderScreen();
+      await logEpisode(screen);
+      act(() => mockCalendarProps?.onSelectDate('2024-06-10'));
+      act(() => mockCalendarProps?.onSelectDate('2024-06-15'));
       await save(screen);
 
       expect(logMutateAsync.mock.calls[0][0].entry_date).toBe('2024-06-15');
