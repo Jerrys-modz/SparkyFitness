@@ -195,7 +195,7 @@ private struct WaitingForWorkoutView: View {
                     choosingCardio = true
                 } label: {
                     Label(String(localized: "watch.cardio.title", defaultValue: "Cardio"), systemImage: "figure.run")
-                        .font(.system(size: WatchStyle.s(16), weight: .semibold))
+                        .font(.system(size: WatchStyle.s(19), weight: .semibold))
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal, 12)
@@ -273,7 +273,7 @@ private struct WaitingForWorkoutView: View {
                             start(presetId: workout.presetId)
                         } label: {
                             Text(startingId == workout.presetId ? "Starting…" : workout.name)
-                                .font(.system(size: WatchStyle.s(16), weight: .semibold))
+                                .font(.system(size: WatchStyle.s(19), weight: .semibold))
                                 .foregroundStyle(.white)
                                 .multilineTextAlignment(.leading)
                                 .lineLimit(2)
@@ -315,7 +315,7 @@ private struct WaitingForWorkoutView: View {
             .foregroundStyle(blue)
             HStack(spacing: 8) {
                 Text(startingId == workout.presetId ? "Starting…" : workout.name)
-                    .font(.system(size: WatchStyle.s(16), weight: .semibold))
+                    .font(.system(size: WatchStyle.s(19), weight: .semibold))
                     .foregroundStyle(.white)
                     .multilineTextAlignment(.leading)
                     .lineLimit(2)
@@ -2178,93 +2178,78 @@ private struct PendingRpe: Identifiable {
 /// One line of text that scrolls sideways to its end and back when it is wider
 /// than the space it has, so a long exercise name can be read in full. A name
 /// that fits stays still, and with Reduce Motion on it truncates instead.
-private struct MarqueeText: View {
+struct MarqueeText: View {
     let text: String
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var textWidth: CGFloat = 0
-    @State private var containerWidth: CGFloat = 0
-    @State private var scrolled = false
 
     private static let pointsPerSecond: Double = 25
     private static let pause: Double = 1.5
-
-    private var overflow: CGFloat { max(0, textWidth - containerWidth) }
+    private static let returnDuration: Double = 0.4
 
     var body: some View {
         Group {
             if reduceMotion {
                 Text(text).lineLimit(1)
             } else {
-                // A name that fits is plain text and never moves. Only one
-                // too wide for its room (the first child does not fit, so
-                // `ViewThatFits` falls through) is scrolled.
-                ViewThatFits(in: .horizontal) {
-                    Text(text)
-                        .lineLimit(1)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    scrolling
-                }
+                // The sizing text truncates, so it takes the width it is given
+                // and never more; the full-length copy is drawn over it and
+                // cannot widen the page (a fixed-size child inside the layout
+                // did, and pushed the whole screen off its edges). The room the
+                // copy has is read from the overlay's own geometry in the same
+                // pass, and the text's own width is written straight into state
+                // rather than sent up through a preference, which was not
+                // delivered reliably on the workout screen.
+                Text(text)
+                    .lineLimit(1)
+                    .opacity(0)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .overlay(alignment: .leading) {
+                        GeometryReader { geo in
+                            TimelineView(.animation(minimumInterval: 1.0 / 30)) { context in
+                                Text(text)
+                                    .lineLimit(1)
+                                    .fixedSize()
+                                    .background(GeometryReader { proxy in
+                                        Color.clear
+                                            .onAppear { textWidth = proxy.size.width }
+                                            .onChange(of: proxy.size.width) { textWidth = proxy.size.width }
+                                    })
+                                    .offset(x: offset(at: context.date, room: geo.size.width))
+                                    .frame(width: geo.size.width, alignment: .leading)
+                            }
+                        }
+                    }
+                    .clipped()
             }
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(text)
     }
 
-    /// The sizing text truncates, so it takes the width it is given and never
-    /// more; the full-length copy is drawn over it and cannot widen the page (a
-    /// fixed-size child inside the layout did, and pushed the whole screen off
-    /// its edges).
-    private var scrolling: some View {
-        Text(text)
-            .lineLimit(1)
-            .opacity(0)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(GeometryReader { proxy in
-                Color.clear.preference(key: MarqueeContainerWidthKey.self, value: proxy.size.width)
-            })
-            .overlay(alignment: .leading) {
-                Text(text)
-                    .lineLimit(1)
-                    .fixedSize()
-                    .background(GeometryReader { proxy in
-                        Color.clear.preference(key: MarqueeTextWidthKey.self, value: proxy.size.width)
-                    })
-                    .offset(x: scrolled ? -overflow : 0)
-            }
-            .clipped()
-            .onPreferenceChange(MarqueeTextWidthKey.self) { textWidth = $0 }
-            .onPreferenceChange(MarqueeContainerWidthKey.self) { containerWidth = $0 }
-            .task(id: overflow) { await scroll() }
-    }
-
-    private func scroll() async {
-        scrolled = false
-        // Nothing to do until both widths are known.
-        guard containerWidth > 0, overflow > 0.5 else { return }
+    /// Wait, scroll to the end, wait, then glide back, and again. The phase
+    /// comes from the wall clock alone, so a view the workout screen's
+    /// once-a-second redraw rebuilt carries on where it was instead of
+    /// starting over (and never getting past its first pause).
+    private func offset(at date: Date, room: CGFloat) -> CGFloat {
+        let overflow = room > 0 ? max(0, textWidth - room) : 0
+        guard overflow > 0.5 else { return 0 }
         let travel = Double(overflow) / Self.pointsPerSecond
-        do {
-            while true {
-                try await Task.sleep(nanoseconds: UInt64(Self.pause * 1_000_000_000))
-                withAnimation(.linear(duration: travel)) { scrolled = true }
-                try await Task.sleep(nanoseconds: UInt64((travel + Self.pause) * 1_000_000_000))
-                withAnimation(.easeInOut(duration: 0.4)) { scrolled = false }
-                try await Task.sleep(nanoseconds: 400_000_000)
-            }
-        } catch {
-            // Cancelled when the text or its room changes, or the view goes.
+        let cycle = Self.pause + travel + Self.pause + Self.returnDuration
+        let t = date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: cycle)
+        let fraction: Double
+        if t < Self.pause {
+            fraction = 0
+        } else if t < Self.pause + travel {
+            fraction = (t - Self.pause) / travel
+        } else if t < Self.pause + travel + Self.pause {
+            fraction = 1
+        } else {
+            fraction = 1 - (t - (Self.pause + travel + Self.pause)) / Self.returnDuration
         }
+        return -overflow * CGFloat(min(max(fraction, 0), 1))
     }
-}
-
-private struct MarqueeTextWidthKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
-}
-
-private struct MarqueeContainerWidthKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
 }
 
 /// Effort picked after a set: the set it is for, one big value card the Digital

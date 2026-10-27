@@ -236,9 +236,24 @@ jobs:
             # title should scroll rather than be cut off.
             shoot workout-longname active workout "" longname
             shoot workout-longname-large active workout "" longname,large
+            # Two later frames of the same screen: a scrolling title moves.
+            sleep 3
+            xcrun simctl io "$UDID" screenshot "screenshots/workout-longname-large-later-$SIZE.png"
+            sleep 3
+            xcrun simctl io "$UDID" screenshot "screenshots/workout-longname-large-later2-$SIZE.png"
             shoot workout-resting-longname-large resting workout "" longname,large
             shoot workout-rpe-longname active workout rpe longname
             shoot workout-rpe-longname-large active workout rpe longname,large
+
+            # Larger text on everywhere else, with the original workout page.
+            shoot workout-active-large-classic active workout "" large,classicworkout
+            shoot workout-longname-large-classic active workout "" longname,large,classicworkout
+            shoot workout-rpe-longname-large-classic active workout rpe longname,large,classicworkout
+
+            # The workout picker and medications follow the text size too.
+            shoot workout-idle-large none workout "" large
+            shoot medications-large none medications "" large
+            shoot medications-dose-large none medications dose large
           done <<< "$DEVICES"
 
           ls -la screenshots

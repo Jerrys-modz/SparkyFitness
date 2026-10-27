@@ -177,7 +177,7 @@ struct ContentView: View {
         case .trend:
             TrendView()
         case .workout:
-            if store.context.effectiveLargerText {
+            if !store.context.usesClassicWorkout {
                 WorkoutView()
                     .environment(\.workoutPageActive, selectedPage == .workout)
             } else {

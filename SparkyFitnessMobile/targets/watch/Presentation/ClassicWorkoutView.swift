@@ -186,7 +186,7 @@ private struct WaitingForWorkoutView: View {
                     choosingCardio = true
                 } label: {
                     Label(String(localized: "watch.cardio.title", defaultValue: "Cardio"), systemImage: "figure.run")
-                        .font(.system(size: ClassicWatchStyle.s(16), weight: .semibold))
+                        .watchFont(.system(size: ClassicWatchStyle.s(19), weight: .semibold), classic: .system(size: ClassicWatchStyle.s(16), weight: .semibold))
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal, 12)
@@ -236,7 +236,7 @@ private struct WaitingForWorkoutView: View {
                     .font(.title2)
                     .foregroundStyle(.secondary)
                 Text(String(localized: "watch.workout.startOnPhone", defaultValue: "Start a workout on your phone"))
-                    .font(.caption)
+                    .watchFont(.body, classic: .caption)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             }
@@ -264,7 +264,7 @@ private struct WaitingForWorkoutView: View {
                             start(presetId: workout.presetId)
                         } label: {
                             Text(startingId == workout.presetId ? "Starting…" : workout.name)
-                                .font(.system(size: ClassicWatchStyle.s(16), weight: .semibold))
+                                .watchFont(.system(size: ClassicWatchStyle.s(19), weight: .semibold), classic: .system(size: ClassicWatchStyle.s(16), weight: .semibold))
                                 .foregroundStyle(.white)
                                 .multilineTextAlignment(.leading)
                                 .lineLimit(2)
@@ -302,11 +302,11 @@ private struct WaitingForWorkoutView: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
             }
-            .font(.system(size: ClassicWatchStyle.s(11), weight: .semibold))
+            .watchFont(.footnote.weight(.semibold), classic: .system(size: ClassicWatchStyle.s(11), weight: .semibold))
             .foregroundStyle(blue)
             HStack(spacing: 8) {
                 Text(startingId == workout.presetId ? "Starting…" : workout.name)
-                    .font(.system(size: ClassicWatchStyle.s(16), weight: .semibold))
+                    .watchFont(.system(size: ClassicWatchStyle.s(19), weight: .semibold), classic: .system(size: ClassicWatchStyle.s(16), weight: .semibold))
                     .foregroundStyle(.white)
                     .multilineTextAlignment(.leading)
                     .lineLimit(2)
@@ -1012,10 +1012,9 @@ private struct CurrentSetView: View {
     var body: some View {
         VStack(spacing: 4) {
             VStack(alignment: .leading, spacing: 0) {
-                Text(step.exerciseName)
+                // Scrolls when the name is too wide, so it is never cut off.
+                MarqueeText(text: step.exerciseName)
                     .font(.headline)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
                 if let partners = step.supersetWith {
                     Text(String(localized: "watch.workout.superset", defaultValue: "Superset · \(partners)"))
                         .font(.system(size: 9))
@@ -1960,15 +1959,14 @@ private struct RpePickerView: View {
     var body: some View {
         VStack(spacing: 3) {
             VStack(alignment: .leading, spacing: 0) {
-                Text(title)
+                MarqueeText(text: title)
                     .font(.system(size: 14, weight: .bold))
-                    .lineLimit(1)
                 Text(summary)
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             }
-            .minimumScaleFactor(0.8)
             // Room for the system clock, which sits over the top right.
             .padding(.trailing, 52)
             .frame(maxWidth: .infinity, alignment: .leading)

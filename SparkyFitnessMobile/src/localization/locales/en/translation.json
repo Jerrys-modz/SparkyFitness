@@ -6627,7 +6627,9 @@
     "upNextTitle": "Up Next page",
     "upNextSubtitle": "A page one swipe up from the set screen with the next exercise, its target, and a Swap button to do another exercise first.",
     "largerTextTitle": "Larger text on the watch",
-    "largerTextSubtitle": "Larger type and the newer layouts across the watch: Goals, Water, the workout, Fasting, Steps and more. Off keeps the original look."
+    "largerTextSubtitle": "Larger type and the newer layouts across the watch: Goals, Water, the workout, Fasting, Steps and more. Off keeps the original look.",
+    "classicWorkoutTitle": "Original workout page",
+    "classicWorkoutSubtitle": "Keep the original workout screen while larger text is on everywhere else. With larger text off the workout always uses it."
   },
   "progressPhotos": {
     "card": {
