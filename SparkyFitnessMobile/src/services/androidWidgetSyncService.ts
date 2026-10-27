@@ -6,19 +6,17 @@ import {
   loadDailySummaryRawData,
 } from './dailySummaryService';
 import type { DailySummary } from '../types/dailySummary';
+import {
+  buildCalorieWidgetSnapshot,
+  type CalorieWidgetSnapshot,
+} from './calorieWidgetSnapshot';
 
 /**
  * Android widget snapshot contracts mirrored by `parseSnapshot` in the
  * calorie and macro widget Kotlin templates. Optional fields are omitted by
  * JSON serialization, which the native readers interpret as not supplied.
+ * The calorie snapshot is the one iOS gets too (`CalorieWidgetSnapshot`).
  */
-export interface AndroidCalorieSnapshot {
-  date: string;
-  remaining: number;
-  goal: number;
-  progress: number;
-}
-
 export interface AndroidMacroSnapshot {
   date: string;
   protein: number;
@@ -84,30 +82,21 @@ export function buildAndroidWaterSnapshot(
 }
 
 export function buildAndroidWidgetSnapshots(summary: DailySummary): {
-  calorie?: AndroidCalorieSnapshot;
+  calorie?: CalorieWidgetSnapshot;
   macro: AndroidMacroSnapshot;
 } {
   const balance = summary.calorieBalance;
-  const calorie = balance
-    ? {
-        date: summary.date,
-        remaining: balance.remaining,
-        goal: balance.goal,
-        progress:
-          balance.goal > 0
-            ? Math.max(0, Math.min(1, balance.progress / 100))
-            : 0,
-      }
-    : undefined;
 
   return {
-    calorie,
+    calorie: buildCalorieWidgetSnapshot(summary),
     macro: {
       date: summary.date,
       protein: summary.protein.consumed,
       carbs: summary.carbs.consumed,
       fat: summary.fat.consumed,
-      calories: summary.caloriesConsumed,
+      // The eaten figure the Dashboard and the calorie widget show (supplements
+      // included); the flat `caloriesConsumed` leaves them out.
+      calories: balance ? balance.eaten : summary.caloriesConsumed,
       remaining: balance?.remaining,
       proteinGoal: summary.protein.goal,
       carbsGoal: summary.carbs.goal,
@@ -124,7 +113,7 @@ function serializeWidgetPayload<T extends object>(
 }
 
 export async function pushAndroidCalorieSnapshot(
-  snapshot: AndroidCalorieSnapshot,
+  snapshot: CalorieWidgetSnapshot,
   lastUpdated = Math.floor(Date.now() / 1000)
 ): Promise<void> {
   await CalorieWidgetBridge.setCalorieSnapshot(
