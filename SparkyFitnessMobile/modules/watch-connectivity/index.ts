@@ -337,7 +337,7 @@ export interface WatchContextPayload {
   /** The Up Next page after the set screen. Absent means off. */
   upNextPage?: boolean;
   /** The larger-text layout of the Goals and Water pages. Absent means off. */
-  largeGoalsWater?: boolean;
+  largerText?: boolean;
   /**
    * This phone handles the `doExerciseNow` workout edit. The watch offers
    * Swap only while it is true.

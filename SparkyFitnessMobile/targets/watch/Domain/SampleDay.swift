@@ -125,7 +125,7 @@ enum SampleDay {
             exerciseDoNow: true,
             setScreenMetrics: !ScreenshotSeed.has("nometrics"),
             upNextPage: ScreenshotSeed.has("upnext"),
-            largeGoalsWater: ScreenshotSeed.has("large"),
+            largerText: ScreenshotSeed.has("large"),
             // `fast`: 14 h into a 16:8 fast; otherwise synced and not fasting.
             fast: ScreenshotSeed.has("fast")
                 ? WatchFast(startedAt: Date().addingTimeInterval(-14 * 3600), targetEndAt: Date().addingTimeInterval(2 * 3600), label: "16:8")

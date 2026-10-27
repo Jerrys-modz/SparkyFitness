@@ -3,7 +3,7 @@ import SwiftUI
 /// Whether the watch uses the larger text the Goals, Water, Workout and other
 /// pages were given (#3191). Off (the default) is the original, smaller type.
 /// `ContentView` sets it from the phone's "Larger text on the watch" setting
-/// (`largeGoalsWater` in the context).
+/// (`largerText` in the context).
 private struct WatchLargeTextKey: EnvironmentKey {
     static let defaultValue = false
 }

@@ -62,7 +62,7 @@ struct ContentView: View {
                 .id(pages)
             }
         }
-        .environment(\.watchLargeText, store.context.effectiveLargeGoalsWater)
+        .environment(\.watchLargeText, store.context.effectiveLargerText)
         .onAppear {
             store.pruneStaleDayData()
             // Cheap, local, and works with the phone out of range — unlike
@@ -155,13 +155,13 @@ struct ContentView: View {
     private func view(for page: WatchPage) -> some View {
         switch page {
         case .goals:
-            if store.context.effectiveLargeGoalsWater {
+            if store.context.effectiveLargerText {
                 GoalSummaryView()
             } else {
                 ClassicGoalSummaryView()
             }
         case .water:
-            if store.context.effectiveLargeGoalsWater {
+            if store.context.effectiveLargerText {
                 WaterIntakeView()
             } else {
                 ClassicWaterIntakeView()
@@ -177,7 +177,7 @@ struct ContentView: View {
         case .trend:
             TrendView()
         case .workout:
-            if store.context.effectiveLargeGoalsWater {
+            if store.context.effectiveLargerText {
                 WorkoutView()
                     .environment(\.workoutPageActive, selectedPage == .workout)
             } else {
