@@ -285,6 +285,7 @@
       "workoutTimer": "Workout timer",
       "fasting": "Fasting",
       "hydration": "Hydration reminders",
+      "fueling": "Fueling reminders",
       "moodCheckin": "Mood check-ins"
     },
     "moodCheckin": {
@@ -328,6 +329,10 @@
     "hydration": {
       "title": "Time to hydrate 💧",
       "body": "You haven't logged any water in a while."
+    },
+    "fueling": {
+      "title": "Time to fuel ⚡",
+      "body": "Take {{grams}} g of carbs."
     }
   },
   "activeWorkout": {
@@ -626,6 +631,8 @@
       "recentItemsHint": "Foods, meals, and exercises you log will appear here for quick access.",
       "reports": "Reports",
       "reportsSubtitle": "Nutrition, sleep, mood and exercise trends",
+      "fuelingPlan": "Fueling plan",
+      "fuelingPlanSubtitle": "Carbs and reminders for long runs and races",
       "runPrograms": "Training programs",
       "runProgramsSubtitle": "Run and walk plans from Beginner 5K to marathon",
       "runProgramsActive": "{{name}} · {{progress}}",
@@ -663,6 +670,7 @@
     "heartRateReport": "Heart Rate",
     "runSummary": "Activity saved",
     "runPrograms": "Training programs",
+    "fuelingPlan": "Fueling plan",
     "personalRecords": "Personal records",
     "watchRunLive": "On your watch",
     "watchRunLiveRun": "Run on your watch",
@@ -7114,6 +7122,42 @@
     "heatmapA11y": "Heatmap of days with a fast",
     "less": "Less",
     "more": "More"
+  },
+  "fuelingPlan": {
+    "title": "Fueling plan",
+    "description": "Plan the carbohydrates for a long run or race and get a reminder for each portion.",
+    "hours": "Hours",
+    "minutes": "Minutes",
+    "effort": "Effort (heart rate zone)",
+    "zoneOption": "Z{{zone}}",
+    "experience": "Gut training",
+    "experienceBeginner": "Beginner",
+    "experienceIntermediate": "Intermediate",
+    "experienceAdvanced": "Advanced",
+    "carbsOverride": "Your carbs (g/h)",
+    "portionOverride": "Portion (g)",
+    "useDefault": "Default",
+    "summary": "{{carbs}} g/h: take {{portion}} g every {{interval}} min",
+    "total": "About {{total}} g of carbohydrate in total.",
+    "defaultRange": "The usual range for this duration is {{min}} to {{max}} g/h.",
+    "schedule": "Reminders at {{times}} after the start.",
+    "notNeeded": "Runs under an hour usually do not need fueling. Enter your own carbs per hour to plan one anyway.",
+    "running": "Reminders are set",
+    "runningDetail_one": "{{count}} reminder of {{portion}} g is scheduled.",
+    "runningDetail_other": "{{count}} reminders of {{portion}} g are scheduled.",
+    "stop": "Stop reminders",
+    "startsIn": "Start reminders",
+    "startNow": "Now",
+    "startIn15": "15 min",
+    "startIn30": "30 min",
+    "startIn60": "1 hour",
+    "start": "Set reminders",
+    "restart": "Replace reminders",
+    "started": "Fueling reminders are set.",
+    "nothingToSchedule": "This plan has no reminders left to schedule.",
+    "notPermitted": "Turn on notifications to get fueling reminders.",
+    "startFailed": "Could not set the reminders.",
+    "disclaimer": "General guidance, not medical advice. Practise your plan in training before race day."
   },
   "warmupSettings": {
     "title": "Warm-up Calculator",
