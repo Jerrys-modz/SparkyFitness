@@ -1,6 +1,6 @@
 # Watch screenshots for #358
 
-From the iOS and watchOS CI build, on the smallest (40 mm) and largest (49 mm) watch simulators. They are taken a few seconds after launch, so a scrolling title can be caught mid-scroll.
+From the iOS and watchOS CI build (run 40574553878), on the smallest (40 mm) and largest (49 mm) watch simulators. They are taken a few seconds after launch, so a scrolling title can be caught mid-scroll.
 
 ## Larger text off (original look)
 
@@ -37,13 +37,21 @@ From the iOS and watchOS CI build, on the smallest (40 mm) and largest (49 mm) w
 | --- | --- | --- |
 | `fasting-running-large` | <img src="pr-358/fasting-running-large-40.png" width="150"> | <img src="pr-358/fasting-running-large-49.png" width="150"> |
 | `goals-large` | <img src="pr-358/goals-large-40.png" width="150"> | <img src="pr-358/goals-large-49.png" width="150"> |
+| `medications-dose-large` | <img src="pr-358/medications-dose-large-40.png" width="150"> | <img src="pr-358/medications-dose-large-49.png" width="150"> |
+| `medications-large` | <img src="pr-358/medications-large-40.png" width="150"> | <img src="pr-358/medications-large-49.png" width="150"> |
 | `water-large` | <img src="pr-358/water-large-40.png" width="150"> | <img src="pr-358/water-large-49.png" width="150"> |
 | `workout-active-large` | <img src="pr-358/workout-active-large-40.png" width="150"> | <img src="pr-358/workout-active-large-49.png" width="150"> |
+| `workout-active-large-classic` | <img src="pr-358/workout-active-large-classic-40.png" width="150"> | <img src="pr-358/workout-active-large-classic-49.png" width="150"> |
 | `workout-exercise-options-large` | <img src="pr-358/workout-exercise-options-large-40.png" width="150"> | <img src="pr-358/workout-exercise-options-large-49.png" width="150"> |
+| `workout-idle-large` | <img src="pr-358/workout-idle-large-40.png" width="150"> | <img src="pr-358/workout-idle-large-49.png" width="150"> |
 | `workout-longname-large` | <img src="pr-358/workout-longname-large-40.png" width="150"> | <img src="pr-358/workout-longname-large-49.png" width="150"> |
+| `workout-longname-large-classic` | <img src="pr-358/workout-longname-large-classic-40.png" width="150"> | <img src="pr-358/workout-longname-large-classic-49.png" width="150"> |
+| `workout-longname-large-later` | <img src="pr-358/workout-longname-large-later-40.png" width="150"> | <img src="pr-358/workout-longname-large-later-49.png" width="150"> |
+| `workout-longname-large-later2` | <img src="pr-358/workout-longname-large-later2-40.png" width="150"> | <img src="pr-358/workout-longname-large-later2-49.png" width="150"> |
 | `workout-metrics-large` | <img src="pr-358/workout-metrics-large-40.png" width="150"> | <img src="pr-358/workout-metrics-large-49.png" width="150"> |
 | `workout-resting-large` | <img src="pr-358/workout-resting-large-40.png" width="150"> | <img src="pr-358/workout-resting-large-49.png" width="150"> |
 | `workout-resting-longname-large` | <img src="pr-358/workout-resting-longname-large-40.png" width="150"> | <img src="pr-358/workout-resting-longname-large-49.png" width="150"> |
 | `workout-rpe-large` | <img src="pr-358/workout-rpe-large-40.png" width="150"> | <img src="pr-358/workout-rpe-large-49.png" width="150"> |
 | `workout-rpe-longname-large` | <img src="pr-358/workout-rpe-longname-large-40.png" width="150"> | <img src="pr-358/workout-rpe-longname-large-49.png" width="150"> |
+| `workout-rpe-longname-large-classic` | <img src="pr-358/workout-rpe-longname-large-classic-40.png" width="150"> | <img src="pr-358/workout-rpe-longname-large-classic-49.png" width="150"> |
 | `workout-upnext-large` | <img src="pr-358/workout-upnext-large-40.png" width="150"> | <img src="pr-358/workout-upnext-large-49.png" width="150"> |
