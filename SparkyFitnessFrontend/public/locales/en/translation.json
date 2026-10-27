@@ -10008,5 +10008,32 @@
     "legendElevated": "Elevated outside exercise",
     "vsSevenDayAvg": "{{diff}} bpm vs 7d avg",
     "minIntoWorkout": "{{min}} min into workout"
+  },
+  "fueling": {
+    "title": "Fueling plan",
+    "description": "Work out how many carbohydrates to take per hour on a long run or race, and when to take each portion.",
+    "duration": "Duration",
+    "hours": "Hours",
+    "hoursShort": "h",
+    "minutes": "Minutes",
+    "minutesShort": "min",
+    "intensity": "Effort (heart rate zone)",
+    "zone": "Zone {{zone}}",
+    "experience": "Gut training",
+    "experienceLevels": {
+      "beginner": "Beginner",
+      "intermediate": "Intermediate",
+      "advanced": "Advanced"
+    },
+    "carbsOverride": "Your carbs (g/h)",
+    "portionOverride": "Portion (g)",
+    "useDefault": "Default",
+    "summary": "{{carbs}} g/h: take {{portion}} g every {{interval}} min",
+    "total": "About {{total}} g of carbohydrate in total.",
+    "defaultRange": "The usual range for this duration is {{min}} to {{max}} g/h.",
+    "schedule": "Schedule",
+    "scheduleItem": "{{time}}: {{grams}} g",
+    "notNeeded": "Runs under an hour usually do not need fueling. Enter your own carbs per hour to plan one anyway.",
+    "disclaimer": "General guidance, not medical advice. Practise your plan in training before race day."
   }
 }
