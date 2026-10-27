@@ -23,8 +23,8 @@ struct TrendView: View {
 
         var emptyStateMessage: String {
             switch self {
-            case .weight: return "Log a few days to see your weight trend."
-            case .bodyFat: return "Log body fat a few times to see its trend."
+            case .weight: return String(localized: "watch.trend.emptyWeight", defaultValue: "Log a few days to see your weight trend.")
+            case .bodyFat: return String(localized: "watch.trend.emptyBodyFat", defaultValue: "Log body fat a few times to see its trend.")
             }
         }
     }
