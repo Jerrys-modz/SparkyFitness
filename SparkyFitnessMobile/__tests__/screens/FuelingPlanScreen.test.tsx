@@ -99,8 +99,18 @@ describe('FuelingPlanScreen', () => {
     expect(mockStart).toHaveBeenCalledTimes(1);
     const call = mockStart.mock.calls[0][0];
     expect(call.portionGrams).toBe(25);
+    expect(call.productName).toBe('Energy gel');
     expect(call.offsetsMin[0]).toBe(25);
     expect(call.offsetsMin).toHaveLength(7);
+  });
+
+  it('names the product the person typed', async () => {
+    const { getByTestId } = renderScreen();
+    fireEvent.changeText(getByTestId('fueling-product'), '  Maurten 160  ');
+    await act(async () => {
+      fireEvent.press(getByTestId('fueling-start'));
+    });
+    expect(mockStart.mock.calls[0][0].productName).toBe('Maurten 160');
   });
 
   it('does not schedule anything without notification permission', async () => {
@@ -116,6 +126,7 @@ describe('FuelingPlanScreen', () => {
     mockGetSession.mockResolvedValue({
       startAtMs: Date.now(),
       portionGrams: 25,
+      productName: 'Energy gel',
       reminderCount: 6,
       notificationIds: ['a'],
     });
