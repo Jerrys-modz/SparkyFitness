@@ -8,6 +8,7 @@ import {
   useSymptomEntriesDetailed,
   useSymptomEntry,
 } from '../../src/hooks/useSymptoms';
+import { getTodayDate } from '../../src/utils/dateUtils';
 import { initializeI18n } from '../../src/localization/i18n';
 import type { RootStackScreenProps } from '../../src/types/navigation';
 
@@ -194,12 +195,11 @@ describe('SymptomLogScreen back-dating', () => {
   });
 
   it('keeps the diary day when the start was not moved', async () => {
+    const expectedDay = getTodayDate();
     const screen = renderScreen();
     await logEpisode(screen);
     await save(screen);
 
-    expect(logMutateAsync.mock.calls[0][0].entry_date).toEqual(
-      expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/)
-    );
+    expect(logMutateAsync.mock.calls[0][0].entry_date).toBe(expectedDay);
   });
 });

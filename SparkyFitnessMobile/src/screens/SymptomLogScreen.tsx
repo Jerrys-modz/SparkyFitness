@@ -199,14 +199,14 @@ export default function SymptomLogScreen({ navigation, route }: Props) {
 
   const handlePickStartDate = (day: string) => {
     const [year, month, dayOfMonth] = day.split('-').map(Number);
-    const d = new Date(startedAt ?? Date.now());
+    const d = new Date(startedAt ?? openedAt);
     d.setFullYear(year, month - 1, dayOfMonth);
     applyStartedAt(d);
   };
 
   const handlePickStartTime = (time: string) => {
     const [hours, minutes] = time.split(':').map(Number);
-    const d = new Date(startedAt ?? Date.now());
+    const d = new Date(startedAt ?? openedAt);
     d.setHours(hours, minutes, 0, 0);
     applyStartedAt(d);
   };
@@ -216,6 +216,7 @@ export default function SymptomLogScreen({ navigation, route }: Props) {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
+    year: 'numeric',
   });
   const startTimeLabel = startDate.toLocaleTimeString(locale, {
     hour: 'numeric',
@@ -264,7 +265,9 @@ export default function SymptomLogScreen({ navigation, route }: Props) {
       severity,
       // A moved start re-derives the day on the server, in the profile timezone.
       entry_date: isEpisodic && startedAtEdited ? undefined : effectiveDate,
-      started_at: isEpisodic ? startedAt || new Date().toISOString() : null,
+      started_at: isEpisodic
+        ? startedAt || new Date(openedAt).toISOString()
+        : null,
       ended_at: endedAt,
       body_locations: bodyLocations,
       qualities,
