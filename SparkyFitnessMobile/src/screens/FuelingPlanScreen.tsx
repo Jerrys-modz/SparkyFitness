@@ -11,12 +11,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCSSVariable } from 'uniwind';
 import Toast from 'react-native-toast-message';
 import {
+  computeDrinkPlan,
   computeFuelingPlan,
   type FuelingExperience,
   type FuelingIntensityZone,
 } from '@workspace/shared';
 
 import SegmentedControl from '../components/SegmentedControl';
+import Switch from '../components/ui/Switch';
+import FuelingRaceCard from '../components/fueling/FuelingRaceCard';
 import FuelFoodSheet, {
   type FuelFoodSheetRef,
 } from '../components/FuelFoodSheet';
@@ -109,6 +112,9 @@ const FuelingPlanScreen: React.FC<FuelingPlanScreenProps> = () => {
   const [carbsOverride, setCarbsOverride] = useState('');
   const [portionOverride, setPortionOverride] = useState('');
   const [productName, setProductName] = useState('');
+  const [drinkOn, setDrinkOn] = useState(false);
+  const [drinkInterval, setDrinkInterval] = useState('20');
+  const [drinkMl, setDrinkMl] = useState('150');
   const [fuelFood, setFuelFood] = useState<
     (FuelingFoodRef & { name: string; carbs: number }) | null
   >(null);
@@ -149,6 +155,30 @@ const FuelingPlanScreen: React.FC<FuelingPlanScreenProps> = () => {
       }),
     [durationMin, zone, experience, carbsOverride, portionOverride]
   );
+
+  // What the race-day amount would be with nothing typed over it, which is
+  // what the gut-training build-up aims at.
+  const raceTargetCarbs = useMemo(
+    () =>
+      computeFuelingPlan({
+        durationMin,
+        intensityZone: Number(zone) as FuelingIntensityZone,
+        experience,
+      }).carbsPerHour,
+    [durationMin, zone, experience]
+  );
+
+  const drinkPlan = useMemo(
+    () =>
+      computeDrinkPlan({
+        durationMin,
+        intervalMin: parseWhole(drinkInterval),
+        mlPerDrink: parseWhole(drinkMl),
+      }),
+    [durationMin, drinkInterval, drinkMl]
+  );
+
+  const canStart = plan.needsFuel || (drinkOn && durationMin > 0);
 
   const zoneSegments = useMemo(
     () =>
@@ -240,7 +270,7 @@ const FuelingPlanScreen: React.FC<FuelingPlanScreenProps> = () => {
   );
 
   const handleStart = useCallback(async () => {
-    if (busy || !plan.needsFuel) return;
+    if (busy || !canStart) return;
     setBusy(true);
     try {
       const permission = await requestNotificationPermission();
@@ -256,8 +286,14 @@ const FuelingPlanScreen: React.FC<FuelingPlanScreenProps> = () => {
       const delayMin = Number(startKey);
       const result = await startFuelingSession({
         startAt: new Date(Date.now() + delayMin * 60_000),
-        offsetsMin: plan.reminderOffsetsMin,
+        offsetsMin: plan.needsFuel ? plan.reminderOffsetsMin : [],
         portionGrams: plan.portionGrams,
+        drink: drinkOn
+          ? {
+              offsetsMin: drinkPlan.reminderOffsetsMin,
+              mlPerDrink: drinkPlan.mlPerDrink,
+            }
+          : null,
         productName:
           productName.trim() ||
           t('fuelingPlan.defaultProduct', { defaultValue: 'Energy gel' }),
@@ -306,7 +342,18 @@ const FuelingPlanScreen: React.FC<FuelingPlanScreenProps> = () => {
     } finally {
       setBusy(false);
     }
-  }, [busy, fuelFood, plan, productName, refreshSession, startKey, t]);
+  }, [
+    busy,
+    canStart,
+    drinkOn,
+    drinkPlan,
+    fuelFood,
+    plan,
+    productName,
+    refreshSession,
+    startKey,
+    t,
+  ]);
 
   const handleStop = useCallback(async () => {
     if (busy) return;
@@ -475,6 +522,11 @@ const FuelingPlanScreen: React.FC<FuelingPlanScreenProps> = () => {
           })}
         </Text>
 
+        <FuelingRaceCard
+          targetCarbsPerHour={raceTargetCarbs}
+          onUseAmount={(carbs) => setCarbsOverride(String(carbs))}
+        />
+
         <View className="bg-surface rounded-xl p-4 mb-4">
           {plan.needsFuel && plan.intervalMin !== null ? (
             <>
@@ -528,6 +580,77 @@ const FuelingPlanScreen: React.FC<FuelingPlanScreenProps> = () => {
           )}
         </View>
 
+        <View className="bg-surface rounded-xl p-4 mb-4">
+          <View className="flex-row items-center justify-between">
+            <View className="flex-1 mr-3">
+              <Text className="text-text-primary text-base font-semibold">
+                {t('fuelingPlan.drink.title', {
+                  defaultValue: 'Drink reminders',
+                })}
+              </Text>
+              <Text className="text-text-secondary text-sm mt-0.5">
+                {t('fuelingPlan.drink.subtitle', {
+                  defaultValue:
+                    'A separate reminder to drink during the run. How much you need depends on your sweat and the weather, so set what suits you.',
+                })}
+              </Text>
+            </View>
+            <Switch
+              testID="fueling-drink-switch"
+              value={drinkOn}
+              onValueChange={setDrinkOn}
+              accessibilityLabel={t('fuelingPlan.drink.title', {
+                defaultValue: 'Drink reminders',
+              })}
+            />
+          </View>
+          {drinkOn ? (
+            <>
+              <View className="flex-row gap-3 mt-3">
+                <NumberField
+                  testID="fueling-drink-interval"
+                  label={t('fuelingPlan.drink.interval', {
+                    defaultValue: 'Every (min)',
+                  })}
+                  value={drinkInterval}
+                  onChangeText={setDrinkInterval}
+                />
+                <NumberField
+                  testID="fueling-drink-ml"
+                  label={t('fuelingPlan.drink.amount', {
+                    defaultValue: 'Each drink (ml)',
+                  })}
+                  value={drinkMl}
+                  onChangeText={setDrinkMl}
+                />
+              </View>
+              <Text
+                testID="fueling-drink-summary"
+                className="text-text-secondary text-sm mt-3"
+              >
+                {t('fuelingPlan.drink.summary', {
+                  defaultValue:
+                    '{{ml}} ml every {{interval}} min, {{perHour}} ml an hour.',
+                  ml: number(drinkPlan.mlPerDrink),
+                  interval: number(drinkPlan.intervalMin),
+                  perHour: number(drinkPlan.mlPerHour),
+                })}
+              </Text>
+              {drinkPlan.high ? (
+                <Text
+                  testID="fueling-drink-warning"
+                  className="text-text-warning text-sm mt-1"
+                >
+                  {t('fuelingPlan.drink.high', {
+                    defaultValue:
+                      'That is a lot of fluid an hour. Drinking more than you lose can be harmful.',
+                  })}
+                </Text>
+              ) : null}
+            </>
+          ) : null}
+        </View>
+
         {session ? (
           <View className="bg-surface rounded-xl p-4 mb-4">
             <Text className="text-text-primary text-base font-semibold">
@@ -535,18 +658,34 @@ const FuelingPlanScreen: React.FC<FuelingPlanScreenProps> = () => {
                 defaultValue: 'Reminders are set',
               })}
             </Text>
-            <Text className="text-text-secondary text-sm mt-1">
-              {t('fuelingPlan.runningDetail', {
-                defaultValue:
-                  '{{count}} reminders of {{portion}} g are scheduled.',
-                defaultValue_one:
-                  '{{count}} reminder of {{portion}} g is scheduled.',
-                defaultValue_other:
-                  '{{count}} reminders of {{portion}} g are scheduled.',
-                count: session.reminderCount,
-                portion: number(session.portionGrams),
-              })}
-            </Text>
+            {session.reminderCount > 0 ? (
+              <Text className="text-text-secondary text-sm mt-1">
+                {t('fuelingPlan.runningDetail', {
+                  defaultValue:
+                    '{{count}} reminders of {{portion}} g are scheduled.',
+                  defaultValue_one:
+                    '{{count}} reminder of {{portion}} g is scheduled.',
+                  defaultValue_other:
+                    '{{count}} reminders of {{portion}} g are scheduled.',
+                  count: session.reminderCount,
+                  portion: number(session.portionGrams),
+                })}
+              </Text>
+            ) : null}
+            {session.drink ? (
+              <Text className="text-text-secondary text-sm mt-1">
+                {t('fuelingPlan.drink.running', {
+                  defaultValue:
+                    '{{count}} drink reminders of {{ml}} ml are scheduled.',
+                  defaultValue_one:
+                    '{{count}} drink reminder of {{ml}} ml is scheduled.',
+                  defaultValue_other:
+                    '{{count}} drink reminders of {{ml}} ml are scheduled.',
+                  count: session.drink.reminderCount,
+                  ml: number(session.drink.mlPerDrink),
+                })}
+              </Text>
+            ) : null}
             <Pressable
               testID="fueling-stop"
               accessibilityRole="button"
@@ -577,11 +716,11 @@ const FuelingPlanScreen: React.FC<FuelingPlanScreenProps> = () => {
           testID="fueling-start"
           accessibilityRole="button"
           onPress={handleStart}
-          disabled={busy || !plan.needsFuel}
+          disabled={busy || !canStart}
           className="py-3.5 rounded-xl items-center"
           style={({ pressed }) => ({
             backgroundColor: accent,
-            opacity: busy || !plan.needsFuel ? 0.4 : pressed ? 0.8 : 1,
+            opacity: busy || !canStart ? 0.4 : pressed ? 0.8 : 1,
           })}
         >
           <Text className="text-white font-semibold text-base">

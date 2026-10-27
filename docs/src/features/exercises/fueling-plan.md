@@ -48,6 +48,19 @@ Higher intakes work best with a mix of glucose and fructose, and need practice. 
 
 You can replace the hourly target and the portion size with your own values. An override is used as typed, up to 120 g per hour and 100 g per portion. Your plan then shows the default range for the duration next to your number so you can see how far from the usual guidance it is.
 
+## Race day and gut training
+
+If you have a race, the plan can build up to your race-day amount gradually. Taking a lot of carbohydrate in a race that your stomach has never practised is the usual reason fueling goes wrong.
+
+- The build-up starts at 30 g per hour and rises in even weekly steps, reaching your race amount two weeks before the race and holding it until race day.
+- With less than three weeks to go there is not enough time to build up, and the plan says so. Stay at what your stomach already handles, or aim lower on race day.
+- In the mobile app the race comes from your running goals (**Library > Training programs**), and the plan shows this week's practice amount with a button to plan your run at it. The weeks are counted from the day you first saw the build-up for that race.
+- On the web, type the race day under the plan. The web does not remember a start day, so it shows the build-up as if you begin today.
+
+## Drink reminders
+
+Switch on **Drink reminders** in the mobile app to get a separate reminder to drink during the run. The default is 150 ml every 20 minutes (450 ml an hour); change both to suit you. How much you need depends on how much you sweat and on the weather, so these numbers are a starting point and not a target to replace everything you lose. A plan above 800 ml an hour is flagged, because drinking more than you lose can be harmful. The web shows the same drink plan and adds it to the printed schedule; it has no reminders.
+
 ## Sources
 
 - Thomas, Erdman and Burke (2016). Position of the Academy of Nutrition and Dietetics, Dietitians of Canada, and the American College of Sports Medicine: Nutrition and Athletic Performance. [Sports Science Exchange summary](https://www.gssiweb.org/docs/default-source/sse-docs/sse_231_005.pdf).

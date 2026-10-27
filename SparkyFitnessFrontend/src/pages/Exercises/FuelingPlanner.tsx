@@ -1,7 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
+  buildGutTrainingRamp,
+  computeDrinkPlan,
   computeFuelingPlan,
+  todayInZone,
   type FuelingExperience,
   type FuelingIntensityZone,
 } from '@workspace/shared';
@@ -16,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import FoodSearchDialog from '@/components/FoodSearch/FoodSearchDialog';
 import { toast } from '@/hooks/use-toast';
+import { usePreferences } from '@/contexts/PreferencesContext';
 import { printFuelingPlan } from '@/utils/fuelingPrint';
 import type { Food } from '@/types/food';
 import type { Meal } from '@/types/meal';
@@ -62,6 +66,11 @@ const FuelingPlanner: React.FC = () => {
   const [portionOverride, setPortionOverride] = useState('');
   const [productName, setProductName] = useState('');
   const [foodDialogOpen, setFoodDialogOpen] = useState(false);
+  const [raceDate, setRaceDate] = useState('');
+  const [drinkInterval, setDrinkInterval] = useState('20');
+  const [drinkMl, setDrinkMl] = useState('150');
+  const { timezone } = usePreferences();
+  const today = todayInZone(timezone);
 
   const durationMin =
     (parseNumber(hours) ?? 0) * 60 + (parseNumber(minutes) ?? 0);
@@ -78,6 +87,50 @@ const FuelingPlanner: React.FC = () => {
         },
       }),
     [durationMin, zone, experience, carbsOverride, portionOverride]
+  );
+
+  // The carbohydrate per hour the build-up aims at: the plan with nothing
+  // typed over it.
+  const raceTargetCarbs = useMemo(
+    () =>
+      computeFuelingPlan({
+        durationMin,
+        intensityZone: zone,
+        experience,
+      }).carbsPerHour,
+    [durationMin, zone, experience]
+  );
+
+  // The web keeps no start day, so this is the build-up if you begin today.
+  const ramp = useMemo(
+    () =>
+      raceDate
+        ? buildGutTrainingRamp({
+            today,
+            raceDay: raceDate,
+            targetCarbsPerHour: raceTargetCarbs,
+          })
+        : null,
+    [raceDate, today, raceTargetCarbs]
+  );
+
+  const drinkPlan = useMemo(
+    () =>
+      computeDrinkPlan({
+        durationMin,
+        intervalMin: parseNumber(drinkInterval),
+        mlPerDrink: parseNumber(drinkMl),
+      }),
+    [durationMin, drinkInterval, drinkMl]
+  );
+  const drinkSummary = t(
+    'fueling.drink.summary',
+    '{{ml}} ml every {{interval}} min, {{perHour}} ml an hour.',
+    {
+      ml: drinkPlan.mlPerDrink,
+      interval: drinkPlan.intervalMin,
+      perHour: drinkPlan.mlPerHour,
+    }
   );
 
   const productLabel =
@@ -119,15 +172,20 @@ const FuelingPlanner: React.FC = () => {
           interval: plan.intervalMin,
         }
       ),
-      detail: t(
-        'fueling.printDetail',
-        '{{product}}, {{count}} portions over {{duration}}.',
-        {
-          product: productLabel,
-          count: portionCount,
-          duration: formatClock(durationMin),
-        }
-      ),
+      detail: [
+        t(
+          'fueling.printDetail',
+          '{{product}}, {{count}} portions over {{duration}}.',
+          {
+            product: productLabel,
+            count: portionCount,
+            duration: formatClock(durationMin),
+          }
+        ),
+        t('fueling.drink.printLine', 'Drink: {{summary}}', {
+          summary: drinkSummary,
+        }),
+      ].join(' '),
       headers: {
         time: t('fueling.printTime', 'Time into the run'),
         amount: t('fueling.printAmount', 'Take'),
@@ -300,6 +358,126 @@ const FuelingPlanner: React.FC = () => {
               {t('fueling.chooseFood', 'Choose a saved food')}
             </Button>
           </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="fueling-race-date">
+            {t('fueling.race.date', 'Race day (optional)')}
+          </Label>
+          <Input
+            id="fueling-race-date"
+            type="date"
+            className="max-w-xs"
+            min={today}
+            value={raceDate}
+            onChange={(e) => setRaceDate(e.target.value)}
+          />
+          {ramp ? (
+            <div
+              className="space-y-1 rounded-md border p-3 text-sm"
+              data-testid="fueling-race"
+            >
+              <p data-testid="fueling-race-status">
+                {ramp.status === 'short'
+                  ? t(
+                      'fueling.race.short',
+                      'Under three weeks to go is not enough time to build up to {{target}} g/h. Stay at what your stomach already handles, or aim lower on race day.',
+                      { target: ramp.targetCarbsPerHour }
+                    )
+                  : ramp.status === 'holding'
+                    ? t(
+                        'fueling.race.holding',
+                        'Practise the race amount, {{target}} g/h, until race day.',
+                        { target: ramp.targetCarbsPerHour }
+                      )
+                    : t(
+                        'fueling.race.ramping',
+                        'If you start today, practise {{current}} g/h this week. The race target is {{target}} g/h.',
+                        {
+                          current: ramp.currentCarbsPerHour,
+                          target: ramp.targetCarbsPerHour,
+                        }
+                      )}
+              </p>
+              {ramp.weeks.length > 0 ? (
+                <ul
+                  className="text-muted-foreground"
+                  data-testid="fueling-race-weeks"
+                >
+                  {ramp.weeks
+                    .filter((week) => week.startDay > today)
+                    .slice(0, 6)
+                    .map((week) => (
+                      <li key={week.startDay}>
+                        {t('fueling.race.week', '{{date}}: {{carbs}} g/h', {
+                          date: week.startDay,
+                          carbs: week.carbsPerHour,
+                        })}
+                      </li>
+                    ))}
+                </ul>
+              ) : null}
+              <Button
+                type="button"
+                variant="link"
+                className="h-auto p-0"
+                onClick={() =>
+                  setCarbsOverride(String(ramp.currentCarbsPerHour))
+                }
+              >
+                {t('fueling.race.use', 'Plan this run at {{carbs}} g/h', {
+                  carbs: ramp.currentCarbsPerHour,
+                })}
+              </Button>
+            </div>
+          ) : null}
+        </div>
+
+        <div className="space-y-2">
+          <Label>{t('fueling.drink.title', 'Drink plan')}</Label>
+          <div className="flex flex-wrap items-center gap-2">
+            <Input
+              type="number"
+              min={5}
+              max={60}
+              className="w-24"
+              value={drinkInterval}
+              aria-label={t('fueling.drink.interval', 'Every (min)')}
+              onChange={(e) => setDrinkInterval(e.target.value)}
+            />
+            <span className="text-sm text-muted-foreground">
+              {t('fueling.drink.intervalUnit', 'min')}
+            </span>
+            <Input
+              type="number"
+              min={20}
+              max={500}
+              className="w-24"
+              value={drinkMl}
+              aria-label={t('fueling.drink.amount', 'Each drink (ml)')}
+              onChange={(e) => setDrinkMl(e.target.value)}
+            />
+            <span className="text-sm text-muted-foreground">
+              {t('fueling.drink.amountUnit', 'ml')}
+            </span>
+          </div>
+          <p
+            className="text-sm text-muted-foreground"
+            data-testid="fueling-drink-summary"
+          >
+            {drinkSummary}
+          </p>
+          {drinkPlan.high ? (
+            <p
+              className="text-sm text-destructive"
+              data-testid="fueling-drink-warning"
+            >
+              {t(
+                'fueling.drink.high',
+                'That is a lot of fluid an hour. Drinking more than you lose can be harmful.'
+              )}
+            </p>
+          ) : null}
         </div>
 
         {plan.needsFuel && plan.intervalMin !== null ? (

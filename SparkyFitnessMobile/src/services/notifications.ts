@@ -769,6 +769,55 @@ export async function scheduleFuelingReminderNotifications(
   return ids;
 }
 
+/**
+ * Schedules one drink reminder per future time on the fueling channel, with the
+ * same all-or-nothing rule and permission gate as the carbohydrate reminders.
+ */
+export async function scheduleDrinkReminderNotifications(
+  times: Date[],
+  mlPerDrink: number
+): Promise<string[]> {
+  if (!useAppPreferencesStore.getState().notificationsEnabled) return [];
+  if (!(await hasNotificationPermission())) return [];
+
+  const nowMs = Date.now();
+  const ids: string[] = [];
+  for (const time of times) {
+    const timeMs = time.getTime();
+    if (Number.isNaN(timeMs) || timeMs <= nowMs) continue;
+    try {
+      const id = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: notificationCopy(
+            'notifications.fuelingDrink.title',
+            'Time to drink 💧'
+          ),
+          body: notificationCopy(
+            'notifications.fuelingDrink.body',
+            'Have a drink, about {{ml}} ml.',
+            { ml: mlPerDrink }
+          ),
+          sound: true,
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
+          date: time,
+          channelId: FUELING_CHANNEL_ID,
+        },
+      });
+      ids.push(id);
+    } catch (err) {
+      addLog(
+        `scheduleDrinkReminderNotifications failed: ${(err as Error).message}`,
+        'ERROR'
+      );
+      await Promise.all(ids.map((id) => cancelScheduledNotification(id)));
+      return [];
+    }
+  }
+  return ids;
+}
+
 export async function cancelScheduledNotification(
   id: string | null
 ): Promise<void> {
