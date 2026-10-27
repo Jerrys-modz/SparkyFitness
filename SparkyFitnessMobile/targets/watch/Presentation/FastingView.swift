@@ -46,7 +46,7 @@ struct FastingView: View {
             Text(fast.label.map {
                 String(localized: "watch.fasting.runningNamed", defaultValue: "Fasting · \($0)")
             } ?? String(localized: "watch.fasting.running", defaultValue: "Fasting"))
-                .font(.footnote.weight(.semibold))
+                .watchFont(.footnote.weight(.semibold), classic: .caption2)
                 .foregroundStyle(.secondary)
             ZStack {
                 if let progress {
@@ -59,7 +59,7 @@ struct FastingView: View {
                         .rotationEffect(.degrees(-90))
                 }
                 Text(Self.clock(elapsed))
-                    .font(.system(size: WatchStyle.s(22), weight: .semibold, design: .rounded))
+                    .watchFont(.system(size: WatchStyle.s(22), weight: .semibold, design: .rounded), classic: .title3.weight(.semibold))
                     .monospacedDigit()
                     .minimumScaleFactor(0.6)
                     .lineLimit(1)
@@ -72,7 +72,7 @@ struct FastingView: View {
                      ? String(localized: "watch.fasting.remaining",
                               defaultValue: "\(Self.clock(remaining)) to go")
                      : String(localized: "watch.fasting.goalReached", defaultValue: "Goal reached"))
-                    .font(.footnote)
+                    .watchFont(.footnote, classic: .caption2)
                     .foregroundStyle(remaining > 0 ? Color.secondary : Color.green)
                     .monospacedDigit()
             }
@@ -81,6 +81,7 @@ struct FastingView: View {
             Button(String(localized: "watch.fasting.end", defaultValue: "End fast")) {
                 confirmingEnd = true
             }
+            .watchFont(.body, classic: .caption2)
             .tint(.red)
             .disabled(waiting)
           }
@@ -109,7 +110,7 @@ struct FastingView: View {
                 Text(store.context.fastSynced == true
                      ? String(localized: "watch.fasting.notFasting", defaultValue: "Not fasting")
                      : String(localized: "watch.fasting.waiting", defaultValue: "Waiting for your iPhone"))
-                    .font(.body)
+                    .watchFont(.body, classic: .footnote)
                     .multilineTextAlignment(.center)
                 if store.context.fastSynced == true {
                     if waiting {
@@ -122,6 +123,7 @@ struct FastingView: View {
                                 Text(String(localized: "watch.fasting.startPreset", defaultValue: "Start \(preset.label)"))
                                     .frame(maxWidth: .infinity)
                             }
+                            .watchFont(.body, classic: .caption2)
                             .tint(.green)
                         }
                     }

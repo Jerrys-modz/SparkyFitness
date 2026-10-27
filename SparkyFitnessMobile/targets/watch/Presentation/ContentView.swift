@@ -62,6 +62,7 @@ struct ContentView: View {
                 .id(pages)
             }
         }
+        .environment(\.watchLargeText, store.context.effectiveLargeGoalsWater)
         .onAppear {
             store.pruneStaleDayData()
             // Cheap, local, and works with the phone out of range — unlike
@@ -176,8 +177,13 @@ struct ContentView: View {
         case .trend:
             TrendView()
         case .workout:
-            WorkoutView()
-                .environment(\.workoutPageActive, selectedPage == .workout)
+            if store.context.effectiveLargeGoalsWater {
+                WorkoutView()
+                    .environment(\.workoutPageActive, selectedPage == .workout)
+            } else {
+                ClassicWorkoutView()
+                    .environment(\.workoutPageActive, selectedPage == .workout)
+            }
         case .nowPlaying:
             NowPlayingPage()
         case .recording:
@@ -231,10 +237,10 @@ struct FirstRunEntryView: View {
         ScrollView {
             VStack(spacing: 6) {
                 Text(String(localized: "watch.checkin.first.title", defaultValue: "First check-in"))
-                    .font(.footnote)
+                    .watchFont(.footnote, classic: .caption)
                     .foregroundStyle(.secondary)
                 Text(String(localized: "watch.checkin.first.body", defaultValue: "Type today's numbers once — after this the Digital Crown starts from your last value."))
-                    .font(.footnote)
+                    .watchFont(.footnote, classic: .caption2)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
 

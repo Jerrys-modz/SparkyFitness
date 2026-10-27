@@ -6546,8 +6546,8 @@
     "setScreenMetricsSubtitle": "Elapsed time, heart rate and calories. Off moves them to their own page after the set screen (after Up Next, when that page is on).",
     "upNextTitle": "Up Next page",
     "upNextSubtitle": "A page one swipe up from the set screen with the next exercise, its target, and a Swap button to do another exercise first.",
-    "largeGoalsWaterTitle": "Larger text on Goals and Water",
-    "largeGoalsWaterSubtitle": "A bigger calorie ring and full-width water containers, in larger type."
+    "largeGoalsWaterTitle": "Larger text on the watch",
+    "largeGoalsWaterSubtitle": "Larger type and the newer layouts across the watch: Goals, Water, the workout, Fasting, Steps and more. Off keeps the original look."
   },
   "progressPhotos": {
     "card": {

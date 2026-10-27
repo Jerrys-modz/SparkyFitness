@@ -255,11 +255,11 @@ const WatchSettingsScreen: React.FC<WatchSettingsScreenProps> = () => {
             />
             <SettingsRow
               title={t('watchSettings.largeGoalsWaterTitle', {
-                defaultValue: 'Larger text on Goals and Water',
+                defaultValue: 'Larger text on the watch',
               })}
               subtitle={t('watchSettings.largeGoalsWaterSubtitle', {
                 defaultValue:
-                  'A bigger calorie ring and full-width water containers, in larger type.',
+                  'Larger type and the newer layouts across the watch: Goals, Water, the workout, Fasting, Steps and more. Off keeps the original look.',
               })}
               subtitleNumberOfLines={0}
               rightAccessory={
