@@ -114,7 +114,9 @@ class MacroWidget : GlanceAppWidget() {
                 .fillMaxSize()
                 .background(GlanceTheme.colors.surface)
                 .appWidgetBackgroundCornerRadius()
-                .padding(14.dp)
+                // Wide but short, less padding above and below gives the
+                // three rows the height they need at font scale 1.3.
+                .padding(horizontal = 14.dp, vertical = if (wide && !large) 10.dp else 14.dp)
                 .clickable(actionStartActivity(openAppIntent)),
             contentAlignment = Alignment.Center,
         ) {
@@ -125,13 +127,15 @@ class MacroWidget : GlanceAppWidget() {
                     modifier = GlanceModifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    // Tighter than the classic stack so the three rows fit a
+                    // HyperOS 3x2 or 4x2 (167 dp) at font scale 1.3 too.
                     Column(modifier = GlanceModifier.defaultWeight()) {
                         CalorieHeader(context = widgetContext, snapshot = snapshot)
-                        Spacer(modifier = GlanceModifier.height(10.dp))
+                        Spacer(modifier = GlanceModifier.height(6.dp))
                         MacroRows(
                             context = widgetContext,
                             snapshot = snapshot,
-                            spacing = 7,
+                            spacing = 5,
                             showGoals = true,
                         )
                     }

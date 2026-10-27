@@ -19,8 +19,8 @@ internal object WidgetSizes {
 
     /**
      * From here the calorie and macro widgets get the Diary and fasting
-     * shortcuts and the macro grams against their goals, and the water widget
-     * lays out side by side: 3 columns on HyperOS, 4 on a Pixel.
+     * shortcuts and the macro grams against their goals: 3 columns on HyperOS,
+     * 4 on a Pixel.
      */
     private val WIDE = 230.dp
 
@@ -72,24 +72,35 @@ internal object WidgetSizes {
 
     /**
      * The classic layout (2x2), about 147 dp at font scale 1.0. Below it a
-     * one-row widget gets a compact layout: 16 padding + 23.9 amount (18 sp) +
-     * 4 + 28 bar and buttons row = 72 dp, for a HyperOS 2x1 (75 dp).
+     * one-row widget gets a compact layout: 16 padding + 21.3 amount (16 sp) +
+     * 4 + 28 bar and buttons row = 70 dp, for a HyperOS 2x1 (75 dp).
      */
     private val WATER_CLASSIC_HEIGHT = 110.dp
+
+    /**
+     * From here the water widget lays out side by side. Two 56 dp buttons and
+     * the gaps leave the amount 173 dp at a HyperOS 4 columns (333 dp), enough
+     * for "1,250 / 2,800 ml" at 20 sp; at 3 columns (241 dp) or a Pixel's 4
+     * (276 dp) it would be cut, so those keep the stacked layouts.
+     */
+    private val WATER_WIDE = 300.dp
 
     val waterSizes: Set<DpSize> = setOf(
         WATER_MIN,
         DpSize(WATER_MIN.width, WATER_CLASSIC_HEIGHT),
-        DpSize(WIDE, WATER_MIN.height),
-        DpSize(WIDE, WATER_CLASSIC_HEIGHT),
+        DpSize(WATER_WIDE, WATER_MIN.height),
+        DpSize(WATER_WIDE, WATER_CLASSIC_HEIGHT),
     )
 
     fun isWide(size: DpSize): Boolean = size.width >= WIDE
 
+    fun isWideWater(size: DpSize): Boolean = size.width >= WATER_WIDE
+
     /**
      * A wide water widget below the classic height drops the title and puts
-     * a status in place of the bar: 24 padding + 26.5 amount + 6 + 8 bar =
-     * 65 dp beside 40 dp buttons, for a HyperOS 4x1 (75 dp).
+     * a status in place of the bar: 16 padding + 26.5 amount + 6 + 8 bar =
+     * 57 dp beside 40 dp buttons (a status line at font scale 1.3 makes it
+     * 74), for a HyperOS 4x1 (75 dp).
      */
     fun isShortWater(size: DpSize): Boolean = size.height < WATER_CLASSIC_HEIGHT
 

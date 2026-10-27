@@ -98,11 +98,11 @@ class WaterWidget : GlanceAppWidget() {
             .setPackage(context.packageName)
 
         val size = LocalSize.current
-        val wide = WidgetSizes.isWide(size)
+        val wide = WidgetSizes.isWideWater(size)
         val short = WidgetSizes.isShortWater(size)
         val padding = when {
             short && !wide -> GlanceModifier.padding(horizontal = 12.dp, vertical = 8.dp)
-            short -> GlanceModifier.padding(horizontal = 14.dp, vertical = 12.dp)
+            short -> GlanceModifier.padding(horizontal = 14.dp, vertical = 8.dp)
             else -> GlanceModifier.padding(14.dp)
         }
 
@@ -203,7 +203,7 @@ class WaterWidget : GlanceAppWidget() {
             if (status != null) {
                 StatusText(context = widgetContext, res = status, maxLines = 1)
             } else {
-                AmountText(context = widgetContext, snapshot = snapshot, fontSize = 18)
+                AmountText(context = widgetContext, snapshot = snapshot, fontSize = 16)
             }
             Spacer(modifier = GlanceModifier.height(4.dp))
             Row(
