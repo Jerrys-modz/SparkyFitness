@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { useCSSVariable } from 'uniwind';
 import {
   catchUpFor,
   daysBetween,
@@ -38,6 +39,7 @@ const RunProgramCalendar: React.FC<{
   onCatchUp?: (next: number) => void;
 }> = ({ status, schedule, doneDay, today, onCatchUp }) => {
   const { t } = useTranslation();
+  const successGlyph = useCSSVariable('--color-icon-success') as string;
   const [showAll, setShowAll] = useState(false);
   if (status.finished) return null;
 
@@ -83,6 +85,10 @@ const RunProgramCalendar: React.FC<{
           });
   }
 
+  const movesNote = t('runPrograms.calendar.moves', {
+    defaultValue:
+      'A workout you miss is not skipped: the dates after it move along.',
+  });
   const catchUp = catchUpFor({ ...base, schedule: plan });
 
   const shown = showAll ? runs : runs.slice(0, PREVIEW_RUNS);
@@ -117,7 +123,19 @@ const RunProgramCalendar: React.FC<{
             </Text>
           ) : null}
           {fit ? (
-            <Text className="text-text-secondary text-sm mt-1">{fit}</Text>
+            <View
+              className="bg-raised rounded-lg px-3 py-2.5 mt-3"
+              testID="run-program-fit"
+            >
+              <View className="flex-row items-start">
+                <View
+                  className="w-2 h-2 rounded-full mt-1.5 mr-2"
+                  style={{ backgroundColor: successGlyph }}
+                />
+                <Text className="text-text-primary text-sm flex-1">{fit}</Text>
+              </View>
+              <Text className="text-text-muted text-xs mt-1">{movesNote}</Text>
+            </View>
           ) : null}
           {catchUp.state === 'skip' && onCatchUp ? (
             <View className="mt-2" testID="run-program-catch-up">
@@ -165,12 +183,9 @@ const RunProgramCalendar: React.FC<{
               })}
             </Text>
           ) : null}
-          <Text className="text-text-muted text-xs mt-1">
-            {t('runPrograms.calendar.moves', {
-              defaultValue:
-                'A workout you miss is not skipped: the dates after it move along.',
-            })}
-          </Text>
+          {fit ? null : (
+            <Text className="text-text-muted text-xs mt-1">{movesNote}</Text>
+          )}
           <View className="mt-3">
             {shown.map((run) => {
               const workout = status.program.workouts[run.index];
@@ -180,12 +195,17 @@ const RunProgramCalendar: React.FC<{
                   key={run.index}
                   className="flex-row justify-between py-1.5 border-b border-border-subtle"
                 >
-                  <Text className="text-text-primary text-sm">
-                    {dayText(run.day, 'short')}
-                    {run.day === today
-                      ? ` · ${t('date.today', { defaultValue: 'Today' })}`
-                      : ''}
-                  </Text>
+                  <View className="flex-row items-center">
+                    {run.day === today ? (
+                      <View className="w-1.5 h-1.5 rounded-full bg-accent-primary mr-2" />
+                    ) : null}
+                    <Text className="text-text-primary text-sm">
+                      {dayText(run.day, 'short')}
+                      {run.day === today
+                        ? ` · ${t('date.today', { defaultValue: 'Today' })}`
+                        : ''}
+                    </Text>
+                  </View>
                   <Text className="text-text-secondary text-sm">
                     {status.program.activity === 'walk'
                       ? t('runPrograms.calendar.rowWalk', {
