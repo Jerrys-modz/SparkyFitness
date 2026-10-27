@@ -68,10 +68,37 @@ describe('initFuelingNotificationResponses', () => {
     expect(mockLog).toHaveBeenCalledWith({
       productName: 'Energy gel',
       portionGrams: 25,
+      food: null,
     });
     expect((Toast.show as jest.Mock).mock.calls[0][0]).toMatchObject({
       type: 'success',
       text1: 'Logged 25 g of carbs.',
+    });
+  });
+
+  it('passes the saved food the reminder carries', async () => {
+    listener(
+      response(
+        {},
+        {
+          foodId: 'food-1',
+          variantId: 'variant-1',
+          servingSize: '1',
+          servingUnit: 'serving',
+        }
+      )
+    );
+    await flush();
+
+    expect(mockLog).toHaveBeenCalledWith({
+      productName: 'Energy gel',
+      portionGrams: 25,
+      food: {
+        foodId: 'food-1',
+        variantId: 'variant-1',
+        servingSize: 1,
+        servingUnit: 'serving',
+      },
     });
   });
 

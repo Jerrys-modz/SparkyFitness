@@ -16,6 +16,58 @@ jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
 
+jest.mock('../../src/components/FuelFoodSheet', () => {
+  const React = require('react');
+  const { Pressable, Text } = require('react-native');
+  return {
+    __esModule: true,
+    default: React.forwardRef(({ onSelect }: any, ref: any) => {
+      React.useImperativeHandle(ref, () => ({
+        present: jest.fn(),
+        dismiss: jest.fn(),
+      }));
+      return (
+        <>
+          <Pressable
+            testID="pick-gel"
+            onPress={() =>
+              onSelect({
+                id: 'food-1',
+                name: 'SIS gel',
+                default_variant: {
+                  id: 'variant-1',
+                  carbs: 22,
+                  serving_size: 1,
+                  serving_unit: 'serving',
+                },
+              })
+            }
+          >
+            <Text>gel</Text>
+          </Pressable>
+          <Pressable
+            testID="pick-water"
+            onPress={() =>
+              onSelect({
+                id: 'food-2',
+                name: 'Water',
+                default_variant: {
+                  id: 'variant-2',
+                  carbs: 0,
+                  serving_size: 250,
+                  serving_unit: 'ml',
+                },
+              })
+            }
+          >
+            <Text>water</Text>
+          </Pressable>
+        </>
+      );
+    }),
+  };
+});
+
 jest.mock('../../src/services/fuelingReminders', () => ({
   getFuelingSession: jest.fn(),
   startFuelingSession: jest.fn(),
@@ -113,6 +165,59 @@ describe('FuelingPlanScreen', () => {
     expect(mockStart.mock.calls[0][0].productName).toBe('Maurten 160');
   });
 
+  it('uses a chosen saved food for the name, portion and reminders', async () => {
+    const { getByTestId } = renderScreen();
+    fireEvent.press(getByTestId('pick-gel'));
+
+    expect(getByTestId('fueling-product').props.value).toBe('SIS gel');
+    expect(getByTestId('fueling-portion-override').props.value).toBe('22');
+    expect(getByTestId('fueling-food-linked')).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.press(getByTestId('fueling-start'));
+    });
+    const call = mockStart.mock.calls[0][0];
+    expect(call.portionGrams).toBe(22);
+    expect(call.productName).toBe('SIS gel');
+    expect(call.food).toEqual({
+      foodId: 'food-1',
+      variantId: 'variant-1',
+      servingSize: 1,
+      servingUnit: 'serving',
+    });
+  });
+
+  it('drops the food link when the portion is changed', async () => {
+    const { getByTestId } = renderScreen();
+    fireEvent.press(getByTestId('pick-gel'));
+    fireEvent.changeText(getByTestId('fueling-portion-override'), '30');
+
+    await act(async () => {
+      fireEvent.press(getByTestId('fueling-start'));
+    });
+    const call = mockStart.mock.calls[0][0];
+    expect(call.portionGrams).toBe(30);
+    expect(call.food).toBeNull();
+  });
+
+  it('drops the food link when the name is changed or the food cleared', async () => {
+    const { getByTestId, queryByTestId } = renderScreen();
+    fireEvent.press(getByTestId('pick-gel'));
+    fireEvent.changeText(getByTestId('fueling-product'), 'Chews');
+    expect(queryByTestId('fueling-food-linked')).toBeNull();
+
+    fireEvent.press(getByTestId('pick-gel'));
+    fireEvent.press(getByTestId('fueling-clear-food'));
+    expect(queryByTestId('fueling-food-linked')).toBeNull();
+  });
+
+  it('refuses a food with no carbohydrates', () => {
+    const { getByTestId, queryByTestId } = renderScreen();
+    fireEvent.press(getByTestId('pick-water'));
+    expect(queryByTestId('fueling-food-linked')).toBeNull();
+    expect(getByTestId('fueling-product').props.value).toBe('');
+  });
+
   it('does not schedule anything without notification permission', async () => {
     mockPermission.mockResolvedValue('denied');
     const { getByTestId } = renderScreen();
@@ -127,6 +232,7 @@ describe('FuelingPlanScreen', () => {
       startAtMs: Date.now(),
       portionGrams: 25,
       productName: 'Energy gel',
+      food: null,
       reminderCount: 6,
       notificationIds: ['a'],
     });

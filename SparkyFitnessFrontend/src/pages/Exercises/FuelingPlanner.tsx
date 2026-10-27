@@ -12,7 +12,13 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import FoodSearchDialog from '@/components/FoodSearch/FoodSearchDialog';
+import { toast } from '@/hooks/use-toast';
+import { printFuelingPlan } from '@/utils/fuelingPrint';
+import type { Food } from '@/types/food';
+import type { Meal } from '@/types/meal';
 import { Label } from '@/components/ui/label';
 import {
   Select,
@@ -54,6 +60,8 @@ const FuelingPlanner: React.FC = () => {
     useState<FuelingExperience>('intermediate');
   const [carbsOverride, setCarbsOverride] = useState('');
   const [portionOverride, setPortionOverride] = useState('');
+  const [productName, setProductName] = useState('');
+  const [foodDialogOpen, setFoodDialogOpen] = useState(false);
 
   const durationMin =
     (parseNumber(hours) ?? 0) * 60 + (parseNumber(minutes) ?? 0);
@@ -71,6 +79,85 @@ const FuelingPlanner: React.FC = () => {
       }),
     [durationMin, zone, experience, carbsOverride, portionOverride]
   );
+
+  const productLabel =
+    productName.trim() || t('fueling.defaultProduct', 'Energy gel');
+  const portionCount =
+    plan.portionGrams > 0
+      ? Math.ceil(plan.totalCarbsGrams / plan.portionGrams)
+      : 0;
+
+  const handleFoodSelect = (item: Food | Meal, type: 'food' | 'meal') => {
+    setFoodDialogOpen(false);
+    if (type !== 'food') return;
+    const food = item as Food;
+    const carbs = Math.round(food.default_variant?.carbs ?? 0);
+    if (!(carbs > 0)) {
+      toast({
+        variant: 'destructive',
+        title: t(
+          'fueling.foodNoCarbs',
+          'That food has no carbohydrates listed.'
+        ),
+      });
+      return;
+    }
+    setProductName(food.name);
+    setPortionOverride(String(carbs));
+  };
+
+  const handlePrint = () => {
+    if (!plan.needsFuel || plan.intervalMin === null) return;
+    const opened = printFuelingPlan({
+      title: t('fueling.printTitle', 'Fueling plan'),
+      summary: t(
+        'fueling.summary',
+        '{{carbs}} g/h: take {{portion}} g every {{interval}} min',
+        {
+          carbs: plan.carbsPerHour,
+          portion: plan.portionGrams,
+          interval: plan.intervalMin,
+        }
+      ),
+      detail: t(
+        'fueling.printDetail',
+        '{{product}}, {{count}} portions over {{duration}}.',
+        {
+          product: productLabel,
+          count: portionCount,
+          duration: formatClock(durationMin),
+        }
+      ),
+      headers: {
+        time: t('fueling.printTime', 'Time into the run'),
+        amount: t('fueling.printAmount', 'Take'),
+        total: t('fueling.printTotal', 'Carbs so far'),
+      },
+      rows: plan.reminderOffsetsMin.map((offset, index) => ({
+        time: formatClock(offset),
+        amount: t('fueling.printAmountValue', '{{grams}} g {{product}}', {
+          grams: plan.portionGrams,
+          product: productLabel,
+        }),
+        total: t('fueling.printTotalValue', '{{grams}} g', {
+          grams: plan.portionGrams * (index + 1),
+        }),
+      })),
+      disclaimer: t(
+        'fueling.disclaimer',
+        'General guidance, not medical advice. Practise your plan in training before race day.'
+      ),
+    });
+    if (!opened) {
+      toast({
+        variant: 'destructive',
+        title: t(
+          'fueling.printBlocked',
+          'Allow pop-ups for this site to print the plan.'
+        ),
+      });
+    }
+  };
 
   return (
     <Card>
@@ -192,6 +279,29 @@ const FuelingPlanner: React.FC = () => {
           </div>
         </div>
 
+        <div className="space-y-2">
+          <Label htmlFor="fueling-product">
+            {t('fueling.product', 'Fuel product')}
+          </Label>
+          <div className="flex flex-wrap items-center gap-2">
+            <Input
+              id="fueling-product"
+              className="max-w-xs"
+              value={productName}
+              maxLength={60}
+              placeholder={t('fueling.defaultProduct', 'Energy gel')}
+              onChange={(e) => setProductName(e.target.value)}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setFoodDialogOpen(true)}
+            >
+              {t('fueling.chooseFood', 'Choose a saved food')}
+            </Button>
+          </div>
+        </div>
+
         {plan.needsFuel && plan.intervalMin !== null ? (
           <div className="space-y-3" data-testid="fueling-result">
             <p className="text-lg font-medium">
@@ -212,7 +322,14 @@ const FuelingPlanner: React.FC = () => {
                 {
                   total: plan.totalCarbsGrams,
                 }
-              )}
+              )}{' '}
+              <span data-testid="fueling-count">
+                {t(
+                  'fueling.portionCount',
+                  'That is about {{count}} × {{product}}.',
+                  { count: portionCount, product: productLabel }
+                )}
+              </span>
             </p>
             {plan.carbsPerHourOverridden && plan.range.max > 0 && (
               <p className="text-sm text-muted-foreground">
@@ -255,6 +372,24 @@ const FuelingPlanner: React.FC = () => {
             )}
           </p>
         )}
+
+        {plan.needsFuel && plan.intervalMin !== null ? (
+          <Button type="button" variant="outline" onClick={handlePrint}>
+            {t('fueling.print', 'Print schedule')}
+          </Button>
+        ) : null}
+
+        <FoodSearchDialog
+          open={foodDialogOpen}
+          onOpenChange={setFoodDialogOpen}
+          hideMealTab
+          onFoodSelect={handleFoodSelect}
+          title={t('fueling.chooseFoodTitle', 'Choose your fuel')}
+          description={t(
+            'fueling.chooseFoodDescription',
+            'Pick a food to use its carbohydrates per serving as the portion size.'
+          )}
+        />
 
         <p className="text-xs text-muted-foreground">
           {t(

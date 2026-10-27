@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { View, Text, ScrollView, TextInput, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -11,6 +17,9 @@ import {
 } from '@workspace/shared';
 
 import SegmentedControl from '../components/SegmentedControl';
+import FuelFoodSheet, {
+  type FuelFoodSheetRef,
+} from '../components/FuelFoodSheet';
 import { useActiveWorkoutBarPadding } from '../components/ActiveWorkoutBar';
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import { useScreenHeader } from '../hooks/useScreenHeader';
@@ -23,6 +32,8 @@ import {
 } from '../services/fuelingReminders';
 import { addLog } from '../services/LogService';
 import { formatLocalizedNumber } from '../localization';
+import type { FoodItem } from '../types/foods';
+import type { FuelingFoodRef } from '../utils/fuelingLog';
 import type { RootStackScreenProps } from '../types/navigation';
 
 type FuelingPlanScreenProps = RootStackScreenProps<'FuelingPlan'>;
@@ -98,6 +109,10 @@ const FuelingPlanScreen: React.FC<FuelingPlanScreenProps> = () => {
   const [carbsOverride, setCarbsOverride] = useState('');
   const [portionOverride, setPortionOverride] = useState('');
   const [productName, setProductName] = useState('');
+  const [fuelFood, setFuelFood] = useState<
+    (FuelingFoodRef & { name: string; carbs: number }) | null
+  >(null);
+  const foodSheetRef = useRef<FuelFoodSheetRef>(null);
   const [session, setSession] = useState<FuelingSession | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -193,6 +208,37 @@ const FuelingPlanScreen: React.FC<FuelingPlanScreenProps> = () => {
     [t]
   );
 
+  const handleFoodSelected = useCallback(
+    (food: FoodItem) => {
+      const variant = food.default_variant;
+      const carbs = Math.round(variant.carbs);
+      if (!(carbs > 0)) {
+        Toast.show({
+          type: 'error',
+          text1: t('fuelingPlan.foodNoCarbs', {
+            defaultValue: 'That food has no carbohydrates listed.',
+          }),
+        });
+        return;
+      }
+      setProductName(food.name);
+      setPortionOverride(String(carbs));
+      setFuelFood(
+        variant.id
+          ? {
+              foodId: food.id,
+              variantId: variant.id,
+              servingSize: variant.serving_size,
+              servingUnit: variant.serving_unit,
+              name: food.name,
+              carbs,
+            }
+          : null
+      );
+    },
+    [t]
+  );
+
   const handleStart = useCallback(async () => {
     if (busy || !plan.needsFuel) return;
     setBusy(true);
@@ -215,6 +261,16 @@ const FuelingPlanScreen: React.FC<FuelingPlanScreenProps> = () => {
         productName:
           productName.trim() ||
           t('fuelingPlan.defaultProduct', { defaultValue: 'Energy gel' }),
+        // A portion typed over the food's own size no longer matches it.
+        food:
+          fuelFood && plan.portionGrams === fuelFood.carbs
+            ? {
+                foodId: fuelFood.foodId,
+                variantId: fuelFood.variantId,
+                servingSize: fuelFood.servingSize,
+                servingUnit: fuelFood.servingUnit,
+              }
+            : null,
       });
       if (result.status === 'scheduled') {
         Toast.show({
@@ -250,7 +306,7 @@ const FuelingPlanScreen: React.FC<FuelingPlanScreenProps> = () => {
     } finally {
       setBusy(false);
     }
-  }, [busy, plan, productName, refreshSession, startKey, t]);
+  }, [busy, fuelFood, plan, productName, refreshSession, startKey, t]);
 
   const handleStop = useCallback(async () => {
     if (busy) return;
@@ -362,7 +418,10 @@ const FuelingPlanScreen: React.FC<FuelingPlanScreenProps> = () => {
             defaultValue: 'Fuel product',
           })}
           value={productName}
-          onChangeText={setProductName}
+          onChangeText={(text) => {
+            setProductName(text);
+            if (fuelFood && text !== fuelFood.name) setFuelFood(null);
+          }}
           placeholder={t('fuelingPlan.defaultProduct', {
             defaultValue: 'Energy gel',
           })}
@@ -370,10 +429,49 @@ const FuelingPlanScreen: React.FC<FuelingPlanScreenProps> = () => {
           className="bg-raised rounded-lg px-3 mb-1 text-text-primary"
           style={{ height: 44, paddingVertical: 0, fontSize: 16 }}
         />
+        <View className="flex-row items-center gap-3 mb-1">
+          <Pressable
+            testID="fueling-choose-food"
+            accessibilityRole="button"
+            onPress={() => foodSheetRef.current?.present()}
+            style={({ pressed }) => (pressed ? { opacity: 0.7 } : null)}
+          >
+            <Text className="text-accent-primary text-sm font-semibold">
+              {t('fuelingPlan.chooseFoodButton', {
+                defaultValue: 'Choose a saved food',
+              })}
+            </Text>
+          </Pressable>
+          {fuelFood ? (
+            <Pressable
+              testID="fueling-clear-food"
+              accessibilityRole="button"
+              onPress={() => setFuelFood(null)}
+              style={({ pressed }) => (pressed ? { opacity: 0.7 } : null)}
+            >
+              <Text className="text-text-secondary text-sm">
+                {t('fuelingPlan.clearFood', { defaultValue: 'Clear' })}
+              </Text>
+            </Pressable>
+          ) : null}
+        </View>
+        {fuelFood ? (
+          <Text
+            testID="fueling-food-linked"
+            className="text-text-secondary text-xs mb-1"
+          >
+            {t('fuelingPlan.foodLinked', {
+              defaultValue:
+                'Using {{name}}: {{carbs}} g of carbohydrate per serving.',
+              name: fuelFood.name,
+              carbs: number(fuelFood.carbs),
+            })}
+          </Text>
+        ) : null}
         <Text className="text-text-secondary text-xs mb-4">
           {t('fuelingPlan.productHint', {
             defaultValue:
-              'Name of what you carry. The Log it button on a reminder adds it to your diary as Snacks.',
+              'Name of what you carry, or pick a saved food. The Log it button on a reminder adds it to your diary as Snacks.',
           })}
         </Text>
 
@@ -492,6 +590,8 @@ const FuelingPlanScreen: React.FC<FuelingPlanScreenProps> = () => {
               : t('fuelingPlan.start', { defaultValue: 'Set reminders' })}
           </Text>
         </Pressable>
+
+        <FuelFoodSheet ref={foodSheetRef} onSelect={handleFoodSelected} />
 
         <Text className="text-text-secondary text-xs mt-4">
           {t('fuelingPlan.disclaimer', {

@@ -14,7 +14,9 @@ On the web, open the **Exercises** page and scroll to **Fueling plan**. Enter yo
 
 In the mobile app, open **Library > Fueling plan**. Pick when to start, then tap **Set reminders** and the app sends a notification for each portion. Starting a new plan replaces the old one, and **Stop reminders** cancels it. Reminders need notifications turned on for the app.
 
-Type the name of what you carry in **Fuel product** (it starts as "Energy gel"). Each reminder has a **Log it** button: pressing it opens the app and adds one portion to today's diary under **Snacks**, with the portion as carbohydrates (4 kcal per gram) and the current time. Tapping the notification itself only opens the app. If the entry could not be saved, a message says so and you can add it yourself or press the button again.
+Type the name of what you carry in **Fuel product** (it starts as "Energy gel"), or tap **Choose a saved food**. Each reminder has a **Log it** button: pressing it opens the app and adds one portion to today's diary under **Snacks** at the current time. With a saved food it logs one serving of that food; with a typed name it logs the portion as carbohydrates (4 kcal per gram). If the saved food has been deleted, the carbs are still logged under the name. Tapping the notification itself only opens the app. If the entry could not be saved, a message says so and you can add it yourself or press the button again.
+
+Under **Fuel product**, type what you carry or choose a saved food. A saved food sets the portion size to its carbohydrates per serving, and the plan shows about how many you need in total. On the web, **Print schedule** opens a page with only your schedule (time, portion and carbs so far) so you can print it or carry it on race day.
 
 ## How the target is chosen
 

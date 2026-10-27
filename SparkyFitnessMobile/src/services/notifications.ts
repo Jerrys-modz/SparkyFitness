@@ -706,7 +706,13 @@ export async function scheduleWaterReminderNotifications(
 export async function scheduleFuelingReminderNotifications(
   times: Date[],
   portionGrams: number,
-  productName: string
+  productName: string,
+  food: {
+    foodId: string;
+    variantId: string;
+    servingSize: number;
+    servingUnit: string;
+  } | null = null
 ): Promise<string[]> {
   if (!useAppPreferencesStore.getState().notificationsEnabled) return [];
   if (!(await hasNotificationPermission())) return [];
@@ -734,6 +740,14 @@ export async function scheduleFuelingReminderNotifications(
             kind: FUELING_REMINDER_KIND,
             portionGrams: String(portionGrams),
             productName,
+            ...(food
+              ? {
+                  foodId: food.foodId,
+                  variantId: food.variantId,
+                  servingSize: String(food.servingSize),
+                  servingUnit: food.servingUnit,
+                }
+              : {}),
           },
         },
         trigger: {
