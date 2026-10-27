@@ -2184,12 +2184,20 @@ private struct MarqueeText: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var textWidth: CGFloat = 0
     @State private var containerWidth: CGFloat = 0
-    @State private var scrolled = false
+    /// When the scroll cycle began. The offset is worked out from the clock
+    /// against this, not stepped by a task or an animation: the workout
+    /// screen redraws every second, and anything started from state was
+    /// restarted by that before it got past its first pause.
+    @State private var start = Date()
 
     private static let pointsPerSecond: Double = 25
     private static let pause: Double = 1.5
+    private static let returnDuration: Double = 0.4
 
-    private var overflow: CGFloat { max(0, textWidth - containerWidth) }
+    /// How far the text is wider than its room. Zero until both are known.
+    private var overflow: CGFloat {
+        containerWidth > 0 ? max(0, textWidth - containerWidth) : 0
+    }
 
     var body: some View {
         Group {
@@ -2224,36 +2232,38 @@ private struct MarqueeText: View {
                 Color.clear.preference(key: MarqueeContainerWidthKey.self, value: proxy.size.width)
             })
             .overlay(alignment: .leading) {
-                Text(text)
-                    .lineLimit(1)
-                    .fixedSize()
-                    .background(GeometryReader { proxy in
-                        Color.clear.preference(key: MarqueeTextWidthKey.self, value: proxy.size.width)
-                    })
-                    .offset(x: scrolled ? -overflow : 0)
+                TimelineView(.animation(minimumInterval: 1.0 / 30, paused: overflow <= 0.5)) { context in
+                    Text(text)
+                        .lineLimit(1)
+                        .fixedSize()
+                        .background(GeometryReader { proxy in
+                            Color.clear.preference(key: MarqueeTextWidthKey.self, value: proxy.size.width)
+                        })
+                        .offset(x: offset(at: context.date))
+                }
             }
             .clipped()
             .onPreferenceChange(MarqueeTextWidthKey.self) { textWidth = $0 }
             .onPreferenceChange(MarqueeContainerWidthKey.self) { containerWidth = $0 }
-            .task(id: overflow) { await scroll() }
     }
 
-    private func scroll() async {
-        scrolled = false
-        // Nothing to do until both widths are known.
-        guard containerWidth > 0, overflow > 0.5 else { return }
+    /// Wait, scroll to the end, wait, then glide back, and again.
+    private func offset(at date: Date) -> CGFloat {
+        guard overflow > 0.5 else { return 0 }
         let travel = Double(overflow) / Self.pointsPerSecond
-        do {
-            while true {
-                try await Task.sleep(nanoseconds: UInt64(Self.pause * 1_000_000_000))
-                withAnimation(.linear(duration: travel)) { scrolled = true }
-                try await Task.sleep(nanoseconds: UInt64((travel + Self.pause) * 1_000_000_000))
-                withAnimation(.easeInOut(duration: 0.4)) { scrolled = false }
-                try await Task.sleep(nanoseconds: 400_000_000)
-            }
-        } catch {
-            // Cancelled when the text or its room changes, or the view goes.
+        let cycle = Self.pause + travel + Self.pause + Self.returnDuration
+        let t = date.timeIntervalSince(start).truncatingRemainder(dividingBy: cycle)
+        let fraction: Double
+        if t < Self.pause {
+            fraction = 0
+        } else if t < Self.pause + travel {
+            fraction = (t - Self.pause) / travel
+        } else if t < Self.pause + travel + Self.pause {
+            fraction = 1
+        } else {
+            fraction = 1 - (t - (Self.pause + travel + Self.pause)) / Self.returnDuration
         }
+        return -overflow * CGFloat(min(max(fraction, 0), 1))
     }
 }
 
