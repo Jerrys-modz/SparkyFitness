@@ -57,11 +57,9 @@ const WatchSettingsScreen: React.FC<WatchSettingsScreenProps> = () => {
   const setWatchUpNextPage = useAppPreferencesStore(
     (s) => s.setWatchUpNextPage
   );
-  const watchLargeGoalsWater = useAppPreferencesStore(
-    (s) => s.watchLargeGoalsWater
-  );
-  const setWatchLargeGoalsWater = useAppPreferencesStore(
-    (s) => s.setWatchLargeGoalsWater
+  const watchLargerText = useAppPreferencesStore((s) => s.watchLargerText);
+  const setWatchLargerText = useAppPreferencesStore(
+    (s) => s.setWatchLargerText
   );
   const setWatchRpeEnabled = useAppPreferencesStore(
     (s) => s.setWatchRpeEnabled
@@ -254,19 +252,19 @@ const WatchSettingsScreen: React.FC<WatchSettingsScreenProps> = () => {
               }
             />
             <SettingsRow
-              title={t('watchSettings.largeGoalsWaterTitle', {
-                defaultValue: 'Larger text on Goals and Water',
+              title={t('watchSettings.largerTextTitle', {
+                defaultValue: 'Larger text on the watch',
               })}
-              subtitle={t('watchSettings.largeGoalsWaterSubtitle', {
+              subtitle={t('watchSettings.largerTextSubtitle', {
                 defaultValue:
-                  'A bigger calorie ring and full-width water containers, in larger type.',
+                  'Larger type and the newer layouts across the watch: Goals, Water, the workout, Fasting, Steps and more. Off keeps the original look.',
               })}
               subtitleNumberOfLines={0}
               rightAccessory={
                 <Switch
-                  testID="watch-large-goals-water-switch"
-                  value={watchLargeGoalsWater}
-                  onValueChange={setWatchLargeGoalsWater}
+                  testID="watch-larger-text-switch"
+                  value={watchLargerText}
+                  onValueChange={setWatchLargerText}
                 />
               }
             />

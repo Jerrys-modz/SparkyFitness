@@ -196,7 +196,7 @@ struct TrendView: View {
 
     private func emptyState(for metric: Metric) -> some View {
         Text(metric.emptyStateMessage)
-            .font(.footnote)
+            .watchFont(.footnote, classic: .caption2)
             .foregroundStyle(.secondary)
     }
 
@@ -273,7 +273,7 @@ struct TrendView: View {
         .overlay(alignment: .trailing) {
             if let latest = bodyFatPoints.last?.bodyFatPercentage {
                 Text(String(format: "%.1f %%", latest))
-                    .font(.footnote)
+                    .watchFont(.footnote, classic: .caption2)
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
             }

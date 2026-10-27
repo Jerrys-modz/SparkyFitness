@@ -103,7 +103,7 @@ describe('WatchSettingsScreen', () => {
 
     expect(prefs().watchSetScreenMetrics).toBe(true);
     expect(prefs().watchUpNextPage).toBe(false);
-    expect(prefs().watchLargeGoalsWater).toBe(false);
+    expect(prefs().watchLargerText).toBe(false);
 
     fireEvent(
       screen.getByTestId('watch-set-screen-metrics-switch'),
@@ -112,14 +112,14 @@ describe('WatchSettingsScreen', () => {
     );
     fireEvent(screen.getByTestId('watch-up-next-switch'), 'valueChange', true);
     fireEvent(
-      screen.getByTestId('watch-large-goals-water-switch'),
+      screen.getByTestId('watch-larger-text-switch'),
       'valueChange',
       true
     );
 
     expect(prefs().watchSetScreenMetrics).toBe(false);
     expect(prefs().watchUpNextPage).toBe(true);
-    expect(prefs().watchLargeGoalsWater).toBe(true);
+    expect(prefs().watchLargerText).toBe(true);
   });
 
   test('toggling a page hides and shows it', () => {
@@ -235,13 +235,13 @@ describe('WatchSettingsScreen', () => {
     });
   });
 
-  test('the set input control switches the watch to the Digital Crown', () => {
+  test('the set input control switches the watch between the Digital Crown and the keypad', () => {
     renderScreen();
 
-    expect(useAppPreferencesStore.getState().watchSetInputStyle).toBe('keypad');
-    fireEvent.press(screen.getByText('Digital Crown'));
     expect(useAppPreferencesStore.getState().watchSetInputStyle).toBe('crown');
     fireEvent.press(screen.getByText('Keypad'));
     expect(useAppPreferencesStore.getState().watchSetInputStyle).toBe('keypad');
+    fireEvent.press(screen.getByText('Digital Crown'));
+    expect(useAppPreferencesStore.getState().watchSetInputStyle).toBe('crown');
   });
 });

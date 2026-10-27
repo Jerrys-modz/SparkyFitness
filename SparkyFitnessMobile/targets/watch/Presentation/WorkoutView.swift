@@ -873,7 +873,7 @@ private struct SquircleLabel: View {
 /// The next exercise, one swipe up from the set screen, so what comes after
 /// this one can be checked without opening the list: its name, how many sets
 /// and the first set's target, and the exercise after it. A tap opens the list.
-private struct UpNextPage: View {
+struct UpNextPage: View {
     let onOpenList: () -> Void
 
     @EnvironmentObject private var store: WorkoutSessionStore
@@ -911,7 +911,7 @@ private struct UpNextPage: View {
         Button(action: Haptics.tapping(onOpenList)) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(String(localized: "watch.workout.upNextTitle", defaultValue: "Up Next"))
-                    .font(.footnote.weight(.semibold))
+                    .watchFont(.footnote.weight(.semibold), classic: .caption2)
                     .foregroundStyle(.secondary)
                 if let next = upcoming.first {
                     Text(next.exerciseName)
@@ -931,21 +931,21 @@ private struct UpNextPage: View {
                     .accessibilityLabel(String(localized: "watch.workout.upNextSetCount", defaultValue: "Sets: \(next.setCount)"))
                     if let target = RestView.target(for: next, store: store, unit: checkIn.context.effectiveWeightUnit, carry: checkIn.context.effectiveCarryUnit) {
                         Text(target)
-                            .font(.body)
+                            .watchFont(.body, classic: .footnote)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                             .minimumScaleFactor(0.8)
                     }
                     if upcoming.count > 1 {
                         Text(String(localized: "watch.workout.upNextThen", defaultValue: "Then \(upcoming[1].exerciseName)"))
-                            .font(.footnote)
+                            .watchFont(.footnote, classic: .caption2)
                             .foregroundStyle(.secondary)
                             .lineLimit(2)
                             .padding(.top, 4)
                     }
                 } else {
                     Text(String(localized: "watch.workout.lastExercise", defaultValue: "This is the last exercise"))
-                        .font(.body)
+                        .watchFont(.body, classic: .footnote)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -1000,8 +1000,9 @@ struct SwapExerciseSheet: View {
 private struct SetScreenMetricsLine: View {
     @EnvironmentObject private var store: WorkoutSessionStore
 
-    /// The clock's width at the top right, measured on 40 and 46 mm.
-    private static var clockWidth: CGFloat { WatchStyle.s(54) }
+    /// The clock's width at the top right, measured on 40 and 46 mm, with a
+    /// gap so the calories do not touch its running glyph.
+    private static var clockWidth: CGFloat { WatchStyle.s(64) }
 
     var body: some View {
         // One Text, so a 40 mm screen shrinks the line as a whole rather than
@@ -1030,7 +1031,7 @@ private struct SetScreenMetricsLine: View {
 /// Time, heart rate and calories, one big reading per line as on Apple's
 /// Workout app. A swipe up from the set screen, so the set screen can stay
 /// about the set.
-private struct WorkoutMetricsPage: View {
+struct WorkoutMetricsPage: View {
     @EnvironmentObject private var store: WorkoutSessionStore
 
     var body: some View {
@@ -1204,7 +1205,7 @@ private struct CurrentSetView: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+                    .minimumScaleFactor(0.6)
             }
 
             // Previous and next set either side of a still-wide Done: the dots
@@ -1763,7 +1764,7 @@ private struct DoneButton: View {
     }
 }
 
-/// The exercise's name, up to two lines, with a chevron: tapping it opens the
+/// The exercise's name, one scrolling line, with a chevron: tapping it opens the
 /// exercise list, where the other exercises, Add Exercise and Finish are. A
 /// superset member wears its superset's colour as a bar beside the name.
 private struct ExerciseTitle: View {
@@ -1781,13 +1782,11 @@ private struct ExerciseTitle: View {
                         .frame(width: 4)
                 }
                 VStack(alignment: .leading, spacing: 0) {
-                    // One line when the superset line follows, so a 40 mm
-                    // screen still has room for the buttons.
-                    Text(name)
+                    // One line that scrolls when the name is long, so it is
+                    // never cut off and a 40 mm screen keeps room for the
+                    // buttons; the effort picker's title does the same.
+                    MarqueeText(text: name)
                         .font(.headline)
-                        .lineLimit(supersetWith == nil ? 2 : 1)
-                        .minimumScaleFactor(supersetWith == nil ? 0.8 : 0.7)
-                        .multilineTextAlignment(.leading)
                     // Who this set alternates with: the bar's colour alone
                     // does not say.
                     if let supersetWith {
@@ -2176,6 +2175,98 @@ private struct PendingRpe: Identifiable {
     }
 }
 
+/// One line of text that scrolls sideways to its end and back when it is wider
+/// than the space it has, so a long exercise name can be read in full. A name
+/// that fits stays still, and with Reduce Motion on it truncates instead.
+private struct MarqueeText: View {
+    let text: String
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var textWidth: CGFloat = 0
+    @State private var containerWidth: CGFloat = 0
+    @State private var scrolled = false
+
+    private static let pointsPerSecond: Double = 25
+    private static let pause: Double = 1.5
+
+    private var overflow: CGFloat { max(0, textWidth - containerWidth) }
+
+    var body: some View {
+        Group {
+            if reduceMotion {
+                Text(text).lineLimit(1)
+            } else {
+                // A name that fits is plain text and never moves. Only one
+                // too wide for its room (the first child does not fit, so
+                // `ViewThatFits` falls through) is scrolled.
+                ViewThatFits(in: .horizontal) {
+                    Text(text)
+                        .lineLimit(1)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    scrolling
+                }
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(text)
+    }
+
+    /// The sizing text truncates, so it takes the width it is given and never
+    /// more; the full-length copy is drawn over it and cannot widen the page (a
+    /// fixed-size child inside the layout did, and pushed the whole screen off
+    /// its edges).
+    private var scrolling: some View {
+        Text(text)
+            .lineLimit(1)
+            .opacity(0)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(GeometryReader { proxy in
+                Color.clear.preference(key: MarqueeContainerWidthKey.self, value: proxy.size.width)
+            })
+            .overlay(alignment: .leading) {
+                Text(text)
+                    .lineLimit(1)
+                    .fixedSize()
+                    .background(GeometryReader { proxy in
+                        Color.clear.preference(key: MarqueeTextWidthKey.self, value: proxy.size.width)
+                    })
+                    .offset(x: scrolled ? -overflow : 0)
+            }
+            .clipped()
+            .onPreferenceChange(MarqueeTextWidthKey.self) { textWidth = $0 }
+            .onPreferenceChange(MarqueeContainerWidthKey.self) { containerWidth = $0 }
+            .task(id: overflow) { await scroll() }
+    }
+
+    private func scroll() async {
+        scrolled = false
+        // Nothing to do until both widths are known.
+        guard containerWidth > 0, overflow > 0.5 else { return }
+        let travel = Double(overflow) / Self.pointsPerSecond
+        do {
+            while true {
+                try await Task.sleep(nanoseconds: UInt64(Self.pause * 1_000_000_000))
+                withAnimation(.linear(duration: travel)) { scrolled = true }
+                try await Task.sleep(nanoseconds: UInt64((travel + Self.pause) * 1_000_000_000))
+                withAnimation(.easeInOut(duration: 0.4)) { scrolled = false }
+                try await Task.sleep(nanoseconds: 400_000_000)
+            }
+        } catch {
+            // Cancelled when the text or its room changes, or the view goes.
+        }
+    }
+}
+
+private struct MarqueeTextWidthKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
+}
+
+private struct MarqueeContainerWidthKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
+}
+
 /// Effort picked after a set: the set it is for, one big value card the Digital
 /// Crown changes through the scale, what that value means in reps left, and
 /// Skip / Save. Same flat dark squircles as the set screens. `onDone(nil)` skips.
@@ -2247,15 +2338,14 @@ private struct RpePickerView: View {
     var body: some View {
         VStack(spacing: 3) {
             VStack(alignment: .leading, spacing: 0) {
-                Text(title)
+                MarqueeText(text: title)
                     .font(.headline)
-                    .lineLimit(1)
                 Text(summary)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
+                    .minimumScaleFactor(0.75)
             }
-            .minimumScaleFactor(0.75)
             // Room for the system clock, which sits over the top right.
             .padding(.trailing, 52)
             .frame(maxWidth: .infinity, alignment: .leading)
