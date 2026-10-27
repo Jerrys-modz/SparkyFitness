@@ -830,7 +830,7 @@ Take macro and nutrient colors from `GoalPalette` (`GoalPalette.color(forNutrien
 ### 10.4 Apple Watch complications
 
 - Families: circular, corner, rectangular and inline (`accessoryCircular`, `accessoryCorner`, `accessoryRectangular`, `accessoryInline`). Most draw `Gauge` / `ProgressView` tinted per metric; Energy and Water draw custom ring views (`CalorieRing`, `MacroGoalRing`, `WaterGoalRing`). Tracks are `Color.secondary` at 25% opacity.
-- Data comes from the app group (`APP_GROUP_IDENTIFIER` in the target's Info.plist), written by `ComplicationPublisher`. A snapshot for another day is ignored, and the placeholder shows a plausible mid-day value.
+- Data comes from the app group (`APP_GROUP_IDENTIFIER` in the target's Info.plist), written by `ComplicationPublisher`. The daily metric snapshots (steps, water, energy, macros) carry a date, and one for another day is ignored. The fasting snapshot has no date, because a fast can span midnight. The placeholder shows a plausible mid-day value.
 - Refresh differs by complication. Steps, Water, Energy and the macros reload after 15 minutes or at midnight, whichever is first. Fasting reloads hourly when no fast is active; during an active fast it provides a run of 15-minute entries and reloads `.atEnd`.
 - Each Apple Watch complication opens the app on its page through the `sparkyfitness-watch` URL scheme (`ComplicationLinks.swift`). The scheme is declared in three copies that must stay in step: `targets/watch/expo-target.config.js`, `WatchDeepLink.scheme` and `ComplicationLink.scheme`. Wear OS complications instead tap through a `PendingIntent` carrying a `target_page` extra (`ComplicationUpdater.tapPendingIntent`); Wear OS also accepts a separate `sparkyfitness://watch` deep link in `MainActivity`.
 - Tints: Water cyan, Steps mint, Fasting orange, Energy and the macros per the table above (see 10.6 for the macro mismatch).
@@ -860,14 +860,14 @@ Take macro and nutrient colors from `GoalPalette` (`GoalPalette.color(forNutrien
 - The Wear OS palette is a Tailwind-style set unrelated to the Apple Watch `GoalPalette`, so the same macro is a different color on each watch: protein is amber on Apple Watch and cyan on Wear OS, and carbs is green on Apple Watch and amber on Wear OS.
 - The Apple Watch complications' macro tints (`MacroComplications.swift`: protein red, carbs yellow, fat blue) say they match `GoalPalette`, but they do not (protein amber, carbs green, fat light blue). Fasting uses `.orange` and Steps `.mint` as system colors.
 - Localization is incomplete. `GoalSummaryView.swift` still has static literals ("Calories not synced yet", "Protein", "g"), as do some other Apple Watch views (for example `TrendView.swift`), and the Wear OS screens use literal English strings rather than Android string resources.
-- Some Apple Watch haptics bypass `Haptics` and the phone's haptics setting by calling `WKInterfaceDevice.current().play` directly: `WaterIntakeView`, `ClassicWaterIntakeView`, `MedicationsView`, `TrendView`, `CheckInEntryView`, `WatchAppDelegate` and the run start and stop in `WatchRunStore`.
+- Some Apple Watch haptics bypass `Haptics` and the phone's haptics setting by calling `WKInterfaceDevice.current().play` directly: `WaterIntakeView`, `ClassicWaterIntakeView`, `MedicationsView`, `TrendView`, `CheckInEntryView` and the run auto-pause and resume in `WatchRunStore`. `WatchAppDelegate` also calls it directly, but checks the haptics setting first (the rest-finished buzz uses `effectiveRestBuzzEnabled`, which adds the phone's rest-alerts setting).
 - Neither watch palette is derived from `global.css`; the superset palette is the only hand-copied mirror.
 
 ### 10.7 Checklist for a watch change
 
 - [ ] Used `WatchStyle.s` for fixed sizes, `WatchStyle.fill` for cards and `SquircleButton` for controls (Apple Watch).
 - [ ] Took colors from `GoalPalette` / `SparkyColors` and updated the table above if a value changed.
-- [ ] Fired Apple Watch haptics through `Haptics`, never `WKInterfaceDevice` directly, and kept pages working with no phone connection.
+- [ ] Fired Apple Watch haptics through `Haptics`, never `WKInterfaceDevice` directly (the one exception is the rest-finished buzz in `WatchAppDelegate`, which uses `effectiveRestBuzzEnabled` to honor the rest-alerts setting as well), and kept pages working with no phone connection.
 - [ ] A new page is added to `WatchPage`, `WATCH_PAGE_KEYS` and the phone's Apple Watch settings together.
 - [ ] A new complication is added on both Apple Watch (`index.swift`) and Wear OS (service plus manifest entry), with its tap target (URL scheme on Apple Watch, `target_page` on Wear OS).
 - [ ] Payload or context changes are made on both watches and the phone by hand, and the Wear OS parity test still passes.
