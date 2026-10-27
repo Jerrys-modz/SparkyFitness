@@ -114,11 +114,15 @@ final class WorkoutHealthKitController: NSObject {
         var shareTypes: Set<HKSampleType> = [
             HKObjectType.workoutType(), heartRateType, activeEnergyType,
         ]
-        if let effortType = WorkoutEffort.shareType { shareTypes.insert(effortType) }
+        let askingForEffort = WorkoutEffort.shareTypeToRequest()
+        if let effortType = askingForEffort { shareTypes.insert(effortType) }
         let readTypes: Set<HKObjectType> = [
             heartRateType, activeEnergyType, HKObjectType.workoutType(),
         ]
         healthStore.requestAuthorization(toShare: shareTypes, read: readTypes) { [weak self] success, _ in
+            // `success` false is a request that failed to process, not a
+            // denial, so the effort type is asked for again next time.
+            if success && askingForEffort != nil { WorkoutEffort.markShareAsked() }
             DispatchQueue.main.async {
                 guard let self else {
                     completion(false)

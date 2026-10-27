@@ -1,7 +1,18 @@
 import type { IncomingMessage, Server, ServerResponse } from 'node:http';
 import type { Socket } from 'node:net';
+import cron from 'node-cron';
 import { log } from '../config/logging.js';
 import { endPool } from '../db/poolManager.js';
+import {
+  releaseRunningProviderSyncs,
+  runningProviderSyncCount,
+  waitForProviderSyncs,
+} from '../services/providerSyncClaim.js';
+import {
+  markShuttingDown,
+  pendingBackgroundWorkCount,
+  waitForBackgroundWork,
+} from './shutdownHooks.js';
 
 const SHUTDOWN_TIMEOUT_MS = 15_000;
 const HALF_CLOSE_GRACE_MS = 2_000;
@@ -139,10 +150,68 @@ function endKeepAlive(server: Server) {
   server.closeIdleConnections();
 }
 
+// Kept back from the wait so that releasing sync claims and closing the pools
+// still fit inside the hard exit.
+function cleanupReserveMs(timeoutMs: number): number {
+  return Math.min(5000, Math.floor(timeoutMs / 3));
+}
+
 /**
- * On SIGTERM or SIGINT, stops accepting connections, lets the requests under
- * way finish, closes the database pools and exits 0; exits 1 if that takes
- * longer than the shutdown timeout.
+ * Drains the server and returns the exit code: 0 when every request, job,
+ * sync and tracked background task finished in time, 1 when some were cut off.
+ *
+ * Scheduled jobs stop firing before anything is awaited, so a draining server
+ * never starts work it would then abandon. Sync claims still held after the
+ * wait are released before the pools close, so the account can sync again at
+ * once instead of after the claim expiry.
+ */
+export async function drainServer(
+  server: Server,
+  timeoutMs: number
+): Promise<number> {
+  const waitMs = timeoutMs - cleanupReserveMs(timeoutMs);
+  markShuttingDown();
+  const httpClosed = new Promise<void>((resolve) => {
+    server.close(() => resolve());
+  });
+  endKeepAlive(server);
+  const finished = (async () => {
+    // node-cron resolves silently at its own timeout, so it gets the full
+    // timeout and the wait below decides when to give up.
+    await Promise.all([httpClosed, cron.shutdown(timeoutMs)]);
+    // A request or job still running above can start a sync or background
+    // task, so the registries are only read once those have finished.
+    while (runningProviderSyncCount() > 0 || pendingBackgroundWorkCount() > 0) {
+      await Promise.all([waitForProviderSyncs(), waitForBackgroundWork()]);
+    }
+    return true;
+  })();
+  let waitTimer: NodeJS.Timeout | undefined;
+  const gaveUp = new Promise<false>((resolve) => {
+    waitTimer = setTimeout(() => resolve(false), waitMs);
+  });
+  const drained = await Promise.race([finished, gaveUp]);
+  clearTimeout(waitTimer);
+  if (!drained) {
+    log(
+      'warn',
+      `Shutdown stopped waiting after ${waitMs / 1000}s: ${runningProviderSyncCount()} provider sync(s) and ${pendingBackgroundWorkCount()} background task(s) still running.`
+    );
+    server.closeAllConnections();
+  }
+  await releaseRunningProviderSyncs();
+  try {
+    await endPool();
+    log('info', 'Database pools closed. Exiting.');
+  } catch (error) {
+    log('error', 'Error closing database pools:', error);
+  }
+  return drained ? 0 : 1;
+}
+
+/**
+ * On SIGTERM or SIGINT, drains the server and exits with drainServer's code;
+ * exits 1 if that takes longer than the shutdown timeout.
  */
 export function installShutdownHandlers(
   server: Server,
@@ -154,18 +223,6 @@ export function installShutdownHandlers(
     if (shuttingDown) return;
     shuttingDown = true;
     log('info', `${signal} received, shutting down gracefully...`);
-    server.close(async () => {
-      log('info', 'HTTP server closed, draining database pools...');
-      try {
-        await endPool();
-        log('info', 'Database pools closed. Exiting.');
-      } catch (err) {
-        log('error', 'Error closing database pools:', err);
-      }
-      // eslint-disable-next-line n/no-process-exit
-      process.exit(0);
-    });
-    endKeepAlive(server);
     setTimeout(() => {
       log(
         'error',
@@ -174,6 +231,15 @@ export function installShutdownHandlers(
       // eslint-disable-next-line n/no-process-exit
       process.exit(1);
     }, timeoutMs).unref();
+    void drainServer(server, timeoutMs)
+      .catch((error: unknown) => {
+        log('error', 'Graceful shutdown failed:', error);
+        return 1;
+      })
+      .then((code) => {
+        // eslint-disable-next-line n/no-process-exit
+        process.exit(code);
+      });
   };
   process.on('SIGTERM', () => shutdown('SIGTERM'));
   process.on('SIGINT', () => shutdown('SIGINT'));

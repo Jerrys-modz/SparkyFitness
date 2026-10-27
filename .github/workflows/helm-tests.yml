@@ -52,6 +52,14 @@ jobs:
       - name: Render — defaults (bundled postgres)
         run: helm template t helm/chart > /dev/null
 
+      - name: Render — every server pod gets the startup probe
+        run: |
+          out=$(helm template t helm/chart --set server.replicas=2 --show-only templates/server/deployment.yaml)
+          test "$(grep -c 'startupProbe:' <<< "$out")" = 2
+          if helm template t helm/chart --set server.startupProbe=null --show-only templates/server/deployment.yaml | grep -q 'startupProbe:'; then
+            echo "server.startupProbe=null should drop the probe"; exit 1
+          fi
+
       - name: Render — external DB credentials reach the server
         run: |
           out=$(helm template t helm/chart \

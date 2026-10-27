@@ -211,6 +211,16 @@ server:
   # if the backup/uploads PVCs use a ReadWriteMany StorageClass.
   strategy:
     type: Recreate
+  # -- The server answers only once migrations and startup have finished, which
+  # can take minutes on a large upgrade. Liveness waits until this passes, so
+  # a long boot is not restarted midway. Allows up to 5 minutes (60 x 5 s).
+  startupProbe:
+    httpGet:
+      path: /api/health
+      port: http
+    periodSeconds: 5
+    timeoutSeconds: 5
+    failureThreshold: 60
   livenessProbe:
     httpGet:
       path: /api/health

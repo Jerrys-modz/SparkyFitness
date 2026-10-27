@@ -4,7 +4,10 @@ import { log } from '../config/logging.js';
 import {
   SYNC_CLAIM_EXPIRY_MINUTES,
   SYNC_CLAIM_RENEW_MINUTES,
+  releaseRunningProviderSyncs,
+  runningProviderSyncCount,
   startProviderSync,
+  waitForProviderSyncs,
 } from '../services/providerSyncClaim.js';
 
 vi.mock('../models/externalProviderRepository.js', () => ({
@@ -248,5 +251,68 @@ describe('startProviderSync', () => {
       finish('synced');
       await started!.running;
     });
+  });
+});
+
+describe('shutdown', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(
+      externalProviderRepository.releaseProviderSyncRows
+    ).mockResolvedValue();
+    vi.mocked(
+      externalProviderRepository.claimProviderSyncRows
+    ).mockResolvedValue({ matched: 1, claimedIds: ['p1'] });
+  });
+
+  it('waits for running syncs to finish and release', async () => {
+    let finish = () => {};
+    const started = await startProviderSync(
+      target,
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        })
+    );
+    let waited = false;
+    const wait = waitForProviderSyncs().then(() => {
+      waited = true;
+    });
+
+    await Promise.resolve();
+    expect(waited).toBe(false);
+    expect(runningProviderSyncCount()).toBe(1);
+    finish();
+    await wait;
+    await started!.running;
+    expect(runningProviderSyncCount()).toBe(0);
+    expect(
+      externalProviderRepository.releaseProviderSyncRows
+    ).toHaveBeenCalledOnce();
+  });
+
+  it('releases the claims of syncs still running, once each', async () => {
+    let finish = () => {};
+    const started = await startProviderSync(
+      target,
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        })
+    );
+    const [, claimedAt] = vi.mocked(
+      externalProviderRepository.claimProviderSyncRows
+    ).mock.calls[0]!;
+
+    await releaseRunningProviderSyncs();
+
+    expect(
+      externalProviderRepository.releaseProviderSyncRows
+    ).toHaveBeenCalledExactlyOnceWith(['p1'], claimedAt);
+    finish();
+    await started!.running;
+    expect(
+      externalProviderRepository.releaseProviderSyncRows
+    ).toHaveBeenCalledOnce();
   });
 });

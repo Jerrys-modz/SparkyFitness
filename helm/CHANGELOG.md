@@ -11,6 +11,7 @@
 
 ### Bug Fixes
 
+- **Server pods get a `startupProbe`** (`server.startupProbe`, up to 5 minutes). The server only answers `/api/health` after migrations and startup finish, so a long upgrade was restarted by the liveness probe after about 80 s, mid-migration, and kept crash-looping. Set `server.startupProbe: null` to drop it.
 - **External database credentials set in values now reach the server.** With `postgresql.enabled=false` and `externalDatabase.auth.username`/`password` (no `existingSecret` or External Secrets), the server pods referenced a `<fullname>-postgres` Secret the chart never created, so they could not start. The chart now creates it (under the `existingSecretKeys` key names the server reads), and fails the render when either value is missing. If you created that Secret yourself to get around this, set `externalDatabase.auth.existingSecret` to its name before upgrading, or Helm refuses to take it over.
 
 ## 0.3.0 — 2026-05-08
