@@ -187,12 +187,16 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
             HKObjectType.workoutType(), Self.distanceType, Self.energyType, Self.heartRateType,
             Self.stepType, HKSeriesType.workoutRoute(),
         ]
-        if let effortType = WorkoutEffort.shareType { share.insert(effortType) }
+        let askingForEffort = WorkoutEffort.shareTypeToRequest()
+        if let effortType = askingForEffort { share.insert(effortType) }
         let read: Set<HKObjectType> = [
             HKObjectType.workoutType(), Self.distanceType, Self.energyType, Self.heartRateType,
             Self.stepType,
         ]
-        healthStore.requestAuthorization(toShare: share, read: read) { _, _ in
+        healthStore.requestAuthorization(toShare: share, read: read) { success, _ in
+            // `success` false is a request that failed to process, not a
+            // denial, so the effort type is asked for again next time.
+            if success && askingForEffort != nil { WorkoutEffort.markShareAsked() }
             DispatchQueue.main.async { completion() }
         }
     }

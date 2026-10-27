@@ -9,6 +9,7 @@ How to use:
 - Generate a screen: give sections 1–5 to a UI design or mockup tool together with a screenshot of the closest existing screen.
 - Implement a design: sections 6–7 explain how an HTML + web Tailwind mockup becomes React Native + Uniwind code in this repo.
 - Plan cleanup: section 8 lists known inconsistencies. They describe the current state, not rules to copy.
+- Design or change a watch surface (Apple Watch app, watch complications, Wear OS app): section 10. Sections 1–9 describe the phone app only and do not apply to the watches.
 - Build or extend a screen in code: section 9 picks the screen type and walks route wiring, header, layout, states, data, copy, theming, accessibility and tests, with templates and a pre-PR checklist.
 
 ## 1. Visual Theme & Atmosphere
@@ -19,7 +20,7 @@ Density is medium-high. A dashboard card holds a ring, two side stats and a capt
 
 There are three themes plus System. Light is near-white cards on a pale cool-gray canvas with a small soft shadow under each card. Dark is charcoal blue-gray, and depth comes from surfaces getting lighter as they stack, not from shadows. AMOLED is Dark with a pure black canvas, near-black cards and darker borders. System follows the OS light/dark setting only, so AMOLED must be picked explicitly.
 
-- Platform-native first. Icons are SF Symbols on every iOS version and Ionicons on Android. Neither set is purely outline: 78 of the 132 Android glyphs are `-outline`, and the tab, meal-type, exercise (filled flame), water, warning and star glyphs are filled; the `flame` icon itself is an outline (`flame` / `flame-outline`). On iOS 26+ an opt-in Liquid Glass setting turns on the native tab bar, native large-title headers on tab roots and frosted floating pills. Without it (Android, iOS below 26, or the setting off) the app draws its own tab bar, and tab roots draw their own title. Pushed screens use native iOS headers below iOS 26 and on 26+ with the setting on, and the app's own header bar on Android and on iOS 26+ with the setting off. Android runs edge-to-edge under translucent system bars.
+- Platform-native first. Icons are SF Symbols on every iOS version and Ionicons on Android. Neither set is purely outline: 80 of the 134 Android glyphs are `-outline`, and the tab, meal-type, exercise (filled flame), water, warning and star glyphs are filled; the `flame` icon itself is an outline (`flame` / `flame-outline`). On iOS 26+ an opt-in Liquid Glass setting turns on the native tab bar, native large-title headers on tab roots and frosted floating pills. Without it (Android, iOS below 26, or the setting off) the app draws its own tab bar, and tab roots draw their own title. Pushed screens use native iOS headers below iOS 26 and on 26+ with the setting on, and the app's own header bar on Android and on iOS 26+ with the setting off. Android runs edge-to-edge under translucent system bars.
 - Portrait only, phone only.
 - Shapes: 16px-radius cards and buttons, 12px-radius inputs and controls, pill-shaped badges, the date pill and the center Add button. Selectable chips are usually pills.
 - Motion is short and functional: 150–200ms fades, 300ms list reflows, 500–800ms ease-out fills for rings and bars. Bouncy springs and confetti are reserved for workout completion; drag-to-reorder lists slide rows with a stiff spring that does not visibly bounce.
@@ -286,7 +287,7 @@ Radius classes in sections 1–5 use the app's remapped scale, not web Tailwind'
 - Sheet titles: picker and menu sheets (`BottomSheetPicker`, `ActionSheet`, `WeekdaySheet`, `FoodUnitSelectorSheet`) have a `px-4 py-4 border-b border-border-subtle` title row with a centered `text-lg font-semibold` title; `ActionSheet` adds an optional 20px Sparky Blue back chevron. Form sheets put a borderless centered `text-lg font-semibold text-text-primary` title (`mb-1` to `mb-4`) at the top of their content. `CalendarSheet`, `TimeSheet` and AddSheet have no title; `DateRangeSheet` has a borderless centered `text-base font-semibold text-text-primary` title (`mt-2 mb-1`) above the calendar, defaulting to "Select a date range to remove" (override it with `title`).
 - Picker sheet (`BottomSheetPicker`): option rows `px-4 py-3.5` with hairline dividers. The selected option is semibold with a 20px Sparky Blue checkmark. Section headers are `px-4 py-2 bg-surface` with uppercase muted `text-xs font-semibold`. Up to 8 options size to fit; longer lists scroll in a 500pt sheet.
 - Action sheet (`ActionSheet`, overflow and context menus): rows `px-4 py-3.5 border-b border-border-subtle` with a `text-base font-medium` label and an optional muted description. Destructive items use Danger Ink. Groups are separated by a 12px band of canvas color (`h-3 bg-background`). Maximum height is 80% of the screen.
-- AddSheet (center Add): a 2x2 grid of large tiles (Food, Exercise, Measurements, Scan Food), each a Bright Control Fill block with 16px corners, `py-5`, a 32px Sparky Blue glyph and a 14px medium Ink Navy label. Below it is a stack of full-width Bright Control Fill buttons, each with 16px corners, 12px apart and `py-3`, holding a centered 20px Sparky Blue glyph and a 14px medium Ink Navy label: Progress Photos, Wellness, Symptoms, Mood, Mindfulness, Ask Sparky and Sync Health Data (Wellness, Symptoms, Mood and Mindfulness only when those features are on). The Exercise submenu has a Sparky Blue "Back" link, a row of 3 tiles with `text-xs` subtitles and, when GPS recording is available, a full-width Record Activity tile below them.
+- AddSheet (center Add): a 2x2 grid of large tiles (Food, Exercise, Measurements, Scan Food), each a Bright Control Fill block with 16px corners, `py-5`, a 32px Sparky Blue glyph and a 14px medium Ink Navy label. Below it is a stack of full-width Bright Control Fill buttons, each with 16px corners, 12px apart and `py-3`, holding a centered 20px Sparky Blue glyph and a 14px medium Ink Navy label: Check-In (only while Settings › Diary › Guided check-in is on), Progress Photos, Wellness (only while cycle tracking is on), Symptoms, Mood, Mindfulness, Ask Sparky and Sync Health Data. The Exercise submenu has a Sparky Blue "Back" link, a row of 3 tiles with `text-xs` subtitles and, when GPS recording is available, a full-width Record Activity tile below them.
 - Anchored menu (dropdown under a header button on the custom path): popover `bg-surface rounded-xl border border-border-subtle shadow-lg py-1`, at least 200pt wide, 6pt below its trigger and at least 8pt from the screen edge. It fades in over 120ms and zooms from 95% over 160ms, and closes instantly. Rows are `flex-row items-center gap-3 px-4 py-3`, separated by `border-t border-border-subtle`, with a 20px Sparky Blue icon, a `text-base font-medium` Ink Navy label and an 18px Sparky Blue check when selected. Group labels are `px-4 pt-2.5 pb-1` uppercase Muted Slate `text-xs font-bold tracking-wider` (with a top divider after the first).
 - Plain RN modal overlays use a 50% black scrim (outliers: 55% in `MedicationFormScreen`, 65% in `AnnouncementModal`). Full-screen modals pad their content with the status-bar inset plus 16 on top and the bottom inset (at least 16) below.
 
@@ -365,7 +366,7 @@ Radius classes in sections 1–5 use the app's remapped scale, not web Tailwind'
 Prefer the four overridden radius tokens for new work.
 
 - Elevation: one level for content. Cards use `shadow-sm` (214 uses) and normally no border. The popover (`AnchoredMenu`) uses `shadow-lg` plus a border, What's New cards use `shadow-md`, and `shadow-xs` appears on the fasting stage pills and some mindfulness and fasting cards (7 uses). The Add button, toasts, Liquid Glass pills and the drag-lift preview set their shadow inline (black, 8–25% opacity). In Dark and AMOLED, depth comes from the surface steps (canvas, card, raised control).
-- Safe areas: read the device safe-area insets. The status bar is translucent over the canvas. Pushed screens add the top inset only when they draw their own header (`usesNativeHeader ? undefined : { paddingTop: insets.top }`). Modal screens add it on Android only (`Platform.OS === 'android'`, as `FormScreenChrome` does), because an iOS modal already starts below the status bar; 9 of the 24 modal routes (medication, GLP-1, symptom and mood forms, `MoodDay`, `CycleOnboarding`) gate it on `usesNativeHeader` instead (section 8). Bottom bars pad to the home indicator or Android navigation bar with a 12–16pt minimum. The Android navigation bar style follows the theme.
+- Safe areas: read the device safe-area insets. The status bar is translucent over the canvas. Pushed screens add the top inset only when they draw their own header (`usesNativeHeader ? undefined : { paddingTop: insets.top }`). Modal screens add it on Android only (`Platform.OS === 'android'`, as `FormScreenChrome` does), because an iOS modal already starts below the status bar; `ProgressPhotos` is pushed except in the guided check-in, where it is a sheet and pads like a modal; 9 of the 24 modal routes (medication, GLP-1, symptom and mood forms, `MoodDay`, `CycleOnboarding`) gate it on `usesNativeHeader` instead (section 8). Bottom bars pad to the home indicator or Android navigation bar with a 12–16pt minimum. The Android navigation bar style follows the theme.
 - Bottom clearance: the most common scroll-end padding on stack screens (38 of 95) is safe-area inset + 80pt + the active-workout padding; screens without a trailing action use inset + 16 to 24pt. The active-workout padding is 66pt on stack screens and 72pt on tab roots while a workout, recording or watch run is live, and 0 otherwise. The custom tab bar sizes to its content, about 54pt (`TAB_BAR_HEIGHT = 56` is the estimate used for offsets), plus `Math.max(insets.bottom, 4)`. The Add button pokes about 6pt above it (the docked workout bar reserves a 6pt strip for it), so floating content over the tab bar must clear that bump.
 - Keyboard: forms scroll inside a keyboard-aware scroll view that keeps the focused field 20–80pt above the keyboard. Bars that only make sense with a keyboard ride on top of it. Layout properties (height, padding, margins) are never animated from keyboard progress.
 - One-handed reach: the most common action, Add, is the center bottom tab. On the custom-header path (Android, and iOS 26+ with Liquid Glass off) most forms move Save into a bottom footer; `FormScreenChrome` forms keep Save in the top bar. List actions sit in a bottom footer bar. Headers keep at most one emphasized action.
@@ -398,7 +399,7 @@ Prefer the four overridden radius tokens for new work.
 | `position: fixed` or `sticky` bottom bar                                      | `FooterActionBar` (action under a list) or `FooterSaveBar` (form save). A bar that only makes sense with the keyboard up goes in `KeyboardStickyView` with `offset={{ closed: <its height>, opened: 0 }}`. Floating pills use `LiquidGlassSurface`                                                                                                                                      |
 | Top app bar                                                                   | Stack screens: a `useScreenHeader({...})` descriptor; never a hand-built bar. Tab roots and `ActiveWorkout` are the designed exceptions (section 4, Navigation chrome). `FoodSearchScreen` is the one documented off-hook screen (it mirrors its actions with `unstable_header{Left,Right}Items` behind `useNativeIOSHeadersActive()`). Other hand-built bars are drift (section 8)     |
 | Bottom navigation bar                                                         | The existing tab navigator; screens never draw one                                                                                                                                                                                                                                                                                                                                      |
-| Material Symbols, Font Awesome, inline SVG icons                              | `Icon` with a semantic name from `ICON_MAP` (132 names; SF Symbols on iOS, Ionicons on Android) and an explicit token `color` (457 of 460 uses pass one). It takes no `className`, defaults to `#000000` at 24px, and `weight` affects iOS only. A missing glyph needs a new entry with verified `sf` and `ion` names                                                                   |
+| Material Symbols, Font Awesome, inline SVG icons                              | `Icon` with a semantic name from `ICON_MAP` (134 names; SF Symbols on iOS, Ionicons on Android) and an explicit token `color` (457 of 460 uses pass one). It takes no `className`, defaults to `#000000` at 24px, and `weight` affects iOS only. A missing glyph needs a new entry with verified `sf` and `ion` names                                                                   |
 | Hex colors, `bg-white`, `text-slate-900`, `text-gray-500`, `bg-blue-600`      | Semantic tokens: `bg-background` (canvas), `bg-surface` (cards), `bg-raised` (controls), `text-text-primary` (titles, values), `text-text-secondary` (body, subtitles; gray-500/600-type text), `text-text-muted` (captions, units; gray-400-type text), `border-border-subtle`, `bg-accent-primary`                                                                                    |
 | `dark:` variants                                                              | None. Tokens switch per theme automatically                                                                                                                                                                                                                                                                                                                                             |
 | `vh`, `vw`, `min-h-screen`                                                    | `flex-1`, or `useWindowDimensions()`                                                                                                                                                                                                                                                                                                                                                    |
@@ -768,3 +769,106 @@ Variants:
 - [ ] Mutations invalidate every affected query key.
 - [ ] From `SparkyFitnessMobile/`: `pnpm run format`, then `pnpm exec jest --watchman=false --runInBand __tests__/navigation/nativeHeaderContract.test.ts <your test files>`, then `pnpm run validate` (typecheck, lint, i18n audit, Knip, Prettier check), then the full `pnpm exec jest --watchman=false --runInBand`.
 - [ ] DESIGN.md is updated in the same change when a token, primitive or shared pattern changes; `AGENTS.md` when a route family or convention is added.
+
+## 10. Watch Apps (Apple Watch, watch complications, Wear OS)
+
+The watches are native, not React Native, so sections 2–9 (Uniwind tokens, `global.css`, Tailwind classes) do not apply to them. They are always dark, have no Light or AMOLED variants, and share only data and the phone-owned settings. This section describes the code as it exists today.
+
+### 10.1 Targets
+
+| Surface                       | Code                                                                                                                     | UI toolkit                            |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------- |
+| Apple Watch app               | `targets/watch` (`Presentation/`, `Domain/`, `Application/`, `Infrastructure/`, `Adapters/`)                             | SwiftUI                               |
+| Apple Watch complications     | `targets/watch-widget` (`index.swift` lists them: Energy, Water, Protein, Carbs, Fat, Fasting, Steps)                    | WidgetKit                             |
+| Wear OS app and complications | `targets/wearos/src/main/java/com/sparkyapps/sparkyfitness/wear` (`Screens.kt`, `WorkoutScreens.kt`, `Complications.kt`) | Compose for Wear OS (`MaterialTheme`) |
+
+Android home-screen widgets (`targets/android-widget`) and the iOS phone widget (`targets/widget`) are separate from these.
+
+### 10.2 Principles
+
+- Glanceable: one job per screen, a big number, one control. The Workout screens show one set at a time, because the wearer is mid-lift looking at a small screen.
+- Pure black canvas with flat dark cards. Color carries meaning only (a metric, a state), never decoration.
+- Swipe is the navigation on Apple Watch; there is no button to change page. Wear OS scrolls with rotary input (`wearRotaryScroll`).
+- Every tap that logs something gives a haptic. New Apple Watch haptics go through `Haptics` (`Presentation/Haptics.swift`), which follows the phone's Settings → Haptics switch (`WatchContext.effectiveHapticsEnabled`); do not call `WKInterfaceDevice.current().play` directly. Existing code still does in places (see 10.6), so the switch does not silence every watch haptic.
+- Works with the phone away: pages draw from the last persisted context, and writes (water taps, medication taps, check-ins) queue and resend.
+- Copy: new Apple Watch copy uses `String(localized:defaultValue:)` keys (`watch.<page>.<name>`), with the strings in `targets/watch/en.lproj`. Existing screens are not fully localized and the Wear OS screens use literal strings (see 10.6).
+
+### 10.3 Apple Watch app
+
+**Pages.** `WatchPage` order is the factory swipe order: Goals, Water, Medications, Entry (weight check-in), Trend, Workout, Fasting, Steps. Now Playing is inserted right after Workout, only while a workout, wrist run or phone GPS recording is live. The wearer orders and hides pages from the phone (Settings → Apple Watch). The raw values are wire strings shared with `src/constants/watchPages.ts` (`WATCH_PAGE_KEYS`); rename a page in both places in the same change. A hidden Workout page still shows while a workout is running, and an order that hides everything shows everything. A first-run gate asks for weight and body fat before the pages appear.
+
+**Scaling.** Sizes are drawn for the 44 mm watch (224pt screen height) and passed through `WatchStyle.s(_)`, which scales by screen height between 0.82 and 1.1 and rounds. Use `WatchStyle.s` for any fixed size, so a 40 mm screen does not push content under the clock.
+
+**Surfaces.**
+
+- Canvas: system black. Card and control fill: `WatchStyle.fill` (`Color(white: 0.14)`), corner `WatchStyle.s(20)`, continuous (squircle) corners via `WatchStyle.shape`.
+- Control: `SquircleButton`, a flat dark squircle with a glyph, 44pt tall in a row and a 28pt round button in a header, glyph 20pt semibold at 60% white. `prominent` is the one main action on a screen (white fill, black glyph); `tint` colors the glyph for a control that must be told apart (a red finish). Disabled controls drop to 35% opacity. The whole box takes the tap.
+- List rows use `WatchStyle.shape.fill(WatchStyle.fill)` as the row background. A 3pt category-color rail marks superset runs.
+- Destructive actions use `Button(role: .destructive)` and are confirmed; finishing a workout lives in the overview list, not on the set screen, so it is never one tap from the set tick.
+
+**Typography.** System fonts only (SF), Dynamic Type styles first: `.footnote` (labels, rows), `.body`, `.headline`, `.title2`/`.title3`, with `.semibold` or `.medium` for emphasis. Big numbers and compact layouts use `.system(size: WatchStyle.s(n), weight:)` (sizes in use: 11–16 for labels and values, 22–30 for hero numbers). Use monospaced digits for anything that ticks (timers, pace, heart rate).
+
+**Color.** The watch has its own palette, not the phone tokens.
+
+| Role            | Value                                                                                                                                          | Where                              |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| Calories        | `GoalPalette.calories` (0.537, 0.573, 0.863)                                                                                                   | Goals, Energy complication         |
+| Protein         | `GoalPalette.protein` (0.859, 0.690, 0.435)                                                                                                    | Goals                              |
+| Carbs           | `GoalPalette.carbs` (0.592, 0.776, 0.573)                                                                                                      | Goals                              |
+| Fat             | `GoalPalette.fat` (0.541, 0.761, 0.855)                                                                                                        | Goals                              |
+| Water           | `Color.cyan`                                                                                                                                   | Water, Water complication          |
+| Medication      | `Color.mint`                                                                                                                                   | Medications                        |
+| Extra nutrients | five fixed colors in `GoalPalette.extra`, by list position                                                                                     | rows past the three macros         |
+| Steps           | `.mint`                                                                                                                                        | Steps page, Steps complication     |
+| Fasting         | `.orange`                                                                                                                                      | Fasting page, Fasting complication |
+| Superset runs   | `SupersetPalette` in `WorkoutView.swift`: eight colors copied from the dark `--color-cat-*` values (see the sync note at the top of this file) | Workout                            |
+
+Take macro and nutrient colors from `GoalPalette` (`GoalPalette.color(forNutrient:index:)`); do not add new literals in views.
+
+**Workout and run screens.** `WorkoutView` (strength), `WatchRunView` and `CardioLiveLayout` (wrist runs), `WatchRouteView` (route following) and `RecordingView` (phone GPS) are the live screens. Live screens keep the value cards flat and large, put the single main action in a `prominent` squircle, and use haptic cues (`Haptics.pace`, `heartRate`, `routeCue`, `offRoute`, `onRoute`) for alerts so the wearer does not have to look. Heart rate zones come from `shared/src/utils/heartRateZones.ts` through the context the phone sends; never re-derive them on the watch.
+
+### 10.4 Apple Watch complications
+
+- Families: circular, corner, rectangular and inline (`accessoryCircular`, `accessoryCorner`, `accessoryRectangular`, `accessoryInline`). Most draw `Gauge` / `ProgressView` tinted per metric; Energy and Water draw custom ring views (`CalorieRing`, `MacroGoalRing`, `WaterGoalRing`). Tracks are `Color.secondary` at 25% opacity.
+- Data comes from the app group (`APP_GROUP_IDENTIFIER` in the target's Info.plist), written by `ComplicationPublisher`. The daily metric snapshots (steps, water, energy, macros) carry a date, and one for another day is ignored. The fasting snapshot has no date, because a fast can span midnight. The placeholder shows a plausible mid-day value.
+- Refresh differs by complication. Steps, Water, Energy and the macros reload after 15 minutes or at midnight, whichever is first. Fasting reloads hourly when no fast is active; during an active fast it provides a run of 15-minute entries and reloads `.atEnd`.
+- Each Apple Watch complication opens the app on its page through the `sparkyfitness-watch` URL scheme (`ComplicationLinks.swift`). The scheme is declared in three copies that must stay in step: `targets/watch/expo-target.config.js`, `WatchDeepLink.scheme` and `ComplicationLink.scheme`. Wear OS complications instead tap through a `PendingIntent` carrying a `target_page` extra (`ComplicationUpdater.tapPendingIntent`); Wear OS also accepts a separate `sparkyfitness://watch` deep link in `MainActivity`.
+- Tints today: Water cyan, Steps mint, Fasting orange. The Energy complication's rings use the `GoalPalette` calorie and macro colors from the table above. The standalone macro complications (`MacroComplications.swift`) currently use system red (protein), yellow (carbs) and blue (fat), which differ from `GoalPalette` (see 10.6). `GoalPalette` is the intended palette.
+
+### 10.5 Wear OS app
+
+- Dark Compose for Wear OS under `MaterialTheme`; there is no light theme. Colors are the fixed `SparkyColors` object in `Screens.kt`.
+
+| Name   | Value   | Use             |
+| ------ | ------- | --------------- |
+| Cyan   | #38BDF8 | Protein         |
+| Amber  | #F59E0B | Carbs           |
+| Rose   | #F43F5E | Fat             |
+| Green  | #22C55E | Fiber           |
+| Purple | #A855F7 | Sugars          |
+| Blue   | #3B82F6 | Other nutrients |
+| CardBg | #1E293B | Cards and rows  |
+| Muted  | #94A3B8 | Secondary text  |
+
+- Cards are `RoundedCornerShape(10.dp)` on `CardBg` with 10dp by 6dp padding; macro rows are a label (11sp medium, white), a value and a progress bar in the nutrient color.
+- Complications are `SuspendingComplicationDataSourceService` classes in `Complications.kt` (Energy, Protein, Carbs, Fat, Water, Fasting, Steps), registered in `AndroidManifest.xml`, with monochrome icons in `res/drawable/ic_complication_*.xml`.
+- The phone finds the watch by the `sparky_wear_companion` capability in `res/values/wear.xml`.
+- `WearOsParityTest` covers Wear OS payload parsing and builders against hard-coded JSON. It does not compare them with the Apple Watch definitions, so it cannot catch a one-sided schema change; keep both watches in step by hand.
+
+### 10.6 Known gaps
+
+- The Wear OS palette is a Tailwind-style set unrelated to the Apple Watch `GoalPalette`, so the same macro is a different color on each watch: protein is amber on Apple Watch and cyan on Wear OS, and carbs is green on Apple Watch and amber on Wear OS.
+- The Apple Watch complications' macro tints (`MacroComplications.swift`: protein red, carbs yellow, fat blue) have a comment saying they match `GoalPalette`, but they do not; fixing them means changing the Swift (protein amber, carbs green, fat light blue). Fasting uses `.orange` and Steps `.mint` as system colors.
+- Localization is incomplete. `GoalSummaryView.swift` still has static literals ("Calories not synced yet", "Protein", "g"), as do some other Apple Watch views (for example `TrendView.swift`), and the Wear OS screens use literal English strings rather than Android string resources.
+- Some Apple Watch haptics bypass `Haptics` and the phone's haptics setting by calling `WKInterfaceDevice.current().play` directly: `WaterIntakeView`, `ClassicWaterIntakeView`, `MedicationsView`, `TrendView`, `CheckInEntryView` and the run auto-pause and resume in `WatchRunStore`. `WatchAppDelegate` also calls it directly, but checks the haptics setting first (the rest-finished buzz uses `effectiveRestBuzzEnabled`, which adds the phone's rest-alerts setting).
+- Neither watch palette is derived from `global.css`; the superset palette is the only hand-copied mirror.
+
+### 10.7 Checklist for a watch change
+
+- [ ] Used `WatchStyle.s` for fixed sizes, `WatchStyle.fill` for cards and `SquircleButton` for controls (Apple Watch).
+- [ ] Took colors from `GoalPalette` / `SparkyColors` and updated the table above if a value changed.
+- [ ] Fired Apple Watch haptics through `Haptics`, never `WKInterfaceDevice` directly (the one exception is the rest-finished buzz in `WatchAppDelegate`, which uses `effectiveRestBuzzEnabled` to honor the rest-alerts setting as well), and kept pages working with no phone connection.
+- [ ] A new page is added to `WatchPage`, `WATCH_PAGE_KEYS` and the phone's Apple Watch settings together.
+- [ ] A new complication is added on both Apple Watch (`index.swift`) and Wear OS (service plus manifest entry), with its tap target (URL scheme on Apple Watch, `target_page` on Wear OS).
+- [ ] Payload or context changes are made on both watches and the phone by hand, and the Wear OS parity test still passes.
+- [ ] New Apple Watch strings are localized, and a localized string is not left beside new literals.

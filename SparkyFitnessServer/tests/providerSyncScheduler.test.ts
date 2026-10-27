@@ -16,6 +16,7 @@ import {
 } from '../services/providerSyncScheduler.js';
 import { startProviderSync } from '../services/providerSyncClaim.js';
 import { log } from '../config/logging.js';
+import { isShuttingDown } from '../utils/shutdownHooks.js';
 
 vi.mock('node-cron', () => ({
   default: {
@@ -72,6 +73,10 @@ vi.mock('../config/logging.js', () => ({
 
 vi.mock('../services/providerSyncClaim.js', () => ({
   startProviderSync: vi.fn(),
+}));
+
+vi.mock('../utils/shutdownHooks.js', () => ({
+  isShuttingDown: vi.fn(() => false),
 }));
 
 describe('providerSyncScheduler', () => {
@@ -241,6 +246,40 @@ describe('providerSyncScheduler', () => {
       'info',
       expect.stringContaining('Fitbit sync skipped for user u-busy')
     );
+  });
+
+  it('stops before the next account once shutdown begins', async () => {
+    vi.mocked(externalProviderRepository.getProvidersByType).mockResolvedValue([
+      {
+        id: 'p-first',
+        user_id: 'u-first',
+        is_active: true,
+        sync_frequency: 'hourly',
+      } as never,
+      {
+        id: 'p-next',
+        user_id: 'u-next',
+        is_active: true,
+        sync_frequency: 'hourly',
+      } as never,
+    ]);
+    vi.mocked(fitbitService.syncFitbitData).mockImplementationOnce(async () => {
+      vi.mocked(isShuttingDown).mockReturnValue(true);
+      return undefined as never;
+    });
+    const fitbitConfig = PROVIDER_SYNC_CONFIGS.find(
+      (c) => c.name === 'Fitbit'
+    ) as ProviderSyncConfig;
+
+    await runProviderSync(fitbitConfig);
+    vi.mocked(isShuttingDown).mockReturnValue(false);
+
+    expect(fitbitService.syncFitbitData).toHaveBeenCalledOnce();
+    expect(fitbitService.syncFitbitData).toHaveBeenCalledWith(
+      'u-first',
+      'scheduled'
+    );
+    expect(startProviderSync).toHaveBeenCalledOnce();
   });
 
   it('does not update last_sync_at when Garmin has failed phases', async () => {

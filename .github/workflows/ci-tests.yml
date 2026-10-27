@@ -90,9 +90,14 @@ jobs:
               - 'SparkyFitnessServer/tests/workoutUpdateConcurrentWrites.integration.test.ts'
               - 'SparkyFitnessServer/services/exerciseService.ts'
               - 'SparkyFitnessServer/tests/customMeasurementConcurrentWrites.integration.test.ts'
+              - 'SparkyFitnessServer/tests/shutdownDrain.integration.test.ts'
+              - 'SparkyFitnessServer/tests/fixtures/shutdownDrainChild.ts'
+              - 'SparkyFitnessServer/utils/gracefulShutdown.ts'
               - 'SparkyFitnessServer/models/measurementRepository.ts'
               - 'SparkyFitnessServer/models/habitRepository.ts'
               - 'SparkyFitnessServer/models/oidcProviderRepository.ts'
+              - 'SparkyFitnessServer/tests/weeklyGoalPlans.integration.test.ts'
+              - 'SparkyFitnessServer/models/weeklyGoalPlanRepository.ts'
               - 'SparkyFitnessServer/package.json'
               - '.github/workflows/ci-tests.yml'
 
@@ -329,10 +334,10 @@ jobs:
       # The schema + RLS policies are now applied and the non-superuser app role
       # exists, so the permission matrix can verify every table's real RLS
       # behaviour as the app role (superuser DB user seeds, app role is enforced).
-      - name: Verify RLS, Strava cleanup, OIDC providers, Better Auth schema, sign-in rate limits, provider sync claims, sleep entry and custom category uniqueness, concurrent check-ins, grouped workout locking, calorie rule history, one Active Calories entry per day, one custom measurement reading per slot, every symptom reading kept, overlapping workout edits, riding out a database restart, migration transactions and startup locking
+      - name: Verify RLS, Strava cleanup, OIDC providers, Better Auth schema, sign-in rate limits, provider sync claims, sleep entry and custom category uniqueness, concurrent check-ins, grouped workout locking, calorie rule history, one Active Calories entry per day, one custom measurement reading per slot, every symptom reading kept, overlapping workout edits, riding out a database restart, weekly goal plans, releasing sync claims on shutdown, migration transactions and startup locking
         run: |
           # One file at a time: the cleanup migration tests and other files' fixture deletes lock the same tables and can deadlock.
-          pnpm exec vitest run --no-file-parallelism tests/rlsPermissionMatrix.integration.test.ts tests/stravaActivityDetailCleanup.integration.test.ts tests/betterAuthSchemaCheck.integration.test.ts tests/oidcProviderRepository.integration.test.ts tests/authRateLimitDatabase.integration.test.ts tests/providerSyncClaim.integration.test.ts tests/uniqueWrites.integration.test.ts tests/checkInConcurrentWrites.integration.test.ts tests/groupedWorkoutLockOrder.integration.test.ts tests/calorieRuleHistory.integration.test.ts tests/activeCaloriesConcurrentWrites.integration.test.ts tests/customMeasurementConcurrentWrites.integration.test.ts tests/symptomSeverityRace.integration.test.ts tests/workoutUpdateConcurrentWrites.integration.test.ts tests/dbConnectRetry.integration.test.ts tests/migrationTransactions.integration.test.ts
+          pnpm exec vitest run --no-file-parallelism tests/rlsPermissionMatrix.integration.test.ts tests/stravaActivityDetailCleanup.integration.test.ts tests/betterAuthSchemaCheck.integration.test.ts tests/oidcProviderRepository.integration.test.ts tests/authRateLimitDatabase.integration.test.ts tests/providerSyncClaim.integration.test.ts tests/uniqueWrites.integration.test.ts tests/checkInConcurrentWrites.integration.test.ts tests/groupedWorkoutLockOrder.integration.test.ts tests/calorieRuleHistory.integration.test.ts tests/activeCaloriesConcurrentWrites.integration.test.ts tests/customMeasurementConcurrentWrites.integration.test.ts tests/symptomSeverityRace.integration.test.ts tests/workoutUpdateConcurrentWrites.integration.test.ts tests/dbConnectRetry.integration.test.ts tests/weeklyGoalPlans.integration.test.ts tests/migrationTransactions.integration.test.ts tests/shutdownDrain.integration.test.ts
           # Initialization reapplies policies, so run it after the other database tests.
           RUN_DATABASE_INITIALIZATION_TEST=1 pnpm exec vitest run tests/initializeDatabase.integration.test.ts
         env:

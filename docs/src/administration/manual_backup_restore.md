@@ -11,6 +11,8 @@ While the application provides scheduled backups, you can manually trigger a bac
 **Location of Backups:**
 All backup files are stored in a Docker volume mounted to the `SparkyFitnessServer` service. The default path within the container is `/app/SparkyFitnessServer/backup`. You will need to access this volume from your Docker host.
 
+A backup is built in the `.tmp` folder inside the backup directory and only moved into the backup directory once it is complete, so a backup that fails or is cut off never shows up as a backup. If the server is killed while a backup runs, its unfinished files stay in `.tmp`; the next backup clears anything there that is more than a day old, and you can delete the rest while no backup is running.
+
 ## 2. Manual Restore (Disaster Recovery)
 
 This process is for situations where the SparkyFitness application or its Docker containers are not functioning correctly, or if you need to restore to a completely new environment.

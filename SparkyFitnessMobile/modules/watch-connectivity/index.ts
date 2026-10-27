@@ -69,6 +69,12 @@ export interface WatchMedicationTakenPayload {
   scheduleId: string;
   /** False when the wearer un-ticked the dose; absent from older watch builds, which only ever tick. */
   taken?: boolean;
+  /**
+   * True when the wearer marked the dose skipped. Only sent once the phone
+   * has said it understands it (`medicationSkip` in the context), because an
+   * older phone would read the `taken: false` that rides with it as an un-tick.
+   */
+  skipped?: boolean;
   ownerId?: string;
 }
 
@@ -84,6 +90,8 @@ export interface WatchMedicationDosePayload {
   /** Pre-formatted time of day in the account's 12/24-hour convention, empty when untimed. */
   time: string;
   status: 'pending' | 'taken' | 'skipped';
+  /** A supplement rather than a medication, so the watch can draw its icon. */
+  supplement?: boolean;
 }
 
 /**
@@ -319,6 +327,24 @@ export interface WatchContextPayload {
    * yesterday's ticks. An empty array means nothing is scheduled today.
    */
   medications?: WatchMedicationDosePayload[] | null;
+  /**
+   * This phone handles `skipped` on a `medicationTaken` message. The watch
+   * offers Skipped only while it is true.
+   */
+  medicationSkip?: boolean;
+  /** Elapsed time, heart rate and calories on the set screen. Absent means on. */
+  setScreenMetrics?: boolean;
+  /** The Up Next page after the set screen. Absent means off. */
+  upNextPage?: boolean;
+  /** The larger-text layout of the Goals and Water pages. Absent means off. */
+  largerText?: boolean;
+  /** Keep the original workout page while larger text is on. Absent means off. */
+  classicWorkout?: boolean;
+  /**
+   * This phone handles the `doExerciseNow` workout edit. The watch offers
+   * Swap only while it is true.
+   */
+  exerciseDoNow?: boolean;
   /**
    * Saved workouts the wearer can start from the wrist. Names and ids only;
    * the phone still builds and arms the session. Absent on an older phone.
@@ -654,9 +680,19 @@ export interface WatchWorkoutEditPayload {
   sessionId: string;
   clientId: string;
   action:
-    'addSet' | 'deleteSet' | 'setSetType' | 'addExercise' | 'deleteExercise';
-  /** For `addSet` and `deleteExercise`. */
+    | 'addSet'
+    | 'deleteSet'
+    | 'setSetType'
+    | 'addExercise'
+    | 'deleteExercise'
+    | 'doExerciseNow';
+  /** For `addSet`, `deleteExercise` and `doExerciseNow`. */
   exerciseEntryId?: string;
+  /**
+   * For `doExerciseNow`: the exercise the watch is on, which the picked one
+   * goes in front of. Absent from an older watch: the phone's cursor is used.
+   */
+  anchorEntryId?: string;
   /** For `deleteSet` and `setSetType`. */
   setId?: string;
   /** For `addExercise`: the library exercise to add. */

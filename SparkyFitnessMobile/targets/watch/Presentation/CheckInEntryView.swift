@@ -140,7 +140,7 @@ struct CheckInEntryView: View {
                 Text(String(localized: "watch.checkin.replacing", defaultValue: "· replacing")).foregroundStyle(.orange)
             }
         }
-        .font(.caption2)
+        .watchFont(.footnote, classic: .caption2)
         .foregroundStyle(.secondary)
         .lineLimit(1)
     }
@@ -166,15 +166,15 @@ struct CheckInEntryView: View {
     private var deltaLine: some View {
         if let delta = weightDelta, active == .weight {
             Text(String(localized: "watch.checkin.sinceLast", defaultValue: "\(String(format: "%+.1f", delta)) \(unit.suffix) since last"))
-                .font(weightLooksWrong ? .footnote.bold() : .caption2)
+                .watchFont(weightLooksWrong ? .footnote.bold() : .footnote, classic: weightLooksWrong ? .footnote.bold() : .caption2)
                 .foregroundStyle(weightLooksWrong ? .orange : .secondary)
                 .animation(.snappy, value: weightLooksWrong)
         } else if active == .bodyFat, let comparison = store.context.lastBodyFatPercentage, !bodyFatSkipped {
             Text(String(format: "%+.1f %% since last", bodyFat - comparison))
-                .font(bodyFatLooksWrong ? .footnote.bold() : .caption2)
+                .watchFont(bodyFatLooksWrong ? .footnote.bold() : .footnote, classic: bodyFatLooksWrong ? .footnote.bold() : .caption2)
                 .foregroundStyle(bodyFatLooksWrong ? .orange : .secondary)
         } else {
-            Text(" ").font(.caption2)
+            Text(" ").watchFont(.footnote, classic: .caption2)
         }
     }
 
@@ -223,7 +223,7 @@ struct CheckInEntryView: View {
                     save()
                 }
                 .buttonStyle(.plain)
-                .font(.caption2)
+                .watchFont(.footnote, classic: .caption2)
                 .foregroundStyle(.secondary)
             }
         }
@@ -349,7 +349,7 @@ struct TypedValueEntryView: View {
 
     var body: some View {
         VStack(spacing: 8) {
-            Text(title).font(.caption).foregroundStyle(.secondary)
+            Text(title).watchFont(.footnote, classic: .caption).foregroundStyle(.secondary)
             TextField("0.0", text: $text)
                 .font(.title3)
                 .multilineTextAlignment(.center)

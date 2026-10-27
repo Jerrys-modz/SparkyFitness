@@ -52,6 +52,7 @@ import type {
   PrBaselineEntry,
 } from '../utils/workoutSession';
 import { newUuid } from '../utils/ids';
+import { buildExerciseReorderItems } from '../utils/workoutSupersets';
 import {
   addNotificationResponseListener,
   cancelScheduledNotification,
@@ -557,6 +558,16 @@ export interface ActiveWorkoutState {
    * move or a null session leaves state untouched.
    */
   reorderExercises: (fromItemIndex: number, toItemIndex: number) => void;
+  /**
+   * Do an upcoming exercise now: it moves to sit just before the exercise the
+   * cursor is on, and the cursor moves to its first set still to do — for a
+   * machine that is taken, or a quick change of order. The exercise that was
+   * current comes straight after. A superset moves as one block, as in
+   * `reorderExercises`. No-op for the current exercise or an earlier one.
+   * `anchorEntryId` overrides "the current exercise" (the watch sends the
+   * one it is on).
+   */
+  doExerciseNow: (entryId: string, anchorEntryId?: string) => void;
   /** Update session location */
   setSessionLocation: (location: string | null) => void;
   /**
@@ -2681,6 +2692,38 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
         // no spurious revision bump or autosave is triggered.
         if (moved === session.exercises) return;
         set(buildSessionEditState(state, { ...session, exercises: moved }));
+      },
+
+      doExerciseNow: (entryId, anchorEntryId) => {
+        const state = get();
+        const session = state.session;
+        if (!session || state.activeSetId == null) return;
+        const currentEntryId =
+          anchorEntryId ??
+          session.exercises.find((e) =>
+            e.sets.some((s) => String(s.id) === state.activeSetId)
+          )?.id;
+        if (currentEntryId == null) return;
+        const items = buildExerciseReorderItems(session.exercises);
+        const from = items.findIndex((i) => i.entryIds.includes(entryId));
+        const to = items.findIndex((i) => i.entryIds.includes(currentEntryId));
+        if (from < 0 || to < 0 || from <= to) return;
+        const edit = buildSessionEditState(state, {
+          ...session,
+          exercises: moveSessionExerciseItem(session.exercises, from, to),
+        });
+        const picked = edit.session?.exercises.find((e) => e.id === entryId);
+        const firstToDo = picked?.sets
+          .map((s) => String(s.id))
+          .find((id) => edit.completedSetIds?.[id] == null);
+        if (firstToDo != null && firstToDo !== edit.activeSetId) {
+          // The rest was the break before the set that was due; the picked
+          // exercise starts fresh.
+          cancelCurrentRestNotification(state.rest);
+          edit.activeSetId = firstToDo;
+          edit.rest = READY_REST;
+        }
+        set(edit);
       },
 
       setSessionLocation: (location) => {
