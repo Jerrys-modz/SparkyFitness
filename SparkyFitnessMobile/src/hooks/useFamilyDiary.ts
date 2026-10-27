@@ -1,7 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
 import { fetchFamilyDiaryUsers } from '../services/api/familyApi';
 import { fetchDailySummary } from '../services/api/dailySummaryApi';
-import { familyDailySummaryQueryKey, familyUsersQueryKey } from './queryKeys';
+import { useRefetchOnFocus } from './useRefetchOnFocus';
+import {
+  familyCopySourceQueryKey,
+  familyDailySummaryQueryKey,
+  familyUsersQueryKey,
+} from './queryKeys';
 
 interface UseFamilyDailySummaryOptions {
   familyUserId: string;
@@ -14,11 +19,34 @@ interface UseFamilyUsersOptions {
 }
 
 export function useFamilyUsers({ enabled = true }: UseFamilyUsersOptions = {}) {
-  return useQuery({
+  const query = useQuery({
     queryKey: familyUsersQueryKey,
     queryFn: fetchFamilyDiaryUsers,
     enabled,
+    staleTime: 0,
   });
+  useRefetchOnFocus(query.refetch, enabled, 0);
+  return query;
+}
+
+// Copy review needs actual food-entry IDs, before the own diary folds logged
+// meal components into synthetic display rows. It never changes profile context.
+export function useFamilyCopySource({
+  date,
+  enabled = true,
+}: {
+  date: string;
+  enabled?: boolean;
+}) {
+  const canFetch = enabled && date.length > 0;
+  const query = useQuery({
+    queryKey: familyCopySourceQueryKey(date),
+    queryFn: () => fetchDailySummary(date),
+    enabled: canFetch,
+    staleTime: 0,
+  });
+  useRefetchOnFocus(query.refetch, canFetch, 0);
+  return query;
 }
 
 export function useFamilyDailySummary({
