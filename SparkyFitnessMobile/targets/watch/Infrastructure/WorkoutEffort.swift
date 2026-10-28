@@ -49,26 +49,14 @@ enum WorkoutEffort {
             start: workout.startDate,
             end: workout.endDate
         )
-        healthStore.relateWorkoutEffortSample(sample, with: workout, activity: nil) { success, _ in
-            DispatchQueue.main.async { completion(success) }
+        // Asked for here, right before the write, rather than when the workout
+        // starts: Health does not reliably remember this permission between
+        // workouts, and a write without it is refused. The sheet only appears
+        // if Health still counts it as unanswered.
+        healthStore.requestAuthorization(toShare: [HKQuantityType(.workoutEffortScore)], read: []) { _, _ in
+            healthStore.relateWorkoutEffortSample(sample, with: workout, activity: nil) { success, _ in
+                DispatchQueue.main.async { completion(success) }
+            }
         }
-    }
-}
-
-/// The GPS route type of a run. Like the effort rating, Health keeps reporting
-/// it as never requested, so adding it to every run start would show the
-/// permission sheet each time.
-enum WorkoutRouteShare {
-    private static let askedKey = "workoutRouteShareAsked"
-
-    /// The route type to add to a write request, or nil once it has been asked for.
-    static func typeToRequest() -> HKSampleType? {
-        guard !UserDefaults.standard.bool(forKey: askedKey) else { return nil }
-        return HKSeriesType.workoutRoute()
-    }
-
-    /// Records that the request carrying the route type has been shown.
-    static func markAsked() {
-        UserDefaults.standard.set(true, forKey: askedKey)
     }
 }
