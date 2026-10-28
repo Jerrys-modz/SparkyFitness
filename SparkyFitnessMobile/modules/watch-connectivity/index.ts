@@ -201,6 +201,16 @@ export interface WatchContextPayload {
   runHeartRateMinBpm?: number | null;
   runHeartRateMaxBpm?: number | null;
   /**
+   * The fuel and drink reminders last planned on the phone (minutes between
+   * carbohydrate reminders, grams per portion, minutes between drink
+   * reminders, millilitres per drink). The watch's start screen offers them as
+   * the starting point; a reminder is only on for the run it was chosen for.
+   */
+  runFuelIntervalMin?: number | null;
+  runFuelPortionGrams?: number | null;
+  runDrinkIntervalMin?: number | null;
+  runDrinkMl?: number | null;
+  /**
    * Plans a wrist-only run can follow: the training-program workout due now
    * (carrying `programId`/`programIndex`) then the built-in interval plans,
    * with step names already translated. Missing keeps the watch's last list.

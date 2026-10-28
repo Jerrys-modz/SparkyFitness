@@ -181,6 +181,28 @@ final class WatchRunCues: NSObject, AVSpeechSynthesizerDelegate {
         String(localized: "watch.run.cue.lastMinute", defaultValue: "One minute left. Finish strong.")
     }
 
+    /// The fuel and drink reminders.
+    static func fuelText(grams: Int) -> String {
+        String(localized: "watch.run.cue.fuel", defaultValue: "Time to fuel. Take \(grams) grams of carbs.")
+    }
+    static func drinkText(ml: Int) -> String {
+        String(localized: "watch.run.cue.drink", defaultValue: "Time to drink. About \(ml) milliliters.")
+    }
+
+    /// What to say when a fuel and a drink reminder come due, either or both.
+    static func fuelingText(grams: Int?, ml: Int?) -> String {
+        switch (grams, ml) {
+        case let (grams?, ml?):
+            return String(
+                localized: "watch.run.cue.fuelAndDrink",
+                defaultValue: "Time to fuel. Take \(grams) grams of carbs, and have about \(ml) milliliters to drink."
+            )
+        case let (grams?, nil): return fuelText(grams: grams)
+        case let (nil, ml?): return drinkText(ml: ml)
+        case (nil, nil): return ""
+        }
+    }
+
     /// The periodic update: the time, and outdoors the distance and average
     /// pace. Indoors the distance is only an estimate, so just the time.
     static func checkInText(seconds: TimeInterval, distanceMeters: Double?, usesMiles: Bool) -> String {

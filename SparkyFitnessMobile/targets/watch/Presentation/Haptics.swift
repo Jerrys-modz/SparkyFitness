@@ -42,6 +42,12 @@ enum Haptics {
         play(.notification)
     }
 
+    /// Time to take fuel or a drink. Two firm taps, like a plan step, so it
+    /// reads on a moving wrist; the strip under the clock says which.
+    static func fuel() {
+        play(.notification)
+    }
+
     /// A turn on the followed route is coming up.
     static func routeCue() {
         play(.notification)

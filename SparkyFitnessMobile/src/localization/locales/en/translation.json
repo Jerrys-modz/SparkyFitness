@@ -7303,6 +7303,11 @@
     "foodNoCarbs": "That food has no carbohydrates listed.",
     "foodLinked": "Using {{name}}: {{carbs}} g of carbohydrate per serving.",
     "clearFood": "Clear",
+    "watch": {
+      "save": "Use on Apple Watch",
+      "saved": "Saved. Turn on fuel reminders when you start a run on your watch.",
+      "hint": "Your watch offers this plan when you start a run on it, even without your phone. Reminders on the watch are separate from the ones on this phone."
+    },
     "race": {
       "title": "Race: {{name}}",
       "titleNoName": "Your race",

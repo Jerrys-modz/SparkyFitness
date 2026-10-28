@@ -31,6 +31,22 @@ final class WatchRunStore: ObservableObject {
         var clientId: String? = nil
     }
 
+    /// A fuel or drink reminder that came due, and when on the run's clock.
+    struct FuelAlert: Equatable {
+        let grams: Int?
+        let ml: Int?
+        let at: TimeInterval
+    }
+
+    /// What the fuel strip under the clock shows.
+    enum FuelStatus: Equatable {
+        case due(grams: Int?, ml: Int?)
+        case upcoming(WatchFueling.Upcoming)
+    }
+
+    /// How long a reminder that has come due stays in the strip.
+    static let fuelAlertSeconds: TimeInterval = 60
+
     @Published private(set) var phase: Phase = .idle
     @Published private(set) var kind: WatchRunKind = .run
     @Published private(set) var place: WatchRunPlace = .indoor
@@ -72,6 +88,11 @@ final class WatchRunStore: ObservableObject {
     private var toGoCuedStep = -1
     /// Which coaching cues (step warnings, halfway, check-ins) were said.
     private var coaching = WatchCoachingState()
+    /// How many fuel and drink reminders were given.
+    private var fuelingState = WatchFuelingState()
+    /// The reminder that just came due, shown in the strip until it is
+    /// dismissed or `fuelAlertSeconds` of running time pass. Nil otherwise.
+    @Published private(set) var fuelAlert: FuelAlert?
     private var stepTimer: Timer?
     /// The phone's request this run answers, when it was started from there.
     /// Sent with every live message so the phone can tell it is this run.
@@ -216,6 +237,7 @@ final class WatchRunStore: ObservableObject {
         if settings == nil {
             chosen.paceBand = alerts.pace
             chosen.heartRateBand = alerts.heartRate
+            chosen.fueling = alerts.fueling?.isOn == true ? alerts.fueling : nil
         }
         // A jump rope covers no distance, so a pace alert would only measure
         // nothing. Heart rate still applies.
@@ -233,6 +255,8 @@ final class WatchRunStore: ObservableObject {
         distanceScale = Self.scale(for: kind, place: place)
         cuedStep = -1
         coaching = WatchCoachingState()
+        fuelingState = WatchFuelingState()
+        fuelAlert = nil
         paceAlertState = .initial
         paceAlertStep = nil
         heartRateAlertState = .initial
@@ -403,6 +427,8 @@ final class WatchRunStore: ObservableObject {
                         cursor: self.healthKit.planCursorValue,
                         planMeters: self.metrics.distanceMeters
                     )
+                    self.fuelingState = WatchFuelingState.resumed(at: resumedAt, plan: self.settings.fueling)
+                    self.fuelAlert = nil
                     self.startStepTimer()
                     self.startLiveTimer()
                     // Splits passed while the app was gone are not replayed.
@@ -668,11 +694,12 @@ final class WatchRunStore: ObservableObject {
 
     private func startStepTimer() {
         stopStepTimer()
-        guard plan != nil || (settings.checkInMinutes ?? 0) > 0 || place == .outdoor else { return }
+        guard plan != nil || (settings.checkInMinutes ?? 0) > 0 || place == .outdoor || settings.fueling?.isOn == true else { return }
         let timer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 self?.cueStepIfDue()
                 self?.cueCoachingIfDue()
+                self?.cueFuelingIfDue()
             }
         }
         RunLoop.main.add(timer, forMode: .common)
@@ -757,6 +784,62 @@ final class WatchRunStore: ObservableObject {
                 )
             )
         }
+    }
+
+    /// Gives the fuel or drink reminder that is due: a tap, the strip under
+    /// the clock, and the words if Voice cues is on. Follows the builder's
+    /// active clock, so a pause never brings one early. Several due at once
+    /// (a gap while the app was suspended) give one reminder.
+    private func cueFuelingIfDue() {
+        guard phase == .running, let fueling = settings.fueling else { return }
+        let elapsed = healthKit.elapsed
+        let result = WatchFueling.next(elapsed: elapsed, plan: fueling, state: fuelingState)
+        fuelingState = result.state
+        guard !result.cues.isEmpty else { return }
+        var grams: Int?
+        var ml: Int?
+        for cue in result.cues {
+            switch cue {
+            case .carbs(let value): grams = value
+            case .drink(let value): ml = value
+            }
+        }
+        fuelAlert = FuelAlert(grams: grams, ml: ml, at: elapsed)
+        Haptics.fuel()
+        guard settings.voiceCues else { return }
+        WatchRunCues.shared.speak(WatchRunCues.fuelingText(grams: grams, ml: ml))
+    }
+
+    /// What the strip under the clock shows: a reminder that just came due,
+    /// else the one that comes next. Nil when fuel reminders are off.
+    func fuelStatus() -> FuelStatus? {
+        guard let fueling = settings.fueling, fueling.isOn else { return nil }
+        let elapsed = healthKit.elapsed
+        if let alert = fuelAlert, elapsed - alert.at < Self.fuelAlertSeconds {
+            return .due(grams: alert.grams, ml: alert.ml)
+        }
+        return WatchFueling.upcoming(elapsed: elapsed, plan: fueling, state: fuelingState).map { .upcoming($0) }
+    }
+
+    /// The wearer saw the reminder; the strip goes back to the countdown.
+    func dismissFuelAlert() {
+        fuelAlert = nil
+    }
+
+    /// Turns the fuel and drink reminders on, off or to new amounts mid-run.
+    /// Reminders already passed are not given late: the counts start from the
+    /// clock as it is now.
+    func setFueling(_ plan: WatchFuelingPlan?) {
+        guard phase == .running || phase == .paused else { return }
+        let next = plan?.isOn == true ? plan : nil
+        guard settings.fueling != next else { return }
+        settings.fueling = next
+        healthKit.updateSettings(settings)
+        fuelingState = WatchFuelingState.resumed(at: healthKit.elapsed, plan: next)
+        fuelAlert = nil
+        // The timer only runs when something needs it; this puts it right.
+        startStepTimer()
+        pushLive(force: true)
     }
 
     /// "100 meters to go" (or "0.1 miles to go"), once per distance step long enough for it.
