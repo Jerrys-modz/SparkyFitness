@@ -16,6 +16,8 @@ import {
   maybePromptForExactAlarmPermission,
   scheduleFastGoalNotification,
   scheduleRestNotification,
+  scheduleDrinkReminderNotifications,
+  scheduleFuelingReminderNotifications,
   scheduleWaterReminderNotifications,
   setNotificationsEnabled,
   setRestTimerNotificationsEnabled,
@@ -551,6 +553,171 @@ describe('notifications service', () => {
         []
       );
       expect(mockRequestPerms).not.toHaveBeenCalled();
+      expect(mockSchedule).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('scheduleFuelingReminderNotifications', () => {
+    const inHours = (hours: number) =>
+      new Date(Date.now() + hours * 60 * 60 * 1000);
+
+    it('schedules each future time on the fueling channel with the portion', async () => {
+      mockSchedule
+        .mockResolvedValueOnce('fuel-1' as any)
+        .mockResolvedValueOnce('fuel-2' as any);
+
+      const ids = await scheduleFuelingReminderNotifications(
+        [inHours(1), inHours(2)],
+        25,
+        'Energy gel'
+      );
+
+      expect(ids).toEqual(['fuel-1', 'fuel-2']);
+      expect(mockSchedule).toHaveBeenCalledWith({
+        content: expect.objectContaining({
+          title: 'Time to fuel ⚡',
+          body: 'Take 25 g of carbs.',
+          categoryIdentifier: 'fueling-reminder',
+          data: {
+            kind: 'fueling',
+            portionGrams: '25',
+            productName: 'Energy gel',
+          },
+        }),
+        trigger: expect.objectContaining({
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
+          channelId: 'fueling',
+        }),
+      });
+    });
+
+    it('carries the saved food in the reminder data', async () => {
+      await scheduleFuelingReminderNotifications([inHours(1)], 22, 'Gel', {
+        foodId: 'food-1',
+        variantId: 'variant-1',
+        servingSize: 60,
+        servingUnit: 'ml',
+      });
+
+      expect(mockSchedule).toHaveBeenCalledWith({
+        content: expect.objectContaining({
+          data: {
+            kind: 'fueling',
+            portionGrams: '22',
+            productName: 'Gel',
+            foodId: 'food-1',
+            variantId: 'variant-1',
+            servingSize: '60',
+            servingUnit: 'ml',
+          },
+        }),
+        trigger: expect.anything(),
+      });
+    });
+
+    it('skips times that are already in the past', async () => {
+      const ids = await scheduleFuelingReminderNotifications(
+        [new Date(Date.now() - 60 * 1000), inHours(1)],
+        25,
+        'Energy gel'
+      );
+      expect(ids).toEqual(['notif-id']);
+      expect(mockSchedule).toHaveBeenCalledTimes(1);
+    });
+
+    it('cancels what it scheduled when a later reminder fails', async () => {
+      mockSchedule
+        .mockResolvedValueOnce('fuel-1' as any)
+        .mockRejectedValueOnce(new Error('scheduling unavailable'));
+
+      const ids = await scheduleFuelingReminderNotifications(
+        [inHours(1), inHours(2)],
+        25,
+        'Energy gel'
+      );
+
+      expect(ids).toEqual([]);
+      expect(mockCancel).toHaveBeenCalledWith('fuel-1');
+    });
+
+    it('schedules nothing while the master notifications toggle is off', async () => {
+      useAppPreferencesStore.getState().setNotificationsEnabled(false);
+      expect(
+        await scheduleFuelingReminderNotifications(
+          [inHours(1)],
+          25,
+          'Energy gel'
+        )
+      ).toEqual([]);
+      expect(mockSchedule).not.toHaveBeenCalled();
+    });
+
+    it('never prompts and schedules nothing without OS permission', async () => {
+      mockGetPerms.mockResolvedValue({ status: 'undetermined' } as any);
+      expect(
+        await scheduleFuelingReminderNotifications(
+          [inHours(1)],
+          25,
+          'Energy gel'
+        )
+      ).toEqual([]);
+      expect(mockRequestPerms).not.toHaveBeenCalled();
+      expect(mockSchedule).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('scheduleDrinkReminderNotifications', () => {
+    const inMinutes = (minutes: number) =>
+      new Date(Date.now() + minutes * 60 * 1000);
+
+    it('schedules each future time on the fueling channel with the amount', async () => {
+      mockSchedule
+        .mockResolvedValueOnce('drink-1' as any)
+        .mockResolvedValueOnce('drink-2' as any);
+
+      const ids = await scheduleDrinkReminderNotifications(
+        [inMinutes(20), inMinutes(40)],
+        150
+      );
+
+      expect(ids).toEqual(['drink-1', 'drink-2']);
+      expect(mockSchedule).toHaveBeenCalledWith({
+        content: expect.objectContaining({
+          title: 'Time to drink 💧',
+          body: 'Have a drink, about 150 ml.',
+        }),
+        trigger: expect.objectContaining({
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
+          channelId: 'fueling',
+        }),
+      });
+    });
+
+    it('cancels what it scheduled when a later reminder fails', async () => {
+      mockSchedule
+        .mockResolvedValueOnce('drink-1' as any)
+        .mockRejectedValueOnce(new Error('scheduling unavailable'));
+
+      const ids = await scheduleDrinkReminderNotifications(
+        [inMinutes(20), inMinutes(40)],
+        150
+      );
+
+      expect(ids).toEqual([]);
+      expect(mockCancel).toHaveBeenCalledWith('drink-1');
+    });
+
+    it('schedules nothing while notifications are off or not allowed', async () => {
+      useAppPreferencesStore.getState().setNotificationsEnabled(false);
+      expect(
+        await scheduleDrinkReminderNotifications([inMinutes(20)], 150)
+      ).toEqual([]);
+
+      useAppPreferencesStore.getState().setNotificationsEnabled(true);
+      mockGetPerms.mockResolvedValue({ status: 'denied' } as any);
+      expect(
+        await scheduleDrinkReminderNotifications([inMinutes(20)], 150)
+      ).toEqual([]);
       expect(mockSchedule).not.toHaveBeenCalled();
     });
   });

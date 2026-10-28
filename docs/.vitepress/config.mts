@@ -174,6 +174,7 @@ export default defineConfig({
             { text: 'Heart Rate Zones', link: '/features/exercises/heart-rate-zones' },
             { text: 'Shoe Inventory', link: '/features/exercises/shoe-inventory' },
             { text: 'Plate Calculator', link: '/features/exercises/plate-calculator' },
+            { text: 'Fueling Plan', link: '/features/exercises/fueling-plan' },
             { text: 'Route Generation', link: '/features/exercises/route-generation' },
             { text: 'Grade-Adjusted Pace & Running Dynamics', link: '/features/exercises/grade-adjusted-pace-and-running-dynamics' },
             { text: 'Following a Route on Apple Watch', link: '/features/exercises/route-following-on-watch' },

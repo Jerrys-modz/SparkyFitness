@@ -118,6 +118,7 @@ export type RootStackParamList = {
   WorkoutSplits: undefined;
   WorkoutFinder: undefined;
   WorkoutSplitImport: { splitId: string; trainer?: TrainerOptions };
+  FuelingPlan: undefined;
   RunProgramWorkout: { index: number };
   RunProgramRace: { distance?: RaceDistance; raceDay?: string } | undefined;
   FitnessTest: undefined;
