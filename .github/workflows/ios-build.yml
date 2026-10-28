@@ -24,6 +24,13 @@ on:
         required: false
         default: macos-latest
         type: string
+      only_run:
+        description: >-
+          Only shoot the wrist-only run screens (a few minutes instead of the
+          whole set). For checking a change to the run or cardio screens.
+        required: false
+        default: false
+        type: boolean
 
 # A second push to the same branch makes the first build irrelevant.
 concurrency:
@@ -34,7 +41,9 @@ jobs:
   build:
     name: Compile iOS app and watchOS companion
     runs-on: ${{ inputs.runner == 'xcode-27' && 'xcode-27' || 'macos-latest' }}
-    timeout-minutes: 60
+    # The watch target alone can take 40 minutes on a slow runner, and the
+    # full screenshot set another 15.
+    timeout-minutes: 90
     permissions:
       contents: read
       actions: write
@@ -131,6 +140,8 @@ jobs:
       # a simulator, so the BPM layout never appears on real hardware here.
       - name: Capture watch screenshots
         working-directory: SparkyFitnessMobile
+        env:
+          ONLY_RUN: ${{ inputs.only_run }}
         run: |
           set -euo pipefail
 
@@ -185,30 +196,32 @@ jobs:
             xcrun simctl bootstatus "$UDID" -b
             xcrun simctl install "$UDID" "$APP"
 
-            shoot workout-active active workout
-            shoot workout-resting resting workout
-            shoot workout-no-metrics active workout "" nometrics
-            shoot workout-upnext active workout upnext upnext
-            shoot workout-swap active workout swap upnext
-            shoot workout-metrics active workout metrics nometrics
-            shoot workout-idle none workout
-            shoot workout-exercises active workout exercises
-            shoot workout-set-options active workout setoptions
-            shoot workout-exercise-options active workout exerciseoptions
-            shoot workout-actions active workout actions
-            shoot workout-rpe active workout rpe
-            shoot workout-update-alert active workout updatealert
-            shoot workout-timed timed workout
-            shoot workout-stopwatch stopwatch workout
-            shoot workout-interval interval workout
-            shoot goals none goals
-            shoot goals-large none goals "" large
-            shoot water none water
-            shoot water-large none water "" large
-            shoot medications none medications
-            shoot medications-dose none medications dose
-            shoot fasting none fasting
-            shoot fasting-running none fasting "" fast
+            if [ "${ONLY_RUN:-false}" != "true" ]; then
+              shoot workout-active active workout
+              shoot workout-resting resting workout
+              shoot workout-no-metrics active workout "" nometrics
+              shoot workout-upnext active workout upnext upnext
+              shoot workout-swap active workout swap upnext
+              shoot workout-metrics active workout metrics nometrics
+              shoot workout-idle none workout
+              shoot workout-exercises active workout exercises
+              shoot workout-set-options active workout setoptions
+              shoot workout-exercise-options active workout exerciseoptions
+              shoot workout-actions active workout actions
+              shoot workout-rpe active workout rpe
+              shoot workout-update-alert active workout updatealert
+              shoot workout-timed timed workout
+              shoot workout-stopwatch stopwatch workout
+              shoot workout-interval interval workout
+              shoot goals none goals
+              shoot goals-large none goals "" large
+              shoot water none water
+              shoot water-large none water "" large
+              shoot medications none medications
+              shoot medications-dose none medications dose
+              shoot fasting none fasting
+              shoot fasting-running none fasting "" fast
+            fi
             # A wrist-only outdoor run: zone bar with the heart rate in zone 4,
             # pace on target and too fast, and a phone that has sent no zones.
             shoot run-on-target runontarget workout
