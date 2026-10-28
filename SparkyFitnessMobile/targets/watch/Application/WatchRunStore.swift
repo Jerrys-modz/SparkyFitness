@@ -333,7 +333,11 @@ final class WatchRunStore: ObservableObject {
             switch event {
             case .approachingCue(let routeCue):
                 Haptics.routeCue()
-                cue(routeCue.spoken(distanceMeters: update.snapshot.nextCue?.distanceMeters ?? 0, inMiles: usesMiles))
+                // A route's own wording is not in the watch's language.
+                cue(
+                    routeCue.spoken(distanceMeters: update.snapshot.nextCue?.distanceMeters ?? 0, inMiles: usesMiles),
+                    containsPhoneText: routeCue.text != nil
+                )
             case .wentOffRoute:
                 Haptics.offRoute()
                 cue(String(localized: "watch.route.offRouteSpoken", defaultValue: "You are off the route."))
@@ -469,9 +473,11 @@ final class WatchRunStore: ObservableObject {
         return plan.doneText
     }
 
-    private func cue(_ text: String) {
+    /// `containsPhoneText`: the cue includes words the phone wrote (see
+    /// `WatchRunCues.speak`).
+    private func cue(_ text: String, containsPhoneText: Bool = false) {
         guard settings.voiceCues else { return }
-        WatchRunCues.shared.speak(text, interrupt: true)
+        WatchRunCues.shared.speak(text, interrupt: true, containsPhoneText: containsPhoneText)
     }
 
     /// Turns auto-pause on or off mid-run. Turning it off while it holds the
@@ -712,7 +718,8 @@ final class WatchRunStore: ObservableObject {
                 ? WatchRunCues.stepText(label: position.label, meters: planStep.meters ?? 0, inMiles: planStep.inMiles)
                 : WatchRunCues.stepText(label: position.label, seconds: planStep.seconds)
             let intro = first ? plan.startText : nil
-            WatchRunCues.shared.speak(intro.map { "\($0) \(step)" } ?? step, interrupt: true)
+            // The step name comes from the phone, in the app's language.
+            WatchRunCues.shared.speak(intro.map { "\($0) \(step)" } ?? step, interrupt: true, containsPhoneText: true)
         }
     }
 
@@ -743,7 +750,7 @@ final class WatchRunStore: ObservableObject {
         case .milestone(let meters):
             WatchRunCues.shared.speak(WatchRunCues.milestoneText(meters: meters))
         case .stepWarning(let next):
-            WatchRunCues.shared.speak(WatchRunCues.stepWarningText(next: next))
+            WatchRunCues.shared.speak(WatchRunCues.stepWarningText(next: next), containsPhoneText: next != nil)
         case .lastMinute:
             WatchRunCues.shared.speak(WatchRunCues.lastMinuteText)
         case .halfway:
@@ -893,7 +900,8 @@ final class WatchRunStore: ObservableObject {
                             title: ending.title(endingPlace),
                             seconds: elapsed
                         )
-                    self.cue(self.programDoneText(completed: scaled?.planCompleted ?? false).map { "\(finished) \($0)" } ?? finished)
+                    let done = self.programDoneText(completed: scaled?.planCompleted ?? false)
+                    self.cue(done.map { "\(finished) \($0)" } ?? finished, containsPhoneText: done != nil)
                 }
                 // The Health workout is stamped so the phone's import skips
                 // it; this message is how the run reaches the diary.
@@ -939,7 +947,8 @@ final class WatchRunStore: ObservableObject {
             seconds: pendingElapsed,
             usesMiles: usesMiles
         )
-        cue(programDoneText(completed: result.planCompleted).map { "\(finished) \($0)" } ?? finished)
+        let done = programDoneText(completed: result.planCompleted)
+        cue(done.map { "\(finished) \($0)" } ?? finished, containsPhoneText: done != nil)
         // The snapshot stays until the message is durably queued.
         if WatchSessionManager.shared.sendRunFinished(result) {
             WatchRunSnapshotStore.clear()

@@ -17,15 +17,24 @@ final class WatchRunCues: NSObject, AVSpeechSynthesizerDelegate {
     /// Queues `text` after whatever is being said. A step change passes
     /// `interrupt` so it is heard at once, but a split spoken in the same
     /// second waits its turn instead of cutting it off.
+    ///
+    /// `containsPhoneText` marks a cue that includes words the phone wrote in
+    /// the app language (a plan's step names and its start and done sentences,
+    /// a route's own wording). Those are not in the watch's language, so the
+    /// relayed cue carries no language and the phone speaks it with the app's.
     @MainActor
-    func speak(_ text: String, interrupt: Bool = false) {
+    func speak(_ text: String, interrupt: Bool = false, containsPhoneText: Bool = false) {
         // The wearer's headphones are usually on the phone, so a cue goes there
         // when it can be reached. Headphones already connected to the watch
         // are respected, and anything the phone does not confirm is said here.
         if !outputsToHeadphones(),
-           WatchSessionManager.shared.relayRunCue(text, interrupt: interrupt, fallback: { [weak self] in
-               self?.speakHere(text, interrupt: interrupt)
-           }) {
+           WatchSessionManager.shared.relayRunCue(
+            text,
+            interrupt: interrupt,
+            language: containsPhoneText ? "" : Self.languageTag,
+            fallback: { [weak self] in
+                self?.speakHere(text, interrupt: interrupt)
+            }) {
             return
         }
         speakHere(text, interrupt: interrupt)
