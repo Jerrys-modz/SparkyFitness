@@ -9,6 +9,7 @@ interface ErrorFields {
   name?: unknown;
   message?: unknown;
   code?: unknown;
+  constraint?: unknown;
   type?: unknown;
   stack?: unknown;
   status?: unknown;
@@ -80,6 +81,14 @@ const errorHandler = (
           statusCode = 409;
           message =
             'Conflict: A resource with this unique identifier already exists.';
+        } else if (
+          error.code === '23514' &&
+          error.constraint === 'custom_categories_ref_range_check'
+        ) {
+          // A partial update can leave a new bound on the wrong side of the
+          // stored one, which only the database sees.
+          statusCode = 400;
+          message = 'ref_range_low must not exceed ref_range_high';
         } else if (
           statusCode >= 500 &&
           process.env.NODE_ENV !== 'development' &&

@@ -757,8 +757,8 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
 export type LabSex = 'male' | 'female';
 
 export interface LabRange {
-  low: number | null;
-  high: number | null;
+  readonly low: number | null;
+  readonly high: number | null;
 }
 
 const r = (low: number | null, high: number | null): LabRange => ({
