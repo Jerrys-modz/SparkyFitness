@@ -98,9 +98,7 @@ describe('reviewed food copies to a family member', () => {
       expect(
         foodRepository.copyReviewedFoodEntriesFromUser
       ).not.toHaveBeenCalled();
-      expect(
-        foodRepository.copySelectedFoodEntriesFromUser
-      ).not.toHaveBeenCalled();
+      expect(foodRepository.copySelectedFoodEntries).not.toHaveBeenCalled();
     }
   );
 
@@ -122,9 +120,7 @@ describe('reviewed food copies to a family member', () => {
       expect(
         foodRepository.copyReviewedFoodEntriesFromUser
       ).not.toHaveBeenCalled();
-      expect(
-        foodRepository.copySelectedFoodEntriesFromUser
-      ).not.toHaveBeenCalled();
+      expect(foodRepository.copySelectedFoodEntries).not.toHaveBeenCalled();
     }
   );
 
@@ -154,23 +150,21 @@ describe('reviewed food copies to a family member', () => {
   });
 
   it('re-fetches selected rows from the actual actor and delegates adjusted quantities atomically', async () => {
-    vi.mocked(foodRepository.copySelectedFoodEntriesFromUser).mockResolvedValue(
-      [{ id: 'copied' }]
-    );
+    vi.mocked(foodRepository.copySelectedFoodEntries).mockResolvedValue([
+      { id: 'copied' },
+    ]);
     await expect(copySelected()).resolves.toEqual([{ id: 'copied' }]);
     expect(foodRepository.getFoodEntryById).toHaveBeenCalledWith(row.id, ACTOR);
-    expect(foodRepository.copySelectedFoodEntriesFromUser).toHaveBeenCalledWith(
-      {
-        sourceUserId: ACTOR,
-        actingUserId: ACTOR,
-        targetUserId: RECIPIENT,
-        sourceDate: DATE,
-        targetDate: TARGET_DATE,
-        targetMealTypeId: TARGET_MEAL,
-        selections: selected(),
-        fingerprintVersion: 'to-user',
-      }
-    );
+    expect(foodRepository.copySelectedFoodEntries).toHaveBeenCalledWith({
+      sourceUserId: ACTOR,
+      actingUserId: ACTOR,
+      targetUserId: RECIPIENT,
+      sourceDate: DATE,
+      targetDate: TARGET_DATE,
+      targetMealTypeId: TARGET_MEAL,
+      selections: selected(),
+      fingerprintVersion: 'to-user',
+    });
   });
 
   it.each([
@@ -185,9 +179,7 @@ describe('reviewed food copies to a family member', () => {
     async (current) => {
       vi.mocked(foodRepository.getFoodEntryById).mockResolvedValue(current);
       await expect(copySelected()).rejects.toMatchObject({ statusCode: 409 });
-      expect(
-        foodRepository.copySelectedFoodEntriesFromUser
-      ).not.toHaveBeenCalled();
+      expect(foodRepository.copySelectedFoodEntries).not.toHaveBeenCalled();
     }
   );
 

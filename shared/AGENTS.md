@@ -1,6 +1,6 @@
 # AGENTS.md
 
-_Last updated: 2026-10-27_
+_Last updated: 2026-10-28_
 
 `@workspace/shared` is a source-first TypeScript workspace library package for schemas, constants, and timezone/day helpers consumed by SparkyFitnessServer, SparkyFitnessFrontend, and SparkyFitnessMobile.
 
@@ -16,7 +16,7 @@ _Last updated: 2026-10-27_
 
 ## Structure
 
-- Family diary copies: `schemas/api/FoodEntryCopy.api.zod.ts` defines reviewed/selected requests in both directions and recipient meal types. `foodEntryCopyFingerprint` remains byte-compatible with older copy-from clients; new copy-to requests use `foodEntryCopyToUserFingerprint`, which also checks notes, meal identity, caffeine, water, and alcohol.
+- Family diary copies: `schemas/api/FoodEntryCopy.api.zod.ts` defines reviewed/selected requests in both directions and recipient meal types. `foodEntryCopyFingerprint` remains byte-compatible with older copy-from clients; `copyFingerprintFor(version)` selects the contract for both clients and the server. New copy-to requests use `foodEntryCopyToUserFingerprint`, which also checks notes, meal identity, caffeine, water, and alcohol.
 
 - Barcode search: `schemas/api/FoodLookup.api.zod.ts` and `BarcodeLookup.api.zod.ts` define normalized foods and source comparison results. `utils/barcodeNutrition.ts` supplies one comparison basis for web and mobile.
 

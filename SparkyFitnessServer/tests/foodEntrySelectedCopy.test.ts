@@ -121,9 +121,9 @@ describe('copySelectedFoodEntriesFromUser', () => {
     vi.mocked(foodRepository.getFoodEntryById).mockResolvedValue(
       validSourceEntry
     );
-    vi.mocked(foodRepository.copySelectedFoodEntriesFromUser).mockResolvedValue(
-      [{ id: 'copy-1' }]
-    );
+    vi.mocked(foodRepository.copySelectedFoodEntries).mockResolvedValue([
+      { id: 'copy-1' },
+    ]);
 
     const result = await copySelectedFoodEntriesFromUser(
       ACTOR,
@@ -135,17 +135,15 @@ describe('copySelectedFoodEntriesFromUser', () => {
       [selection()]
     );
 
-    expect(foodRepository.copySelectedFoodEntriesFromUser).toHaveBeenCalledWith(
-      {
-        targetUserId: ACTOR,
-        actingUserId: ACTOR,
-        sourceUserId: SOURCE,
-        sourceDate: SOURCE_DATE,
-        targetDate: TARGET_DATE,
-        targetMealTypeId: TARGET_MEAL,
-        selections: [selection()],
-      }
-    );
+    expect(foodRepository.copySelectedFoodEntries).toHaveBeenCalledWith({
+      targetUserId: ACTOR,
+      actingUserId: ACTOR,
+      sourceUserId: SOURCE,
+      sourceDate: SOURCE_DATE,
+      targetDate: TARGET_DATE,
+      targetMealTypeId: TARGET_MEAL,
+      selections: [selection()],
+    });
     expect(result).toEqual([{ id: 'copy-1' }]);
   });
 
@@ -163,9 +161,10 @@ describe('copySelectedFoodEntriesFromUser', () => {
         id: SECOND_ENTRY_ID,
         food_id: 'food-2',
       });
-    vi.mocked(foodRepository.copySelectedFoodEntriesFromUser).mockResolvedValue(
-      [{ id: 'copy-1' }, { id: 'copy-2' }]
-    );
+    vi.mocked(foodRepository.copySelectedFoodEntries).mockResolvedValue([
+      { id: 'copy-1' },
+      { id: 'copy-2' },
+    ]);
 
     await copySelectedFoodEntriesFromUser(
       ACTOR,
@@ -188,7 +187,7 @@ describe('copySelectedFoodEntriesFromUser', () => {
       SOURCE
     );
     expect(
-      foodRepository.copySelectedFoodEntriesFromUser
+      foodRepository.copySelectedFoodEntries
     ).toHaveBeenCalledExactlyOnceWith({
       targetUserId: ACTOR,
       actingUserId: ACTOR,
@@ -240,9 +239,9 @@ describe('copySelectedFoodEntriesFromUser', () => {
       { id: TARGET_MEAL, name: 'Lunch', user_id: null },
     ]);
     vi.mocked(foodRepository.getFoodEntryById).mockResolvedValue(customEntry);
-    vi.mocked(foodRepository.copySelectedFoodEntriesFromUser).mockResolvedValue(
-      [{ id: 'copied-custom-row' }]
-    );
+    vi.mocked(foodRepository.copySelectedFoodEntries).mockResolvedValue([
+      { id: 'copied-custom-row' },
+    ]);
 
     await expect(
       copySelectedFoodEntriesFromUser(
@@ -263,7 +262,7 @@ describe('copySelectedFoodEntriesFromUser', () => {
     ).resolves.toEqual([{ id: 'copied-custom-row' }]);
 
     expect(foodRepository.getFoodEntryByDetails).not.toHaveBeenCalled();
-    expect(foodRepository.copySelectedFoodEntriesFromUser).toHaveBeenCalledWith(
+    expect(foodRepository.copySelectedFoodEntries).toHaveBeenCalledWith(
       expect.objectContaining({
         selections: [
           {

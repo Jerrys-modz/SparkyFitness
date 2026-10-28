@@ -43,6 +43,8 @@ export interface ReviewedFoodEntryFingerprint {
   sourceFingerprint: string;
 }
 
+export type FoodEntryCopyFingerprintVersion = 'to-user' | undefined;
+
 const numericFields = [
   'quantity',
   'serving_size',
@@ -107,6 +109,13 @@ export function foodEntryCopyToUserFingerprint(
   entry: FoodEntryCopyFingerprintInput
 ): string {
   return buildFoodEntryCopyFingerprint(entry, true);
+}
+
+/** Undefined keeps the original copy-from contract for installed clients. */
+export function copyFingerprintFor(version: FoodEntryCopyFingerprintVersion) {
+  return version === 'to-user'
+    ? foodEntryCopyToUserFingerprint
+    : foodEntryCopyFingerprint;
 }
 
 function buildFoodEntryCopyFingerprint(

@@ -16,16 +16,20 @@ interface UseFamilyDailySummaryOptions {
 
 interface UseFamilyUsersOptions {
   enabled?: boolean;
+  refetchOnFocus?: boolean;
 }
 
-export function useFamilyUsers({ enabled = true }: UseFamilyUsersOptions = {}) {
+export function useFamilyUsers({
+  enabled = true,
+  refetchOnFocus = false,
+}: UseFamilyUsersOptions = {}) {
   const query = useQuery({
     queryKey: familyUsersQueryKey,
     queryFn: fetchFamilyDiaryUsers,
     enabled,
-    staleTime: 0,
+    ...(refetchOnFocus ? { staleTime: 0 } : {}),
   });
-  useRefetchOnFocus(query.refetch, enabled, 0);
+  useRefetchOnFocus(query.refetch, enabled && refetchOnFocus, 0);
   return query;
 }
 

@@ -7,11 +7,11 @@ import { sanitizeCustomNutrients } from '../utils/foodUtils.js';
 import { toImageArray } from '../utils/imageLocalizer.js';
 import type { FoodEntryInput, FoodEntrySnapshot } from '../types/nutrition.js';
 import {
-  foodEntryCopyToUserFingerprint,
-  foodEntryCopyFingerprint,
+  copyFingerprintFor,
   hasExactReviewedFoodEntrySnapshot,
   sanitizeNotes,
   type CopySelectedFoodEntriesFromUserBody,
+  type FoodEntryCopyFingerprintVersion,
   type ReviewedFoodEntryFingerprint,
 } from '@workspace/shared';
 
@@ -22,7 +22,7 @@ interface FoodEntryCopyContext {
   sourceDate: string;
   targetDate: string;
   targetMealTypeId: string;
-  fingerprintVersion?: 'to-user';
+  fingerprintVersion?: FoodEntryCopyFingerprintVersion;
 }
 
 interface ReviewedFoodEntryCopyInput extends FoodEntryCopyContext {
@@ -952,9 +952,7 @@ async function copyFoodEntriesWithReview({
       !hasExactReviewedFoodEntrySnapshot(
         sourceEntries,
         reviewedEntries,
-        fingerprintVersion === 'to-user'
-          ? foodEntryCopyToUserFingerprint
-          : foodEntryCopyFingerprint
+        copyFingerprintFor(fingerprintVersion)
       ) ||
       (selections &&
         sourceEntries.some(
@@ -1085,12 +1083,11 @@ async function copyFoodEntriesWithReview({
         if (
           entry.food_id !== null &&
           entry.food_id !== undefined &&
-          // Explicit outbound selections always add their adjusted snapshot.
-          // Legacy inbound selections only deduplicated non-NULL variants.
+          // Outbound copies always add every reviewed snapshot. Inbound copies
+          // retain legacy deduplication, including the selected-variant rule.
+          fingerprintVersion !== 'to-user' &&
           (!selections ||
-            (fingerprintVersion !== 'to-user' &&
-              entry.variant_id !== null &&
-              entry.variant_id !== undefined)) &&
+            (entry.variant_id !== null && entry.variant_id !== undefined)) &&
           existingStandaloneKeys.has(standaloneKey)
         )
           continue;
@@ -1183,9 +1180,7 @@ async function copyReviewedFoodEntriesFromUser(
   return copyFoodEntriesWithReview(input);
 }
 
-async function copySelectedFoodEntriesFromUser(
-  input: SelectedFoodEntryCopyInput
-) {
+async function copySelectedFoodEntries(input: SelectedFoodEntryCopyInput) {
   return copyFoodEntriesWithReview({
     ...input,
     reviewedEntries: input.selections,
@@ -1542,7 +1537,7 @@ export { getFoodEntriesByDateAndMealType };
 export { getFoodEntriesByDateRange };
 export { getFoodEntryByDetails };
 export { copyReviewedFoodEntriesFromUser };
-export { copySelectedFoodEntriesFromUser };
+export { copySelectedFoodEntries };
 export { bulkCreateFoodEntries };
 export { getFoodEntryById };
 export { getFoodEntryComponentsByFoodEntryMealId };
@@ -1562,7 +1557,7 @@ export default {
   getFoodEntriesByDateRange,
   getFoodEntryByDetails,
   copyReviewedFoodEntriesFromUser,
-  copySelectedFoodEntriesFromUser,
+  copySelectedFoodEntries,
   bulkCreateFoodEntries,
   getFoodEntryById,
   getFoodEntryComponentsByFoodEntryMealId,

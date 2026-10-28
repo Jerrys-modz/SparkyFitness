@@ -24,14 +24,13 @@ const FamilyMembersScreen: React.FC<FamilyMembersScreenProps> = ({
   const insets = useSafeAreaInsets();
   const activeWorkoutBarPadding = useActiveWorkoutBarPadding('stack');
   const usesNativeHeader = useNativeIOSHeadersActive();
+  const copySource = route.params?.copySource;
   const {
     data: users = [],
     isLoading,
-    isFetching,
     isError,
     refetch,
-  } = useFamilyUsers();
-  const copySource = route.params?.copySource;
+  } = useFamilyUsers({ refetchOnFocus: Boolean(copySource) });
   const source = useFamilyCopySource({
     date: copySource?.sourceDate ?? '',
     enabled: Boolean(copySource),
@@ -49,11 +48,7 @@ const FamilyMembersScreen: React.FC<FamilyMembersScreenProps> = ({
       )
     : [];
   const loadingSource =
-    Boolean(copySource) &&
-    (isFetching ||
-      source.isLoading ||
-      source.isFetching ||
-      ownMealTypes.isLoading);
+    Boolean(copySource) && (source.isLoading || ownMealTypes.isLoading);
   const sourceFailed =
     Boolean(copySource) && (source.isError || ownMealTypes.isError);
   const title = copySource

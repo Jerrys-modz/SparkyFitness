@@ -102,38 +102,46 @@ describe('FamilyMembersScreen', () => {
 
   afterEach(() => jest.useRealTimers());
 
-  test('waits for refreshed permissions before offering cached copy recipients', () => {
-    mockUseFamilyUsers.mockReturnValue({
-      data: [
-        {
-          userId: 'recipient',
-          displayName: 'Recipient',
-          email: null,
-          canCopy: true,
-          accessEndDate: null,
+  test.each([
+    [true, false],
+    [false, true],
+    [true, true],
+  ])(
+    'keeps cached recipients available during users=%s and source=%s background refreshes',
+    (usersFetching, sourceFetching) => {
+      mockUseFamilyUsers.mockReturnValue({
+        data: [
+          {
+            userId: 'recipient',
+            displayName: 'Recipient',
+            email: null,
+            canCopy: true,
+            accessEndDate: null,
+          },
+        ],
+        isLoading: false,
+        isFetching: usersFetching,
+        isError: false,
+        refetch: jest.fn(),
+      } as ReturnType<typeof useFamilyUsers>);
+      (useFamilyCopySource as jest.Mock).mockReturnValue({
+        data: { foodEntries: [{ id: 'entry', meal_type_id: 'own-dinner' }] },
+        isLoading: false,
+        isFetching: sourceFetching,
+        isError: false,
+        refetch: jest.fn(),
+      });
+      const screen = renderScreen(0, {
+        copySource: {
+          sourceDate: '2026-08-23',
+          mealTypeId: 'own-dinner',
+          mealTypeName: 'Dinner',
         },
-      ],
-      isLoading: false,
-      isFetching: true,
-      isError: false,
-      refetch: jest.fn(),
-    } as ReturnType<typeof useFamilyUsers>);
-    (useFamilyCopySource as jest.Mock).mockReturnValue({
-      data: { foodEntries: [{ id: 'entry', meal_type_id: 'own-dinner' }] },
-      isLoading: false,
-      isError: false,
-      refetch: jest.fn(),
-    });
-    const screen = renderScreen(0, {
-      copySource: {
-        sourceDate: '2026-08-23',
-        mealTypeId: 'own-dinner',
-        mealTypeName: 'Dinner',
-      },
-    });
-    expect(screen.queryByLabelText('Recipient. Can copy')).toBeNull();
-    expect(screen.getByText('Loading family members…')).toBeTruthy();
-  });
+      });
+      expect(screen.getByLabelText('Recipient. Can copy')).toBeTruthy();
+      expect(screen.queryByText('Loading family members…')).toBeNull();
+    }
+  );
 
   test('selects only writable, unexpired recipients and reviews raw source components', () => {
     const recipient = {
@@ -190,6 +198,7 @@ describe('FamilyMembersScreen', () => {
       mealTypeName: 'Dinner',
     };
     const screen = renderScreen(0, { copySource });
+    expect(mockUseFamilyUsers).toHaveBeenCalledWith({ refetchOnFocus: true });
     expect(screen.queryByText('Read only')).toBeNull();
     expect(screen.queryByText('Expired')).toBeNull();
     fireEvent.press(screen.getByLabelText('Recipient. Can copy'));
@@ -219,6 +228,7 @@ describe('FamilyMembersScreen', () => {
     } as ReturnType<typeof useFamilyUsers>);
 
     const { getByLabelText } = renderScreen();
+    expect(mockUseFamilyUsers).toHaveBeenCalledWith({ refetchOnFocus: false });
     fireEvent.press(getByLabelText('Member B. Can copy'));
 
     expect(navigation.navigate).toHaveBeenCalledWith('FamilyDiary', {

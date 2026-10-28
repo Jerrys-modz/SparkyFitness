@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { getClient } from '../db/poolManager.js';
 import {
   copyReviewedFoodEntriesFromUser,
-  copySelectedFoodEntriesFromUser,
+  copySelectedFoodEntries,
 } from '../models/foodEntry.js';
 import {
   foodEntryCopyFingerprint,
@@ -131,9 +131,9 @@ describe('family copy atomic repository', () => {
   });
 
   it('copies selected components as standalone adjusted rows while preserving nutrient basis and notes', async () => {
-    await expect(
-      copySelectedFoodEntriesFromUser(selectedInput())
-    ).resolves.toEqual([{ id: 'copied-row' }]);
+    await expect(copySelectedFoodEntries(selectedInput())).resolves.toEqual([
+      { id: 'copied-row' },
+    ]);
     const sqls = query.mock.calls.map(([sql]) => String(sql));
     expect(
       sqls.some((sql) => sql.includes('INSERT INTO food_entry_meals'))
@@ -192,7 +192,7 @@ describe('family copy atomic repository', () => {
               sourceMealTypeId: sourceRow.meal_type_id,
               reviewedEntries: [reviewedEntry],
             })
-          : await copySelectedFoodEntriesFromUser({
+          : await copySelectedFoodEntries({
               ...copyInput,
               selections: [{ ...reviewedEntry, quantity: 175 }],
             });
@@ -235,7 +235,7 @@ describe('family copy atomic repository', () => {
       await expect(
         mode === 'whole'
           ? copyReviewedFoodEntriesFromUser(wholeInput())
-          : copySelectedFoodEntriesFromUser(selectedInput())
+          : copySelectedFoodEntries(selectedInput())
       ).rejects.toMatchObject({ statusCode: 409 });
       expect(
         query.mock.calls.some(([sql]) => String(sql).includes('INSERT INTO'))
@@ -271,7 +271,7 @@ describe('family copy atomic repository', () => {
       return normalQuery(sql);
     });
     await expect(
-      copySelectedFoodEntriesFromUser(selectedInput())
+      copySelectedFoodEntries(selectedInput())
     ).rejects.toMatchObject({ statusCode: 409 });
     expect(query).toHaveBeenLastCalledWith('ROLLBACK');
   });
@@ -305,8 +305,8 @@ describe('family copy atomic repository', () => {
     ],
     ['whole', 'from-user', 'matching catalog identity', 'food', 'variant', 0],
     ['whole', 'from-user', 'matching null variant', 'food', null, 0],
-    ['whole', 'to-user', 'matching catalog identity', 'food', 'variant', 0],
-    ['whole', 'to-user', 'matching null variant', 'food', null, 0],
+    ['whole', 'to-user', 'matching catalog identity', 'food', 'variant', 1],
+    ['whole', 'to-user', 'matching null variant', 'food', null, 1],
   ] as const)(
     '%s %s copies preserve %s behavior when the recipient already has that food',
     async (mode, direction, _case, foodId, variantId, expectedCopies) => {
@@ -347,7 +347,7 @@ describe('family copy atomic repository', () => {
               sourceMealTypeId: sourceRow.meal_type_id,
               reviewedEntries: [reviewedEntry],
             })
-          : await copySelectedFoodEntriesFromUser({
+          : await copySelectedFoodEntries({
               ...copyInput,
               selections: [{ ...reviewedEntry, quantity: 125 }],
             });
@@ -357,7 +357,9 @@ describe('family copy atomic repository', () => {
       );
       expect(inserts).toHaveLength(expectedCopies);
       if (expectedCopies > 0) {
-        expect(inserts[0][1][3]).toBe(125);
+        expect(inserts[0][1][3]).toBe(
+          mode === 'whole' ? sourceRow.quantity : 125
+        );
         expect(inserts[0][1][9]).toBeNull();
         expect(inserts[0][1][16]).toBe(sourceRow.calories);
         expect(inserts[0][1][38]).toBe(sourceRow.notes);
@@ -371,7 +373,7 @@ describe('family copy atomic repository', () => {
       sql.includes('FROM meal_types') ? { rows: [] } : normalQuery(sql)
     );
     await expect(
-      copySelectedFoodEntriesFromUser(selectedInput())
+      copySelectedFoodEntries(selectedInput())
     ).rejects.toMatchObject({ statusCode: 400 });
     expect(
       query.mock.calls.some(([sql]) => String(sql).includes('INSERT INTO'))

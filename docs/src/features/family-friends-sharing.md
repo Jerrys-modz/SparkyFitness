@@ -33,6 +33,8 @@ Open a meal in your diary and choose **Copy to family** to log a shared meal for
 
 Your original entries stay unchanged. Copying a complete meal without quantity changes preserves its grouping; selected or adjusted foods are saved as individual entries.
 
+Copies to family add every reviewed food, even when the recipient already has the same food in that meal. Existing entries stay unchanged.
+
 Copying requires the family member to grant you **Manage Diary** and **View Food Library**. Read-only or expired connections cannot receive copies. Permissions are checked again when you confirm, so removing access takes effect even if a review is already open. If the source foods have changed since you opened the review, refresh and review them again before copying.
 
 To copy in the other direction, open **Family Diaries**, choose a member and a meal, then use **Copy to my diary**. Family access permissions are managed in the web app. If the app asks you to update the server when copying to family, update the server before retrying.

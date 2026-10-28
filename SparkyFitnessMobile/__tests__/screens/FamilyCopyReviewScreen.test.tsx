@@ -592,13 +592,14 @@ describe('FamilyCopyReviewScreen', () => {
     });
   });
 
-  test('returns to the source diary when a stale review is rejected', () => {
+  test('returns to the original source day when a stale inbound review is rejected', () => {
     renderReview();
 
     onCopyStale?.({});
 
     expect(navigation.popTo).toHaveBeenCalledWith('FamilyDiary', {
       familyUser,
+      date: '2026-08-23',
     });
   });
 });

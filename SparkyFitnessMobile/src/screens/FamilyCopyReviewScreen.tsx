@@ -22,10 +22,7 @@ import {
 } from '../utils/familyDiary';
 import { formatDate, getTodayDate } from '../utils/dateUtils';
 import { parseDecimalInput } from '../utils/numericInput';
-import {
-  foodEntryCopyFingerprint,
-  foodEntryCopyToUserFingerprint,
-} from '@workspace/shared';
+import { copyFingerprintFor } from '@workspace/shared';
 import { ApiError } from '../services/api/errors';
 
 type FamilyCopyReviewScreenProps = RootStackScreenProps<'FamilyCopyReview'>;
@@ -174,7 +171,7 @@ const FamilyCopyReviewScreen: React.FC<FamilyCopyReviewScreenProps> = ({
         });
         return;
       }
-      navigation.popTo('FamilyDiary', { familyUser });
+      navigation.popTo('FamilyDiary', { familyUser, date: sourceDate });
     },
     onPermissionDenied: () => {
       if (toFamily) {
@@ -226,9 +223,9 @@ const FamilyCopyReviewScreen: React.FC<FamilyCopyReviewScreenProps> = ({
       return;
 
     submitInFlightRef.current = true;
-    const sourceFingerprint = toFamily
-      ? foodEntryCopyToUserFingerprint
-      : foodEntryCopyFingerprint;
+    const sourceFingerprint = copyFingerprintFor(
+      toFamily ? 'to-user' : undefined
+    );
     const request = isUnchangedWholeMeal(
       sourceEntries,
       selectedIds,

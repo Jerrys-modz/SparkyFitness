@@ -25,8 +25,8 @@ import {
   type CopyReviewedFoodEntriesToUserBody,
   type CopySelectedFoodEntriesFromUserBody,
   type CopySelectedFoodEntriesToUserBody,
-  foodEntryCopyFingerprint,
-  foodEntryCopyToUserFingerprint,
+  copyFingerprintFor,
+  type FoodEntryCopyFingerprintVersion,
   hasExactReviewedFoodEntrySnapshot,
   isDayString,
   foodVolumeToMl,
@@ -1564,8 +1564,6 @@ async function requireFamilyCopyPermission(
   }
 }
 
-type CopyFingerprintVersion = 'to-user' | undefined;
-
 async function copySelectedFoodEntries(
   targetUserId: string,
   actingUserId: string,
@@ -1574,7 +1572,7 @@ async function copySelectedFoodEntries(
   targetDate: string,
   targetMealType: string,
   selections: CopySelectedFoodEntriesFromUserBody['entries'],
-  fingerprintVersion?: CopyFingerprintVersion
+  fingerprintVersion?: FoodEntryCopyFingerprintVersion
 ) {
   const targetMealTypeId = await resolveMealTypeId(
     targetUserId,
@@ -1584,10 +1582,7 @@ async function copySelectedFoodEntries(
     throw copyStatusError('Invalid target meal type.', 400);
   }
 
-  const fingerprint =
-    fingerprintVersion === 'to-user'
-      ? foodEntryCopyToUserFingerprint
-      : foodEntryCopyFingerprint;
+  const fingerprint = copyFingerprintFor(fingerprintVersion);
   // Re-fetch every source row using the server-derived owner. The repository
   // repeats this check under the same transaction as the destination writes.
   const selectedEntries = await Promise.all(
@@ -1615,7 +1610,7 @@ async function copySelectedFoodEntries(
       );
     }
   }
-  return foodRepository.copySelectedFoodEntriesFromUser({
+  return foodRepository.copySelectedFoodEntries({
     targetUserId,
     actingUserId,
     sourceUserId,
@@ -1678,7 +1673,7 @@ async function copyReviewedFoodEntries(
   targetDate: string,
   targetMealType: string,
   reviewedEntries: CopyReviewedFoodEntriesFromUserBody['entries'],
-  fingerprintVersion?: CopyFingerprintVersion
+  fingerprintVersion?: FoodEntryCopyFingerprintVersion
 ) {
   const sourceMealTypeId = await resolveMealTypeId(
     sourceUserId,
@@ -1702,9 +1697,7 @@ async function copyReviewedFoodEntries(
     !hasExactReviewedFoodEntrySnapshot(
       currentSourceEntries,
       reviewedEntries,
-      fingerprintVersion === 'to-user'
-        ? foodEntryCopyToUserFingerprint
-        : foodEntryCopyFingerprint
+      copyFingerprintFor(fingerprintVersion)
     )
   ) {
     throw copyStatusError(

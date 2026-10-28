@@ -143,9 +143,12 @@ describe('useFamilyDiary', () => {
       queries: { retry: false, staleTime: Infinity },
     });
     mockFetchFamilyDiaryUsers.mockResolvedValue([]);
-    const firstVisit = renderHook(() => useFamilyUsers(), {
-      wrapper: createQueryWrapper(queryClient),
-    });
+    const firstVisit = renderHook(
+      () => useFamilyUsers({ refetchOnFocus: true }),
+      {
+        wrapper: createQueryWrapper(queryClient),
+      }
+    );
     await waitFor(() => expect(firstVisit.result.current.data).toEqual([]));
     firstVisit.unmount();
     const recipients = [
@@ -158,9 +161,12 @@ describe('useFamilyDiary', () => {
       },
     ];
     mockFetchFamilyDiaryUsers.mockResolvedValue(recipients);
-    const secondVisit = renderHook(() => useFamilyUsers(), {
-      wrapper: createQueryWrapper(queryClient),
-    });
+    const secondVisit = renderHook(
+      () => useFamilyUsers({ refetchOnFocus: true }),
+      {
+        wrapper: createQueryWrapper(queryClient),
+      }
+    );
     await waitFor(() =>
       expect(secondVisit.result.current.data).toEqual(recipients)
     );
@@ -176,15 +182,56 @@ describe('useFamilyDiary', () => {
         accessEndDate: null,
       },
     ]);
-    const { result } = renderHook(() => useFamilyUsers(), {
-      wrapper: createQueryWrapper(queryClient),
-    });
+    const { result } = renderHook(
+      () => useFamilyUsers({ refetchOnFocus: true }),
+      {
+        wrapper: createQueryWrapper(queryClient),
+      }
+    );
     await waitFor(() => expect(result.current.data?.[0].canCopy).toBe(true));
     mockFetchFamilyDiaryUsers.mockResolvedValue([]);
     act(() => {
       (useFocusEffect as jest.Mock).mock.calls.at(-1)?.[0]();
     });
     await waitFor(() => expect(result.current.data).toEqual([]));
+  });
+
+  test('preserves default cached family users on focus and later diary visits', async () => {
+    queryClient.setDefaultOptions({
+      queries: { retry: false, staleTime: Infinity },
+    });
+    mockFetchFamilyDiaryUsers.mockResolvedValue([]);
+    const firstVisit = renderHook(() => useFamilyUsers(), {
+      wrapper: createQueryWrapper(queryClient),
+    });
+    await waitFor(() => expect(firstVisit.result.current.isSuccess).toBe(true));
+    act(() => {
+      (useFocusEffect as jest.Mock).mock.calls.at(-1)?.[0]();
+    });
+    await waitFor(() =>
+      expect(firstVisit.result.current.isFetching).toBe(false)
+    );
+    expect(mockFetchFamilyDiaryUsers).toHaveBeenCalledTimes(1);
+    firstVisit.unmount();
+
+    const secondVisit = renderHook(() => useFamilyUsers(), {
+      wrapper: createQueryWrapper(queryClient),
+    });
+    await waitFor(() =>
+      expect(secondVisit.result.current.isFetching).toBe(false)
+    );
+    expect(secondVisit.result.current.data).toEqual([]);
+    expect(mockFetchFamilyDiaryUsers).toHaveBeenCalledTimes(1);
+  });
+
+  test('does not refresh opted-in recipients on focus while disconnected', () => {
+    renderHook(() => useFamilyUsers({ enabled: false, refetchOnFocus: true }), {
+      wrapper: createQueryWrapper(queryClient),
+    });
+    act(() => {
+      (useFocusEffect as jest.Mock).mock.calls.at(-1)?.[0]();
+    });
+    expect(mockFetchFamilyDiaryUsers).not.toHaveBeenCalled();
   });
 
   test('does not fetch accessible family users while the server is disconnected', async () => {
