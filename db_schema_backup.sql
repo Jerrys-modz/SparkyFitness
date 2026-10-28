@@ -7799,6 +7799,13 @@ CREATE INDEX idx_sleep_entries_entry_date ON public.sleep_entries USING btree (e
 
 
 --
+-- Name: idx_sleep_entries_user_date_source; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_sleep_entries_user_date_source ON public.sleep_entries USING btree (user_id, entry_date, source);
+
+
+--
 -- Name: idx_sleep_entries_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -8090,13 +8097,6 @@ CREATE INDEX openfoodfacts_sync_queue_due_idx ON public.openfoodfacts_sync_queue
 --
 
 CREATE INDEX openfoodfacts_sync_queue_user_status_idx ON public.openfoodfacts_sync_queue USING btree (user_id, status, updated_at DESC);
-
-
---
--- Name: sleep_entries_user_date_source_key; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX sleep_entries_user_date_source_key ON public.sleep_entries USING btree (user_id, entry_date, source);
 
 
 --
