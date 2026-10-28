@@ -21,6 +21,7 @@ import { LightboxProvider } from './src/components/LightboxProvider';
 import { Uniwind, useUniwind, useCSSVariable } from 'uniwind';
 
 import { queryClient, serverConnectionQueryKey, serverConfigsQueryKey, useSyncHealthData, useCycleMode, useServerConnection, drainQuickActionNavigation, useControlRouteHandoff, useQuickActions, useWatchCheckInBridge, useWatchFastingBridge, useWatchPlanSync, useWatchRecordingBridge, useWatchSetTargetsSync, useWatchWorkoutBridge, useWatchWorkoutEdit, useWatchRunBridge, useWatchRouteBridge, usePreferences } from './src/hooks';
+import { useCycleSheetLabel } from './src/hooks/useAddMenuItemLabel';
 import { configureRunLiveActivity } from './src/services/runLiveActivity';
 import { useWatchWorkoutStart } from './src/hooks/useWatchWorkoutStart';
 import { useLiveWorkoutInputsCapture } from './src/hooks/useLiveWorkoutInputsCapture';
@@ -406,12 +407,8 @@ function AppContent() {
   } = useAddSheetActions({ syncMutation });
   const guidedCheckInEnabled = useAppPreferencesStore((s) => s.guidedCheckInEnabled);
 
-  const { enabled: cycleEnabled, mode: cycleMode, discreetMode: cycleDiscreet } = useCycleMode();
-  const cycleSheetLabel = cycleDiscreet
-    ? t('addSheet.wellness', { defaultValue: 'Wellness' })
-    : cycleMode === 'pregnant' || cycleMode === 'postpartum'
-      ? t('addSheet.logPregnancyEntry', { defaultValue: 'Log Pregnancy Entry' })
-      : t('addSheet.logCycle', { defaultValue: 'Log Cycle' });
+  const { enabled: cycleEnabled } = useCycleMode();
+  const cycleSheetLabel = useCycleSheetLabel();
 
   const [primary, chromeBorder, bgPrimary, textPrimary] = useCSSVariable([
     '--color-accent-primary',

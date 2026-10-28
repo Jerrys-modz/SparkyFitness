@@ -17,12 +17,13 @@ import {
   ADD_MENU_CARD_LABELS,
   ADD_MENU_ITEM_ICONS,
   ADD_MENU_ITEM_KEYS,
-  ADD_MENU_ITEM_LABELS,
   ADD_MENU_ITEM_TINTS,
   DEFAULT_ADD_MENU_CARDS,
   type AddMenuItemKey,
   type AddMenuRowStyle,
 } from '../constants/addMenuItems';
+import { useAddMenuItemAvailable } from '../hooks/useAddMenuItemAvailable';
+import { useAddMenuItemLabel } from '../hooks/useAddMenuItemLabel';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
@@ -53,6 +54,8 @@ const AddMenuSettingsScreen: React.FC<AddMenuSettingsScreenProps> = () => {
   const usesNativeHeader = useNativeIOSHeadersActive();
   const raisedBg = String(useCSSVariable('--color-raised'));
   const tintColors = useAddMenuTintColors();
+  const labelFor = useAddMenuItemLabel();
+  const isAvailable = useAddMenuItemAvailable();
   const accentColor = tintColors.accent;
 
   const savedCards = useAppPreferencesStore((s) => s.addMenuCards);
@@ -111,14 +114,16 @@ const AddMenuSettingsScreen: React.FC<AddMenuSettingsScreenProps> = () => {
     const lineOf = new Map<AddMenuItemKey, number>();
     for (const style of ['compact', 'action'] as const) {
       chunkIntoLines(
-        groups[style].filter((key) => !hiddenAddMenuItems.includes(key))
+        groups[style].filter(
+          (key) => isAvailable(key) && !hiddenAddMenuItems.includes(key)
+        )
       ).forEach((keys, index) =>
         keys.forEach((key) => lineOf.set(key, index + 1))
       );
     }
     const toItem = (key: AddMenuItemKey, style: AddMenuRowStyle) => ({
       key,
-      label: ADD_MENU_ITEM_LABELS[key](t),
+      label: labelFor(key),
       leading: (
         <AddMenuIconTile
           icon={ADD_MENU_ITEM_ICONS[key]}
@@ -153,7 +158,20 @@ const AddMenuSettingsScreen: React.FC<AddMenuSettingsScreenProps> = () => {
                 </Text>
                 <Icon name="chevron-expand" size={12} color={accentColor} />
               </Pressable>
-              {lineOf.has(key) ? (
+              {!isAvailable(key) ? (
+                <Text
+                  className="text-xs text-text-muted ml-2"
+                  numberOfLines={1}
+                >
+                  {key === 'checkIn'
+                    ? t('addMenuSettings.needsCheckIn', {
+                        defaultValue: 'Not shown: guided check-in is off',
+                      })
+                    : t('addMenuSettings.needsCycle', {
+                        defaultValue: 'Not shown: cycle tracking is off',
+                      })}
+                </Text>
+              ) : lineOf.has(key) ? (
                 <Text className="text-xs text-text-muted ml-2">
                   {t('addMenuSettings.lineNumber', {
                     defaultValue: 'Line {{number}}',
@@ -174,9 +192,11 @@ const AddMenuSettingsScreen: React.FC<AddMenuSettingsScreenProps> = () => {
   }, [
     accentColor,
     hiddenAddMenuItems,
+    isAvailable,
     addMenuOrder,
     addMenuRowStyles,
     cards,
+    labelFor,
     setAddMenuRowStyle,
     styleOptions,
     t,
@@ -186,9 +206,9 @@ const AddMenuSettingsScreen: React.FC<AddMenuSettingsScreenProps> = () => {
     () =>
       ADD_MENU_ITEM_KEYS.map((key) => ({
         value: key,
-        label: ADD_MENU_ITEM_LABELS[key](t),
+        label: labelFor(key),
       })),
-    [t]
+    [labelFor]
   );
   const isDefault =
     hiddenAddMenuItems.length === 0 &&
@@ -223,7 +243,7 @@ const AddMenuSettingsScreen: React.FC<AddMenuSettingsScreenProps> = () => {
             accessibilityLabel={t('addMenuSettings.slotLabel', {
               defaultValue: 'Tile {{number}}: {{name}}',
               number: slotIndex + 1,
-              name: ADD_MENU_ITEM_LABELS[key](t),
+              name: labelFor(key),
             })}
             accessibilityHint={t('addMenuSettings.slotHint', {
               defaultValue: 'Opens a list to choose what goes here',
@@ -243,7 +263,7 @@ const AddMenuSettingsScreen: React.FC<AddMenuSettingsScreenProps> = () => {
               adjustsFontSizeToFit
               minimumFontScale={0.8}
             >
-              {ADD_MENU_CARD_LABELS[key]?.(t) ?? ADD_MENU_ITEM_LABELS[key](t)}
+              {ADD_MENU_CARD_LABELS[key]?.(t) ?? labelFor(key)}
             </Text>
           </Pressable>
         )}

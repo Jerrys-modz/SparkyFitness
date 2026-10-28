@@ -1,5 +1,11 @@
 import React from 'react';
-import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from '@testing-library/react-native';
 
 import AddMenuSettingsScreen from '../../src/screens/AddMenuSettingsScreen';
 import { ADD_MENU_ITEM_KEYS } from '../../src/constants/addMenuItems';
@@ -24,6 +30,15 @@ jest.mock('../../src/components/ActiveWorkoutBar', () => ({
 
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+}));
+
+const mockCycle = {
+  enabled: false,
+  mode: 'standard' as string,
+  discreetMode: false,
+};
+jest.mock('../../src/hooks/useCycleMode', () => ({
+  useCycleMode: () => mockCycle,
 }));
 
 jest.mock('../../src/components/Icon', () => {
@@ -56,6 +71,11 @@ describe('AddMenuSettingsScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     __resetAppPreferencesStoreForTests();
+    Object.assign(mockCycle, {
+      enabled: false,
+      mode: 'standard',
+      discreetMode: false,
+    });
   });
 
   test('lists every row in the saved order, adding ones it lacks', () => {
@@ -111,9 +131,7 @@ describe('AddMenuSettingsScreen', () => {
       useAppPreferencesStore
         .getState()
         .setAddMenuRowStyle('checkIn', 'compact');
-      useAppPreferencesStore
-        .getState()
-        .setAddMenuRowStyle('symptoms', 'action');
+      useAppPreferencesStore.setState({ guidedCheckInEnabled: true });
     });
     renderScreen();
 
@@ -121,9 +139,51 @@ describe('AddMenuSettingsScreen', () => {
     expect(
       screen.getByTestId('add-menu-preview', { includeHiddenElements: true })
     ).toBeTruthy();
-    // Mood and Mindfulness share line 1; Check-In is alone on line 2.
-    expect(screen.getAllByText('Line 1').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Line 2').length).toBeGreaterThan(0);
+    // Check-In comes first, so it shares line 1 with Mood and Mindfulness is
+    // alone on line 2.
+    expect(
+      within(screen.getByTestId('add-menu-row-checkIn')).getByText('Line 1')
+    ).toBeTruthy();
+    expect(
+      within(screen.getByTestId('add-menu-row-mood')).getByText('Line 1')
+    ).toBeTruthy();
+    expect(
+      within(screen.getByTestId('add-menu-row-mindfulness')).getByText('Line 2')
+    ).toBeTruthy();
+  });
+
+  describe('items the sheet leaves out', () => {
+    test('say why, and take no line', () => {
+      act(() => {
+        useAppPreferencesStore
+          .getState()
+          .setAddMenuRowStyle('checkIn', 'compact');
+      });
+      renderScreen();
+
+      const checkIn = screen.getByTestId('add-menu-row-checkIn');
+      expect(
+        within(checkIn).getByText('Not shown: guided check-in is off')
+      ).toBeTruthy();
+      expect(within(checkIn).queryByText(/^Line /)).toBeNull();
+      // Mood is still on line 1, not pushed down by the missing item.
+      const mood = screen.getByTestId('add-menu-row-mood');
+      expect(within(mood).getByText('Line 1')).toBeTruthy();
+      const wellness = screen.getByTestId('add-menu-row-wellness');
+      expect(
+        within(wellness).getByText('Not shown: cycle tracking is off')
+      ).toBeTruthy();
+    });
+
+    test('are shown normally once the feature is on', () => {
+      Object.assign(mockCycle, { enabled: true });
+      act(() => {
+        useAppPreferencesStore.setState({ guidedCheckInEnabled: true });
+      });
+      renderScreen();
+
+      expect(screen.queryByText(/^Not shown:/)).toBeNull();
+    });
   });
 
   test('reset clears the style choices', () => {

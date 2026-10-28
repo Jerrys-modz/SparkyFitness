@@ -8,11 +8,12 @@ import Icon from './Icon';
 import {
   ADD_MENU_CARD_LABELS,
   ADD_MENU_ITEM_ICONS,
-  ADD_MENU_ITEM_LABELS,
   ADD_MENU_ITEM_TINTS,
   type AddMenuItemKey,
   type AddMenuRowStyle,
 } from '../constants/addMenuItems';
+import { useAddMenuItemAvailable } from '../hooks/useAddMenuItemAvailable';
+import { useAddMenuItemLabel } from '../hooks/useAddMenuItemLabel';
 import { chunkIntoLines } from '../utils/addMenu';
 
 interface AddMenuPreviewProps {
@@ -28,6 +29,13 @@ interface AddMenuPreviewProps {
 const AddMenuPreview: React.FC<AddMenuPreviewProps> = ({ cards, groups }) => {
   const { t } = useTranslation();
   const tintColors = useAddMenuTintColors();
+  const labelFor = useAddMenuItemLabel();
+  const isAvailable = useAddMenuItemAvailable();
+  const shown = {
+    list: groups.list.filter(isAvailable),
+    compact: groups.compact.filter(isAvailable),
+    action: groups.action.filter(isAvailable),
+  };
   const [surfaceBg, raisedBg, borderSubtle, textMuted] = useCSSVariable([
     '--color-surface',
     '--color-raised',
@@ -60,7 +68,7 @@ const AddMenuPreview: React.FC<AddMenuPreviewProps> = ({ cards, groups }) => {
         className="flex-1 text-text-primary text-xs font-medium ml-2"
         numberOfLines={1}
       >
-        {ADD_MENU_ITEM_LABELS[key](t)}
+        {labelFor(key)}
       </Text>
       {withChevron ? (
         <Icon name="chevron-forward" size={10} color={textMuted} />
@@ -69,12 +77,12 @@ const AddMenuPreview: React.FC<AddMenuPreviewProps> = ({ cards, groups }) => {
   );
 
   const panelLines = [
-    ...groups.list.map((key) => (
+    ...shown.list.map((key) => (
       <View key={key} className="flex-row">
         {item(key, true)}
       </View>
     )),
-    ...chunkIntoLines(groups.compact).map((keys, index) => (
+    ...chunkIntoLines(shown.compact).map((keys, index) => (
       <View key={`pair-${index}`} className="flex-row">
         {keys.flatMap((key, position) =>
           position === 0
@@ -107,18 +115,26 @@ const AddMenuPreview: React.FC<AddMenuPreviewProps> = ({ cards, groups }) => {
         className="flex-row rounded-xl py-2"
         style={{ backgroundColor: raisedBg }}
       >
-        {cards.map((key) => (
-          <View key={key} className="flex-1 items-center">
-            <AddMenuIconTile
-              icon={ADD_MENU_ITEM_ICONS[key]}
-              color={tintColors[ADD_MENU_ITEM_TINTS[key]]}
-              size="row"
-            />
-            <Text className="text-text-primary text-xs mt-1" numberOfLines={1}>
-              {ADD_MENU_CARD_LABELS[key]?.(t) ?? ADD_MENU_ITEM_LABELS[key](t)}
-            </Text>
-          </View>
-        ))}
+        {cards.map((key) =>
+          // An unavailable tile leaves its slot empty, as in the sheet.
+          !isAvailable(key) ? (
+            <View key={key} className="flex-1" />
+          ) : (
+            <View key={key} className="flex-1 items-center">
+              <AddMenuIconTile
+                icon={ADD_MENU_ITEM_ICONS[key]}
+                color={tintColors[ADD_MENU_ITEM_TINTS[key]]}
+                size="row"
+              />
+              <Text
+                className="text-text-primary text-xs mt-1"
+                numberOfLines={1}
+              >
+                {ADD_MENU_CARD_LABELS[key]?.(t) ?? labelFor(key)}
+              </Text>
+            </View>
+          )
+        )}
       </View>
       {panelLines.length > 0 ? (
         <View
@@ -130,7 +146,7 @@ const AddMenuPreview: React.FC<AddMenuPreviewProps> = ({ cards, groups }) => {
           )}
         </View>
       ) : null}
-      {chunkIntoLines(groups.action).map((keys, index) => (
+      {chunkIntoLines(shown.action).map((keys, index) => (
         <View key={`buttons-${index}`} className="flex-row mt-2">
           {keys.map((key, position) => (
             <View
