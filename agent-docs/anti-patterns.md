@@ -305,7 +305,7 @@ if (rows.length === 0) {
 
 Never read the value in one query and write it in another; two requests can both pass the check. Use one statement or `SELECT ... FOR UPDATE` in a transaction.
 
-**Fine in memory:** caches and sharing of in-flight requests, where a miss only costs a repeat lookup (`splitCache` in `exerciseStatsService.ts`, `utils/apiKeySessionCache.ts`). Provider tokens are the exception when issuing a new one revokes the old one: then every instance must see the same token.
+**Fine in memory:** caches and sharing of in-flight requests, where a miss only costs a repeat lookup (`splitCache` in `SparkyFitnessServer/services/exerciseStatsService.ts`, `SparkyFitnessServer/utils/apiKeySessionCache.ts`). Provider tokens are the exception when issuing a new one revokes the old one: then every instance must see the same token.
 
 ---
 
