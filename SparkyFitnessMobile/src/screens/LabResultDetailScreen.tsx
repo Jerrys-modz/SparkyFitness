@@ -31,6 +31,7 @@ import {
   labStatus,
   parseLabValue,
 } from '../utils/labResults';
+import { labRangeStatus } from '@workspace/shared';
 import type { RootStackScreenProps } from '../types/navigation';
 
 type Props = RootStackScreenProps<'LabResultDetail'>;
@@ -160,6 +161,7 @@ const LabResultDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                   low={low}
                   high={high}
                   unit={unit}
+                  status={labRangeStatus(points[0].value, low, high)}
                 />
               ) : (
                 <LabHistoryChart
