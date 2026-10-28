@@ -441,7 +441,7 @@ const StatCardMockup: React.FC<StatCardMockupProps> = ({
             {left}
           </Text>
           <Text
-            className="text-[11px] font-medium text-text-primary ml-2"
+            className="text-[11px] font-medium text-text-primary ml-2 flex-shrink"
             numberOfLines={1}
           >
             {right}
@@ -776,9 +776,9 @@ const WhatsNewScreen: React.FC<WhatsNewScreenProps> = ({ navigation }) => {
       hero: <HeartRateMockup />,
       cta: {
         label: t('whatsNewPage.features.heartRate.cta', {
-          defaultValue: 'View heart rate',
+          defaultValue: 'Open zone settings',
         }),
-        onPress: () => navigation.navigate('HeartRateReport'),
+        onPress: () => navigation.navigate('HeartRateZonesSettings'),
       },
     },
     {
