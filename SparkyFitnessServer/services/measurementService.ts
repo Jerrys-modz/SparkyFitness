@@ -26,6 +26,7 @@ import sleepRepository from '../models/sleepRepository.js';
 import type {
   SleepEntryInput,
   SleepEntryUpsertOptions,
+  SleepStageEventInput,
 } from '../models/sleepRepository.js';
 import type { SleepUserProfile } from '../models/userRepository.js';
 import exerciseEntryDb from '../models/exerciseEntry.js';
@@ -1452,7 +1453,7 @@ async function calculateSleepScore(
   sleepEntryData: any,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   stageEvents: any,
-  age = null
+  age: number | null = null
 ) {
   const { duration_in_seconds, time_asleep_in_seconds } = sleepEntryData;
   if (!duration_in_seconds || duration_in_seconds <= 0) return 0;
@@ -1598,10 +1599,8 @@ async function storeSleepAggregatesFromStages(
   userId: string,
   entryId: string,
   actingUserId: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  stages: any[],
-  age: number | null,
-  gender: string | null
+  stages: SleepStageEventInput[],
+  age: number | null
 ) {
   const recomputed = recomputeSleepAggregatesFromStages(stages);
   const sleepScore = await calculateSleepScore(
@@ -1610,9 +1609,7 @@ async function storeSleepAggregatesFromStages(
       time_asleep_in_seconds: recomputed.time_asleep_in_seconds,
     },
     getPrimarySleepStageCluster(stages),
-    age,
-    // @ts-expect-error TS(2554): Expected 2-3 arguments, but got 4.
-    gender
+    age
   );
   const aggregates = {
     ...recomputed,
@@ -1683,7 +1680,7 @@ async function processSleepEntry(
     // Transient time-asleep to seed the first upsert + score; the recompute below
     // overwrites it from the durable merged stages. Excludes awake/in_bed/unknown.
     const timeAsleepInSeconds = sumAsleepSeconds(stage_events);
-    // User profile (age/gender) + timezone, reusing prefetched values when present.
+    // User profile (age) + timezone, reusing prefetched values when present.
     const userProfile = prefetched
       ? prefetched.userProfile
       : await userRepository.getUserProfile(userId);
@@ -1691,13 +1688,10 @@ async function processSleepEntry(
     const age = userProfile?.date_of_birth
       ? userAge(userProfile.date_of_birth, tz)
       : null;
-    const gender = userProfile?.gender || null;
     const sleepScore = await calculateSleepScore(
       { duration_in_seconds, time_asleep_in_seconds: timeAsleepInSeconds },
       stage_events,
-      age,
-      // @ts-expect-error TS(2554): Expected 2-3 arguments, but got 4.
-      gender
+      age
     );
     const entryToUpsert = {
       entry_date: entry_date,
@@ -1778,8 +1772,7 @@ async function processSleepEntry(
       newSleepEntry.id,
       actingUserId,
       mergedStages,
-      age,
-      gender
+      age
     );
     // A new session whose stages an earlier sync merged into another entry
     // of this night (a nap stored inside the night before #3240): take them
@@ -1803,9 +1796,13 @@ async function processSleepEntry(
             siblingId,
             actingUserId,
             siblingStages,
-            age,
-            gender
+            age
           );
+        } else {
+          // Every stage it held was this session's, so it was a copy of the
+          // entry above. Recomputing would leave it with no bedtime, and an
+          // entry without times matches any later write of that night.
+          await sleepRepository.deleteSleepEntry(userId, siblingId);
         }
       }
     }

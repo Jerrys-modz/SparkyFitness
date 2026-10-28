@@ -121,6 +121,31 @@ describe('processSleepEntry nap session (#3240)', () => {
     });
   });
 
+  it('deletes an entry left with no stages instead of blanking its times', async () => {
+    storedStages.set('entry-copy', [...napStages]);
+    sleepRepository.upsertSleepEntry = vi
+      .fn()
+      .mockResolvedValue({ id: 'entry-nap', created: true });
+    sleepRepository.removeSessionStagesFromSiblingEntries = vi
+      .fn()
+      .mockImplementation(async () => {
+        storedStages.delete('entry-copy');
+        return ['entry-copy'];
+      });
+    sleepRepository.deleteSleepEntry = vi.fn().mockResolvedValue({});
+
+    await measurementService.processSleepEntry(userId, userId, nap);
+
+    expect(sleepRepository.deleteSleepEntry).toHaveBeenCalledWith(
+      userId,
+      'entry-copy'
+    );
+    const updated = vi
+      .mocked(sleepRepository.updateSleepEntryAggregates)
+      .mock.calls.map((call) => call[1]);
+    expect(updated).toEqual(['entry-nap']);
+  });
+
   it('leaves other entries alone when the write updated a stored session', async () => {
     sleepRepository.upsertSleepEntry = vi
       .fn()
