@@ -22,6 +22,7 @@ import { useSheetBackdrop, useSheetHardwareBack } from './ui/sheetChrome';
 import {
   ADD_MENU_CARD_LABELS,
   ADD_MENU_ITEM_ICONS,
+  ADD_MENU_ITEM_LABELS,
   ADD_MENU_ITEM_TINTS,
   type AddMenuItemKey,
   type AddMenuRowStyle,
@@ -477,41 +478,43 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
     );
 
     // Everything the app can offer right now, keyed so the saved arrangement
-    // from Settings → Quick Actions can place it. An item whose handler or feature
-    // is off is simply absent, whatever the arrangement says.
+    // from Settings → Quick Actions can place it. An item whose handler or
+    // feature is off is simply absent, whatever the arrangement says. Names
+    // come from the shared labels so the sheet and its settings cannot drift;
+    // only the hints are the sheet's own, and the cycle row is named by the
+    // cycle mode.
+    const labelOf = (key: AddMenuItemKey) => ADD_MENU_ITEM_LABELS[key](t);
     const itemDefs: Partial<Record<AddMenuItemKey, MenuItemDef>> = {
       food: {
-        label: t('addSheet.food', { defaultValue: 'Food' }),
+        label: labelOf('food'),
         icon: ADD_MENU_ITEM_ICONS.food,
         onPress: onAddFood,
       },
       exercise: {
-        label: t('addSheet.exercise', { defaultValue: 'Exercise' }),
+        label: labelOf('exercise'),
         icon: ADD_MENU_ITEM_ICONS.exercise,
       },
       measurements: {
-        label: t('addSheet.measurements', { defaultValue: 'Measurements' }),
+        label: labelOf('measurements'),
         icon: ADD_MENU_ITEM_ICONS.measurements,
         onPress: onAddMeasurements,
       },
       scanFood: {
-        label: t('addSheet.scanFood', { defaultValue: 'Scan Food' }),
+        label: labelOf('scanFood'),
         icon: ADD_MENU_ITEM_ICONS.scanFood,
         onPress: onBarcodeScan,
       },
       checkIn:
         showCheckIn && onStartCheckIn
           ? {
-              label: t('addSheet.checkIn', { defaultValue: 'Daily Check-In' }),
+              label: labelOf('checkIn'),
               hint: t('addSheet.checkInHint', { defaultValue: 'Habits' }),
               icon: ADD_MENU_ITEM_ICONS.checkIn,
               onPress: onStartCheckIn,
             }
           : undefined,
       progressPhotos: {
-        label: t('addSheet.progressPhotos', {
-          defaultValue: 'Progress Photos',
-        }),
+        label: labelOf('progressPhotos'),
         hint: t('addSheet.photosHint', { defaultValue: 'Visual' }),
         icon: ADD_MENU_ITEM_ICONS.progressPhotos,
         onPress: onAddProgressPhotos,
@@ -519,29 +522,25 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
       wellness:
         showCycleCard && onOpenCycle
           ? {
-              label:
-                cycleLabel ??
-                t('addSheet.wellness', { defaultValue: 'Wellness' }),
+              label: cycleLabel ?? labelOf('wellness'),
               icon: cycleIcon ?? ADD_MENU_ITEM_ICONS.wellness,
               onPress: onOpenCycle,
             }
           : undefined,
       symptoms: onAddSymptoms && {
-        label: t('addSheet.symptomsHealth', {
-          defaultValue: 'Symptoms & Health',
-        }),
+        label: labelOf('symptoms'),
         hint: t('addSheet.symptomsHint', { defaultValue: 'Log' }),
         icon: ADD_MENU_ITEM_ICONS.symptoms,
         onPress: onAddSymptoms,
       },
       mood: onAddMood && {
-        label: t('addSheet.mood', { defaultValue: 'Mood' }),
+        label: labelOf('mood'),
         hint: t('addSheet.moodHint', { defaultValue: 'Track state' }),
         icon: ADD_MENU_ITEM_ICONS.mood,
         onPress: onAddMood,
       },
       mindfulness: onAddMindfulness && {
-        label: t('addSheet.mindfulness', { defaultValue: 'Mindfulness' }),
+        label: labelOf('mindfulness'),
         hint: t('addSheet.mindfulnessHint', {
           defaultValue: 'Breathing, zen',
         }),
@@ -549,12 +548,12 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
         onPress: onAddMindfulness,
       },
       askSparky: {
-        label: t('addSheet.askSparky', { defaultValue: 'Ask Sparky' }),
+        label: labelOf('askSparky'),
         icon: ADD_MENU_ITEM_ICONS.askSparky,
         onPress: onAskSparky,
       },
       syncHealth: {
-        label: t('addSheet.syncHealthShort', { defaultValue: 'Sync Health' }),
+        label: labelOf('syncHealth'),
         icon: ADD_MENU_ITEM_ICONS.syncHealth,
         onPress: onSyncHealthData,
       },
