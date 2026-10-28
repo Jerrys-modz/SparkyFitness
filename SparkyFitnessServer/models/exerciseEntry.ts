@@ -45,11 +45,8 @@ async function upsertExerciseEntryData(
   const sourceValue = source || 'Health Data';
   const sourceLabel =
     sourceValue === 'HealthKit' ? 'Apple Health' : sourceValue;
-  const client = await getClient(userId);
-  let existingEntry;
   let exerciseName = 'Unknown Exercise'; // Default value
   try {
-    // Fetch exercise name
     const exercise = await exerciseRepository.getExerciseById(
       exerciseId,
       userId
@@ -66,98 +63,127 @@ async function upsertExerciseEntryData(
         `Exercise with ID ${exerciseId} not found for user ${userId}. Using default name.`
       );
     }
-    const result = await client.query(
-      `SELECT id, calories_burned FROM exercise_entries
-       WHERE user_id = $1 AND entry_date = $3
-         AND (exercise_id = $2 OR (
-           $4 = 'Active Calories' AND exercise_name = $4 AND source = $5
-           AND duration_minutes = 0 AND exercise_preset_entry_id IS NULL
-           AND source_id IS NULL
-         ))
-       ORDER BY (exercise_id = $2) DESC, created_at, id LIMIT 1`,
-      [userId, exerciseId, date, exerciseName, sourceValue]
-    );
-    existingEntry = result.rows[0];
   } catch (error) {
-    log(
-      'error',
-      'Error checking for existing active calories exercise entry or fetching exercise name:',
-      error
-    );
+    log('error', 'Error fetching active calories exercise name:', error);
     throw new Error(
       // @ts-expect-error TS(2571): Object is of type 'unknown'.
       `Failed to check existing active calories exercise entry or fetch exercise name: ${error.message}`,
       { cause: error }
     );
+  }
+  const client = await getClient(userId);
+  try {
+    await client.query('BEGIN');
+    // Look up and write the day's entry under one lock, or two overlapping
+    // imports (two devices, or a retry on another server) both find no entry
+    // and both insert one. exercise_entries has no unique key to catch that.
+    // Keyed by day, not exercise or source: the legacy match below lets one
+    // entry answer for several exercise ids and sources.
+    await acquireActiveCaloriesLockWithClient(client, userId, date);
+    let existingEntry;
+    try {
+      const existingResult = await client.query(
+        `SELECT id, calories_burned FROM exercise_entries
+         WHERE user_id = $1 AND entry_date = $3
+           AND (exercise_id = $2 OR (
+             $4 = 'Active Calories' AND exercise_name = $4 AND source = $5
+             AND duration_minutes = 0 AND exercise_preset_entry_id IS NULL
+             AND source_id IS NULL
+           ))
+         ORDER BY (exercise_id = $2) DESC, created_at, id LIMIT 1`,
+        [userId, exerciseId, date, exerciseName, sourceValue]
+      );
+      existingEntry = existingResult.rows[0];
+    } catch (error) {
+      log(
+        'error',
+        'Error checking for existing active calories exercise entry:',
+        error
+      );
+      throw new Error(
+        // @ts-expect-error TS(2571): Object is of type 'unknown'.
+        `Failed to check existing active calories exercise entry or fetch exercise name: ${error.message}`,
+        { cause: error }
+      );
+    }
+    let result;
+    if (existingEntry) {
+      log(
+        'info',
+        `Existing active calories entry found for ${date}, updating calories from ${existingEntry.calories_burned} to ${caloriesBurned}.`
+      );
+      try {
+        const updateResult = await client.query(
+          'UPDATE exercise_entries SET calories_burned = $1, notes = $2, updated_by_user_id = $3, exercise_name = $4, source = $5, exercise_id = $7, updated_at = now() WHERE id = $6 RETURNING *',
+          [
+            caloriesBurned,
+            `Active calories logged from ${sourceLabel} (updated).`,
+            createdByUserId,
+            exerciseName,
+            sourceValue,
+            existingEntry.id,
+            exerciseId,
+          ]
+        );
+        result = updateResult.rows[0];
+      } catch (error) {
+        log('error', 'Error updating active calories exercise entry:', error);
+        throw new Error(
+          // @ts-expect-error TS(2571): Object is of type 'unknown'.
+          `Failed to update active calories exercise entry: ${error.message}`,
+          { cause: error }
+        );
+      }
+    } else {
+      log(
+        'info',
+        `No existing active calories entry found for ${date}, inserting new entry.`
+      );
+      try {
+        const insertResult = await client.query(
+          `INSERT INTO exercise_entries (user_id, exercise_id, entry_date, calories_burned, duration_minutes, notes, created_by_user_id, exercise_name, source)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+          [
+            userId,
+            exerciseId,
+            date,
+            caloriesBurned,
+            0,
+            `Active calories logged from ${sourceLabel}.`,
+            createdByUserId,
+            exerciseName,
+            sourceValue,
+          ]
+        );
+        result = insertResult.rows[0];
+      } catch (error) {
+        log('error', 'Error inserting active calories exercise entry:', error);
+        throw new Error(
+          // @ts-expect-error TS(2571): Object is of type 'unknown'.
+          `Failed to insert active calories exercise entry: ${error.message}`,
+          { cause: error }
+        );
+      }
+    }
+    await client.query('COMMIT');
+    return result;
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw error;
   } finally {
     client.release();
   }
-  let result;
-  if (existingEntry) {
-    log(
-      'info',
-      `Existing active calories entry found for ${date}, updating calories from ${existingEntry.calories_burned} to ${caloriesBurned}.`
-    );
-    const updateClient = await getClient(userId);
-    try {
-      const updateResult = await updateClient.query(
-        'UPDATE exercise_entries SET calories_burned = $1, notes = $2, updated_by_user_id = $3, exercise_name = $4, source = $5, exercise_id = $7, updated_at = now() WHERE id = $6 RETURNING *',
-        [
-          caloriesBurned,
-          `Active calories logged from ${sourceLabel} (updated).`,
-          createdByUserId,
-          exerciseName,
-          sourceValue,
-          existingEntry.id,
-          exerciseId,
-        ]
-      );
-      result = updateResult.rows[0];
-    } catch (error) {
-      log('error', 'Error updating active calories exercise entry:', error);
-      throw new Error(
-        // @ts-expect-error TS(2571): Object is of type 'unknown'.
-        `Failed to update active calories exercise entry: ${error.message}`,
-        { cause: error }
-      );
-    } finally {
-      updateClient.release();
-    }
-  } else {
-    log(
-      'info',
-      `No existing active calories entry found for ${date}, inserting new entry.`
-    );
-    const insertClient = await getClient(userId);
-    try {
-      const insertResult = await insertClient.query(
-        `INSERT INTO exercise_entries (user_id, exercise_id, entry_date, calories_burned, duration_minutes, notes, created_by_user_id, exercise_name, source)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
-        [
-          userId,
-          exerciseId,
-          date,
-          caloriesBurned,
-          0,
-          `Active calories logged from ${sourceLabel}.`,
-          createdByUserId,
-          exerciseName,
-          sourceValue,
-        ]
-      );
-      result = insertResult.rows[0];
-    } catch (error) {
-      log('error', 'Error inserting active calories exercise entry:', error);
-      throw new Error(
-        // @ts-expect-error TS(2571): Object is of type 'unknown'.
-        `Failed to insert active calories exercise entry: ${error.message}`,
-        { cause: error }
-      );
-    } finally {
-      insertClient.release();
-    }
-  }
-  return result;
+}
+async function acquireActiveCaloriesLockWithClient(
+  client: PoolClient,
+  userId: string,
+  date: string
+): Promise<void> {
+  // Cast in SQL so every spelling of the same day takes the same lock.
+  await client.query(
+    "SELECT pg_advisory_xact_lock(hashtext('active-calories:' || $1 || ':' || $2::date))",
+    [userId, date]
+  );
 }
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function _getExerciseEntryByIdWithClient(client: any, id: any) {
@@ -664,17 +690,23 @@ async function applyWatchTelemetryAtomically(
   }
 }
 
+/**
+ * Builds an edit from the entry as stored once the edit holds the entry's
+ * lock, for a caller that fills in the fields the request left out. Filled in
+ * from a read taken before the lock, they would write back values another
+ * writer (a watch upload, another edit) has changed since.
+ */
+type ResolveExerciseEntryUpdate = (currentEntry: Record<string, unknown>) => {
+  updateData: Record<string, unknown>;
+  markManualFields: readonly string[];
+};
+
 async function _updateExerciseEntryWithClient(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  client: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  id: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  userId: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  updateData: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  updatedByUserId: any,
+  client: PoolClient,
+  id: string,
+  userId: string,
+  updateData: Record<string, unknown>,
+  updatedByUserId: string,
   entrySource: string | undefined,
   // A caller that can recover from a vanished row (the sync path, which just
   // inserts a replacement) passes returnNullIfMissing and gets null instead of
@@ -688,6 +720,7 @@ async function _updateExerciseEntryWithClient(
     returnNullIfMissing?: boolean;
     preserveManualFields?: boolean;
     markManualFields?: readonly string[];
+    resolveUpdate?: ResolveExerciseEntryUpdate;
   } = {}
 ) {
   // A link created after an unlocked read would be ignored, and locking one
@@ -706,14 +739,15 @@ async function _updateExerciseEntryWithClient(
     throw new Error('Exercise entry not found for update.');
   }
   const currentEntry = existingEntryResult.rows[0];
+  let markManualFields = options.markManualFields ?? [];
+  if (options.resolveUpdate) {
+    ({ updateData, markManualFields } = options.resolveUpdate(currentEntry));
+  }
   const currentManualFields = storedManualFields(currentEntry.manual_fields);
   if (options.preserveManualFields) {
     updateData = withoutManualFields(updateData, currentManualFields);
   }
-  const manualFields = mergeManualFields(
-    currentManualFields,
-    options.markManualFields ?? []
-  );
+  const manualFields = mergeManualFields(currentManualFields, markManualFields);
   // Merge updateData with currentEntry to ensure all fields are present for the update statement
   // Prioritize updateData, then currentEntry, then defaults
   const mergedData = {
@@ -804,7 +838,7 @@ async function _updateExerciseEntryWithClient(
       userId
     );
     if (!exercise) {
-      throw new Error('Exercise not found for snapshot update.');
+      throw Object.assign(new Error('Exercise not found.'), { status: 404 });
     }
     mergedData.exercise_name = exercise.name;
     mergedData.calories_per_hour = exercise.calories_per_hour;
@@ -1146,7 +1180,9 @@ async function _createExerciseEntryWithClient(
         [entryData.exercise_id]
       );
       if (exerciseSnapshotQuery.rows.length === 0) {
-        throw new Error('Exercise not found for snapshotting.');
+        throw Object.assign(new Error('Exercise not found.'), {
+          status: 404,
+        });
       }
       const snapshot = exerciseSnapshotQuery.rows[0];
       // 2. Insert the exercise entry with the snapshot data. A client-provided
@@ -1342,16 +1378,13 @@ async function getExerciseEntryOwnerId(id: any, userId: any) {
 }
 
 async function updateExerciseEntry(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  id: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  userId: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  actingUserId: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  updateData: any,
+  id: string,
+  userId: string,
+  actingUserId: string,
+  updateData: Record<string, unknown>,
   // Fields this edit changed on a synced entry, kept on the next re-sync.
-  markManualFields: readonly string[] = []
+  markManualFields: readonly string[] = [],
+  resolveUpdate?: ResolveExerciseEntryUpdate
 ) {
   const client = await getClient(userId);
   try {
@@ -1367,8 +1400,8 @@ async function updateExerciseEntry(
       userId,
       updateData,
       actingUserId,
-      updateData.source,
-      { markManualFields }
+      typeof updateData.source === 'string' ? updateData.source : undefined,
+      { markManualFields, resolveUpdate }
     );
     await client.query('COMMIT');
     return updatedEntry;

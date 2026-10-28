@@ -63,10 +63,10 @@ struct WaterLogView: View {
     private var emptyState: some View {
         VStack(spacing: 6) {
             Image(systemName: "drop")
-                .font(.system(size: 22))
+                .watchFont(.title2, classic: .system(size: 22))
                 .foregroundStyle(.secondary)
             Text(String(localized: "watch.water.empty", defaultValue: "Nothing logged yet today"))
-                .font(.system(size: 12))
+                .watchFont(.body, classic: .system(size: 12))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
         }
@@ -85,17 +85,16 @@ struct WaterLogView: View {
         } label: {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(entry.name)
-                    .font(.system(size: 14, weight: .bold))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
+                    .watchFont(.headline, classic: .system(size: 14, weight: .bold))
+                    .lineLimit(2)
                 Spacer(minLength: 4)
                 VStack(alignment: .trailing, spacing: 1) {
                     Text(amountText(entry))
-                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                        .watchFont(.body.weight(.medium), classic: .system(size: 13, weight: .medium, design: .rounded))
                         .monospacedDigit()
                         .foregroundStyle(GoalPalette.water)
                     Text(entry.time)
-                        .font(.system(size: 10))
+                        .watchFont(.footnote, classic: .system(size: 10))
                         .monospacedDigit()
                         .foregroundStyle(.secondary)
                 }
@@ -119,10 +118,10 @@ struct WaterLogView: View {
     private func confirmation(for entry: WaterLogEntry) -> some View {
         VStack(spacing: 10) {
             Text(String(localized: "watch.water.deleteEntryConfirm", defaultValue: "Delete this entry?"))
-                .font(.system(size: 15, weight: .semibold))
+                .watchFont(.headline, classic: .system(size: 15, weight: .semibold))
                 .multilineTextAlignment(.center)
             Text("\(entry.name) · \(amountText(entry))")
-                .font(.system(size: 12))
+                .watchFont(.footnote, classic: .system(size: 12))
                 .foregroundStyle(.secondary)
                 .lineLimit(2)
                 .multilineTextAlignment(.center)

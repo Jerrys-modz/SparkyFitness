@@ -105,6 +105,7 @@ export const allProvidersFoodSearchQueryKey = (
 export const mealTypesQueryKey = ['mealTypes'] as const;
 
 export const shoesQueryKey = ['shoes'] as const;
+export const plateInventoryQueryKey = ['plateInventory'] as const;
 export const allergenPreferencesQueryKey = ['allergenPreferences'] as const;
 
 export const goalsQueryKey = (date: string) => ['goals', date] as const;
@@ -169,8 +170,10 @@ export const checkInPhotoDatesQueryKey = [
 ] as const;
 
 export const customCategoriesQueryKey = ['customCategories'] as const;
+/** Root of every per-day custom-entry list; each row embeds its category info. */
+export const customMeasurementsRootQueryKey = ['customMeasurements'] as const;
 export const customMeasurementsByDateQueryKey = (date: string) =>
-  ['customMeasurements', date] as const;
+  [...customMeasurementsRootQueryKey, date] as const;
 
 /**
  * Per-field carry-forward lookup (newest value on or before the day). Separate
@@ -356,6 +359,11 @@ export const trainingLoadRootQueryKey = ['trainingLoad'] as const;
 export const trainingLoadQueryKey = (today: string) =>
   [...trainingLoadRootQueryKey, today] as const;
 
+export const runEstimatesQueryKey = (today: string) =>
+  ['runEstimates', today] as const;
+export const fitnessFatigueQueryKey = (today: string) =>
+  ['fitnessFatigue', today] as const;
+
 export const cardioSessionsQueryKey = (
   startDate: string,
   endDate: string,
@@ -455,6 +463,8 @@ export const runningRecordsQueryKey = () =>
 
 /** The person's run program and place in it (server-backed). */
 export const runProgramQueryKey = ['runProgram'] as const;
+/** The person's running fitness tests and the paces they gave (server-backed). */
+export const fitnessTestsQueryKey = ['fitnessTests'] as const;
 
 /** The person's weekly running distance target and race (server-backed). */
 export const runGoalsQueryKey = ['runGoals'] as const;

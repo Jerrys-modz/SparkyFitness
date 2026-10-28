@@ -409,6 +409,17 @@ describe('cardioSessionFromDiaryEntry', () => {
       cardioSessionFromDiaryEntry(entry({ sets: [], exercise_snapshot }), 'km')
     ).toBeNull();
   });
+
+  it('carries the modality so a duration-only workout hides its route', () => {
+    const exercise_snapshot = {
+      modality: 'duration',
+    } as IndividualSessionResponse['exercise_snapshot'];
+    const item = cardioSessionFromDiaryEntry(
+      entry({ sets: [], exercise_snapshot }),
+      'km'
+    );
+    expect(item!.modality).toBe('duration');
+  });
 });
 
 describe('paceSeriesFromTrack', () => {

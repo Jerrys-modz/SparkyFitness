@@ -87,7 +87,7 @@ Quick reference of all tables by domain and purpose. For detailed security tier,
 | `meal_plan_template_assignments` | Scheduled meal templates to calendar |
 | `meal_plan_assignment_sets` | Sets within assigned meal plans |
 
-### Exercise & Workouts (Tier 2/3: Owner-Write, Delegate-Read/Write)
+### Exercise & Workouts (Tier 1/2/3: Owner-Only, Owner-Write, or Delegate-Read/Write)
 | Table | Purpose |
 |-------|---------|
 | `exercises` | Custom exercises created by user |
@@ -96,6 +96,7 @@ Quick reference of all tables by domain and purpose. For detailed security tier,
 | `exercise_entry_sets` | Reps, weights, and sets completed |
 | `exercise_entry_activity_details` | Heart rate, distance, activity data |
 | `shoes` | Running-shoe inventory with retirement mileage; linked from `exercise_entries.shoe_id` |
+| `plate_inventories` | Bars and plates a person owns, for the plate calculator (one row per user) |
 | `exercise_entry_laps` | Lap split intervals for workouts |
 | `exercise_entry_hr_zones` | Heart-rate time-in-zone splits per workout |
 | `exercise_entry_distance_series` | Distance-against-time rows for an indoor entry with no route, behind its pace chart. One row per workout (`points` is JSONB) |
@@ -158,6 +159,7 @@ Quick reference of all tables by domain and purpose. For detailed security tier,
 | `run_programs` | A person's run program, their place in it, its Diary schedule, goal date, adjustments to it and which diary entries its workouts were done as |
 | `run_goals` | A person's weekly running distance target and the race they are counting down to |
 | `custom_run_programs` | A person's own run or walk plans: a name, the activity and an ordered list of workouts, each a list of timed steps. Starting one copies it into `run_programs` |
+| `fitness_tests` | A person's running fitness tests (5K time trial, 30-minute run, Cooper test): measurements, whether it was run outdoors or on a treadmill (and the incline), result, the training paces derived from them and the recorded activity it was run as |
 | `routes` | A person's saved routes: name, activity, source (drawn, GPX, activity), distance, elevation gain, a simplified track of points and optional turn cues |
 | `pregnancy_kick_sessions` | Fetal kick-counter sessions |
 | `pregnancy_contractions` | Contraction timer logs |

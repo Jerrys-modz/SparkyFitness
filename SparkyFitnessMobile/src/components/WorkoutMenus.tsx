@@ -113,6 +113,7 @@ export function SetTypeMenu({
   currentSide,
   onSelectSide,
   onAddOtherSide,
+  onOpenPlateCalculator,
 }: {
   anchor: AnchorRect | null;
   /** The target set's current type; null/undefined reads as 'normal'. */
@@ -127,6 +128,8 @@ export function SetTypeMenu({
   onSelectSide?: (side: 'left' | 'right' | null) => void;
   /** Insert a copy of the set for the opposite side. */
   onAddOtherSide?: () => void;
+  /** Offered for barbell-style exercises; opens the plate calculator. */
+  onOpenPlateCalculator?: () => void;
 }) {
   const { t } = useTranslation();
   const typeLabels: Record<string, string> = {
@@ -177,6 +180,14 @@ export function SetTypeMenu({
       }),
       icon: 'add-circle',
       onPress: onGenerateDropSets,
+    });
+  }
+  if (onOpenPlateCalculator) {
+    items.push({
+      key: 'plate-calculator',
+      label: t('plates.calculatorTitle', { defaultValue: 'Plate calculator' }),
+      icon: 'exercise-weights',
+      onPress: onOpenPlateCalculator,
     });
   }
   if (onDelete) {

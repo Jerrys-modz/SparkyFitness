@@ -110,9 +110,7 @@ router.post('/manual', authenticate, isAdmin, async (req, res) => {
         fileName: result.fileName,
       });
     } else {
-      const errorMessage = result.error
-        ? result.error.message || result.error
-        : 'Unknown backup error.';
+      const errorMessage = result.error || 'Unknown backup error.';
       res.status(500).json({ message: 'Backup failed.', error: errorMessage });
     }
   } catch (error) {

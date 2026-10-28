@@ -39,8 +39,10 @@ import {
 } from './queryKeys';
 import { refreshHealthSyncCache } from './refreshHealthSyncCache';
 import { getTodayDate, addDays, getDeviceTimezone } from '../utils/dateUtils';
-import { medicationsForWatch } from '../utils/watchMedications';
-import { entryMatchesDose } from '../utils/medications';
+import {
+  medicationsForWatch,
+  watchMedicationWrite,
+} from '../utils/watchMedications';
 import { invalidateMedicationEntryCaches } from './invalidateMedicationEntryCaches';
 import { formatTimeLabel } from '../utils/entryTimeDisplay';
 import { addLog } from '../services/LogService';
@@ -78,6 +80,7 @@ import {
 import { useRunProgram } from '../services/runProgramService';
 import { suggestedPaceRangesFromRace } from '../utils/suggestedRanges';
 import { buildWatchRunPlans } from '../utils/watchRunPlans';
+import { useZone2HeartRateBand } from './useZone2HeartRateBand';
 import {
   getWatchIndoorScale,
   onWatchIndoorScaleChange,
@@ -267,6 +270,14 @@ export function useWatchCheckInBridge(enabled: boolean): void {
   // Device-local settings the watch's haptics follow.
   const hapticsEnabled = useAppPreferencesStore((s) => s.hapticsEnabled);
   const watchRpeEnabled = useAppPreferencesStore((s) => s.watchRpeEnabled);
+  const watchSetScreenMetrics = useAppPreferencesStore(
+    (s) => s.watchSetScreenMetrics
+  );
+  const watchUpNextPage = useAppPreferencesStore((s) => s.watchUpNextPage);
+  const watchLargerText = useAppPreferencesStore((s) => s.watchLargerText);
+  const watchClassicWorkout = useAppPreferencesStore(
+    (s) => s.watchClassicWorkout
+  );
   const watchDoubleTapEnabled = useAppPreferencesStore(
     (s) => s.watchDoubleTapEnabled
   );
@@ -337,6 +348,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         : null,
     [paceReferenceOnWatch, paceReferenceRace, programStatus]
   );
+  const zone2Band = useZone2HeartRateBand(enabled);
   const runPlans = useMemo(
     () =>
       buildWatchRunPlans(
@@ -346,9 +358,10 @@ export function useWatchCheckInBridge(enabled: boolean): void {
           program: (status) => programWorkoutLabel(t, status),
           preset: (id) => presetName(t, id),
         },
-        watchPaceRanges
+        watchPaceRanges,
+        zone2Band
       ),
-    [t, programStatus, programEnabled, watchPaceRanges]
+    [t, programStatus, programEnabled, watchPaceRanges, zone2Band]
   );
   const { presets } = useWorkoutPresets({ enabled });
   const fastQuery = useCurrentFast({ enabled });
@@ -764,6 +777,14 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         restAlertsEnabled,
         doubleTapEnabled: watchDoubleTapEnabled,
         rpeEnabled: watchRpeEnabled,
+        setScreenMetrics: watchSetScreenMetrics,
+        upNextPage: watchUpNextPage,
+        largerText: watchLargerText,
+        classicWorkout: watchClassicWorkout,
+        // This build handles a skipped dose from the watch.
+        medicationSkip: true,
+        // ... and "do this exercise now" from the workout pages.
+        exerciseDoNow: true,
         runVoiceCues: recording.audioCues,
         runAutoPause: recording.autoPause,
         runCheckInMinutes: recording.checkInMinutes,
@@ -826,6 +847,10 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     restAlertsEnabled,
     watchDoubleTapEnabled,
     watchRpeEnabled,
+    watchSetScreenMetrics,
+    watchUpNextPage,
+    watchLargerText,
+    watchClassicWorkout,
     runPlans,
     indoorDistanceScale,
     startableWorkouts,
@@ -1238,8 +1263,9 @@ export function useWatchCheckInBridge(enabled: boolean): void {
    * slot has none, so a redelivery that slips past the dedupe set cannot log
    * the dose twice. A skipped or schedule-less (web-logged) entry for the slot
    * is updated to taken instead, the same way the phone's own dose row does.
-   * An un-tick (`taken: false`) deletes the taken entry the same way, and is
-   * a no-op when there is none.
+   * An un-tick (`taken: false`) deletes the slot's taken or skipped entry, and
+   * is a no-op when there is none. `skipped: true` marks a scheduled slot
+   * skipped the same way, creating or updating its entry.
    */
   const processMedicationTaken = useCallback(
     async (payload: WatchMedicationTakenPayload): Promise<void> => {
@@ -1264,39 +1290,25 @@ export function useWatchCheckInBridge(enabled: boolean): void {
           fromDate: payload.entryDate,
           toDate: payload.entryDate,
         });
-        // An empty scheduleId is an as-needed row: it logs a `prn_taken`
-        // entry like the phone's PRN button, once per day from the watch.
-        const asNeeded = !payload.scheduleId;
-        const existing = asNeeded
-          ? entries.find(
-              (e) =>
-                e.medication_id === payload.medicationId &&
-                e.status === 'prn_taken'
-            )
-          : entries.find((e) =>
-              entryMatchesDose(e, payload.medicationId, payload.scheduleId)
-            );
-        const alreadyTaken =
-          existing?.status === 'taken' || existing?.status === 'prn_taken';
-        if (payload.taken === false) {
-          if (existing && alreadyTaken) await deleteEntry(existing.id);
-        } else if (!alreadyTaken) {
-          const takenAt = new Date().toISOString();
-          if (existing) {
-            await updateEntry(existing.id, {
-              schedule_id: payload.scheduleId,
-              status: 'taken',
-              taken_at: takenAt,
-            });
-          } else {
-            await createEntry({
-              medication_id: payload.medicationId,
-              ...(asNeeded ? {} : { schedule_id: payload.scheduleId }),
-              status: asNeeded ? 'prn_taken' : 'taken',
-              entry_date: payload.entryDate,
-              taken_at: takenAt,
-            });
-          }
+        const write = watchMedicationWrite(payload, entries);
+        if (write.kind === 'delete') {
+          await deleteEntry(write.entryId);
+        } else if (write.kind === 'update') {
+          await updateEntry(write.entryId, {
+            schedule_id: payload.scheduleId,
+            status: write.status,
+            taken_at: new Date().toISOString(),
+          });
+        } else if (write.kind === 'create') {
+          await createEntry({
+            medication_id: payload.medicationId,
+            ...(payload.scheduleId ? { schedule_id: payload.scheduleId } : {}),
+            status: write.status,
+            entry_date: payload.entryDate,
+            // As the phone's own create: a skipped dose was never taken.
+            taken_at:
+              write.status === 'skipped' ? undefined : new Date().toISOString(),
+          });
         }
 
         ackedClientIdsRef.current = [
@@ -1324,7 +1336,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         invalidateMedicationEntryCaches(queryClient);
 
         addLog(
-          `Watch medication dose ${payload.taken === false ? 'unmarked' : 'logged'} for ${payload.entryDate}: ${payload.medicationId}`,
+          `Watch medication dose ${write.kind === 'delete' ? 'unmarked' : write.kind === 'none' ? 'unchanged' : write.status} for ${payload.entryDate}: ${payload.medicationId}`,
           'INFO'
         );
         await pushContextRef.current();

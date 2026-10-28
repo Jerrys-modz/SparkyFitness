@@ -86,8 +86,10 @@ enum OutboundPayloads {
 
     /// One dose ticked as taken — the phone logs it the way its own dose row
     /// does — or, with `taken` false, un-ticked, which deletes that entry.
+    /// `skipped` marks it skipped instead; it is left out otherwise, so the
+    /// message an older phone reads is unchanged.
     static func medicationTaken(_ tap: MedicationTap) -> [String: Any] {
-        [
+        var payload: [String: Any] = [
             "type": Kind.medicationTaken,
             "clientId": tap.id,
             "entryDate": tap.entryDate,
@@ -95,6 +97,8 @@ enum OutboundPayloads {
             "scheduleId": tap.scheduleId,
             "taken": tap.taken,
         ]
+        if tap.skipped { payload["skipped"] = true }
+        return payload
     }
 
     /// The wearer started a fast from a preset (`presetId` is the phone's id,
@@ -163,6 +167,10 @@ enum OutboundPayloads {
         case .deleteExercise(let exerciseEntryId):
             payload["action"] = "deleteExercise"
             payload["exerciseEntryId"] = exerciseEntryId
+        case .doExerciseNow(let exerciseEntryId, let anchorEntryId):
+            payload["action"] = "doExerciseNow"
+            payload["exerciseEntryId"] = exerciseEntryId
+            payload["anchorEntryId"] = anchorEntryId
         }
         return payload
     }

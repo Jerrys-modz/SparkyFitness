@@ -52,6 +52,8 @@ import {
   SafeRouteDraw,
   SafeRouteGenerate,
   SafeRunProgramRace,
+  SafeFitnessTest,
+  SafeFitnessTestResult,
   SafeRunProgramWorkout,
   SafeMealPlanForm,
   SafeWorkoutPlans,
@@ -106,6 +108,7 @@ import {
   SafeEquipment,
   SafeShoes,
   SafeShoeForm,
+  SafePlateInventory,
   SafeAiSettings,
   SafeFoodSettings,
   SafeCustomNutrients,
@@ -116,6 +119,8 @@ import {
   SafeHealthTrendsSettings,
   SafeWatchSettings,
   SafeDiarySettings,
+  SafeCustomCategories,
+  SafeCustomCategoryEdit,
   SafeWorkoutSettings,
   SafeWarmupSettings,
   SafeHeartRateZonesSettings,
@@ -190,6 +195,7 @@ import ActiveWorkoutBar, {
 import { ActiveWorkoutTransitionScreenLayout } from './src/components/ActiveWorkoutTransitionProbe';
 import PendingPresetUpdatePrompt from './src/components/PendingPresetUpdatePrompt';
 import { usePendingPresetUpdateStore } from './src/stores/pendingPresetUpdateStore';
+import { useAppPreferencesStore } from './src/stores/appPreferencesStore';
 import ActiveWorkoutKeepAwake from './src/components/ActiveWorkoutKeepAwake';
 import MedicationReminderReconciler from './src/components/MedicationReminderReconciler';
 import MoodCheckinReminderReconciler from './src/components/MoodCheckinReminderReconciler';
@@ -365,6 +371,7 @@ function AppContent() {
     handleAddProgressPhotos,
     handleAddSymptoms,
     handleAddMood,
+    handleStartCheckIn,
     handleAddMindfulness,
     handleRecordActivity,
     handleAskSparky,
@@ -372,6 +379,7 @@ function AppContent() {
     handleSyncHealthData,
     handleAddSheetDismissWithoutAction,
   } = useAddSheetActions({ syncMutation });
+  const guidedCheckInEnabled = useAppPreferencesStore((s) => s.guidedCheckInEnabled);
 
   const { enabled: cycleEnabled, mode: cycleMode, discreetMode: cycleDiscreet } = useCycleMode();
   const cycleSheetLabel = cycleDiscreet
@@ -613,6 +621,16 @@ function AppContent() {
             name="RunProgramRace"
             component={SafeRunProgramRace}
             options={createStackScreenOptions(t('screens.runProgramRace', { defaultValue: 'Plan a race' }), { headerBackTitle: t('screens.runPrograms', { defaultValue: 'Training programs' }) })}
+          />
+          <Stack.Screen
+            name="FitnessTest"
+            component={SafeFitnessTest}
+            options={createStackScreenOptions(t('screens.fitnessTest', { defaultValue: 'Fitness tests' }), { headerBackTitle: t('screens.runPrograms', { defaultValue: 'Training programs' }) })}
+          />
+          <Stack.Screen
+            name="FitnessTestResult"
+            component={SafeFitnessTestResult}
+            options={createStackScreenOptions(t('screens.fitnessTestResult', { defaultValue: 'Fitness test' }), { headerBackButtonDisplayMode: 'minimal' })}
           />
           <Stack.Screen
             name="RunProgramEdit"
@@ -1043,7 +1061,18 @@ function AppContent() {
           <Stack.Screen
             name="ProgressPhotos"
             component={SafeProgressPhotos}
-            options={createStackScreenOptions(t('screens.progressPhotos', { defaultValue: 'Progress Photos' }), { headerBackButtonDisplayMode: 'minimal' })}
+            options={({ route }) =>
+              createStackScreenOptions(t('screens.progressPhotos', { defaultValue: 'Progress Photos' }), {
+                headerBackButtonDisplayMode: 'minimal',
+                // The guided check-in's last step is a sheet, like the two
+                // steps before it; on its own the screen is pushed.
+                ...(route.params?.guidedCheckIn
+                  ? {
+                      presentation: 'modal' as const,
+                      ...(Platform.OS === 'android' ? androidModalAnimation : {}),
+                    }
+                  : {}),
+              })}
           />
           <Stack.Screen
             name="ProgressPhotoCompare"
@@ -1121,6 +1150,11 @@ function AppContent() {
             options={createStackScreenOptions(t('shoes.title', { defaultValue: 'Shoes' }), { headerBackTitle: t('shoes.title', { defaultValue: 'Shoes' }) })}
           />
           <Stack.Screen
+            name="PlateInventory"
+            component={SafePlateInventory}
+            options={createStackScreenOptions(t('plates.title', { defaultValue: 'Plates & bars' }), { headerBackTitle: t('equipmentHub.title', { defaultValue: 'Equipment' }) })}
+          />
+          <Stack.Screen
             name="DashboardSettings"
             component={SafeDashboardSettings}
             options={createStackScreenOptions(t('screens.dashboardSettings', { defaultValue: 'Dashboard Settings' }), { headerBackTitle: t('navigation.settings', { defaultValue: 'Settings' }) })}
@@ -1134,6 +1168,16 @@ function AppContent() {
             name="DiarySettings"
             component={SafeDiarySettings}
             options={createStackScreenOptions(t('screens.diarySettings', { defaultValue: 'Diary Settings' }), { headerBackTitle: t('navigation.settings', { defaultValue: 'Settings' }) })}
+          />
+          <Stack.Screen
+            name="CustomCategories"
+            component={SafeCustomCategories}
+            options={createStackScreenOptions(t('customCategories.title', { defaultValue: 'Custom measurements' }), { headerBackTitle: t('navigation.settings', { defaultValue: 'Settings' }) })}
+          />
+          <Stack.Screen
+            name="CustomCategoryEdit"
+            component={SafeCustomCategoryEdit}
+            options={createStackScreenOptions(t('customCategoryEdit.editTitle', { defaultValue: 'Edit category' }), { headerBackTitle: t('common.back', { defaultValue: 'Back' }) })}
           />
           <Stack.Screen
             name="WatchSettings"
@@ -1365,6 +1409,8 @@ function AppContent() {
           onAddMindfulness={handleAddMindfulness}
           onRecordActivity={handleRecordActivity}
           onAskSparky={handleAskSparky}
+          onStartCheckIn={handleStartCheckIn}
+          showCheckIn={guidedCheckInEnabled}
           onOpenCycle={handleOpenCycle}
           showCycleCard={cycleEnabled}
           cycleLabel={cycleSheetLabel}
