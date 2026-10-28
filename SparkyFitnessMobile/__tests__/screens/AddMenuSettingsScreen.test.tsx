@@ -26,6 +26,15 @@ jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
 
+const mockCycle = {
+  enabled: false,
+  mode: 'standard' as string,
+  discreetMode: false,
+};
+jest.mock('../../src/hooks/useCycleMode', () => ({
+  useCycleMode: () => mockCycle,
+}));
+
 jest.mock('../../src/components/Icon', () => {
   const { View } = require('react-native');
   return {
@@ -56,6 +65,11 @@ describe('AddMenuSettingsScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     __resetAppPreferencesStoreForTests();
+    Object.assign(mockCycle, {
+      enabled: false,
+      mode: 'standard',
+      discreetMode: false,
+    });
   });
 
   test('lists every row in the saved order, adding ones it lacks', () => {
@@ -124,6 +138,37 @@ describe('AddMenuSettingsScreen', () => {
     // Mood and Mindfulness share line 1; Check-In is alone on line 2.
     expect(screen.getAllByText('Line 1').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Line 2').length).toBeGreaterThan(0);
+  });
+
+  describe('the cycle row', () => {
+    test('is named as the sheet names it while cycle tracking is on', () => {
+      Object.assign(mockCycle, { enabled: true, mode: 'pregnant' });
+      renderScreen();
+
+      expect(screen.getAllByText('Log Pregnancy Entry').length).toBeGreaterThan(
+        0
+      );
+      expect(screen.queryAllByText('Wellness')).toHaveLength(0);
+    });
+
+    test('says Wellness in discreet mode, as the sheet does', () => {
+      Object.assign(mockCycle, {
+        enabled: true,
+        mode: 'pregnant',
+        discreetMode: true,
+      });
+      renderScreen();
+
+      expect(screen.getAllByText('Wellness').length).toBeGreaterThan(0);
+      expect(screen.queryAllByText('Log Pregnancy Entry')).toHaveLength(0);
+    });
+
+    test('keeps the plain name while cycle tracking is off', () => {
+      renderScreen();
+
+      expect(screen.getAllByText('Wellness').length).toBeGreaterThan(0);
+      expect(screen.queryAllByText('Log Cycle')).toHaveLength(0);
+    });
   });
 
   test('reset clears the style choices', () => {

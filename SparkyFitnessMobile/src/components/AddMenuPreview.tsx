@@ -8,11 +8,11 @@ import Icon from './Icon';
 import {
   ADD_MENU_CARD_LABELS,
   ADD_MENU_ITEM_ICONS,
-  ADD_MENU_ITEM_LABELS,
   ADD_MENU_ITEM_TINTS,
   type AddMenuItemKey,
   type AddMenuRowStyle,
 } from '../constants/addMenuItems';
+import { useAddMenuItemLabel } from '../hooks/useAddMenuItemLabel';
 import { chunkIntoLines } from '../utils/addMenu';
 
 interface AddMenuPreviewProps {
@@ -28,6 +28,7 @@ interface AddMenuPreviewProps {
 const AddMenuPreview: React.FC<AddMenuPreviewProps> = ({ cards, groups }) => {
   const { t } = useTranslation();
   const tintColors = useAddMenuTintColors();
+  const labelFor = useAddMenuItemLabel();
   const [surfaceBg, raisedBg, borderSubtle, textMuted] = useCSSVariable([
     '--color-surface',
     '--color-raised',
@@ -60,7 +61,7 @@ const AddMenuPreview: React.FC<AddMenuPreviewProps> = ({ cards, groups }) => {
         className="flex-1 text-text-primary text-xs font-medium ml-2"
         numberOfLines={1}
       >
-        {ADD_MENU_ITEM_LABELS[key](t)}
+        {labelFor(key)}
       </Text>
       {withChevron ? (
         <Icon name="chevron-forward" size={10} color={textMuted} />
@@ -115,7 +116,7 @@ const AddMenuPreview: React.FC<AddMenuPreviewProps> = ({ cards, groups }) => {
               size="row"
             />
             <Text className="text-text-primary text-xs mt-1" numberOfLines={1}>
-              {ADD_MENU_CARD_LABELS[key]?.(t) ?? ADD_MENU_ITEM_LABELS[key](t)}
+              {ADD_MENU_CARD_LABELS[key]?.(t) ?? labelFor(key)}
             </Text>
           </View>
         ))}
