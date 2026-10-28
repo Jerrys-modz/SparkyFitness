@@ -248,6 +248,16 @@ export interface WatchContextPayload {
   runHeartRateMinBpm?: number | null;
   runHeartRateMaxBpm?: number | null;
   /**
+   * The fuel and drink reminders last planned on the phone (minutes between
+   * carbohydrate reminders, grams per portion, minutes between drink
+   * reminders, millilitres per drink). The watch's start screen offers them as
+   * the starting point; a reminder is only on for the run it was chosen for.
+   */
+  runFuelIntervalMin?: number | null;
+  runFuelPortionGrams?: number | null;
+  runDrinkIntervalMin?: number | null;
+  runDrinkMl?: number | null;
+  /**
    * The wearer's five heart-rate zone floors in bpm, zone 1 first, for the
    * zone bar on the watch's walk, run and ride screens. Missing keeps the
    * watch's last value; the watch draws no bar until it has them.

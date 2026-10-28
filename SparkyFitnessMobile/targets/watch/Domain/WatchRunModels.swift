@@ -189,6 +189,9 @@ struct WatchRunSettings: Codable, Equatable {
     var paceStepsOff: Bool? = nil
     /// Likewise for the heart-rate alert.
     var heartRateStepsOff: Bool? = nil
+    /// Fuel and drink reminders; nil is none. Optional so a snapshot written
+    /// before it existed still decodes.
+    var fueling: WatchFuelingPlan? = nil
 }
 
 /// The alerts chosen for one run when it is started on the wrist. Each alert
@@ -197,8 +200,10 @@ struct WatchRunSettings: Codable, Equatable {
 struct WatchRunAlertSetup: Equatable {
     var pace: WatchPaceBand?
     var heartRate: WatchHeartRateBand?
+    /// Fuel and drink reminders; like the alerts, off unless turned on here.
+    var fueling: WatchFuelingPlan?
 
-    static let off = WatchRunAlertSetup(pace: nil, heartRate: nil)
+    static let off = WatchRunAlertSetup(pace: nil, heartRate: nil, fueling: nil)
 }
 
 /// A plan a wrist-only run can follow: a list of steps the phone has already
