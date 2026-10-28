@@ -433,10 +433,17 @@ const StatCardMockup: React.FC<StatCardMockupProps> = ({
         </View>
 
         <View className="flex-row items-center justify-between mt-1 pt-2 border-t border-border-subtle">
-          <Text className="text-[11px]" style={{ color: textSecondary }}>
+          <Text
+            className="text-[11px] flex-shrink"
+            style={{ color: textSecondary }}
+            numberOfLines={1}
+          >
             {left}
           </Text>
-          <Text className="text-[11px] font-medium text-text-primary">
+          <Text
+            className="text-[11px] font-medium text-text-primary ml-2"
+            numberOfLines={1}
+          >
             {right}
           </Text>
         </View>
@@ -555,8 +562,8 @@ const CheckInMockup: React.FC = () => {
       badge={t('whatsNewPage.mockup.stepTwoOfThree', {
         defaultValue: 'Step 2 of 3',
       })}
-      left={t('whatsNewPage.mockup.checkInSteps', {
-        defaultValue: 'Mood • Measurements • Photo',
+      left={t('whatsNewPage.mockup.checkInStepName', {
+        defaultValue: 'Measurements',
       })}
       right={t('whatsNewPage.mockup.saveContinue', {
         defaultValue: 'Save & continue',
@@ -571,8 +578,8 @@ const StrengthToolsMockup: React.FC = () => {
     <StatCardMockup
       colorVariable="--color-exercise"
       icon="exercise-weights"
-      title={t('whatsNewPage.mockup.plateCalculator', {
-        defaultValue: 'Plate calculator',
+      title={t('whatsNewPage.mockup.plates', {
+        defaultValue: 'Plates',
       })}
       badge={t('whatsNewPage.mockup.plateTarget', { defaultValue: '100 kg' })}
       left={t('whatsNewPage.mockup.plateBar', { defaultValue: 'Bar 20 kg' })}
@@ -589,8 +596,8 @@ const HeartRateMockup: React.FC = () => {
     <StatCardMockup
       colorVariable="--color-calories"
       icon="exercise"
-      title={t('whatsNewPage.mockup.heartRateZones', {
-        defaultValue: 'Heart rate zones',
+      title={t('whatsNewPage.mockup.heartRate', {
+        defaultValue: 'Heart rate',
       })}
       badge={t('whatsNewPage.mockup.zoneTwo', { defaultValue: 'Zone 2' })}
       left={t('whatsNewPage.mockup.maxResting', {
@@ -627,8 +634,8 @@ const WatchMockup: React.FC = () => {
     <StatCardMockup
       colorVariable="--color-hydration"
       icon="watch-settings"
-      title={t('whatsNewPage.mockup.todayOnWatch', {
-        defaultValue: 'Today on watch',
+      title={t('whatsNewPage.mockup.watchApp', {
+        defaultValue: 'Watch app',
       })}
       badge={t('whatsNewPage.mockup.caloriesLeftBadge', {
         defaultValue: '1,515 left',
@@ -653,7 +660,7 @@ const WeeklyGoalMockup: React.FC = () => {
         defaultValue: 'Weekly goal',
       })}
       badge={t('whatsNewPage.mockup.weeklyRate', {
-        defaultValue: '−0.5 kg/week',
+        defaultValue: '−0.5 kg',
       })}
       left={t('whatsNewPage.mockup.dailyTarget', {
         defaultValue: 'Daily target',
