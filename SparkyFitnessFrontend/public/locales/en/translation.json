@@ -1134,7 +1134,7 @@
       "profileIncompleteTitle": "Profile Incomplete",
       "projectedBurn": "Projected TDEE",
       "goalModeTarget": "Goal Mode Target",
-      "healthConnectProjectionSource": "Health Connect total calories",
+      "healthConnectProjectionSource": "Device total calories",
       "fallbackProjectionSource": "BMR + active calories fallback",
       "legacyProjectionSource": "Device projection",
       "sparkyfitnessBurned": "SparkyFitness Burned",
@@ -2497,7 +2497,7 @@
       "adaptiveFootnote": "* Dynamically adjusts your Daily Goal based on your actual metabolism. Needs consistent food and weight tracking for high accuracy.",
       "burnedActivity": "Activity (Exercise & Steps only)",
       "burnedBmr": "Activity + BMR (Your base metabolism)",
-      "burnedTdee": "Health Connect total calories (BMR + active calories fallback)",
+      "burnedTdee": "Device total calories (BMR + active calories fallback)",
       "burnedTitle": "Burned Calories",
       "dynamicFootnote": "* Ideal for fueling workouts and active recovery.",
       "fixedFootnote": "* Ideal for strict caloric deficits and weight management.",
@@ -2513,7 +2513,7 @@
       "remainingTdee": "Projected TDEE × Goal Mode − Eaten",
       "remainingTdeeWeekly": "Projected TDEE + Weekly adjustment − Eaten",
       "remainingTitle": "Remaining Calories",
-      "tdeeFootnote": "* Enable Total Calories in Health Connect sync. The projection converges with the device total at midnight; BMR plus active calories is used as a fallback.",
+      "tdeeFootnote": "* Sync total calories from Health Connect, Garmin or Polar. The projection converges with the device total at midnight; BMR plus active calories is used as a fallback.",
       "title": "How your calories will be calculated"
     },
     "calorieGoalAdjustment": {
@@ -2537,7 +2537,7 @@
       "adaptiveEarnBack": "Adaptive targets already include activity. Remaining calories are Target minus Eaten. Exercise earn-back applies only to Manual targets.",
       "tdeeGoal": "Device Projection",
       "tdeeActivityHint": "Activity level is only used by the BMR + active calories fallback when a device total is unavailable.",
-      "tdeeGoalDescription": "Uses Health Connect total calories when available, projects the current burn to midnight, and applies Goal Mode directly to that TDEE. Falls back to BMR plus active calories when no device total is available.",
+      "tdeeGoalDescription": "Uses device total calories (Health Connect, Garmin or Polar) when available, projects the current burn to midnight, and applies Goal Mode directly to that TDEE. Falls back to BMR plus active calories when no device total is available.",
       "title": "Daily Calorie Goal Adjustment"
     },
     "dataImport": {
@@ -2697,7 +2697,7 @@
       "dynamicGoalYourCalorieGoal": "<span>Dynamic Goal:</span> Your calorie goal will dynamically adjust based on your daily activity level (e.g., exercise, steps). This is ideal for active individuals or those whose activity levels vary daily.",
       "fixedGoalYourCalorieGoal": "<span>Fixed Goal:</span> Your calorie goal will remain fixed, regardless of your daily activity. This is suitable for individuals with consistent activity levels or those who prefer a stable target.",
       "percentageEarnBackOnlyEarn": "<span>Percentage Earn-Back:</span> Only earn back a set percentage of your exercise calories. For example, 50% creates a safety buffer to avoid overeating from over-estimated burns.",
-      "deviceProjectionUsesHealthConnect": "<span>Device Projection:</span> Uses Health Connect total calories when available, projects the current burn to midnight, and applies Goal Mode directly to that TDEE. Falls back to BMR plus active calories when no device total is available.",
+      "deviceProjectionUsesHealthConnect": "<span>Device Projection:</span> Uses device total calories (Health Connect, Garmin or Polar) when available, projects the current burn to midnight, and applies Goal Mode directly to that TDEE. Falls back to BMR plus active calories when no device total is available.",
       "inAdaptiveModeThisIs": "💡 In Adaptive mode this is the fallback estimate until you have enough tracking data — and it keeps setting the plausibility limits afterwards. Your measured TDEE is capped to within ±500 kcal of BMR × this multiplier, so a level set too low can hold a genuinely higher expenditure down.",
       "bodyRecomposition10": "Body Recomposition (-10%)",
       "cut15": "Cut (-15%)",

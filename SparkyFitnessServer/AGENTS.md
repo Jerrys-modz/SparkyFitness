@@ -1,6 +1,6 @@
 # AGENTS.md
 
-_Last updated: 2026-10-26_
+_Last updated: 2026-10-27_
 
 SparkyFitness Server is the backend API package for the SparkyFitness monorepo. Use this file as the primary guide for work inside `SparkyFitnessServer/`.
 
@@ -326,6 +326,8 @@ When searching, ignore noisy/generated directories unless you explicitly need th
 - Bodyweight exercise load, volume or 1RM issue (#56):
   a `bodyweight_reps` set's weight is signed added/assisting load, and its load is body weight plus that weight (`effectiveLoadKg` in `../shared/src/utils/exerciseLoad.ts`). SQL mirrors the rule in `utils/exerciseLoadSql.ts` (`bodyWeightJoinSql`, `setLoadSql`), used by `services/exerciseStatsService.ts` and `models/exerciseEntry.ts`'s progress query; `services/reportService.ts` applies the shared helper with readings from `reportRepository.getBodyWeightReadings`. Keep the two copies identical. A negative set weight is rejected unless that exercise's modality is `bodyweight_reps`. `models/exercise.ts`'s `createExercise` defaults the modality from equipment through `resolveExerciseModality`
   `weight_distance` (weighted carries) and `weight_duration` (loaded holds) store weight plus distance (km) or duration (s); stats treat them as weight-based, not cardio, and best-set ordering falls back to distance then duration.
+- Device Projection using the wrong device total, or none (#2354):
+  `genericHealthRepository.getDeviceTotalCaloriesByDateRange` reads `daily_health_metrics.total_calories` from every source and `utils/deviceTotalCalories.ts` (`pickDeviceTotalPerDay`) keeps one per day in a fixed order (Health Connect, Garmin, Polar; any other source, Apple Health included, is ignored), never a sum and never by latest capture, since capture time is fetch time. Apple Health totals are stamped with the start of their day, so the stored value freezes at the day's first sync; they stay out until the iPhone reader stamps its read time like Android's `readCumulativeByDay`. Used by `dailySummaryService`, `dailySummaryRangeService` and `DashboardService`. The response `source` stays `'health_connect_total'` for any device total because older apps check for that value. Garmin's `captured_at` is the watch's last sync (`summary_captured_at` in `SparkyFitnessGarmin/service.py`) when Garmin reports one
 - A past day's calorie target or exercise credit changed after a settings change:
   inspect `services/calorieRuleHistoryService.ts` and the trigger in `db/migrations/20261023000000_add_user_calorie_rule_history.sql`. A new preference read by the calorie maths must join `CALORIE_RULE_FIELDS`, the table and the trigger; `tests/calorieRuleHistory.test.ts` fails until it does, and `tests/calorieRuleHistory.integration.test.ts` checks the table and trigger cover every field
 - Weekly goal plan issue (which plan a day uses, or a plan save refused):

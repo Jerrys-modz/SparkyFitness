@@ -5,10 +5,13 @@ from pathlib import Path
 GARMIN_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(GARMIN_DIR))
 
+from datetime import datetime, timezone
+
 from service import (
     ALL_HEALTH_METRICS,
     extract_daily_calories,
     project_daily_calorie_metrics,
+    summary_captured_at,
 )
 
 
@@ -91,6 +94,48 @@ class ProjectDailyCalorieMetricsTests(unittest.TestCase):
                 {"bmr_calories"},
             ),
             {},
+        )
+
+
+class SummaryCapturedAtTests(unittest.TestCase):
+    FETCHED_AT = datetime(2026, 7, 29, 22, 0, tzinfo=timezone.utc)
+
+    def test_uses_the_watch_last_sync_time(self):
+        self.assertEqual(
+            summary_captured_at(
+                {"lastSyncTimestampGMT": "2026-07-29T14:05:30.0"}, self.FETCHED_AT
+            ),
+            datetime(2026, 7, 29, 14, 5, 30, tzinfo=timezone.utc),
+        )
+
+    def test_keeps_an_explicit_utc_offset(self):
+        self.assertEqual(
+            summary_captured_at(
+                {"lastSyncTimestampGMT": "2026-07-29T14:05:30Z"}, self.FETCHED_AT
+            ),
+            datetime(2026, 7, 29, 14, 5, 30, tzinfo=timezone.utc),
+        )
+
+    def test_falls_back_to_the_fetch_time(self):
+        for summary in (
+            None,
+            {},
+            {"lastSyncTimestampGMT": None},
+            {"lastSyncTimestampGMT": ""},
+            {"lastSyncTimestampGMT": "not a time"},
+            {"lastSyncTimestampGMT": 1785333930000},
+        ):
+            with self.subTest(summary=summary):
+                self.assertEqual(
+                    summary_captured_at(summary, self.FETCHED_AT), self.FETCHED_AT
+                )
+
+    def test_never_returns_a_time_after_the_fetch(self):
+        self.assertEqual(
+            summary_captured_at(
+                {"lastSyncTimestampGMT": "2026-07-29T23:00:00.0"}, self.FETCHED_AT
+            ),
+            self.FETCHED_AT,
         )
 
 
