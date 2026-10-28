@@ -96,6 +96,20 @@ describe('applyRlsPolicies', () => {
     expect(applies().map(lockTimeout)).toEqual(['100', '100']);
   });
 
+  it('keeps retrying a deadlock after the window has passed', async () => {
+    let untimed = 0;
+    stale((query) => {
+      if (lockTimeout(query) !== '0') throw lockError;
+      untimed += 1;
+      if (untimed === 1)
+        throw Object.assign(new Error('deadlock'), { code: '40P01' });
+      return [];
+    });
+
+    await expect(run()).resolves.toBe('applied');
+    expect(applies().map(lockTimeout).slice(-2)).toEqual(['0', '0']);
+  });
+
   it('rolls back and rethrows any other error without retrying', async () => {
     const syntax = Object.assign(new Error('syntax'), { code: '42601' });
     stale(() => {

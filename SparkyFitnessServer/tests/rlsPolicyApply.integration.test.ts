@@ -112,6 +112,22 @@ describe.runIf(RUN)('startup RLS apply (real PostgreSQL)', () => {
     initializer?.release();
     other?.release();
     await pool?.end().catch(() => {});
+    // pool.end() resolves once the pool has dropped its clients, not once their
+    // sockets have closed. A FORCE drop in that window terminates a backend
+    // that has not read the client's goodbye yet, and the client then raises
+    // the 57P01 as an unhandled 'error'. Let the sessions leave first.
+    await vi
+      .waitFor(
+        async () => {
+          const { rows } = await admin.query<{ n: string }>(
+            'SELECT count(*) AS n FROM pg_stat_activity WHERE datname = $1',
+            [scratchDatabase]
+          );
+          expect(Number(rows[0]!.n)).toBe(0);
+        },
+        { timeout: 5000, interval: 20 }
+      )
+      .catch(() => {});
     await admin
       ?.query(`DROP DATABASE IF EXISTS ${scratchDatabase} WITH (FORCE)`)
       .catch(() => {});

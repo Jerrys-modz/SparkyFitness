@@ -158,7 +158,9 @@ async function applyRlsPolicies(
         return 'applied';
       } catch (error) {
         await client.query('ROLLBACK').catch(() => {});
-        if (!bounded || !isLockConflict(error)) throw error;
+        // A deadlock can still pick the untimed attempt as its victim; never
+        // fail the boot over a lock conflict.
+        if (!isLockConflict(error)) throw error;
         log(
           'info',
           `RLS policy apply attempt ${attempt} met a lock held by live requests; retrying in ${delayMs} ms.`
