@@ -28,6 +28,7 @@ import {
 } from '../constants/addMenuItems';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import {
+  chunkIntoLines,
   groupRowsByStyle,
   resolveAddMenuCards,
   rowKeys,
@@ -582,35 +583,38 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
     const listRows = withStyle('list').map(({ key, def }) =>
       renderListRow(key, def)
     );
-    const compactItems = withStyle('compact');
-    const compactLines: React.ReactNode[] = [];
-    for (let start = 0; start < compactItems.length; start += 2) {
-      const line = compactItems
-        .slice(start, start + 2)
-        .map(({ key, def }) => renderCompactRow(key, def));
-      // A pair puts a hairline between its two; one on its own takes the
-      // whole line.
-      if (line.length === 2) {
-        line.splice(
-          1,
-          0,
-          <View
-            key={`divider-${start}`}
-            style={{
-              width: StyleSheet.hairlineWidth,
-              backgroundColor: borderSubtle,
-            }}
-          />
+    const compactLines = chunkIntoLines(withStyle('compact')).map(
+      (items, lineIndex) => {
+        const line = items.map(({ key, def }) => renderCompactRow(key, def));
+        // A pair puts a hairline between its two; one on its own takes the
+        // whole line.
+        if (line.length === 2) {
+          line.splice(
+            1,
+            0,
+            <View
+              key={`divider-${lineIndex}`}
+              style={{
+                width: StyleSheet.hairlineWidth,
+                backgroundColor: borderSubtle,
+              }}
+            />
+          );
+        }
+        return (
+          <View key={`compact-${lineIndex}`} className="flex-row">
+            {line}
+          </View>
         );
       }
-      compactLines.push(
-        <View key={`compact-${start}`} className="flex-row">
-          {line}
+    );
+    // Buttons go two to a line too, so three do not squeeze into one.
+    const actionLines = chunkIntoLines(withStyle('action')).map(
+      (items, lineIndex) => (
+        <View key={`action-${lineIndex}`} className="flex-row mt-3">
+          {items.map(({ key, def }) => renderActionButton(key, def))}
         </View>
-      );
-    }
-    const actionButtons = withStyle('action').map(({ key, def }) =>
-      renderActionButton(key, def)
+      )
     );
     // Hairlines between the panel's lines, in place of a border on each row.
     const panelLines = [...listRows, ...compactLines];
@@ -761,9 +765,7 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
                   ))}
                 </View>
               ) : null}
-              {actionButtons.length > 0 ? (
-                <View className="flex-row mt-3">{actionButtons}</View>
-              ) : null}
+              {actionLines}
             </>
           )}
         </BottomSheetView>

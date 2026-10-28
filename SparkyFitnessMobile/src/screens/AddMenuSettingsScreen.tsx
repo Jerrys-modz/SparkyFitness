@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCSSVariable } from 'uniwind';
 
 import { useActiveWorkoutBarPadding } from '../components/ActiveWorkoutBar';
+import AddMenuPreview from '../components/AddMenuPreview';
 import Icon from '../components/Icon';
 import AddMenuIconTile, {
   useAddMenuTintColors,
@@ -27,6 +28,7 @@ import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import type { RootStackScreenProps } from '../types/navigation';
 import {
+  chunkIntoLines,
   groupRowsByStyle,
   mergeGroupOrder,
   placeInCardSlot,
@@ -73,6 +75,16 @@ const AddMenuSettingsScreen: React.FC<AddMenuSettingsScreenProps> = () => {
   // The rows grouped as the sheet draws them: a list, pairs side by side and
   // buttons at the foot. Each group is arranged on its own, so the order
   // shown here is the order the sheet shows.
+  const previewGroups = useMemo(
+    () =>
+      groupRowsByStyle(
+        rowKeys(addMenuOrder, cards).filter(
+          (key) => !hiddenAddMenuItems.includes(key)
+        ),
+        addMenuRowStyles
+      ),
+    [addMenuOrder, addMenuRowStyles, cards, hiddenAddMenuItems]
+  );
   const styleOptions = useMemo(
     () => [
       {
@@ -95,6 +107,15 @@ const AddMenuSettingsScreen: React.FC<AddMenuSettingsScreenProps> = () => {
       rowKeys(addMenuOrder, cards),
       addMenuRowStyles
     );
+    // Which line a pair or button lands on, counting only the ones shown.
+    const lineOf = new Map<AddMenuItemKey, number>();
+    for (const style of ['compact', 'action'] as const) {
+      chunkIntoLines(
+        groups[style].filter((key) => !hiddenAddMenuItems.includes(key))
+      ).forEach((keys, index) =>
+        keys.forEach((key) => lineOf.set(key, index + 1))
+      );
+    }
     const toItem = (key: AddMenuItemKey, style: AddMenuRowStyle) => ({
       key,
       label: ADD_MENU_ITEM_LABELS[key](t),
@@ -112,25 +133,35 @@ const AddMenuSettingsScreen: React.FC<AddMenuSettingsScreenProps> = () => {
           onSelect={(picked) => setAddMenuRowStyle(key, picked)}
           title={t('addMenuSettings.showAs', { defaultValue: 'Show as' })}
           renderTrigger={({ onPress, selectedOption }) => (
-            <Pressable
-              testID={`add-menu-style-${key}`}
-              onPress={onPress}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel={t('addMenuSettings.showAsValue', {
-                defaultValue: 'Show as {{style}}',
-                style: selectedOption?.label,
-              })}
-              className="flex-row items-center mt-0.5 self-start"
-            >
-              <Text className="text-xs" style={{ color: accentColor }}>
-                {t('addMenuSettings.showAsValue', {
+            <View className="flex-row items-center">
+              <Pressable
+                testID={`add-menu-style-${key}`}
+                onPress={onPress}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={t('addMenuSettings.showAsValue', {
                   defaultValue: 'Show as {{style}}',
                   style: selectedOption?.label,
                 })}
-              </Text>
-              <Icon name="chevron-expand" size={12} color={accentColor} />
-            </Pressable>
+                className="flex-row items-center mt-0.5 self-start"
+              >
+                <Text className="text-xs" style={{ color: accentColor }}>
+                  {t('addMenuSettings.showAsValue', {
+                    defaultValue: 'Show as {{style}}',
+                    style: selectedOption?.label,
+                  })}
+                </Text>
+                <Icon name="chevron-expand" size={12} color={accentColor} />
+              </Pressable>
+              {lineOf.has(key) ? (
+                <Text className="text-xs text-text-muted ml-2">
+                  {t('addMenuSettings.lineNumber', {
+                    defaultValue: 'Line {{number}}',
+                    number: lineOf.get(key),
+                  })}
+                </Text>
+              ) : null}
+            </View>
           )}
         />
       ),
@@ -142,6 +173,7 @@ const AddMenuSettingsScreen: React.FC<AddMenuSettingsScreenProps> = () => {
     };
   }, [
     accentColor,
+    hiddenAddMenuItems,
     addMenuOrder,
     addMenuRowStyles,
     cards,
@@ -266,6 +298,16 @@ const AddMenuSettingsScreen: React.FC<AddMenuSettingsScreenProps> = () => {
         }
       >
         <Text className="text-text-primary text-base font-semibold mb-1">
+          {t('addMenuSettings.previewTitle', { defaultValue: 'Preview' })}
+        </Text>
+        <Text className="text-text-secondary text-sm mb-3">
+          {t('addMenuSettings.previewDescription', {
+            defaultValue: 'How Quick Actions looks with your choices.',
+          })}
+        </Text>
+        <AddMenuPreview cards={cards} groups={previewGroups} />
+
+        <Text className="text-text-primary text-base font-semibold mt-8 mb-1">
           {t('addMenuSettings.cardsTitle', { defaultValue: 'Tiles' })}
         </Text>
         <Text className="text-text-secondary text-sm mb-4">

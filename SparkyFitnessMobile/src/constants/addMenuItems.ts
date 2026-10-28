@@ -109,6 +109,9 @@ export const ADD_MENU_ITEM_TINTS: Record<AddMenuItemKey, AddMenuItemTint> = {
   syncHealth: 'accent',
 };
 
+/** How many pairs or buttons share a line. */
+export const ADD_MENU_LINE_SIZE = 2;
+
 export type AddMenuRowStyle = 'list' | 'compact' | 'action';
 
 /** The order the sheet lays the styles out in, and settings lists them. */

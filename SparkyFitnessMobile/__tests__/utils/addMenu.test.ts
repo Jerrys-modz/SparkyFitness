@@ -3,6 +3,7 @@ import {
   DEFAULT_ADD_MENU_CARDS,
 } from '../../src/constants/addMenuItems';
 import {
+  chunkIntoLines,
   groupRowsByStyle,
   mergeGroupOrder,
   mergeRowOrder,
@@ -109,6 +110,14 @@ describe('addMenu', () => {
         'compact'
       );
       expect(resolveRowStyle('mood', {})).toBe('compact');
+    });
+  });
+
+  describe('chunkIntoLines', () => {
+    it('puts two on a line and leaves a last one alone', () => {
+      expect(chunkIntoLines(['a', 'b', 'c'])).toEqual([['a', 'b'], ['c']]);
+      expect(chunkIntoLines(['a', 'b'])).toEqual([['a', 'b']]);
+      expect(chunkIntoLines([])).toEqual([]);
     });
   });
 

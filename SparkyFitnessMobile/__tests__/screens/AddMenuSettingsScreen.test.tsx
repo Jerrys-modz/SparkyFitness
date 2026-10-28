@@ -106,6 +106,26 @@ describe('AddMenuSettingsScreen', () => {
     expect(keys.indexOf('mindfulness')).toBeLessThan(keys.indexOf('mood'));
   });
 
+  test('shows a preview and which line each pair and button is on', () => {
+    act(() => {
+      useAppPreferencesStore
+        .getState()
+        .setAddMenuRowStyle('checkIn', 'compact');
+      useAppPreferencesStore
+        .getState()
+        .setAddMenuRowStyle('symptoms', 'action');
+    });
+    renderScreen();
+
+    // Hidden from screen readers: the rows below say the same.
+    expect(
+      screen.getByTestId('add-menu-preview', { includeHiddenElements: true })
+    ).toBeTruthy();
+    // Mood and Mindfulness share line 1; Check-In is alone on line 2.
+    expect(screen.getAllByText('Line 1').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Line 2').length).toBeGreaterThan(0);
+  });
+
   test('reset clears the style choices', () => {
     useAppPreferencesStore.getState().setAddMenuRowStyle('mood', 'list');
     renderScreen();

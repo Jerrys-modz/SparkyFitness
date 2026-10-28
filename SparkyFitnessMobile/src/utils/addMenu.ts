@@ -1,6 +1,7 @@
 import {
   ADD_MENU_CARD_COUNT,
   ADD_MENU_ITEM_ROW_STYLES,
+  ADD_MENU_LINE_SIZE,
   ADD_MENU_ROW_STYLES,
   ADD_MENU_ITEM_KEYS,
   DEFAULT_ADD_MENU_CARDS,
@@ -131,4 +132,17 @@ export function mergeGroupOrder(
     reorderedGroup.includes(key) ? (queue.shift() ?? key) : key
   );
   return mergeRowOrder(order, cards, next);
+}
+
+/**
+ * Items split into the lines the sheet draws them on, `ADD_MENU_LINE_SIZE` to a
+ * line; the last line may hold one and then takes the whole width. The sheet,
+ * its preview and settings all count lines this way.
+ */
+export function chunkIntoLines<T>(items: readonly T[]): T[][] {
+  const lines: T[][] = [];
+  for (let start = 0; start < items.length; start += ADD_MENU_LINE_SIZE) {
+    lines.push(items.slice(start, start + ADD_MENU_LINE_SIZE));
+  }
+  return lines;
 }
