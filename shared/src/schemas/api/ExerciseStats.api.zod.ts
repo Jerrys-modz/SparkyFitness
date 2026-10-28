@@ -4,6 +4,7 @@ import {
   PR_SPORT_GROUPS,
   SPORT_CONFIDENCES,
 } from '../../utils/activitySport.ts';
+import { exerciseModalitySchema } from './Exercises.api.zod.ts';
 
 /** Canonical sport, named after the ANT+/FIT SDK `sport` enum. */
 export const activitySportSchema = z.enum(ACTIVITY_SPORTS);
@@ -176,6 +177,8 @@ export const exerciseActivityQueryItemSchema = z.object({
   source: z.string().nullable(),
   notes: z.string().nullable(),
   hasGpsTrack: z.boolean(),
+  /** Optional: a server older than this field simply omits it. */
+  modality: exerciseModalitySchema.nullable().optional(),
 });
 
 export type ExerciseActivityQueryItem = z.infer<
@@ -220,6 +223,14 @@ export const exercisePersonalRecordItemSchema = z.object({
     'custom',
   ]),
   label: z.string(), // e.g. "Half Marathon (21.1 km)"
+  /**
+   * Time for the standard distance itself, never a longer activity's total.
+   * `best_split`: the fastest stretch of that distance measured inside the
+   * activity (GPS track or distance series). `activity_pace`: an activity with
+   * no measured split that nearly matches the distance, scaled to it by its
+   * average pace. Optional because an older server omits it.
+   */
+  timeBasis: z.enum(['best_split', 'activity_pace']).optional(),
   bestTimeSeconds: z.number(),
   formattedTime: z.string(), // e.g. "1:42:15"
   avgPaceSecondsPerKm: z.number(),

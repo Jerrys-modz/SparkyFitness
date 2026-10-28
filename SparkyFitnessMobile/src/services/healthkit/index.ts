@@ -14,6 +14,7 @@ import {
 import { Platform, Alert } from 'react-native';
 import { addLog } from '../LogService';
 import i18n from '../../localization/i18n';
+import { isAuthorizationNotDeterminedError } from '../../utils/healthErrors';
 import {
   AggregatedHealthRecord,
   MetricConfig,
@@ -130,6 +131,11 @@ const recordReadError = (error: unknown, label: string): string => {
     addLog(
       `[HealthKitService] ${label} failed: database inaccessible (device likely locked)`,
       'WARNING'
+    );
+  } else if (isAuthorizationNotDeterminedError(error)) {
+    addLog(
+      `[HealthKitService] ${label}: authorization not determined (permission not yet granted)`,
+      'INFO'
     );
   } else {
     addLog(`[HealthKitService] ${label} failed: ${message}`, 'ERROR');
@@ -428,7 +434,14 @@ export const hasUnrequestedHealthPermissions = async (
   if (!isHealthKitAvailable) {
     return false;
   }
-  const { toRead, toShare } = healthKitAuthorizationTypes(permissions);
+  const { toRead: allToRead, toShare } =
+    healthKitAuthorizationTypes(permissions);
+  // HealthKit keeps reporting the workout effort rating as never requested, so
+  // counting it would show the sheet on every visit. It is still asked for with
+  // the rest whenever something else is genuinely new.
+  const toRead = allToRead.filter(
+    (identifier) => identifier !== WORKOUT_EFFORT_IDENTIFIER
+  );
   if (toRead.length === 0 && toShare.length === 0) {
     return false;
   }
