@@ -1,15 +1,13 @@
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Text, View } from 'react-native';
+import { Rect } from '@shopify/react-native-skia';
 import { CartesianChart } from 'victory-native';
 import { useCSSVariable } from 'uniwind';
-import {
-  CHART_LABEL_FONT_SIZE,
-  formatDateWithYear,
-  makeChartFont,
-} from '../charts/chartFormatting';
+import { CHART_LABEL_FONT_SIZE, useChartFont } from '../charts/chartFormatting';
 import LineSeriesMark from '../charts/LineSeriesMark';
 import TrendGoalLine from '../charts/TrendGoalLine';
+import { getAppLocale } from '../../localization';
 import type { LabHistoryPoint } from '../../utils/labResults';
 
 interface LabHistoryChartProps {
@@ -18,7 +16,15 @@ interface LabHistoryChartProps {
   refRangeHigh: number | null;
 }
 
-const font = makeChartFont(CHART_LABEL_FONT_SIZE);
+const formatDateWithYear = (day: string): string => {
+  const parts = day.split('-');
+  if (parts.length < 3) return day;
+  const [year, month, d] = parts.map(Number);
+  return new Date(year, (month || 1) - 1, d || 1).toLocaleDateString(
+    getAppLocale(),
+    { month: 'short', day: 'numeric', year: 'numeric' }
+  );
+};
 
 /** A marker's results over time, with its reference range as dashed lines. */
 const LabHistoryChart: React.FC<LabHistoryChartProps> = ({
@@ -27,6 +33,7 @@ const LabHistoryChart: React.FC<LabHistoryChartProps> = ({
   refRangeHigh,
 }) => {
   const { t } = useTranslation();
+  const font = useChartFont(CHART_LABEL_FONT_SIZE);
   const [accentColor, textMuted] = useCSSVariable([
     '--color-accent-primary',
     '--color-text-muted',
@@ -74,6 +81,16 @@ const LabHistoryChart: React.FC<LabHistoryChartProps> = ({
       >
         {({ points: plotted, chartBounds, yScale }) => (
           <>
+            {refRangeLow != null && refRangeHigh != null && (
+              <Rect
+                x={chartBounds.left}
+                y={yScale(refRangeHigh)}
+                width={chartBounds.right - chartBounds.left}
+                height={yScale(refRangeLow) - yScale(refRangeHigh)}
+                color={accentColor}
+                opacity={0.12}
+              />
+            )}
             <LineSeriesMark
               points={plotted.value}
               color={accentColor}

@@ -95,6 +95,8 @@ const LabResultsScreen: React.FC<Props> = ({ navigation }) => {
               const row = latest.byCategory.get(marker.id);
               const value = row ? parseLabValue(row.value) : null;
               const unit = marker.measurement_type;
+              const status =
+                value !== null ? labStatus(marker, value) : 'unknown';
               const range = formatLabRange(
                 marker.ref_range_low,
                 marker.ref_range_high,
@@ -106,6 +108,7 @@ const LabResultsScreen: React.FC<Props> = ({ navigation }) => {
                   onPress={() =>
                     navigation.navigate('LabResultDetail', {
                       categoryId: marker.id,
+                      name: labMarkerName(marker),
                     })
                   }
                   className={`px-4 py-3.5 flex-row items-center justify-between ${
@@ -126,12 +129,18 @@ const LabResultsScreen: React.FC<Props> = ({ navigation }) => {
                     </Text>
                   </View>
                   <View className="items-end mr-2">
-                    <Text className="text-base font-bold text-text-primary">
+                    <Text
+                      className={`text-base font-bold ${
+                        status === 'low'
+                          ? 'text-text-warning'
+                          : status === 'high'
+                            ? 'text-text-danger-subtle'
+                            : 'text-text-primary'
+                      }`}
+                    >
                       {value !== null ? formatLabValue(value, unit) : '-'}
                     </Text>
-                    {value !== null && (
-                      <LabStatusBadge status={labStatus(marker, value)} />
-                    )}
+                    {value !== null && <LabStatusBadge status={status} />}
                   </View>
                   <Icon name="chevron-forward" size={20} color="#999" />
                 </Pressable>

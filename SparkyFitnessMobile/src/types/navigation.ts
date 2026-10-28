@@ -122,7 +122,7 @@ export type RootStackParamList = {
   RunProgramEdit: { id?: string; fromProgramId?: string } | undefined;
   PersonalRecords: undefined;
   LabResults: undefined;
-  LabResultDetail: { categoryId: string };
+  LabResultDetail: { categoryId: string; name?: string };
   LabResultAdd: { categoryId?: string };
   Routes: undefined;
   RouteDetail: { id: string };
