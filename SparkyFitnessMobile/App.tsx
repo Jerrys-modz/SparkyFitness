@@ -469,12 +469,15 @@ function AppContent() {
         Tabs: {
           screens: {
             Dashboard: '',
-            // The Android Calories left Quick Settings tile opens the diary.
+            // The Android Calories left Quick Settings tile and the wider
+            // widgets' Diary shortcut open the diary.
             Diary: 'diary',
           },
         },
         FoodScan: 'scan',
         FoodSearch: 'search',
+        // The Android calorie and macro widgets' fasting shortcut.
+        FastingDetail: 'fasting',
         ChatSettings: 'settings/voice',
         HeartRateZonesSettings: 'settings/heart-rate-zones',
         // Tapping the workout Live Activity opens its associated URL.
