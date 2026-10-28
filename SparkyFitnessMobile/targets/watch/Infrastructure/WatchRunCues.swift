@@ -17,18 +17,31 @@ final class WatchRunCues: NSObject, AVSpeechSynthesizerDelegate {
     /// Queues `text` after whatever is being said. A step change passes
     /// `interrupt` so it is heard at once, but a split spoken in the same
     /// second waits its turn instead of cutting it off.
+    ///
+    /// `containsPhoneText` marks a cue that includes words the phone wrote in
+    /// the app language (a plan's step names and its start and done sentences,
+    /// a route's own wording). Those are not in the watch's language, so the
+    /// relayed cue carries no language and the phone speaks it with the app's.
     @MainActor
-    func speak(_ text: String, interrupt: Bool = false) {
+    func speak(_ text: String, interrupt: Bool = false, containsPhoneText: Bool = false) {
         // The wearer's headphones are usually on the phone, so a cue goes there
         // when it can be reached. Headphones already connected to the watch
         // are respected, and anything the phone does not confirm is said here.
+        // The voice for what is said here: the watch's language for its own
+        // words, the app's for words the phone wrote (nil = the system voice,
+        // when the phone has not said what its language is).
+        let language = containsPhoneText ? CheckInStore.shared.context.appLanguage : Self.languageTag
         if !outputsToHeadphones(),
-           WatchSessionManager.shared.relayRunCue(text, interrupt: interrupt, fallback: { [weak self] in
-               self?.speakHere(text, interrupt: interrupt)
-           }) {
+           WatchSessionManager.shared.relayRunCue(
+            text,
+            interrupt: interrupt,
+            language: containsPhoneText ? "" : Self.languageTag,
+            fallback: { [weak self] in
+                self?.speakHere(text, interrupt: interrupt, language: language)
+            }) {
             return
         }
-        speakHere(text, interrupt: interrupt)
+        speakHere(text, interrupt: interrupt, language: language)
     }
 
     /// The language the cue text is actually written in, as a BCP 47 tag. It
@@ -54,7 +67,7 @@ final class WatchRunCues: NSObject, AVSpeechSynthesizerDelegate {
         }
     }
 
-    private func speakHere(_ text: String, interrupt: Bool) {
+    private func speakHere(_ text: String, interrupt: Bool, language: String?) {
         // Plain spoken-prompt playback, ducking music under the cue. A failure
         // is printed (it shows in the device console) rather than silently
         // swallowed, and the cue is still spoken on whatever session there is.
@@ -67,7 +80,7 @@ final class WatchRunCues: NSObject, AVSpeechSynthesizerDelegate {
         }
         if interrupt { synthesizer.stopSpeaking(at: .immediate) }
         let utterance = AVSpeechUtterance(string: text)
-        utterance.voice = AVSpeechSynthesisVoice(language: Self.languageTag)
+        utterance.voice = language.flatMap { AVSpeechSynthesisVoice(language: $0) }
         synthesizer.speak(utterance)
     }
 
@@ -92,18 +105,21 @@ final class WatchRunCues: NSObject, AVSpeechSynthesizerDelegate {
     }
 
     /// "5 minutes 24 seconds", spelled out for speech.
-    static func duration(_ seconds: TimeInterval) -> String {
-        // Locale-aware and plural-correct, e.g. "5 minutes, 24 seconds".
+    static func duration(_ seconds: TimeInterval, language: String? = nil) -> String {
+        // Plural-correct, e.g. "5 minutes, 24 seconds", in the language the
+        // rest of the cue is written in rather than the watch's settings, so
+        // the unit names match the voice. A cue that includes phone-written
+        // text passes the app's language instead (`language`).
         Duration.seconds(Int64(seconds.rounded()))
-            .formatted(.units(allowed: [.minutes, .seconds], width: .wide))
+            .formatted(.units(allowed: [.minutes, .seconds], width: .wide).locale(Locale(identifier: language ?? languageTag)))
     }
 
     /// What is said at the finish: "Outdoor run saved. 3.21 kilometers in
     /// 25 minutes 10 seconds."
-    static func finishText(title: String, distanceMeters: Double, seconds: TimeInterval, usesMiles: Bool) -> String {
+    static func finishText(title: String, distanceMeters: Double, seconds: TimeInterval, usesMiles: Bool, language: String? = nil) -> String {
         let unitMeters = usesMiles ? 1609.344 : 1000.0
         let amount = String(format: "%.2f", distanceMeters / unitMeters)
-        let time = duration(seconds)
+        let time = duration(seconds, language: language)
         return usesMiles
             ? String(localized: "watch.run.cue.finishedMiles", defaultValue: "\(title) saved. \(amount) miles in \(time).")
             : String(localized: "watch.run.cue.finishedKm", defaultValue: "\(title) saved. \(amount) kilometers in \(time).")
@@ -111,13 +127,13 @@ final class WatchRunCues: NSObject, AVSpeechSynthesizerDelegate {
 
     /// The finish words for a recording that covers no distance (a jump rope),
     /// so no made-up distance is read out.
-    static func finishText(title: String, seconds: TimeInterval) -> String {
-        String(localized: "watch.run.cue.finishedNoDistance", defaultValue: "\(title) saved. \(duration(seconds)).")
+    static func finishText(title: String, seconds: TimeInterval, language: String? = nil) -> String {
+        String(localized: "watch.run.cue.finishedNoDistance", defaultValue: "\(title) saved. \(duration(seconds, language: language)).")
     }
 
     /// What is said when a plan step begins: "Run, 1 minute."
-    static func stepText(label: String, seconds: TimeInterval) -> String {
-        String(localized: "watch.run.cue.step", defaultValue: "\(label), \(duration(seconds)).")
+    static func stepText(label: String, seconds: TimeInterval, language: String? = nil) -> String {
+        String(localized: "watch.run.cue.step", defaultValue: "\(label), \(duration(seconds, language: language)).")
     }
 
     /// Words for a distance step beginning: "Fast, 400 meters." or "Fast, 0.25 miles."

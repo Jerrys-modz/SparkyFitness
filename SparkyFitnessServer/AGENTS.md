@@ -1,6 +1,6 @@
 # AGENTS.md
 
-_Last updated: 2026-10-26_
+_Last updated: 2026-10-27_
 
 SparkyFitness Server is the backend API package for the SparkyFitness monorepo. Use this file as the primary guide for work inside `SparkyFitnessServer/`.
 
@@ -56,6 +56,8 @@ pnpm exec eslint routes/v2/foodRoutes.ts services/foodCoreService.ts
 - For targeted test runs, prefer `pnpm exec vitest run tests/<name>.test.ts`
 
 ## Source Map
+
+- Family diary copies: `foodEntryRoutes.ts` exposes actor-scoped reviewed and selected copies in both directions. `foodEntryService.ts` checks the real actor's copy grant; `models/foodEntry.ts` rechecks reviewed rows and writes the whole copy atomically. `GET /meal-types/family/:familyUserId` reads recipient meal types under the same copy permission without switching profiles. Existing web `/copy-to-user` stays context-scoped.
 
 - Barcode lookup retains the local/default/fallback behavior in `foodCoreService.ts`. `services/barcodeLookupService.ts` collects accessible source matches on demand; `routes/v2/barcodeRoutes.ts` exposes the read-only alternatives endpoint. Source comparison does not persist routing settings or preferences.
 - Alternative source lookups abort product requests after 12 seconds. Only normalized external matches/misses are cached for 30 seconds per account, profile, barcode, provider and nutrition settings; repeated in-flight lookups share work. Provider availability, preferences and saved local foods are checked on every request, and errors remain retryable.
@@ -347,6 +349,8 @@ When searching, ignore noisy/generated directories unless you explicitly need th
 - Bodyweight exercise load, volume or 1RM issue (#56):
   a `bodyweight_reps` set's weight is signed added/assisting load, and its load is body weight plus that weight (`effectiveLoadKg` in `../shared/src/utils/exerciseLoad.ts`). SQL mirrors the rule in `utils/exerciseLoadSql.ts` (`bodyWeightJoinSql`, `setLoadSql`), used by `services/exerciseStatsService.ts` and `models/exerciseEntry.ts`'s progress query; `services/reportService.ts` applies the shared helper with readings from `reportRepository.getBodyWeightReadings`. Keep the two copies identical. A negative set weight is rejected unless that exercise's modality is `bodyweight_reps`. `models/exercise.ts`'s `createExercise` defaults the modality from equipment through `resolveExerciseModality`
   `weight_distance` (weighted carries) and `weight_duration` (loaded holds) store weight plus distance (km) or duration (s); stats treat them as weight-based, not cardio, and best-set ordering falls back to distance then duration.
+- Device Projection using the wrong device total, or none (#2354):
+  `genericHealthRepository.getDeviceTotalCaloriesByDateRange` reads `daily_health_metrics.total_calories` from every source and `utils/deviceTotalCalories.ts` (`pickDeviceTotalPerDay`) keeps one per day in a fixed order (Health Connect, Garmin, Polar; any other source, Apple Health included, is ignored), never a sum and never by latest capture, since capture time is fetch time. Apple Health totals are stamped with the start of their day, so the stored value freezes at the day's first sync; they stay out until the iPhone reader stamps its read time like Android's `readCumulativeByDay`. Used by `dailySummaryService`, `dailySummaryRangeService` and `DashboardService`. The response `source` stays `'health_connect_total'` for any device total because older apps check for that value.
 - A past day's calorie target or exercise credit changed after a settings change:
   inspect `services/calorieRuleHistoryService.ts` and the trigger in `db/migrations/20261023000000_add_user_calorie_rule_history.sql`. A new preference read by the calorie maths must join `CALORIE_RULE_FIELDS`, the table and the trigger; `tests/calorieRuleHistory.test.ts` fails until it does, and `tests/calorieRuleHistory.integration.test.ts` checks the table and trigger cover every field
 - Weekly goal plan issue (which plan a day uses, or a plan save refused):

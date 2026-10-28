@@ -22,6 +22,25 @@ Setting up a connection is simple and can be managed directly from the applicati
 
 ---
 
+## Copy Meals in the Mobile App
+
+Open a meal in your diary and choose **Copy to family** to log a shared meal for someone else:
+
+1. Choose a family member who has given you permission to copy into their diary.
+2. Review the foods. Keep the whole meal selected or choose individual entries, and adjust the quantities for their portion.
+3. Choose the destination date and meal. The available meal types belong to the recipient, including their custom meals.
+4. Check the recipient and destination, then confirm. The app opens their diary on the chosen date so you can check the result.
+
+Your original entries stay unchanged. Copying a complete meal without quantity changes preserves its grouping; selected or adjusted foods are saved as individual entries.
+
+Copies to family add every reviewed food, even when the recipient already has the same food in that meal. Existing entries stay unchanged.
+
+Copying requires the family member to grant you **Manage Diary** and **View Food Library**. Read-only or expired connections cannot receive copies. Permissions are checked again when you confirm, so removing access takes effect even if a review is already open. If the source foods have changed since you opened the review, refresh and review them again before copying.
+
+To copy in the other direction, open **Family Diaries**, choose a member and a meal, then use **Copy to my diary**. Family access permissions are managed in the web app. If the app asks you to update the server when copying to family, update the server before retrying.
+
+---
+
 ## Privilege Matrix by Permission Level
 
 SparkyFitness uses 7 granular permissions to determine exactly what a connected user can read or write in your profile:

@@ -186,6 +186,12 @@ export interface WatchContextPayload {
    * speaks each completed km or mile while this is on. Missing reads as off.
    */
   runVoiceCues?: boolean | null;
+  /**
+   * The app's language as a BCP 47 tag. The watch speaks cue text the phone
+   * wrote (plan step names, route wording) with a voice for it when the phone
+   * cannot relay the cue. Missing reads as unknown.
+   */
+  appLanguage?: string | null;
   /** The phone's Auto-pause switch: the default for a run begun on the wrist. */
   runAutoPause?: boolean | null;
   /** Minutes between spoken check-ins: the default for a run begun on the wrist; 0 is off. */

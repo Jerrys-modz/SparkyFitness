@@ -13,6 +13,11 @@ export const dailySummaryQueryKey = (date: string) =>
 export const dailySummaryRootQueryKey = ['dailySummary'] as const;
 
 export const familyUsersQueryKey = ['familyDiaryUsers'] as const;
+export const familyCopySourceRootQueryKey = ['familyCopySource'] as const;
+export const familyCopySourceQueryKey = (date: string) =>
+  [...familyCopySourceRootQueryKey, date] as const;
+export const familyMealTypesQueryKey = (familyUserId: string) =>
+  ['familyMealTypes', familyUserId] as const;
 export const familyDailySummaryQueryKey = (
   familyUserId: string,
   date: string
