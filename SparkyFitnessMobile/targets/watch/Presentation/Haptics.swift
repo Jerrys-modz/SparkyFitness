@@ -21,6 +21,21 @@ enum Haptics {
         play(.success)
     }
 
+    /// A check-in was saved and sent.
+    static func saved() {
+        play(.success)
+    }
+
+    /// A wrist run auto-paused because the wearer stopped moving.
+    static func autoPaused() {
+        play(.stop)
+    }
+
+    /// A wrist run resumed on its own because the wearer started moving again.
+    static func autoResumed() {
+        play(.start)
+    }
+
     /// An interval plan moved to its next step. Two firm taps so it reads on
     /// a moving wrist, and differs from a button press.
     static func step() {

@@ -719,9 +719,9 @@ enum SyncState: String, Codable, Equatable {
 
     var label: String {
         switch self {
-        case .saved: return "Saved to SparkyFitness"
-        case .queued: return "Saved on watch · sends near phone"
-        case .failed: return "Couldn't send · tap to retry"
+        case .saved: return String(localized: "watch.sync.saved", defaultValue: "Saved to SparkyFitness")
+        case .queued: return String(localized: "watch.sync.queued", defaultValue: "Saved on watch · sends near phone")
+        case .failed: return String(localized: "watch.sync.failed", defaultValue: "Couldn\'t send · tap to retry")
         }
     }
 

@@ -1063,7 +1063,8 @@ internal object WatchConnectivityHub {
           mapOf(
             "id" to (payload["id"] as? String ?: ""),
             "text" to (payload["text"] as? String ?: ""),
-            "interrupt" to (payload["interrupt"] as? Boolean ?: false)
+            "interrupt" to (payload["interrupt"] as? Boolean ?: false),
+            "language" to (payload["language"] as? String ?: "")
           )
         )
       }

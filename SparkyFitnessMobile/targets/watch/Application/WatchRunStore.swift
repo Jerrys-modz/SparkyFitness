@@ -806,7 +806,7 @@ final class WatchRunStore: ObservableObject {
             phase = .paused
             autoPaused = true
             healthKit.pause(automatic: true)
-            WKInterfaceDevice.current().play(.stop)
+            Haptics.autoPaused()
             cue(String(localized: "watch.run.cue.autoPaused", defaultValue: "Auto-paused."))
             pushLive(force: true)
         case .resume:
@@ -814,7 +814,7 @@ final class WatchRunStore: ObservableObject {
             phase = .running
             autoPaused = false
             healthKit.resume()
-            WKInterfaceDevice.current().play(.start)
+            Haptics.autoResumed()
             cue(String(localized: "watch.run.cue.resumed", defaultValue: "Resumed."))
             pushLive(force: true)
         case .none:

@@ -872,6 +872,12 @@ export interface WatchRunCuePayload {
   text: string;
   /** Say it now rather than after the cue being spoken. */
   interrupt: boolean;
+  /**
+   * BCP 47 tag of the language the text is written in (the watch's). Empty
+   * when the sender does not say, as Wear OS does not; the app language then
+   * applies.
+   */
+  language?: string;
 }
 
 /** How hard the wearer rated a finished watch run, 1 to 10. Matches a run by `clientId`. */

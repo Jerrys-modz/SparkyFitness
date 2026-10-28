@@ -189,12 +189,16 @@ struct WorkoutStep: Identifiable, Equatable {
 
     /// "Warmup 1/2" / "Set 2/3" — what sits under the exercise name.
     var label: String {
-        let kind: String
+        let base: String
         switch plannedSet.setType?.lowercased() {
-        case "warmup": kind = "Warmup"
-        case "drop": kind = "Drop"
-        case "failure": kind = "Failure"
-        default: kind = "Set"
+        case "warmup":
+            base = String(localized: "watch.workout.setLabel.warmup", defaultValue: "Warmup \(setNumber)/\(setCount)")
+        case "drop":
+            base = String(localized: "watch.workout.setLabel.drop", defaultValue: "Drop \(setNumber)/\(setCount)")
+        case "failure":
+            base = String(localized: "watch.workout.setLabel.failure", defaultValue: "Failure \(setNumber)/\(setCount)")
+        default:
+            base = String(localized: "watch.workout.setLabel.set", defaultValue: "Set \(setNumber)/\(setCount)")
         }
         let sideSuffix: String
         switch plannedSet.side?.lowercased() {
@@ -202,7 +206,7 @@ struct WorkoutStep: Identifiable, Equatable {
         case "right": sideSuffix = " · R"
         default: sideSuffix = ""
         }
-        return "\(kind) \(setNumber)/\(setCount)\(sideSuffix)"
+        return base + sideSuffix
     }
 }
 
