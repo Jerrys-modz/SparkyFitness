@@ -54,6 +54,12 @@ jest.mock('../../src/services/runProgramService', () => ({
   applyProgramRealign: jest.fn(() => Promise.resolve()),
 }));
 jest.mock('../../src/hooks/useRunGoals', () => ({ useRunGoals: jest.fn() }));
+jest.mock('../../src/hooks/useTrainingLoad', () => ({
+  useTrainingLoad: () => ({ load: undefined }),
+}));
+jest.mock('../../src/hooks/useSuggestedRanges', () => ({
+  useSuggestedRanges: () => ({ pace: null, byEffort: null, heartRate: null }),
+}));
 jest.mock('../../src/hooks/useRefetchOnFocus', () => ({
   useRefetchOnFocus: jest.fn(),
 }));
@@ -301,6 +307,32 @@ describe('RunProgramsScreen', () => {
     expect(props.navigation.navigate).toHaveBeenCalledWith('RecordActivity', {
       programWorkout: true,
     });
+  });
+
+  it("shows today's session above the program card while the program is on", () => {
+    mockedUse.mockReturnValue({
+      status: programStatus({ programId: 'beginner5k', next: 2 })!,
+      enabled: true,
+      lastAdjustment: null,
+      schedule: { days: [], startDay: null, endDay: null },
+      doneDay: null,
+      loaded: true,
+    });
+    renderScreen(RunProgramsProps());
+    expect(screen.getByText('Recommended today')).toBeTruthy();
+  });
+
+  it('leaves the session out while the program is off', () => {
+    mockedUse.mockReturnValue({
+      status: programStatus({ programId: 'beginner5k', next: 2 })!,
+      enabled: false,
+      lastAdjustment: null,
+      schedule: { days: [], startDay: null, endDay: null },
+      doneDay: null,
+      loaded: true,
+    });
+    renderScreen(RunProgramsProps());
+    expect(screen.queryByText('Recommended today')).toBeNull();
   });
 
   it('saves the Diary days with the program', () => {

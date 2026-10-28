@@ -11,6 +11,7 @@ import {
   programVersions,
   type CustomRunProgramResponse,
 } from '@workspace/shared';
+import RecommendedTodayCard from '../components/recording/RecommendedTodayCard';
 import RunProgramCard, {
   programDescription,
   programName,
@@ -335,6 +336,9 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
     body = (
       <>
         {fitnessPanel}
+        {enabled ? (
+          <RecommendedTodayCard status={status} distanceUnit={distanceUnit} />
+        ) : null}
         <RunProgramCard
           programId={storedId ?? chosenId}
           onChooseProgram={chooseProgram}

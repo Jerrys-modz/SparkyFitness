@@ -8374,6 +8374,50 @@
         "save": "Could not save your goals. Please try again."
       }
     },
+    "recommended": {
+      "pill": "Recommended today",
+      "session": "Session · {{value}} min",
+      "zone": "Zone {{zone}}",
+      "zoneAndPace": "{{zone}} · about {{pace}}{{unit}}",
+      "minutes": "{{value}} min",
+      "seconds": "{{value}} s",
+      "meters": "{{value}} m",
+      "miles": "{{value}} mi",
+      "repeat": "{{repeats}} ×",
+      "times": "{{label}} × {{repeats}}",
+      "lengthLabel": "{{length}} {{label}}",
+      "kind": {
+        "easy": "Easy",
+        "long": "Long run",
+        "tempo": "Tempo",
+        "marathon": "Marathon pace",
+        "hills": "Hills",
+        "strides": "Strides",
+        "intervals": "Intervals",
+        "runWalk": "Run and walk",
+        "briskWalk": "Brisk walk"
+      },
+      "step": {
+        "warmup": "Easy warm-up",
+        "cooldown": "Easy cool-down",
+        "easy": "Easy",
+        "tempo": "Tempo",
+        "marathon": "Marathon pace",
+        "hill": "Hill repeat",
+        "stride": "Stride",
+        "fast": "Fast",
+        "run": "Run",
+        "walk": "Walk",
+        "briskWalk": "Brisk walk"
+      },
+      "reason": {
+        "takeRest": "Your load has been high lately. Keep this one easy, or take a rest day.",
+        "ready": "You are rested, and your load has room for this session.",
+        "steady": "Your training load is steady, so this session fits.",
+        "low": "Your load is low this week, so there is room for this.",
+        "high": "Your load is high. Run this by effort and ease off if you feel tired."
+      }
+    },
     "openCalendar": "Open the training calendar",
     "openCalendarHint": "Program and plan workouts, done and to come",
     "monthGrid": {
