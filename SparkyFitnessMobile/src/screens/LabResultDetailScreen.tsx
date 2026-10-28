@@ -47,10 +47,12 @@ const LabResultDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const deleteResult = useDeleteLabResult(categoryId);
   useRefetchOnFocus(() => void history.refetch(), true);
 
+  const title = marker
+    ? labMarkerName(marker)
+    : (name ?? t('screens.labResultDetail', { defaultValue: 'Lab result' }));
   const header = useScreenHeader({
-    title: marker
-      ? labMarkerName(marker)
-      : (name ?? t('screens.labResultDetail', { defaultValue: 'Lab result' })),
+    title,
+    nativeTitle: title,
     left: { kind: 'back' },
     right: {
       kind: 'icon',

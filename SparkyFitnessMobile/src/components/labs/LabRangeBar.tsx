@@ -43,11 +43,17 @@ const LabRangeBar: React.FC<LabRangeBarProps> = ({
           style={{ left: `${pct(value)}%`, marginLeft: -8 }}
         />
       </View>
-      <View className="flex-row justify-between">
-        <Text className="text-text-muted text-xs">
+      <View className="h-4">
+        <Text
+          className="absolute text-text-muted text-xs"
+          style={{ left: `${pct(low)}%` }}
+        >
           {formatLabValue(low, unit)}
         </Text>
-        <Text className="text-text-muted text-xs">
+        <Text
+          className="absolute text-text-muted text-xs"
+          style={{ right: `${100 - pct(high)}%` }}
+        >
           {formatLabValue(high, unit)}
         </Text>
       </View>
