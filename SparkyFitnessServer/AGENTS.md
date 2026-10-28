@@ -1,6 +1,6 @@
 # AGENTS.md
 
-_Last updated: 2026-10-27_
+_Last updated: 2026-10-28_
 
 SparkyFitness Server is the backend API package for the SparkyFitness monorepo. Use this file as the primary guide for work inside `SparkyFitnessServer/`.
 
@@ -336,7 +336,7 @@ When searching, ignore noisy/generated directories unless you explicitly need th
 - Weekly goal plan issue (which plan a day uses, or a plan save refused):
   each day uses the switched-on plan whose dates cover it (`getActiveWeeklyGoalPlansInRange` in `models/weeklyGoalPlanRepository.ts`, `weeklyGoalPlanInForce` in `../shared/src/utils/weeklyGoalPlans.ts`, picked per day in `services/goalService.ts` and for the Active badge on web and mobile), so a past day keeps the plan it had. `saveWeeklyGoalPlan` places a switched-on plan under a per-user advisory lock with the pure rule in `utils/weeklyGoalPlanTimeline.ts`: a plan starting on or after every other one ends the plan in force the day before (or switches off one starting the same day); any other overlap is a 409 `WeeklyGoalPlanOverlapError`. Never switch plans off wholesale; that drops past days back to the fallback goals. `tests/weeklyGoalPlans.integration.test.ts` covers the database side
 - Sleep or sleep-science issue:
-  inspect `routes/sleepRoutes.ts`, `routes/sleepScienceRoutes.ts`, `services/sleepAnalyticsService.ts`, `services/sleepScienceService.ts`, and the sleep repositories. A night two sources recorded counts once: `sleepAnalyticsService` and `sleepScienceRepository.getSleepHistory` pass the rows through the shared `keepMostDetailedSleepEntries` (`../shared/src/utils/sleepSameNight.ts`), so the history query also returns `stage_events` (stage types only) and the measures that rule reads. Queries that need one sleep value per day (the coach's 30-day aggregates and daily correlation rows, the cycle correlations, Compare) take each day's main sleep with `DISTINCT ON (entry_date)` ordered by `MAIN_SLEEP_ORDER_SQL` (`models/sleepRepository.ts`: the longest record, the earlier bedtime on a tie)
+  inspect `routes/sleepRoutes.ts`, `routes/sleepScienceRoutes.ts`, `services/sleepAnalyticsService.ts`, `services/sleepScienceService.ts`, and the sleep repositories. A night two sources recorded counts once: `sleepAnalyticsService` and `sleepScienceRepository.getSleepHistory` pass the rows through the shared `keepMostDetailedSleepEntries` (`../shared/src/utils/sleepSameNight.ts`), so the history query also returns `stage_events` (stage types only) and the measures that rule reads. Queries that need one sleep value per day (the coach's 30-day aggregates and daily correlation rows, the cycle correlations, Compare) take each day's main sleep with `DISTINCT ON (entry_date)` ordered by `MAIN_SLEEP_ORDER_SQL` (`models/sleepRepository.ts`: the longest record, the earlier bedtime on a tie). A night can hold several entries per source (#3240): `upsertSleepEntry` updates the stored entry of the same session (same night and source, within the 4 hour `SLEEP_STAGE_CLUSTER_GAP_MS`) under a per-night advisory lock and inserts anything further apart, such as a nap, as its own entry; `processSleepEntry` then removes that session's stages from the night's entry if an older sync merged them there
 
 ## Architecture Resources
 

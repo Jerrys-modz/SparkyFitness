@@ -1590,6 +1590,43 @@ async function calculateSleepScore(
   // Ensure score is within 0-100 range
   return Math.round(Math.max(0, Math.min(score, maxScore)));
 }
+/**
+ * Recomputes an entry's bedtime, wake, durations and score from its stored
+ * stages (the primary cluster) and saves them.
+ */
+async function storeSleepAggregatesFromStages(
+  userId: string,
+  entryId: string,
+  actingUserId: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  stages: any[],
+  age: number | null,
+  gender: string | null
+) {
+  const recomputed = recomputeSleepAggregatesFromStages(stages);
+  const sleepScore = await calculateSleepScore(
+    {
+      duration_in_seconds: recomputed.duration_in_seconds,
+      time_asleep_in_seconds: recomputed.time_asleep_in_seconds,
+    },
+    getPrimarySleepStageCluster(stages),
+    age,
+    // @ts-expect-error TS(2554): Expected 2-3 arguments, but got 4.
+    gender
+  );
+  const aggregates = {
+    ...recomputed,
+    sleep_score: Number(sleepScore) || 0,
+  };
+  await sleepRepository.updateSleepEntryAggregates(
+    userId,
+    entryId,
+    actingUserId,
+    aggregates
+  );
+  return aggregates;
+}
+
 async function processSleepEntry(
   userId: string,
   actingUserId: string,
@@ -1682,12 +1719,13 @@ async function processSleepEntry(
       entryToUpsert
     );
     // Pass actingUserId to upsertSleepEntry
-    const newSleepEntry = await sleepRepository.upsertSleepEntry(
-      userId,
-      actingUserId,
-      entryToUpsert,
-      options
-    );
+    const { created, ...newSleepEntry } =
+      await sleepRepository.upsertSleepEntry(
+        userId,
+        actingUserId,
+        entryToUpsert,
+        options
+      );
     if (originalHadStages && stage_events && stage_events.length > 0) {
       // Stages merge by natural key (entry_id, start_time, end_time) inside one
       // repository transaction so partial-window cleanup and reinserts are atomic.
@@ -1735,31 +1773,45 @@ async function processSleepEntry(
         `[processSleepEntry] Preserving ${mergedStages.length} existing stage events for entry ${newSleepEntry.id} because the payload had no authoritative stage data.`
       );
     }
-    const primaryStages = getPrimarySleepStageCluster(mergedStages);
-    const recomputed = recomputeSleepAggregatesFromStages(mergedStages);
-    const recomputedSleepScore = await calculateSleepScore(
-      {
-        duration_in_seconds: recomputed.duration_in_seconds,
-        time_asleep_in_seconds: recomputed.time_asleep_in_seconds,
-      },
-      primaryStages,
-      age,
-      // @ts-expect-error TS(2554): Expected 2-3 arguments, but got 4.
-      gender
-    );
-    await sleepRepository.updateSleepEntryAggregates(
+    const aggregates = await storeSleepAggregatesFromStages(
       userId,
       newSleepEntry.id,
       actingUserId,
-      {
-        ...recomputed,
-        sleep_score: Number(recomputedSleepScore) || 0,
-      }
+      mergedStages,
+      age,
+      gender
     );
+    // A new session whose stages an earlier sync merged into another entry
+    // of this night (a nap stored inside the night before #3240): take them
+    // out of that entry so they are not stored twice.
+    if (created && originalHadStages) {
+      const siblingIds =
+        await sleepRepository.removeSessionStagesFromSiblingEntries(
+          userId,
+          newSleepEntry.id,
+          entry_date,
+          source,
+          bedtime,
+          wake_time
+        );
+      for (const siblingId of siblingIds) {
+        const siblingStages =
+          await sleepRepository.getSleepStageEventsByEntryId(userId, siblingId);
+        if (siblingStages.length > 0) {
+          await storeSleepAggregatesFromStages(
+            userId,
+            siblingId,
+            actingUserId,
+            siblingStages,
+            age,
+            gender
+          );
+        }
+      }
+    }
     return {
       ...newSleepEntry,
-      ...recomputed,
-      sleep_score: Number(recomputedSleepScore) || 0,
+      ...aggregates,
     };
   } catch (error) {
     log('error', `Error in processSleepEntry for user ${userId}:`, error);
