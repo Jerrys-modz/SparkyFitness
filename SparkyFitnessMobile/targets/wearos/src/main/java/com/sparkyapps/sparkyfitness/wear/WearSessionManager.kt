@@ -62,6 +62,8 @@ class WearSessionManager private constructor(private val appContext: Context) :
 
   private var telemetryOwner: String = "watch"
   private val seenCommandKeys = LinkedHashSet<String>()
+  @Volatile
+  private var lastContextRequestMs: Long = 0L
 
   private fun firstTime(key: String?): Boolean {
     if (key.isNullOrEmpty()) return true
@@ -99,7 +101,15 @@ class WearSessionManager private constructor(private val appContext: Context) :
     _requestedPage.value = null
   }
 
+  fun requestContextFromPhoneThrottled() {
+    val now = System.currentTimeMillis()
+    if (now - lastContextRequestMs < 15_000L) return
+    lastContextRequestMs = now
+    pullInitialDataItems()
+  }
+
   fun pullInitialDataItems() {
+    lastContextRequestMs = System.currentTimeMillis()
     scope.launch {
       checkInStore.pruneStaleDayData()
     }
@@ -120,6 +130,9 @@ class WearSessionManager private constructor(private val appContext: Context) :
           }
         }
         dataItems.release()
+      } catch (_: Throwable) {}
+      try {
+        sendLiveMessage(OutboundPayloads.contextRequest())
       } catch (_: Throwable) {}
     }
   }

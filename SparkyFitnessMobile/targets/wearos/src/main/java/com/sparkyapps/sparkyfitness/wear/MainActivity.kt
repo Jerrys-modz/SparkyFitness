@@ -86,6 +86,8 @@ class MainActivity : ComponentActivity() {
   override fun onResume() {
     super.onResume()
     sessionManager.pullInitialDataItems()
+    ComplicationUpdater.requestAll(applicationContext)
+    TileUpdater.requestAll(applicationContext)
   }
 
   private fun handleNavigationIntent(intent: Intent?) {

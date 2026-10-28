@@ -6,7 +6,9 @@ import WatchConnectivity, {
   type WatchCheckInPayload,
   type WatchContextPayload,
   type WatchContainerPayload,
+  type WatchExerciseSummaryPayload,
   type WatchHistoryPoint,
+  type WatchSleepSnapshotPayload,
   type WatchWaterIntakePayload,
   type WatchWaterDeletePayload,
   type WatchWaterLogPayload,
@@ -57,8 +59,14 @@ import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import { useDailySummary, type DailySummaryRawData } from './useDailySummary';
 import { WATCH_PAGE_KEYS } from '../constants/watchPages';
 import { resolveKeyOrder } from '../utils/reorderUtils';
-import { buildWatchGoalNutrients, shownInOrder } from '../utils/watchNutrients';
+import {
+  buildWatchGoalNutrients,
+  resolveWatchNutrientKeys,
+} from '../utils/watchNutrients';
 import { useCustomNutrients } from './useCustomNutrients';
+import { useNutrientDisplayPreferences } from './useNutrientDisplayPreferences';
+import { useSleepDay } from './useSleepDay';
+import { formatClockTime, resolveSleepZone } from '../utils/sleepDay';
 import { useTranslation } from 'react-i18next';
 import type { CheckInMeasurement } from '../types/measurements';
 import type { WorkoutPreset } from '../types/workoutPresets';
@@ -176,6 +184,8 @@ const NO_FIGURES_FOR_TODAY = {
   waterLog: [] as WatchWaterLogPayload[],
   medications: null,
   goalNutrients: null,
+  sleep: null,
+  exerciseSummary: null,
 } as const;
 
 /**
@@ -304,6 +314,8 @@ export function useWatchCheckInBridge(enabled: boolean): void {
   // Units for the custom nutrients the Goals page may list. Rides the same
   // cached query the nutrition screens use.
   const { customNutrients } = useCustomNutrients({ enabled });
+  const { preferences: nutrientDisplayPreferences } =
+    useNutrientDisplayPreferences({ enabled });
   const weightUnit: 'kg' | 'lbs' =
     preferences?.default_weight_unit === 'lbs' ||
     preferences?.default_weight_unit === 'st_lbs'
@@ -622,7 +634,11 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     );
     return buildWatchGoalNutrients(
       dailySummary,
-      shownInOrder(watchNutrientOrder, shownWatchNutrients),
+      resolveWatchNutrientKeys(
+        watchNutrientOrder,
+        shownWatchNutrients,
+        nutrientDisplayPreferences
+      ),
       customUnits,
       t
     );
@@ -631,8 +647,121 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     customNutrients,
     watchNutrientOrder,
     shownWatchNutrients,
+    nutrientDisplayPreferences,
     t,
   ]);
+
+  const { wakeUp: mainSleep, naps: sleepNaps } = useSleepDay(summaryDate, {
+    enabled,
+  });
+  const profileTimezone = preferences?.timezone ?? null;
+  const watchSleep: WatchSleepSnapshotPayload | null = useMemo(() => {
+    if (!mainSleep && sleepNaps.length === 0) return null;
+    const napSeconds = sleepNaps.reduce(
+      (sum, nap) =>
+        sum +
+        Math.max(0, nap.time_asleep_in_seconds ?? nap.duration_in_seconds ?? 0),
+      0
+    );
+    const mainAsleepSeconds = mainSleep
+      ? Math.max(
+          0,
+          mainSleep.time_asleep_in_seconds ?? mainSleep.duration_in_seconds ?? 0
+        )
+      : 0;
+    const zone = mainSleep
+      ? resolveSleepZone(mainSleep, profileTimezone)
+      : null;
+    const bedtime = mainSleep
+      ? formatClockTime(mainSleep.bedtime, timeFormat, zone)
+      : '';
+    const wakeTime = mainSleep
+      ? formatClockTime(mainSleep.wake_time, timeFormat, zone)
+      : '';
+    return {
+      day: summaryDate,
+      totalSeconds: Math.round(mainAsleepSeconds + napSeconds),
+      timeInBedSeconds: Math.round(mainSleep?.duration_in_seconds ?? 0),
+      sleepScore:
+        mainSleep?.sleep_score != null
+          ? Math.round(mainSleep.sleep_score)
+          : null,
+      bedtime: bedtime === '—' ? '' : bedtime,
+      wakeTime: wakeTime === '—' ? '' : wakeTime,
+      deepSeconds:
+        mainSleep?.deep_sleep_seconds != null
+          ? Math.round(mainSleep.deep_sleep_seconds)
+          : null,
+      remSeconds:
+        mainSleep?.rem_sleep_seconds != null
+          ? Math.round(mainSleep.rem_sleep_seconds)
+          : null,
+      lightSeconds:
+        mainSleep?.light_sleep_seconds != null
+          ? Math.round(mainSleep.light_sleep_seconds)
+          : null,
+      awakeSeconds:
+        mainSleep?.awake_sleep_seconds != null
+          ? Math.round(mainSleep.awake_sleep_seconds)
+          : null,
+      restingHeartRate:
+        mainSleep?.resting_heart_rate != null
+          ? Math.round(mainSleep.resting_heart_rate)
+          : null,
+      hrvMs:
+        mainSleep?.avg_overnight_hrv != null
+          ? Math.round(mainSleep.avg_overnight_hrv)
+          : null,
+      spo2:
+        mainSleep?.average_spo2_value != null
+          ? Math.round(mainSleep.average_spo2_value)
+          : null,
+      napCount: sleepNaps.length,
+      napSeconds: Math.round(napSeconds),
+    };
+  }, [mainSleep, sleepNaps, profileTimezone, timeFormat, summaryDate]);
+
+  const watchExerciseSummary: WatchExerciseSummaryPayload | null =
+    useMemo(() => {
+      if (!dailySummary) return null;
+      const loggedSessions = dailySummary.exerciseEntries.flatMap((entry) => {
+        if (entry.type === 'preset') {
+          const cal = entry.exercises.reduce(
+            (sum, ex) => sum + (Number(ex.calories_burned) || 0),
+            0
+          );
+          return [
+            {
+              name: entry.name || 'Workout',
+              durationMinutes: Math.round(
+                Number(entry.total_duration_minutes) || 0
+              ),
+              calories: Math.round(cal),
+            },
+          ];
+        }
+        const rawName = entry.name ?? entry.exercise_snapshot?.name ?? '';
+        if (rawName === 'Active Calories') return [];
+        return [
+          {
+            name: rawName || 'Exercise',
+            durationMinutes: Math.round(Number(entry.duration_minutes) || 0),
+            calories: Math.round(Number(entry.calories_burned) || 0),
+          },
+        ];
+      });
+      return {
+        day: summaryDate,
+        minutes: Math.round(dailySummary.exerciseMinutes || 0),
+        minutesGoal: Math.round(dailySummary.exerciseMinutesGoal || 0),
+        calories: Math.round(
+          dailySummary.otherExerciseCalories || dailySummary.caloriesBurned || 0
+        ),
+        caloriesGoal: Math.round(dailySummary.exerciseCaloriesGoal || 0),
+        sessionCount: loggedSessions.length,
+        sessions: loggedSessions.slice(0, 3),
+      };
+    }, [dailySummary, summaryDate]);
 
   const figuresForSummaryDate = useMemo(
     () => ({
@@ -654,6 +783,8 @@ export function useWatchCheckInBridge(enabled: boolean): void {
       waterLog: watchWaterLog,
       medications: watchMedications,
       goalNutrients,
+      sleep: watchSleep,
+      exerciseSummary: watchExerciseSummary,
     }),
     [
       calorieGoalProgress,
@@ -674,6 +805,8 @@ export function useWatchCheckInBridge(enabled: boolean): void {
       watchWaterLog,
       watchMedications,
       goalNutrients,
+      watchSleep,
+      watchExerciseSummary,
     ]
   );
 
