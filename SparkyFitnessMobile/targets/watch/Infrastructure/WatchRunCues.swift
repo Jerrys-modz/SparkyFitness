@@ -31,11 +31,20 @@ final class WatchRunCues: NSObject, AVSpeechSynthesizerDelegate {
         speakHere(text, interrupt: interrupt)
     }
 
-    /// The language the cues are written in (the watch's), as a BCP 47 tag. It
+    /// The language the cue text is actually written in, as a BCP 47 tag. It
     /// picks the watch's own voice and rides along when the phone speaks the
     /// cue, so the phone uses a voice for this language rather than the app's.
+    ///
+    /// This is the language the bundle's catalog resolved to, not the watch's
+    /// settings language: the cues come from `Localizable.strings`, and a watch
+    /// set to a language the catalog does not have shows English text, which
+    /// must not be read by a voice for the settings language. The settings
+    /// region is kept when it is the same language, so `en-GB` stays `en-GB`.
     static var languageTag: String {
-        Locale.current.identifier.replacingOccurrences(of: "_", with: "-")
+        let resolved = Bundle.main.preferredLocalizations.first ?? "en"
+        let settings = Locale.current.identifier.replacingOccurrences(of: "_", with: "-")
+        let primary: (String) -> String = { String($0.split(separator: "-").first ?? "").lowercased() }
+        return primary(settings) == primary(resolved) ? settings : resolved
     }
 
     /// Whether the watch's audio is going to Bluetooth headphones now.

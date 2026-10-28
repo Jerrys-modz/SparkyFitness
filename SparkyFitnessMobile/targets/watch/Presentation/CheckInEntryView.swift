@@ -111,7 +111,7 @@ struct CheckInEntryView: View {
             by: step,
             sensitivity: .medium,
             isContinuous: false,
-            isHapticFeedbackEnabled: true
+            isHapticFeedbackEnabled: store.context.effectiveHapticsEnabled
         )
         .id(active)
         .onAppear(perform: seedIfNeeded)
