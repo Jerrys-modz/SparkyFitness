@@ -41,6 +41,11 @@ struct CardioLiveLayout<Banner: View>: View {
     /// grey when fixes stop coming; nil hides them (indoors, or a recording
     /// whose GPS is on the phone).
     var signal: ((Date) -> GpsSignal)?
+    /// The wearer's heart-rate zones and the current reading, for the zone bar
+    /// between the clock and the tiles. No zones (the phone has not said) draws
+    /// no bar.
+    var zones: WatchHeartRateZones?
+    var heartRate: Double?
     /// A plan's current step, under the clock. Gets the same moment as the clock.
     @ViewBuilder let banner: (Date) -> Banner
 
@@ -62,6 +67,9 @@ struct CardioLiveLayout<Banner: View>: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                         banner(context.date)
                     }
+                }
+                if let zones {
+                    ZoneBar(zones: zones, heartRate: heartRate)
                 }
                 HStack(spacing: WatchStyle.s(4)) {
                     ForEach(stats) { stat in

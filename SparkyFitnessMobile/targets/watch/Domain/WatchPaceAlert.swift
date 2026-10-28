@@ -28,6 +28,23 @@ enum WatchPaceAlertKind: Equatable {
     case tooFast, tooSlow
 }
 
+/// Where the current pace stands against the range being held, for the pace
+/// tile. Unlike the alert it has no sustain time or margin: it is a reading,
+/// not a nudge.
+enum WatchPaceStanding: Equatable {
+    case tooFast, onTarget, tooSlow
+
+    init(pace: Double, band: WatchPaceBand) {
+        if pace < band.minSecondsPerKm {
+            self = .tooFast
+        } else if pace > band.maxSecondsPerKm {
+            self = .tooSlow
+        } else {
+            self = .onTarget
+        }
+    }
+}
+
 struct WatchPaceAlertState: Equatable {
     var side: WatchPaceAlertKind?
     var outsideSince: TimeInterval?

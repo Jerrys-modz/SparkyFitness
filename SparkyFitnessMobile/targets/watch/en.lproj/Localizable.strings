@@ -37,6 +37,12 @@
 "watch.unit.bpm" = "bpm";
 "watch.run.paused" = "Paused";
 "watch.run.autoPaused" = "Auto-paused";
+"watch.run.zoneLabel" = "Heart rate zone %lld";
+"watch.run.zoneBelow" = "Heart rate below zone 1";
+"watch.run.zoneNone" = "Heart rate zones";
+"watch.run.pace.onTarget" = "on target";
+"watch.run.pace.tooFast" = "too fast";
+"watch.run.pace.tooSlow" = "too slow";
 "watch.run.place.indoor" = "Indoor";
 "watch.run.place.outdoor" = "Outdoor";
 "watch.run.gps.none" = "No GPS signal";
