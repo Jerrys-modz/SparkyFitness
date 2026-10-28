@@ -2413,12 +2413,12 @@ describe('_createExerciseEntryWithClient id threading', () => {
       /INSERT INTO exercise_entries/.test(sql)
     );
     expect(insert).toBeDefined();
-    expect(insert!.sql).toContain('$73');
+    expect(insert!.sql).toContain('$74');
     expect(insert!.sql).toContain('modality');
     expect(insert!.sql).toContain(', id)');
-    // $73 is the last param — the client uuid.
-    expect(insert!.params).toHaveLength(73);
-    expect(insert!.params[72]).toBe('client-uuid-1');
+    // $74 is the last param — the client uuid.
+    expect(insert!.params).toHaveLength(74);
+    expect(insert!.params[73]).toBe('client-uuid-1');
   });
 
   it('omits the id column when no id is provided (defaults to gen_random_uuid)', async () => {
@@ -2435,8 +2435,8 @@ describe('_createExerciseEntryWithClient id threading', () => {
       /INSERT INTO exercise_entries/.test(sql)
     );
     expect(insert).toBeDefined();
-    expect(insert!.sql).not.toContain('$73');
+    expect(insert!.sql).not.toContain('$74');
     expect(insert!.sql).not.toMatch(/record_timezone, id\)/);
-    expect(insert!.params).toHaveLength(72);
+    expect(insert!.params).toHaveLength(73);
   });
 });

@@ -207,6 +207,12 @@ export function parseOutboundHttpUrl(urlString: unknown): URL {
     );
   }
 
+  if (url.hash || (typeof urlString === 'string' && urlString.includes('#'))) {
+    throw new OutboundUrlShapeError(
+      'Outbound URL must not include a URL fragment.'
+    );
+  }
+
   return url;
 }
 
@@ -273,7 +279,9 @@ function assertLiteralHostnameAllowed(
   }
 }
 
-function createGuardedLookup(policy: AiNetworkPolicy): net.LookupFunction {
+export function createGuardedLookup(
+  policy: AiNetworkPolicy
+): net.LookupFunction {
   return (hostname, options, callback) => {
     resolveHostnameForOutboundConnection(hostname, policy)
       .then((address) => {

@@ -1,5 +1,6 @@
 import type { TFunction } from 'i18next';
 import {
+  applyPaceTargets,
   buildIntervalPlan,
   INTERVAL_PRESETS,
   type IntervalPlan,
@@ -7,6 +8,7 @@ import {
 } from '@workspace/shared';
 import { programSpokenCues } from './programCues';
 import { intervalStepName } from './recordingCues';
+import type { RacePaceRanges } from './suggestedRanges';
 
 /**
  * A plan the watch can follow on a wrist-only run, with the step names already
@@ -21,6 +23,11 @@ export interface WatchRunPlanPayload {
   programIndex?: number;
   /** 'walk' for a walking program; missing is a run. */
   activity?: 'walk';
+  /**
+   * `meters` marks a distance step: the watch ends it on the distance it
+   * records, and `seconds` is only the expected time (what a watch build
+   * that predates distance steps follows instead).
+   */
   /** Spoken ahead of a program workout's first step (place, length, any easing); the watch says it as is. */
   startText?: string;
   /** Spoken when a program workout reaches its end: progress and what is next. */
@@ -28,12 +35,15 @@ export interface WatchRunPlanPayload {
   steps: {
     label: string;
     seconds: number;
+    meters?: number;
     /** Pace range to hold in this step, seconds per km. */
     paceMin?: number;
     paceMax?: number;
     /** Heart-rate range to hold in this step, bpm. */
     hrMin?: number;
     hrMax?: number;
+    /** 'mi' when the distance step was set in miles; metres otherwise. */
+    unit?: 'mi';
   }[];
 }
 
@@ -51,6 +61,9 @@ const toSteps = (t: TFunction, plan: IntervalPlan) =>
   plan.steps.map((step) => ({
     label: intervalStepName(t, step.kind, plan.style),
     seconds: step.seconds,
+    ...(step.meters !== undefined && step.meters > 0
+      ? { meters: step.meters }
+      : {}),
     ...(step.pace
       ? {
           paceMin: step.pace.minSecondsPerKm,
@@ -60,12 +73,15 @@ const toSteps = (t: TFunction, plan: IntervalPlan) =>
     ...(step.heartRate
       ? { hrMin: step.heartRate.minBpm, hrMax: step.heartRate.maxBpm }
       : {}),
+    ...(step.unit === 'mi' ? { unit: 'mi' as const } : {}),
   }));
 
 /**
  * The plans offered on the watch: the program workout due now (when a program
  * is on), then the built-in interval plans. `programName` and `presetName`
  * are injected so this stays free of the components that own the wording.
+ * `paceRanges`, when given, put the person's race-based ranges on the program
+ * workout's steps, so the watch holds them to it the way the phone does.
  */
 export function buildWatchRunPlans(
   t: TFunction,
@@ -73,7 +89,8 @@ export function buildWatchRunPlans(
   names: {
     program: (status: ProgramStatus) => string;
     preset: (id: string) => string;
-  }
+  },
+  paceRanges?: RacePaceRanges | null
 ): WatchRunPlanPayload[] {
   const plans: WatchRunPlanPayload[] = [];
   const { status } = program;
@@ -87,7 +104,16 @@ export function buildWatchRunPlans(
         ? { activity: 'walk' as const }
         : {}),
       ...programCueText(t, status.program.id, status.done, status.workout.plan),
-      steps: toSteps(t, status.workout.plan),
+      steps: toSteps(
+        t,
+        paceRanges
+          ? applyPaceTargets(status.workout.plan, {
+              work: paceRanges.pair.work,
+              easy: paceRanges.pair.easy,
+              byEffort: paceRanges.byEffort,
+            })
+          : status.workout.plan
+      ),
     });
   }
   for (const preset of INTERVAL_PRESETS) {

@@ -308,7 +308,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
   // from here rather than each resolving the fallback chain themselves.
   const waterDisplayUnit = waterUnit || preferences?.water_display_unit || 'ml';
   useWidgetSync(summary, {
-    drinkMl: servingVolume ?? null,
+    drinkMl: servingVolume,
     unit: waterDisplayUnit,
     canLog: true,
   });

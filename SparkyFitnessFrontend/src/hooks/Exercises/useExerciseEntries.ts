@@ -9,13 +9,12 @@ import {
   createPresetSession,
   logWorkoutPreset,
   deleteExercisePresetEntry,
-  fetchExerciseDetails,
   getExerciseHistory,
   fetchWorkoutLocations,
 } from '@/api/Exercises/exerciseEntryService';
-import { exerciseEntryKeys, exerciseKeys } from '@/api/keys/exercises';
-import i18n from '@/i18n';
+import { exerciseEntryKeys } from '@/api/keys/exercises';
 import { dailyProgressKeys } from '@/api/keys/diary';
+import { shoeKeys } from '@/api/keys/shoes';
 import { UpdateExerciseEntryRequest } from '@workspace/shared';
 import { useDiaryInvalidation } from '../useInvalidateKeys';
 
@@ -70,6 +69,7 @@ export const useCreateExerciseEntryMutation = () => {
 
 export const useUpdateExerciseEntryMutation = () => {
   const invalidate = useDiaryInvalidation();
+  const queryClient = useQueryClient();
   const { t } = useTranslation();
 
   return useMutation({
@@ -80,7 +80,10 @@ export const useUpdateExerciseEntryMutation = () => {
       id: string;
       data: UpdateExerciseEntryRequest & { imageFile: File | null };
     }) => updateExerciseEntry(id, data),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      invalidate();
+      queryClient.invalidateQueries({ queryKey: shoeKeys.all });
+    },
     meta: {
       successMessage: t(
         'diary.exerciseEntry.updateSuccess',
@@ -96,11 +99,16 @@ export const useUpdateExerciseEntryMutation = () => {
 
 export const useDeleteExerciseEntryMutation = () => {
   const invalidate = useDiaryInvalidation();
+  const queryClient = useQueryClient();
   const { t } = useTranslation();
 
   return useMutation({
     mutationFn: deleteExerciseEntry,
-    onSuccess: invalidate,
+    onSuccess: () => {
+      invalidate();
+      // A linked run counts toward its shoe's mileage and run count.
+      queryClient.invalidateQueries({ queryKey: shoeKeys.all });
+    },
     meta: {
       successMessage: t(
         'diary.exerciseEntry.deleteSuccess',
@@ -202,16 +210,4 @@ export const useDeleteExercisePresetEntryMutation = () => {
   });
 };
 
-export const exerciseDetailsOptions = (exerciseId: string) => ({
-  queryKey: exerciseKeys.detail(exerciseId),
-  queryFn: () => fetchExerciseDetails(exerciseId),
-  staleTime: 1000 * 60 * 60,
-  enabled: !!exerciseId,
-  meta: {
-    errorMessage: i18n.t(
-      'exercise.failedToFetchDetails',
-      'Could not fetch exercise details. Please try again.'
-    ),
-  },
-});
 export { fetchExerciseProgressionStats };

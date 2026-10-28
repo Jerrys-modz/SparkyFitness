@@ -8,6 +8,7 @@ struct WatchRunView: View {
     @EnvironmentObject private var run: WatchRunStore
     @EnvironmentObject private var store: CheckInStore
     @State private var showingSettings = false
+    @State private var page = 0
 
     private var usesMiles: Bool { store.context.distanceUnit == "miles" }
 
@@ -16,7 +17,18 @@ struct WatchRunView: View {
         case .idle:
             Color.clear
         case .running, .paused:
-            live
+            if run.route != nil {
+                // Crown or swipe up for the route, then the whole route; the
+                // main page stays first. The maps only draw while selected.
+                TabView(selection: $page) {
+                    live.tag(0)
+                    WatchRouteMapPage(isActive: page == 1).tag(1)
+                    WatchRouteOverviewPage(isActive: page == 2).tag(2)
+                }
+                .tabViewStyle(.verticalPage)
+            } else {
+                live
+            }
         case .confirmingDistance:
             TreadmillDistanceView()
         case .finished:
@@ -43,10 +55,13 @@ struct WatchRunView: View {
                 ? { (now: Date) -> GpsSignal in GpsSignal(accuracy: run.gpsAccuracy, at: run.gpsAccuracyAt, now: now) }
                 : nil,
             banner: { _ in
-                if let plan = run.plan, let position = plan.position(at: run.elapsed) {
+                if run.route != nil {
+                    RouteCueStrip(progress: run.routeProgress, usesMiles: usesMiles)
+                }
+                if run.plan != nil, let position = run.currentPlanPosition() {
                     CardioPlanStep(
                         label: position.label,
-                        remaining: position.finished ? nil : RecordingState.clock(position.remaining),
+                        remaining: position.finished ? nil : (position.remainingMeters.map { WatchRunPlan.distance($0, inMiles: position.inMiles) } ?? RecordingState.clock(position.remaining)),
                         next: position.next
                     )
                 }
@@ -240,6 +255,11 @@ struct WatchRunView: View {
                     )
                     if summary.metrics.activeEnergyKcal > 0 {
                         row(String(localized: "watch.run.row.active", defaultValue: "Active"), "\(Int(summary.metrics.activeEnergyKcal.rounded())) \(String(localized: "watch.unit.kcal", defaultValue: "kcal"))")
+                    }
+                    if summary.saved {
+                        WorkoutEffortPicker { score, done in
+                            run.rateEffort(score, completion: done)
+                        }
                     }
                     Text(String(localized: "watch.run.sentToPhone", defaultValue: "Sent to your iPhone. It shows up in SparkyFitness once the phone can reach the server."))
                         .font(.caption2)

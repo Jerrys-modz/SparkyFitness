@@ -11,13 +11,10 @@ import {
   UpdateExerciseEntryRequest,
   exerciseProgressResponseSchema,
   ExerciseProgressResponse,
-  exerciseSnapshotResponseSchema,
-  ExerciseSnapshotResponse,
   PresetSessionResponse,
   presetSessionResponseSchema,
 } from '@workspace/shared';
 import z from 'zod';
-import { parseJsonArray } from './exerciseService';
 
 /** The user's own previously logged workout locations, most recent first. */
 export const fetchWorkoutLocations = async (): Promise<string[]> => {
@@ -47,7 +44,11 @@ export const fetchExerciseEntries = async (
 };
 
 export const createExerciseEntry = async (
-  payload: CreateExerciseEntryRequest & { imageFile: File | null }
+  payload: Omit<CreateExerciseEntryRequest, 'calories_burned'> & {
+    // Optional: when omitted the server estimates calories from the exercise.
+    calories_burned?: number;
+    imageFile: File | null;
+  }
 ): Promise<void> => {
   const { imageFile, ...entryData } = payload;
 
@@ -231,29 +232,6 @@ export const getExerciseHistory = async (
     }
   );
   return response;
-};
-
-export const fetchExerciseDetails = async (
-  exerciseId: string
-): Promise<ExerciseSnapshotResponse> => {
-  const response = await apiCall(`/exercises/${exerciseId}`, {
-    method: 'GET',
-  });
-
-  const parsedResponse = { ...response };
-  const arrayFields = [
-    'images',
-    'primary_muscles',
-    'secondary_muscles',
-    'equipment',
-    'instructions',
-  ];
-
-  arrayFields.forEach((field) => {
-    parsedResponse[field] = parseJsonArray(parsedResponse[field]) || [];
-  });
-
-  return exerciseSnapshotResponseSchema.parse(parsedResponse);
 };
 
 export const fetchExerciseEntryById = async (

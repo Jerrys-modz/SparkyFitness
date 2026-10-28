@@ -1,6 +1,7 @@
 import pg from 'pg';
 import { log } from '../config/logging.js';
 import { AsyncLocalStorage } from 'node:async_hooks';
+import { requestConnectRetry, retryOnConnectionError } from './connectRetry.js';
 const { Pool, types } = pg;
 
 export const dbContextStorage = new AsyncLocalStorage<{
@@ -18,6 +19,20 @@ types.setTypeParser(types.builtins.DATE, (value) => value);
 let ownerPoolInstance: any = null;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let appPoolInstance: any = null;
+/**
+ * pg-pool listens for 'error' only on idle clients and stops on checkout, so a
+ * checked-out client whose connection drops (database restart, failover)
+ * emits 'error' with no listener: an uncaught exception that ends the process.
+ * The caller still sees the failure on its query and the client is discarded
+ * on release; this only keeps the process alive.
+ */
+function handleConnectionLoss(pool: pg.Pool, name: string): void {
+  pool.on('connect', (client) => {
+    client.on('error', (err) => {
+      log('debug', `Lost a ${name} database connection`, err);
+    });
+  });
+}
 function createOwnerPoolInstance() {
   const newPool = new Pool({
     user: process.env.SPARKY_FITNESS_DB_USER,
@@ -33,6 +48,7 @@ function createOwnerPoolInstance() {
   newPool.on('error', (err) => {
     log('error', 'Unexpected error on idle owner client', err);
   });
+  handleConnectionLoss(newPool, 'owner');
   return newPool;
 }
 function createAppPoolInstance() {
@@ -50,6 +66,7 @@ function createAppPoolInstance() {
   newPool.on('error', (err) => {
     log('error', 'Unexpected error on idle app client', err);
   });
+  handleConnectionLoss(newPool, 'app');
   return newPool;
 }
 function _getRawOwnerPool() {
@@ -67,6 +84,8 @@ function _getRawAppPool() {
 /**
  * Borrows a client with RLS context set for the target user and authenticated actor.
  * The caller must release it in a finally block; failed context setup discards it.
+ * Connection errors while acquiring or setting the context are retried for a
+ * few seconds; the caller's own statements are never retried.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function getClient(
@@ -78,24 +97,28 @@ async function getClient(
       'userId is required for getClient to ensure RLS is applied.'
     );
   }
-  const client = await _getRawAppPool().connect();
   const store = dbContextStorage.getStore();
   const actualAuthUserId =
     authenticatedUserId || store?.authenticatedUserId || userId;
-  try {
-    await client.query('SELECT public.set_app_context($1, $2)', [
-      userId,
-      actualAuthUserId,
-    ]);
-    return client;
-  } catch (error) {
-    client.release(true);
-    throw error;
-  }
+  return retryOnConnectionError(async () => {
+    const client = await _getRawAppPool().connect();
+    try {
+      await client.query('SELECT public.set_app_context($1, $2)', [
+        userId,
+        actualAuthUserId,
+      ]);
+      return client;
+    } catch (error) {
+      client.release(true);
+      throw error;
+    }
+  }, requestConnectRetry);
 }
 async function getSystemClient() {
-  const client = await _getRawOwnerPool().connect();
-  return client;
+  return retryOnConnectionError(
+    async () => _getRawOwnerPool().connect(),
+    requestConnectRetry
+  );
 }
 // node-pg counters for the app pool, for the admin-only dev tools. Guards
 // against an uninitialized pool.
@@ -139,6 +162,7 @@ export { getClient };
 export { getSystemClient };
 export { getPoolStats };
 export { _getRawOwnerPool as getRawOwnerPool };
+export { handleConnectionLoss };
 export default {
   endPool,
   resetPool,

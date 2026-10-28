@@ -1,8 +1,13 @@
 import type {
   AdjustRunProgramBody,
+  CustomRunProgramInput,
+  CustomRunProgramResponse,
+  ListCustomRunProgramsResponse,
   CompleteRunProgramWorkoutBody,
   RateRunProgramWorkoutBody,
   GetRunProgramResponse,
+  RealignRunProgramBody,
+  RealignRunProgramResponse,
   UpsertRunProgramBody,
 } from '@workspace/shared';
 import { apiFetch } from './apiClient';
@@ -63,4 +68,55 @@ export const adjustRunProgramRunning = (
     operation: 'adjust run program',
     method: 'POST',
     body,
+  });
+/** Previews (or, with `confirmed`, applies) rebuilding the rest of the plan to finish on the goal day. */
+export const realignRunProgram = (
+  body: RealignRunProgramBody
+): Promise<RealignRunProgramResponse> =>
+  apiFetch<RealignRunProgramResponse>({
+    endpoint: '/api/v2/run-program/realign',
+    serviceName: SERVICE,
+    operation: 'realign run program',
+    method: 'POST',
+    body,
+  });
+
+/** The person's own programs, newest first. */
+export const fetchCustomRunPrograms =
+  (): Promise<ListCustomRunProgramsResponse> =>
+    apiFetch<ListCustomRunProgramsResponse>({
+      endpoint: '/api/v2/run-program/custom',
+      serviceName: SERVICE,
+      operation: 'fetch custom run programs',
+    });
+
+export const createCustomRunProgram = (
+  body: CustomRunProgramInput
+): Promise<{ program: CustomRunProgramResponse }> =>
+  apiFetch<{ program: CustomRunProgramResponse }>({
+    endpoint: '/api/v2/run-program/custom',
+    serviceName: SERVICE,
+    operation: 'create custom run program',
+    method: 'POST',
+    body,
+  });
+
+export const updateCustomRunProgram = (
+  id: string,
+  body: CustomRunProgramInput
+): Promise<{ program: CustomRunProgramResponse }> =>
+  apiFetch<{ program: CustomRunProgramResponse }>({
+    endpoint: `/api/v2/run-program/custom/${id}`,
+    serviceName: SERVICE,
+    operation: 'update custom run program',
+    method: 'PUT',
+    body,
+  });
+
+export const deleteCustomRunProgram = (id: string): Promise<void> =>
+  apiFetch<void>({
+    endpoint: `/api/v2/run-program/custom/${id}`,
+    serviceName: SERVICE,
+    operation: 'delete custom run program',
+    method: 'DELETE',
   });
