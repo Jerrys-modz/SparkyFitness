@@ -43,7 +43,6 @@ import {
   planHasDistanceSteps,
   stepHeartRateAlert,
   stepPaceAlert,
-  type FitnessTestType,
   zone2LiveBand,
   type FitnessTestType,
   type HeartRateAlertState,
