@@ -1035,9 +1035,14 @@ extension WatchRunStore {
         kind = .run
         place = .outdoor
         phase = .running
-        // 5.20 km in 27:00 is about 5:11 per km; the heart rate sits in zone 4.
+        // 5.20 km in 27:00 is about 5:11 per km, inside the range; 5.80 km is
+        // about 4:39, faster than it. The heart rate sits in zone 4 either way.
         screenshotElapsed = 27 * 60
-        metrics = WatchRunMetrics(distanceMeters: 5200, activeEnergyKcal: 380, heartRate: 156)
+        metrics = WatchRunMetrics(
+            distanceMeters: onTarget ? 5200 : 5800,
+            activeEnergyKcal: 380,
+            heartRate: 156
+        )
         settings.paceBand = WatchPaceBand.standard
         paceStanding = onTarget ? .onTarget : .tooFast
     }
