@@ -22,6 +22,7 @@ import {
   type AddMenuItemKey,
   type AddMenuRowStyle,
 } from '../constants/addMenuItems';
+import { useAddMenuItemAvailable } from '../hooks/useAddMenuItemAvailable';
 import { useAddMenuItemLabel } from '../hooks/useAddMenuItemLabel';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
@@ -54,6 +55,7 @@ const AddMenuSettingsScreen: React.FC<AddMenuSettingsScreenProps> = () => {
   const raisedBg = String(useCSSVariable('--color-raised'));
   const tintColors = useAddMenuTintColors();
   const labelFor = useAddMenuItemLabel();
+  const isAvailable = useAddMenuItemAvailable();
   const accentColor = tintColors.accent;
 
   const savedCards = useAppPreferencesStore((s) => s.addMenuCards);
@@ -112,7 +114,9 @@ const AddMenuSettingsScreen: React.FC<AddMenuSettingsScreenProps> = () => {
     const lineOf = new Map<AddMenuItemKey, number>();
     for (const style of ['compact', 'action'] as const) {
       chunkIntoLines(
-        groups[style].filter((key) => !hiddenAddMenuItems.includes(key))
+        groups[style].filter(
+          (key) => isAvailable(key) && !hiddenAddMenuItems.includes(key)
+        )
       ).forEach((keys, index) =>
         keys.forEach((key) => lineOf.set(key, index + 1))
       );
@@ -154,7 +158,20 @@ const AddMenuSettingsScreen: React.FC<AddMenuSettingsScreenProps> = () => {
                 </Text>
                 <Icon name="chevron-expand" size={12} color={accentColor} />
               </Pressable>
-              {lineOf.has(key) ? (
+              {!isAvailable(key) ? (
+                <Text
+                  className="text-xs text-text-muted ml-2"
+                  numberOfLines={1}
+                >
+                  {key === 'checkIn'
+                    ? t('addMenuSettings.needsCheckIn', {
+                        defaultValue: 'Not shown: guided check-in is off',
+                      })
+                    : t('addMenuSettings.needsCycle', {
+                        defaultValue: 'Not shown: cycle tracking is off',
+                      })}
+                </Text>
+              ) : lineOf.has(key) ? (
                 <Text className="text-xs text-text-muted ml-2">
                   {t('addMenuSettings.lineNumber', {
                     defaultValue: 'Line {{number}}',
@@ -175,6 +192,7 @@ const AddMenuSettingsScreen: React.FC<AddMenuSettingsScreenProps> = () => {
   }, [
     accentColor,
     hiddenAddMenuItems,
+    isAvailable,
     addMenuOrder,
     addMenuRowStyles,
     cards,

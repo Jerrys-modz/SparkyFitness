@@ -3721,6 +3721,8 @@
     "previewTitle": "Preview",
     "previewDescription": "How Quick Actions looks with your choices.",
     "lineNumber": "Line {{number}}",
+    "needsCheckIn": "Not shown: guided check-in is off",
+    "needsCycle": "Not shown: cycle tracking is off",
     "showAs": "Show as",
     "showAsValue": "Show as {{style}}",
     "styleList": "List",

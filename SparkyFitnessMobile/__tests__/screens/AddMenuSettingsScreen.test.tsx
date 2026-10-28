@@ -1,5 +1,11 @@
 import React from 'react';
-import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from '@testing-library/react-native';
 
 import AddMenuSettingsScreen from '../../src/screens/AddMenuSettingsScreen';
 import { ADD_MENU_ITEM_KEYS } from '../../src/constants/addMenuItems';
@@ -125,9 +131,7 @@ describe('AddMenuSettingsScreen', () => {
       useAppPreferencesStore
         .getState()
         .setAddMenuRowStyle('checkIn', 'compact');
-      useAppPreferencesStore
-        .getState()
-        .setAddMenuRowStyle('symptoms', 'action');
+      useAppPreferencesStore.setState({ guidedCheckInEnabled: true });
     });
     renderScreen();
 
@@ -135,39 +139,50 @@ describe('AddMenuSettingsScreen', () => {
     expect(
       screen.getByTestId('add-menu-preview', { includeHiddenElements: true })
     ).toBeTruthy();
-    // Mood and Mindfulness share line 1; Check-In is alone on line 2.
-    expect(screen.getAllByText('Line 1').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Line 2').length).toBeGreaterThan(0);
+    // Check-In comes first, so it shares line 1 with Mood and Mindfulness is
+    // alone on line 2.
+    expect(
+      within(screen.getByTestId('add-menu-row-checkIn')).getByText('Line 1')
+    ).toBeTruthy();
+    expect(
+      within(screen.getByTestId('add-menu-row-mood')).getByText('Line 1')
+    ).toBeTruthy();
+    expect(
+      within(screen.getByTestId('add-menu-row-mindfulness')).getByText('Line 2')
+    ).toBeTruthy();
   });
 
-  describe('the cycle row', () => {
-    test('is named as the sheet names it while cycle tracking is on', () => {
-      Object.assign(mockCycle, { enabled: true, mode: 'pregnant' });
-      renderScreen();
-
-      expect(screen.getAllByText('Log Pregnancy Entry').length).toBeGreaterThan(
-        0
-      );
-      expect(screen.queryAllByText('Wellness')).toHaveLength(0);
-    });
-
-    test('says Wellness in discreet mode, as the sheet does', () => {
-      Object.assign(mockCycle, {
-        enabled: true,
-        mode: 'pregnant',
-        discreetMode: true,
+  describe('items the sheet leaves out', () => {
+    test('say why, and take no line', () => {
+      act(() => {
+        useAppPreferencesStore
+          .getState()
+          .setAddMenuRowStyle('checkIn', 'compact');
       });
       renderScreen();
 
-      expect(screen.getAllByText('Wellness').length).toBeGreaterThan(0);
-      expect(screen.queryAllByText('Log Pregnancy Entry')).toHaveLength(0);
+      const checkIn = screen.getByTestId('add-menu-row-checkIn');
+      expect(
+        within(checkIn).getByText('Not shown: guided check-in is off')
+      ).toBeTruthy();
+      expect(within(checkIn).queryByText(/^Line /)).toBeNull();
+      // Mood is still on line 1, not pushed down by the missing item.
+      const mood = screen.getByTestId('add-menu-row-mood');
+      expect(within(mood).getByText('Line 1')).toBeTruthy();
+      const wellness = screen.getByTestId('add-menu-row-wellness');
+      expect(
+        within(wellness).getByText('Not shown: cycle tracking is off')
+      ).toBeTruthy();
     });
 
-    test('keeps the plain name while cycle tracking is off', () => {
+    test('are shown normally once the feature is on', () => {
+      Object.assign(mockCycle, { enabled: true });
+      act(() => {
+        useAppPreferencesStore.setState({ guidedCheckInEnabled: true });
+      });
       renderScreen();
 
-      expect(screen.getAllByText('Wellness').length).toBeGreaterThan(0);
-      expect(screen.queryAllByText('Log Cycle')).toHaveLength(0);
+      expect(screen.queryByText(/^Not shown:/)).toBeNull();
     });
   });
 
