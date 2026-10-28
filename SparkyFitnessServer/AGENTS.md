@@ -131,7 +131,7 @@ When searching, ignore noisy/generated directories unless you explicitly need th
 - `index.ts` is the true local boot path used by `pnpm start`; do not bypass it for normal development because it performs env loading and preflight work
 - `SparkyFitnessServer.ts` creates the Express app, configures static upload serving, mounts auth interception, registers routes, exposes API docs, starts background jobs through `services/backgroundJobScheduler.ts`, and installs the shutdown handlers from `utils/gracefulShutdown.ts`
 - Startup order matters:
-  - `index.ts`: await `initializeDatabase()`, which applies pending migrations and then reapplies `db/rls_policies.sql` under a PostgreSQL advisory lock, **before** importing `SparkyFitnessServer.ts` (and therefore `auth.ts`)
+  - `index.ts`: await `initializeDatabase()`, which applies pending migrations and then, only when the file or the policies in the database changed, reapplies `db/rls_policies.sql` under a PostgreSQL advisory lock, **before** importing `SparkyFitnessServer.ts` (and therefore `auth.ts`)
   - upsert env-configured OIDC provider
   - mount Better Auth
   - sync trusted SSO providers
@@ -198,6 +198,7 @@ When searching, ignore noisy/generated directories unless you explicitly need th
   3. Update the developer-facing documentation in `../docs/src/developer/database-security-tiers.md` to define its security tier (Tier 1, Tier 2, or Tier 3).
   4. Add or update the matching Zod schema in `../shared/src/schemas/database/`.
 - Keep future schema-startup steps in `utils/initializeDatabase.ts` and pass its shared client through all database work. The lock and schema work must use the same connection so initialization cannot continue on another connection after the lock-owning session is lost. Do not create alternate migration mechanisms.
+- `utils/applyRlsPolicies.ts` skips the apply when `system.rls_policy_state` holds the file's sha256 and a fingerprint of the catalogs (public policies, row security flags, public functions) that still matches, so a boot with nothing to change takes no lock on a user table. Applying takes an ACCESS EXCLUSIVE lock on every policy table, so it runs with `lock_timeout` 200 ms (below PostgreSQL's 1 s `deadlock_timeout`, so when the apply and a live request wait on each other the apply normally gives way first) and retries for 30 s before waiting without a timeout; the file and its state row commit together. Policies changed by hand are applied again on the next boot; deleting the state row forces an apply.
 - Migrations run from `index.ts`, **before any application module is imported**, and via dynamic `await import()`. Both details are load-bearing: Better Auth validates the schema eagerly at `auth.ts` module scope and caches a mismatch for the life of the process (issues #2469 / #2470), and `db/poolManager.ts` builds its pools at module load, so a static import would be hoisted above the env/secret loading. `tests/bootOrder.test.ts` guards this
 
 ### Uploads: Public vs Sensitive
