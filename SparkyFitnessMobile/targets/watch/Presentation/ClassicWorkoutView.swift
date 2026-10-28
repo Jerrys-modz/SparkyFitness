@@ -206,6 +206,7 @@ private struct WaitingForWorkoutView: View {
                 usesMiles: checkIn.context.distanceUnit == "miles",
                 suggestedPace: checkIn.context.runPaceBand ?? .standard,
                 suggestedHeartRate: checkIn.context.runHeartRateBand ?? .standard,
+                suggestedFueling: checkIn.context.runFueling ?? .carbsOnly,
                 onChoose: { kind, place, plan, alerts in
                     choosingCardio = false
                     run.start(kind, place: place, plan: plan, alerts: alerts)
@@ -2123,6 +2124,8 @@ private struct CardioChoicesView: View {
     /// phone, or a plain default.
     let suggestedPace: WatchPaceBand
     let suggestedHeartRate: WatchHeartRateBand
+    /// Where the fuel and drink reminders start when turned on.
+    let suggestedFueling: WatchFuelingPlan
     let onChoose: (WatchRunKind, WatchRunPlace, WatchRunPlan?, WatchRunAlertSetup) -> Void
     let onChooseRoute: (WatchRunKind, WatchRoute, WatchRunAlertSetup) -> Void
     /// This run's alerts. Fresh each time the sheet opens, so an alert never
@@ -2195,7 +2198,8 @@ private struct CardioChoicesView: View {
                 alerts: $alerts,
                 usesMiles: usesMiles,
                 suggestedPace: suggestedPace,
-                suggestedHeartRate: suggestedHeartRate
+                suggestedHeartRate: suggestedHeartRate,
+                suggestedFueling: suggestedFueling
             )
         } label: {
             HStack(spacing: ClassicWatchStyle.s(8)) {
@@ -2229,6 +2233,12 @@ private struct CardioChoicesView: View {
         }
         if let hr = alerts.heartRate {
             parts.append(String(localized: "watch.cardio.summary.heartRate", defaultValue: "Heart rate \(Int(hr.minBpm))–\(Int(hr.maxBpm))"))
+        }
+        if let interval = alerts.fueling?.carbIntervalMin {
+            parts.append(String(localized: "watch.cardio.summary.fuel", defaultValue: "Fuel \(interval) min"))
+        }
+        if let interval = alerts.fueling?.drinkIntervalMin {
+            parts.append(String(localized: "watch.cardio.summary.drink", defaultValue: "Drink \(interval) min"))
         }
         return parts.isEmpty ? String(localized: "watch.cardio.off", defaultValue: "Off") : parts.joined(separator: " · ")
     }
@@ -2397,6 +2407,7 @@ private struct RunAlertsView: View {
     let usesMiles: Bool
     let suggestedPace: WatchPaceBand
     let suggestedHeartRate: WatchHeartRateBand
+    let suggestedFueling: WatchFuelingPlan
 
     /// Seconds per kilometre to the phone's unit, and back.
     private var perUnit: Double { usesMiles ? 1.609344 : 1 }
@@ -2452,6 +2463,7 @@ private struct RunAlertsView: View {
                     edgeLabel(String(localized: "watch.cardio.highest", defaultValue: "Highest"), "\(Int(hr.maxBpm)) \(String(localized: "watch.unit.bpm", defaultValue: "bpm"))")
                 }
             }
+            FuelingSetupRows(alerts: $alerts, suggested: suggestedFueling)
         }
         .navigationTitle(String(localized: "watch.cardio.alerts", defaultValue: "Alerts"))
     }

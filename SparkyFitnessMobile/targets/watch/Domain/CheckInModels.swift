@@ -543,6 +543,10 @@ struct WatchContext: Codable, Equatable {
     /// An alert is only ever on for the run it was chosen for.
     var runPaceBand: WatchPaceBand? = nil
     var runHeartRateBand: WatchHeartRateBand? = nil
+    /// The fuel and drink reminders last planned on the phone, offered as the
+    /// starting point on the start screen. Nil until the phone has said. A run
+    /// only has reminders when they are turned on for it.
+    var runFueling: WatchFuelingPlan? = nil
     /// The wearer's five heart-rate zone floors, for the zone bar on a cardio
     /// screen. Nil until the phone has said, which draws no bar.
     var runHeartRateZones: WatchHeartRateZones? = nil

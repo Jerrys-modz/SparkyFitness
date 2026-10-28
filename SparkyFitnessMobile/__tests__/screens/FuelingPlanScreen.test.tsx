@@ -7,6 +7,7 @@ import {
   startFuelingSession,
 } from '../../src/services/fuelingReminders';
 import { requestNotificationPermission } from '../../src/services/notifications';
+import { saveWatchFuelingPreference } from '../../src/services/watchFuelingPreference';
 
 jest.mock('../../src/components/ActiveWorkoutBar', () => ({
   useActiveWorkoutBarPadding: () => 0,
@@ -67,6 +68,10 @@ jest.mock('../../src/components/FuelFoodSheet', () => {
     }),
   };
 });
+
+jest.mock('../../src/services/watchFuelingPreference', () => ({
+  saveWatchFuelingPreference: jest.fn().mockResolvedValue(undefined),
+}));
 
 jest.mock('../../src/services/fuelingReminders', () => ({
   getFuelingSession: jest.fn(),
@@ -305,6 +310,46 @@ describe('FuelingPlanScreen', () => {
       const call = mockStart.mock.calls[0][0];
       expect(call.offsetsMin).toEqual([]);
       expect(call.drink?.offsetsMin).toEqual([20, 40]);
+    });
+  });
+
+  describe('Apple Watch', () => {
+    const mockSaveWatch = saveWatchFuelingPreference as jest.Mock;
+
+    it('gives the watch the plan without scheduling phone reminders', async () => {
+      const { getByTestId } = renderScreen();
+      mockSaveWatch.mockClear();
+
+      await act(async () => {
+        fireEvent.press(getByTestId('fueling-save-watch'));
+      });
+
+      expect(mockSaveWatch).toHaveBeenCalledWith({
+        carbIntervalMin: 25,
+        portionGrams: 25,
+        drinkIntervalMin: 20,
+        mlPerDrink: 150,
+      });
+      expect(mockStart).not.toHaveBeenCalled();
+    });
+
+    it('also remembers the plan when phone reminders are set', async () => {
+      const { getByTestId } = renderScreen();
+      mockSaveWatch.mockClear();
+      await act(async () => {
+        fireEvent.press(getByTestId('fueling-start'));
+      });
+      expect(mockSaveWatch).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not offer the watch for a run that needs no fuel', () => {
+      const { getByTestId } = renderScreen();
+      fireEvent.changeText(getByTestId('fueling-hours'), '0');
+      fireEvent.changeText(getByTestId('fueling-minutes'), '45');
+      expect(
+        getByTestId('fueling-save-watch').props.accessibilityState?.disabled ??
+          getByTestId('fueling-save-watch').props.disabled
+      ).toBeTruthy();
     });
   });
 });
