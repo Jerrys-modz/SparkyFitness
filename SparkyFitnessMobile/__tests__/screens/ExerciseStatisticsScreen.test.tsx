@@ -1,6 +1,7 @@
 import React from 'react';
 import { fireEvent, render } from '@testing-library/react-native';
 import {
+  buildPaceByZone,
   buildRunningTrends,
   predictRaceTimes,
   type ExerciseDashboardSummary,
@@ -99,6 +100,11 @@ jest.mock('../../src/hooks/useRunningTrends', () => ({
 }));
 jest.mock('../../src/hooks/useBestEfforts', () => ({
   useBestEfforts: jest.fn(),
+}));
+
+const mockUsePaceByZone = jest.fn();
+jest.mock('../../src/hooks/usePaceByZone', () => ({
+  usePaceByZone: (...args: unknown[]) => mockUsePaceByZone(...args),
 }));
 jest.mock('../../src/hooks/usePreferences', () => ({
   usePreferences: jest.fn(() => ({
@@ -243,6 +249,9 @@ describe('ExerciseStatisticsScreen', () => {
       efforts: [],
       runsAnalyzed: 0,
       truncated: false,
+    });
+    mockUsePaceByZone.mockReturnValue({
+      zones: null,
       isLoading: false,
       isError: false,
     });
@@ -444,6 +453,42 @@ describe('ExerciseStatisticsScreen', () => {
     fireEvent.press(screen.getByText('Cardio'));
 
     expect(screen.queryByText('Best efforts')).toBeNull();
+  });
+
+  it('shows pace by heart rate zone when a zone has runs, and leaves it out otherwise', () => {
+    mockUsePaceByZone.mockReturnValue({
+      zones: buildPaceByZone(
+        [
+          {
+            exerciseName: 'Morning Run',
+            category: 'running',
+            entryDate: '2026-09-10',
+            durationMinutes: 27,
+            distanceMeters: 5000,
+            avgHeartRate: 120,
+          },
+        ],
+        [95, 114, 133, 152, 171],
+        { today: '2026-09-27', months: 4 }
+      ),
+      isLoading: false,
+      isError: false,
+    });
+    const screen = render(<ExerciseStatisticsScreen {...props} />);
+    fireEvent.press(screen.getByText('Cardio'));
+    expect(screen.getByText('Pace by Heart Rate Zone')).toBeTruthy();
+    expect(screen.getByText('Zone 2 Easy Aerobic')).toBeTruthy();
+  });
+
+  it('leaves pace by zone out with no zone runs', () => {
+    const screen = render(<ExerciseStatisticsScreen {...props} />);
+    fireEvent.press(screen.getByText('Cardio'));
+    expect(screen.queryByText('Pace by Heart Rate Zone')).toBeNull();
+      isLoading: false,
+      isError: false,
+    });
+    const screen = render(<ExerciseStatisticsScreen {...props} />);
+    fireEvent.press(screen.getByText('Cardio'));
   });
 
   it('leaves the trends out when there are no runs', () => {

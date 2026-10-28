@@ -79,6 +79,8 @@ import {
   onRecordingPreferenceChange,
 } from '../services/gpsRecordingService';
 import { useRunProgram } from '../services/runProgramService';
+import { useHeartRateZones } from './useHeartRateZones';
+import { watchHeartRateZoneFloors } from '../utils/watchHeartRateZones';
 import { suggestedPaceRangesFromRace } from '../utils/suggestedRanges';
 import { buildWatchRunPlans } from '../utils/watchRunPlans';
 import { useZone2HeartRateBand } from './useZone2HeartRateBand';
@@ -330,6 +332,12 @@ export function useWatchCheckInBridge(enabled: boolean): void {
   // shows metres, or yards when the phone is set to miles.
   const distanceUnit = watchDistanceUnit(preferences?.default_distance_unit);
   const { status: programStatus, enabled: programEnabled } = useRunProgram();
+  // Zone floors for the zone bar on the watch's cardio screens.
+  const { zones: heartRateZones } = useHeartRateZones(enabled);
+  const heartRateZoneFloors = useMemo(
+    () => watchHeartRateZoneFloors(heartRateZones),
+    [heartRateZones]
+  );
   // The learned indoor distance factor, re-read whenever a correction
   // changes it, so the next context push carries the new value.
   const [indoorDistanceScale, setIndoorDistanceScale] = useState<{
@@ -839,6 +847,9 @@ export function useWatchCheckInBridge(enabled: boolean): void {
             }
           : {}),
         ...watchFuelingContext(fuelingPreference),
+        ...(heartRateZoneFloors
+          ? { runHeartRateZoneFloors: heartRateZoneFloors }
+          : {}),
         runPlans,
         ...(indoorDistanceScale ? { indoorDistanceScale } : {}),
         startableWorkouts,
@@ -891,6 +902,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     watchUpNextPage,
     watchLargerText,
     watchClassicWorkout,
+    heartRateZoneFloors,
     runPlans,
     indoorDistanceScale,
     fuelingPreference,
