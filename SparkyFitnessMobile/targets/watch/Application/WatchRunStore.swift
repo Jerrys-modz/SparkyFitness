@@ -716,7 +716,7 @@ final class WatchRunStore: ObservableObject {
             let planStep = plan.steps[position.index]
             let step = planStep.isDistance
                 ? WatchRunCues.stepText(label: position.label, meters: planStep.meters ?? 0, inMiles: planStep.inMiles)
-                : WatchRunCues.stepText(label: position.label, seconds: planStep.seconds)
+                : WatchRunCues.stepText(label: position.label, seconds: planStep.seconds, language: phoneLanguage)
             let intro = first ? plan.startText : nil
             // The step name comes from the phone, in the app's language.
             WatchRunCues.shared.speak(intro.map { "\($0) \(step)" } ?? step, interrupt: true, containsPhoneText: true)
@@ -781,6 +781,12 @@ final class WatchRunStore: ObservableObject {
     /// Where the plan stands now, for the run screen.
     func currentPlanPosition() -> WatchRunPlan.Position? {
         healthKit.planPosition()
+    }
+
+    /// The language of words the phone wrote: the app's when the phone has said
+    /// what it is, else the catalog's.
+    private var phoneLanguage: String {
+        CheckInStore.shared.context.appLanguage ?? WatchRunCues.languageTag
     }
 
     private var usesMiles: Bool {
@@ -889,18 +895,23 @@ final class WatchRunStore: ObservableObject {
                 // cue that reaches it behind that work is confirmed late, so the
                 // watch gave up waiting and said the cue too (heard twice).
                 if save {
+                    let done = self.programDoneText(completed: scaled?.planCompleted ?? false)
+                    // With the program's done sentence the cue is the phone's
+                    // language, durations included.
+                    let language = done == nil ? nil : self.phoneLanguage
                     let finished = ending.showsDistance
                         ? WatchRunCues.finishText(
                             title: ending.title(endingPlace),
                             distanceMeters: metrics.distanceMeters,
                             seconds: elapsed,
-                            usesMiles: self.usesMiles
+                            usesMiles: self.usesMiles,
+                            language: language
                         )
                         : WatchRunCues.finishText(
                             title: ending.title(endingPlace),
-                            seconds: elapsed
+                            seconds: elapsed,
+                            language: language
                         )
-                    let done = self.programDoneText(completed: scaled?.planCompleted ?? false)
                     self.cue(done.map { "\(finished) \($0)" } ?? finished, containsPhoneText: done != nil)
                 }
                 // The Health workout is stamped so the phone's import skips
@@ -941,13 +952,14 @@ final class WatchRunStore: ObservableObject {
         // Say the finish once the distance is settled (the machine's figure, if
         // given), and before the run is handed to the phone, as on the other
         // finish path: a cue confirmed behind the phone's filing is heard twice.
+        let done = programDoneText(completed: result.planCompleted)
         let finished = WatchRunCues.finishText(
             title: result.kind.title(result.place),
             distanceMeters: result.metrics.distanceMeters,
             seconds: pendingElapsed,
-            usesMiles: usesMiles
+            usesMiles: usesMiles,
+            language: done == nil ? nil : phoneLanguage
         )
-        let done = programDoneText(completed: result.planCompleted)
         cue(done.map { "\(finished) \($0)" } ?? finished, containsPhoneText: done != nil)
         // The snapshot stays until the message is durably queued.
         if WatchSessionManager.shared.sendRunFinished(result) {

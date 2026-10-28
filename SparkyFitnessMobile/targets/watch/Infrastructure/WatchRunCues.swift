@@ -105,20 +105,21 @@ final class WatchRunCues: NSObject, AVSpeechSynthesizerDelegate {
     }
 
     /// "5 minutes 24 seconds", spelled out for speech.
-    static func duration(_ seconds: TimeInterval) -> String {
+    static func duration(_ seconds: TimeInterval, language: String? = nil) -> String {
         // Plural-correct, e.g. "5 minutes, 24 seconds", in the language the
         // rest of the cue is written in rather than the watch's settings, so
-        // the unit names match the voice.
+        // the unit names match the voice. A cue that includes phone-written
+        // text passes the app's language instead (`language`).
         Duration.seconds(Int64(seconds.rounded()))
-            .formatted(.units(allowed: [.minutes, .seconds], width: .wide).locale(Locale(identifier: languageTag)))
+            .formatted(.units(allowed: [.minutes, .seconds], width: .wide).locale(Locale(identifier: language ?? languageTag)))
     }
 
     /// What is said at the finish: "Outdoor run saved. 3.21 kilometers in
     /// 25 minutes 10 seconds."
-    static func finishText(title: String, distanceMeters: Double, seconds: TimeInterval, usesMiles: Bool) -> String {
+    static func finishText(title: String, distanceMeters: Double, seconds: TimeInterval, usesMiles: Bool, language: String? = nil) -> String {
         let unitMeters = usesMiles ? 1609.344 : 1000.0
         let amount = String(format: "%.2f", distanceMeters / unitMeters)
-        let time = duration(seconds)
+        let time = duration(seconds, language: language)
         return usesMiles
             ? String(localized: "watch.run.cue.finishedMiles", defaultValue: "\(title) saved. \(amount) miles in \(time).")
             : String(localized: "watch.run.cue.finishedKm", defaultValue: "\(title) saved. \(amount) kilometers in \(time).")
@@ -126,13 +127,13 @@ final class WatchRunCues: NSObject, AVSpeechSynthesizerDelegate {
 
     /// The finish words for a recording that covers no distance (a jump rope),
     /// so no made-up distance is read out.
-    static func finishText(title: String, seconds: TimeInterval) -> String {
-        String(localized: "watch.run.cue.finishedNoDistance", defaultValue: "\(title) saved. \(duration(seconds)).")
+    static func finishText(title: String, seconds: TimeInterval, language: String? = nil) -> String {
+        String(localized: "watch.run.cue.finishedNoDistance", defaultValue: "\(title) saved. \(duration(seconds, language: language)).")
     }
 
     /// What is said when a plan step begins: "Run, 1 minute."
-    static func stepText(label: String, seconds: TimeInterval) -> String {
-        String(localized: "watch.run.cue.step", defaultValue: "\(label), \(duration(seconds)).")
+    static func stepText(label: String, seconds: TimeInterval, language: String? = nil) -> String {
+        String(localized: "watch.run.cue.step", defaultValue: "\(label), \(duration(seconds, language: language)).")
     }
 
     /// Words for a distance step beginning: "Fast, 400 meters." or "Fast, 0.25 miles."
