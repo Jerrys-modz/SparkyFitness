@@ -1801,8 +1801,10 @@ async function processSleepEntry(
         } else {
           // Every stage it held was this session's, so it was a copy of the
           // entry above. Recomputing would leave it with no bedtime, and an
-          // entry without times matches any later write of that night.
-          await sleepRepository.deleteSleepEntry(userId, siblingId);
+          // entry without times matches any later write of that night. Delete
+          // it only if it is still empty under a row lock, so a concurrent
+          // sync that added stages after the read above is not cascaded away.
+          await sleepRepository.deleteSleepEntryIfEmpty(userId, siblingId);
         }
       }
     }

@@ -1225,6 +1225,61 @@ async function deleteSleepEntry(userId: any, entryId: any) {
     client.release();
   }
 }
+/**
+ * Deletes a sleep entry only if it still holds no stages, atomically. Used by
+ * the nap heal path: an entry whose every stage moved to a new session would
+ * otherwise be left without a bedtime, which the session lookup treats as
+ * matching any later write of that night.
+ *
+ * Locks the entry row with FOR UPDATE before checking. A stage insert takes
+ * FOR KEY SHARE on the parent through the ON DELETE CASCADE foreign key, which
+ * conflicts with FOR UPDATE, so a concurrent stage write for this entry waits
+ * behind this check instead of landing after it and being lost to the cascade.
+ * Returns true when the entry was deleted.
+ */
+async function deleteSleepEntryIfEmpty(
+  userId: string,
+  entryId: string
+): Promise<boolean> {
+  const client = await getClient(userId);
+  try {
+    await client.query('BEGIN');
+    const locked = await client.query(
+      'SELECT id FROM sleep_entries WHERE id = $1 AND user_id = $2 FOR UPDATE',
+      [entryId, userId]
+    );
+    if (locked.rows.length === 0) {
+      await client.query('COMMIT');
+      return false;
+    }
+    const stages = await client.query(
+      'SELECT 1 FROM sleep_entry_stages WHERE entry_id = $1 AND user_id = $2 LIMIT 1',
+      [entryId, userId]
+    );
+    if (stages.rows.length > 0) {
+      await client.query('COMMIT');
+      return false;
+    }
+    await client.query(
+      'DELETE FROM sleep_entries WHERE id = $1 AND user_id = $2',
+      [entryId, userId]
+    );
+    await client.query('COMMIT');
+    log('info', `Deleted emptied sleep entry ${entryId} for user ${userId}.`);
+    return true;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    log(
+      'error',
+      `Error deleting emptied sleep entry ${entryId} for user ${userId}: `,
+      error
+    );
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 export { upsertSleepEntry };
 export { upsertSleepStageEvent };
 export { mergeSleepStageEvents };
@@ -1234,6 +1289,7 @@ export { getSleepEntriesByUserIdAndDateRange };
 export { updateSleepEntry };
 export { deleteSleepStageEventsByEntryId };
 export { deleteSleepEntry };
+export { deleteSleepEntryIfEmpty };
 export { getSleepEntriesWithAllDetailsByUserIdAndDateRange };
 export { deleteSleepEntriesByEntrySourceAndDate };
 export default {
@@ -1247,6 +1303,7 @@ export default {
   updateSleepEntry,
   deleteSleepStageEventsByEntryId,
   deleteSleepEntry,
+  deleteSleepEntryIfEmpty,
   getSleepEntriesWithAllDetailsByUserIdAndDateRange,
   deleteSleepEntriesByEntrySourceAndDate,
 };

@@ -132,11 +132,11 @@ describe('processSleepEntry nap session (#3240)', () => {
         storedStages.delete('entry-copy');
         return ['entry-copy'];
       });
-    sleepRepository.deleteSleepEntry = vi.fn().mockResolvedValue({});
+    sleepRepository.deleteSleepEntryIfEmpty = vi.fn().mockResolvedValue(true);
 
     await measurementService.processSleepEntry(userId, userId, nap);
 
-    expect(sleepRepository.deleteSleepEntry).toHaveBeenCalledWith(
+    expect(sleepRepository.deleteSleepEntryIfEmpty).toHaveBeenCalledWith(
       userId,
       'entry-copy'
     );
