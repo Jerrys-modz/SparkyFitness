@@ -1,12 +1,14 @@
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Text, View } from 'react-native';
+import { Rect } from '@shopify/react-native-skia';
 import { CartesianChart } from 'victory-native';
 import { useCSSVariable } from 'uniwind';
 import { CHART_LABEL_FONT_SIZE, useChartFont } from '../charts/chartFormatting';
 import { formatDateWithYear } from '../../utils/dayLabel';
 import LineSeriesMark from '../charts/LineSeriesMark';
 import TrendGoalLine from '../charts/TrendGoalLine';
+import { getAppLocale } from '../../localization';
 import type { LabHistoryPoint } from '../../utils/labResults';
 
 interface LabHistoryChartProps {
@@ -70,6 +72,16 @@ const LabHistoryChart: React.FC<LabHistoryChartProps> = ({
       >
         {({ points: plotted, chartBounds, yScale }) => (
           <>
+            {refRangeLow != null && refRangeHigh != null && (
+              <Rect
+                x={chartBounds.left}
+                y={yScale(refRangeHigh)}
+                width={chartBounds.right - chartBounds.left}
+                height={yScale(refRangeLow) - yScale(refRangeHigh)}
+                color={accentColor}
+                opacity={0.12}
+              />
+            )}
             <LineSeriesMark
               points={plotted.value}
               color={accentColor}

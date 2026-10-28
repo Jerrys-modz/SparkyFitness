@@ -11,7 +11,9 @@ import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import Button from '../components/ui/Button';
+import Icon from '../components/Icon';
 import LabHistoryChart from '../components/labs/LabHistoryChart';
+import LabRangeBar from '../components/labs/LabRangeBar';
 import LabStatusBadge from '../components/labs/LabStatusBadge';
 import { useRefetchOnFocus } from '../hooks/useRefetchOnFocus';
 import { useScreenHeader } from '../hooks/useScreenHeader';
@@ -36,7 +38,7 @@ type Props = RootStackScreenProps<'LabResultDetail'>;
 
 /** One marker: its range, a chart over time, and every result with delete. */
 const LabResultDetailScreen: React.FC<Props> = ({ navigation, route }) => {
-  const { categoryId } = route.params;
+  const { categoryId, name } = route.params;
   const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
   const dateLocale = i18n.language.startsWith('pl') ? 'pl-PL' : 'en-US';
@@ -82,7 +84,7 @@ const LabResultDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const header = useScreenHeader({
     title: marker
       ? labMarkerName(marker)
-      : t('screens.labResultDetail', { defaultValue: 'Lab result' }),
+      : (name ?? t('screens.labResultDetail', { defaultValue: 'Lab result' })),
     left: { kind: 'back' },
     right: [
       {
@@ -203,11 +205,20 @@ const LabResultDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                   })}
                 </Text>
               )}
-              <LabHistoryChart
-                points={points}
-                refRangeLow={low}
-                refRangeHigh={high}
-              />
+              {points.length === 1 && low != null && high != null ? (
+                <LabRangeBar
+                  value={points[0].value}
+                  low={low}
+                  high={high}
+                  unit={unit}
+                />
+              ) : (
+                <LabHistoryChart
+                  points={points}
+                  refRangeLow={low}
+                  refRangeHigh={high}
+                />
+              )}
             </View>
 
             {newestFirst.length > 0 && (
@@ -243,14 +254,13 @@ const LabResultDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                       <TouchableOpacity
                         onPress={() => confirmDelete(entry.id)}
                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        style={{ marginLeft: 4 }}
                         accessibilityRole="button"
                         accessibilityLabel={t('common.delete', {
                           defaultValue: 'Delete',
                         })}
                       >
-                        <Text className="text-sm font-semibold text-text-danger-subtle">
-                          {t('common.delete', { defaultValue: 'Delete' })}
-                        </Text>
+                        <Icon name="trash" size={20} color="#999" />
                       </TouchableOpacity>
                     </View>
                   );

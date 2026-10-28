@@ -137,7 +137,7 @@ export type RootStackParamList = {
   RouteGenerate: undefined;
   TrainingCalendar: undefined;
   LabResults: undefined;
-  LabResultDetail: { categoryId: string };
+  LabResultDetail: { categoryId: string; name?: string };
   LabResultAdd: { categoryId?: string };
   LabReportImport: undefined;
   Segments: undefined;

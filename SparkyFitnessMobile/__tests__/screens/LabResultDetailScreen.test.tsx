@@ -97,11 +97,11 @@ describe('LabResultDetailScreen', () => {
 
   it('confirms before deleting a result by its id', () => {
     const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
-    const { getAllByText } = render(
+    const { getAllByLabelText } = render(
       <LabResultDetailScreen navigation={navigation} route={route} />
     );
 
-    fireEvent.press(getAllByText('Delete')[0]);
+    fireEvent.press(getAllByLabelText('Delete')[0]);
     const buttons = alert.mock.calls[0][2]!;
     buttons.find((b) => b.style === 'destructive')!.onPress!();
 
