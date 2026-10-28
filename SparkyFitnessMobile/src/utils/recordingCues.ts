@@ -236,8 +236,8 @@ export function finishCue(
 }
 
 /**
- * The word for a step: "Run" and "Walk", "Fast" and "Easy", or "Brisk" and "Easy".
- * A Zone 2 run (`effort` 'zone2') is named for what it is.
+ * The word for a step: "Run" and "Walk", "Fast" and "Easy", or "Brisk" and
+ * "Easy". A Zone 2 run (`effort` 'zone2') is named for what it is.
  */
 export function intervalStepName(
   t: TFunction,

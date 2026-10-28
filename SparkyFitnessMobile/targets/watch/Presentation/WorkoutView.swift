@@ -2207,16 +2207,18 @@ struct MarqueeText: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .overlay(alignment: .leading) {
                         GeometryReader { geo in
-                            TimelineView(.animation(minimumInterval: 1.0 / 30)) { context in
-                                Text(text)
-                                    .lineLimit(1)
-                                    .fixedSize()
-                                    .background(GeometryReader { proxy in
-                                        Color.clear
-                                            .onAppear { textWidth = proxy.size.width }
-                                            .onChange(of: proxy.size.width) { textWidth = proxy.size.width }
-                                    })
-                                    .offset(x: offset(at: context.date, room: geo.size.width))
+                            let overflow = geo.size.width > 0 ? max(0, textWidth - geo.size.width) : 0
+                            if overflow > 0.5 {
+                                // Redrawn on a clock only while there is
+                                // something to scroll; a name that fits is
+                                // drawn once.
+                                TimelineView(.animation(minimumInterval: 1.0 / 30)) { context in
+                                    fullText
+                                        .offset(x: offset(at: context.date, overflow: overflow))
+                                        .frame(width: geo.size.width, alignment: .leading)
+                                }
+                            } else {
+                                fullText
                                     .frame(width: geo.size.width, alignment: .leading)
                             }
                         }
@@ -2228,13 +2230,23 @@ struct MarqueeText: View {
         .accessibilityLabel(text)
     }
 
+    /// The whole name on one line, at its own width, which it also reports.
+    private var fullText: some View {
+        Text(text)
+            .lineLimit(1)
+            .fixedSize()
+            .background(GeometryReader { proxy in
+                Color.clear
+                    .onAppear { textWidth = proxy.size.width }
+                    .onChange(of: proxy.size.width) { textWidth = proxy.size.width }
+            })
+    }
+
     /// Wait, scroll to the end, wait, then glide back, and again. The phase
     /// comes from the wall clock alone, so a view the workout screen's
     /// once-a-second redraw rebuilt carries on where it was instead of
     /// starting over (and never getting past its first pause).
-    private func offset(at date: Date, room: CGFloat) -> CGFloat {
-        let overflow = room > 0 ? max(0, textWidth - room) : 0
-        guard overflow > 0.5 else { return 0 }
+    private func offset(at date: Date, overflow: CGFloat) -> CGFloat {
         let travel = Double(overflow) / Self.pointsPerSecond
         let cycle = Self.pause + travel + Self.pause + Self.returnDuration
         let t = date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: cycle)

@@ -882,6 +882,7 @@ async function fetchVerifiedProviderFood(
       providerType,
       externalId,
       providerId,
+      requireNutrition: true,
     });
     if (
       !detail ||
@@ -989,7 +990,7 @@ Actions:
 - list_meal_types() — lists the user's built-in and custom meal types with IDs, names, and sort order.
 - log_food(quantity, meal_type_id?|meal_type?, food_name?|food_id?, unit?, entry_date?, variant_id?) — use meal_type_id for custom meal types; the legacy meal_type fallback accepts "breakfast"|"lunch"|"dinner"|"snacks". meal_type_id takes precedence when both are supplied. Provide food_name or food_id (an internal food UUID, never a lookup result's External ID); unit defaults to the food's serving unit, entry_date defaults to today. Works only for foods already in the database (source='internal').
 - log_external_food(food_name, meal_type_id?|meal_type?, quantity?, unit?, entry_date?, external_id?, provider_type?, is_quick_food?) — PREFERRED way to log an external lookup_food_nutrition match (usda/openfoodfacts/...): the server re-fetches the provider result, saves it with full nutrition, and logs it in one call. quantity is in servings and defaults to 1. Set is_quick_food:true ONLY when the user explicitly asks to quick-add the food or not save it to their food list.
-- create_food(food_name, calories, protein, carbs, fat, brand?, barcode?, notes?, quantity?, unit?, meal_type_id?, meal_type?, entry_date?, is_quick_food?, saturated_fat?, fiber?, sugar?, sodium?, caffeine_mg?, alcohol_g?, water_ml?, ...) — MANDATORY: You must run lookup_food_nutrition first. Use verified label/source values for custom foods, or estimates only when the user explicitly requests an estimate; for external lookup matches use log_external_food instead. Include meal_type_id (or legacy meal_type) + entry_date to also log the food in the same call. Include source-supported nutrients and omit unknown values; never replace unknown with zero. Set is_quick_food:true ONLY when the user explicitly asks to quick-add the food or not save it to their food list; it then requires meal_type_id (or meal_type) in the same call. Pass notes only when the user gave reference detail worth keeping on the food itself — how they order or prepare it, or a recipe; it is markdown, it is not a nutrition field, and you must never invent one.
+- create_food(food_name, calories, protein, carbs, fat, brand?, barcode?, notes?, quantity?, unit?, meal_type_id?, meal_type?, entry_date?, is_quick_food?, saturated_fat?, fiber?, sugar?, sodium?, caffeine_mg?, alcohol_g?, water_ml?, ...) — MANDATORY: You must run lookup_food_nutrition first. Use verified label/source values for custom foods, or estimates only when the user explicitly requests an estimate; for external lookup matches use log_external_food instead. Nutrients are per quantity × unit. Include meal_type_id (or legacy meal_type) + entry_date to also log the food in the same call. Include source-supported nutrients and omit unknown values; never replace unknown with zero. Set is_quick_food:true ONLY when the user explicitly asks to quick-add the food or not save it to their food list; it then requires meal_type_id (or meal_type) in the same call. Pass notes only when the user gave reference detail worth keeping on the food itself — how they order or prepare it, or a recipe; it is markdown, it is not a nutrition field, and you must never invent one.
 - set_food_barcode(food_id, barcode) — updates product metadata only; it never changes variants or diary history.
 - search_meal(meal_name)
 - log_meal(meal_type_id?|meal_type?, entry_date, meal_id?, meal_name?, quantity?)
@@ -1492,7 +1493,7 @@ Actions:
               const pinnedProvider = pinnedDetails
                 ? (await resolveFoodProviderOrder(userId, 'fatsecret'))[0]
                 : undefined;
-              const result = pinnedDetails
+              let result = pinnedDetails
                 ? {
                     source: 'fatsecret',
                     provider_id: pinnedProvider?.id,
@@ -1510,6 +1511,35 @@ Actions:
                     args.provider_type,
                     args.external_id
                   );
+              // Searching again by the product's full name often misses the
+              // item the lookup found under the user's words ("olive oil" vs
+              // "Organic Extra Virgin Olive Oil"). Fetch that exact ID before
+              // refusing, so the model doesn't loop on lookups or retype
+              // nutrition into create_food.
+              if (
+                !result.food &&
+                !pinnedDetails &&
+                args.external_id &&
+                args.provider_type
+              ) {
+                const provider = (
+                  await resolveFoodProviderOrder(userId, args.provider_type)
+                )[0];
+                const food = await fetchVerifiedProviderFood(
+                  userId,
+                  args.provider_type,
+                  args.external_id,
+                  provider?.id
+                );
+                if (food) {
+                  result = {
+                    source: args.provider_type,
+                    provider_id: provider?.id,
+                    food,
+                    alternatives: [],
+                  };
+                }
+              }
               if (result.source === 'ai_estimate' || !result.food) {
                 if (args.external_id && !pinnedDetails)
                   return ERRORS.VALIDATION(

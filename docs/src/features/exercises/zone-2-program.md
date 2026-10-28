@@ -53,6 +53,6 @@ Everything that works on other programs works here: **Skip**, **Choose a differe
 
 ## Limits
 
-- The range comes from an age-based maximum heart rate. Entering a measured maximum, a resting rate or another method is not available yet.
+- The range follows your heart rate zone settings. Without a maximum of your own it comes from an age-based estimate, which can be off by ten beats or more, so set a measured maximum, a resting rate or custom zones for a closer range.
 - Live cues need a paired Apple Watch. Without one the app falls back to the talk test.
 - The mobile app only: the web app does not offer training programs.

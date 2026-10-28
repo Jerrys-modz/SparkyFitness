@@ -45,6 +45,7 @@ import {
   stepPaceAlert,
   zone2LiveBand,
   type FitnessTestType,
+  zone2LiveBand,
   type HeartRateAlertState,
   type HeartRateBand,
   type IntervalCursor,

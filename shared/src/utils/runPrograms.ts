@@ -323,6 +323,41 @@ const ZONE2_BASE_4_WEEKS: readonly (readonly Spec[])[] = [
 /** Weeks (0-based) whose middle run is a zone check: a normal Zone 2 run done as a retest. */
 export const ZONE2_CHECK_WEEKS: readonly number[] = [3, 7, 9];
 
+// Ten weeks of base building at Zone 2, three runs a week: a short run, a
+// middle run and a long run, all easy. Total time in zone grows about a tenth a
+// week with an easier fourth and eighth week. Weeks 6, 7 and 9 end the short run
+// with four strides; the middle run of weeks 4, 8 and 10 is a zone check.
+const ZONE2_BASE_WEEKS: readonly (readonly Spec[])[] = [
+  [zone2(30), zone2(30), zone2(40)],
+  [zone2(30), zone2(35), zone2(45)],
+  [zone2(35), zone2(35), zone2(50)],
+  [zone2(30), zone2(30), zone2(40)],
+  [zone2(35), zone2(40), zone2(55)],
+  [zone2Strides(40), zone2(40), zone2(60)],
+  [zone2Strides(40), zone2(45), zone2(65)],
+  [zone2(30), zone2(35), zone2(45)],
+  [zone2Strides(40), zone2(45), zone2(70)],
+  [zone2(30), zone2(30), zone2(40)],
+];
+
+// The four-run version: a second short, easy run between the middle and long
+// runs, so the long run is a smaller share of the week.
+const ZONE2_BASE_4_WEEKS: readonly (readonly Spec[])[] = [
+  [zone2(30), zone2(30), zone2(30), zone2(40)],
+  [zone2(30), zone2(35), zone2(30), zone2(45)],
+  [zone2(35), zone2(35), zone2(30), zone2(50)],
+  [zone2(30), zone2(30), zone2(25), zone2(40)],
+  [zone2(35), zone2(40), zone2(30), zone2(55)],
+  [zone2Strides(40), zone2(40), zone2(30), zone2(60)],
+  [zone2Strides(40), zone2(45), zone2(35), zone2(65)],
+  [zone2(30), zone2(35), zone2(25), zone2(45)],
+  [zone2Strides(40), zone2(45), zone2(35), zone2(70)],
+  [zone2(30), zone2(30), zone2(25), zone2(40)],
+];
+
+/** Weeks (0-based) whose middle run is a zone check: a normal Zone 2 run done as a retest. */
+export const ZONE2_CHECK_WEEKS: readonly number[] = [3, 7, 9];
+
 /** The same workout three times: a week that repeats one session. */
 const thrice = (spec: Spec): Spec[] => Array(3).fill(spec);
 
