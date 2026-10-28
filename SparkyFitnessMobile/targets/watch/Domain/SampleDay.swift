@@ -130,7 +130,12 @@ enum SampleDay {
             fast: ScreenshotSeed.has("fast")
                 ? WatchFast(startedAt: Date().addingTimeInterval(-14 * 3600), targetEndAt: Date().addingTimeInterval(2 * 3600), label: "16:8")
                 : nil,
-            fastSynced: true
+            fastSynced: true,
+            // 190 max heart rate, percent-of-max zones; `nozones` is a phone
+            // that has not sent them, which draws no zone bar.
+            runHeartRateZones: ScreenshotSeed.has("nozones")
+                ? nil
+                : WatchHeartRateZones(floors: [95, 114, 133, 152, 171])
         )
     }
 

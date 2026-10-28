@@ -28,6 +28,10 @@ enum ScreenshotSeed {
         case interval
         /// Nothing armed — what the tab shows until the phone starts a workout.
         case none
+        /// A wrist-only outdoor run, pace on target and heart rate in zone 4.
+        case runOnTarget = "runontarget"
+        /// The same run with the pace faster than the range being held.
+        case runTooFast = "runtoofast"
     }
 
     static var isEnabled: Bool {
@@ -41,7 +45,8 @@ enum ScreenshotSeed {
     }
 
     /// Settings the phone would send, as a comma list in
-    /// `SPARKY_SCREENSHOT_OPTIONS`: `nometrics`, `upnext`, `large`, `fast`.
+    /// `SPARKY_SCREENSHOT_OPTIONS`: `nometrics`, `upnext`, `large`, `fast`,
+    /// `nozones` (the phone has not sent heart-rate zones).
     static func has(_ option: String) -> Bool {
         (ProcessInfo.processInfo.environment["SPARKY_SCREENSHOT_OPTIONS"] ?? "")
             .split(separator: ",")
@@ -100,6 +105,9 @@ enum ScreenshotSeed {
         switch workoutState {
         case .none:
             workout.reset()
+        case .runOnTarget, .runTooFast:
+            workout.reset()
+            WatchRunStore.shared.seedForScreenshot(onTarget: workoutState == .runOnTarget)
         case .timed, .stopwatch, .interval:
             switch workoutState {
             case .timed: workout.start(with: SampleDay.timedPlan)

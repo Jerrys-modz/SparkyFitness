@@ -209,6 +209,11 @@ jobs:
             shoot medications-dose none medications dose
             shoot fasting none fasting
             shoot fasting-running none fasting "" fast
+            # A wrist-only outdoor run: zone bar with the heart rate in zone 4,
+            # pace on target and too fast, and a phone that has sent no zones.
+            shoot run-on-target runontarget workout
+            shoot run-too-fast runtoofast workout
+            shoot run-no-zones runontarget workout "" nozones
           done <<< "$DEVICES"
 
           ls -la screenshots

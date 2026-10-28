@@ -147,7 +147,18 @@ final class WatchRunStore: ObservableObject {
 
     /// Seconds on the clock. Read every second by the page; the builder keeps
     /// the count, so it stays right across pauses.
-    var elapsed: TimeInterval { healthKit.elapsed }
+    var elapsed: TimeInterval {
+        #if DEBUG
+        if let screenshotElapsed { return screenshotElapsed }
+        #endif
+        return healthKit.elapsed
+    }
+
+    #if DEBUG
+    /// A fixed clock for the CI screenshot job: a simulator run has no builder
+    /// counting. Only ever set by `seedForScreenshot`.
+    private var screenshotElapsed: TimeInterval?
+    #endif
 
     /// Starts the run the phone asked for. Ignored when this request was
     /// already acted on, when it is old (a queued copy that sat for minutes
@@ -1013,3 +1024,22 @@ final class WatchRunStore: ObservableObject {
         healthKit.saveEffort(score, completion: completion)
     }
 }
+
+#if DEBUG
+extension WatchRunStore {
+    /// Puts an outdoor run on screen for the CI screenshot job without starting
+    /// a Health session, which a simulator cannot run. Pace is held against a
+    /// 5:00 to 5:30 range, so the pace tile reads on target or too fast.
+    @MainActor
+    func seedForScreenshot(onTarget: Bool) {
+        kind = .run
+        place = .outdoor
+        phase = .running
+        // 5.20 km in 27:00 is about 5:11 per km; the heart rate sits in zone 4.
+        screenshotElapsed = 27 * 60
+        metrics = WatchRunMetrics(distanceMeters: 5200, activeEnergyKcal: 380, heartRate: 156)
+        settings.paceBand = WatchPaceBand.standard
+        paceStanding = onTarget ? .onTarget : .tooFast
+    }
+}
+#endif
