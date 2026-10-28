@@ -3341,13 +3341,63 @@
       "caloriesInValue": "1,540",
       "caloriesOutValue": "255",
       "eightAm": "8:00 AM",
-      "eyebrow": "iOS 26"
+      "eyebrow": "iOS 26",
+      "zoneTwoBase": "Zone 2 Base",
+      "weekThree": "Week 3",
+      "easyRun": "Easy run • 40 min",
+      "zoneTwoRange": "125–142 bpm",
+      "riverLoop": "River Loop",
+      "routeDistance": "5.2 km",
+      "routeClimb": "48 m climb",
+      "followRoads": "Follows roads",
+      "checkIn": "Check-in",
+      "stepTwoOfThree": "Step 2 of 3",
+      "checkInSteps": "Mood • Measurements • Photo",
+      "saveContinue": "Save & continue",
+      "plateCalculator": "Plate calculator",
+      "plateTarget": "100 kg",
+      "plateBar": "Bar 20 kg",
+      "platesPerSide": "20 + 20 per side",
+      "heartRateZones": "Heart rate zones",
+      "zoneTwo": "Zone 2",
+      "maxResting": "Max 185 • Resting 52",
+      "customZones": "Your own"
     },
     "features": {
+      "running": {
+        "eyebrow": "RUNNING",
+        "headline": "Train with run programs",
+        "body": "Follow a Zone 2 Base plan with heart rate guidance, set a weekly distance goal and race countdown, take a guided fitness test to set your paces, and review splits after every run.",
+        "cta": "Open run programs"
+      },
+      "routes": {
+        "eyebrow": "ROUTES",
+        "headline": "Plan and follow routes",
+        "body": "Draw routes on a satellite map, snap them to roads, generate loops of a set distance, and follow a saved route on your Apple Watch.",
+        "cta": "Open routes"
+      },
+      "checkIn": {
+        "eyebrow": "GUIDED CHECK-IN",
+        "headline": "Check in in one flow",
+        "body": "Log your mood, measurements, and a progress photo in three quick steps. Turn it on in Diary settings.",
+        "cta": "Open diary settings"
+      },
+      "strength": {
+        "eyebrow": "STRENGTH TOOLS",
+        "headline": "Smarter strength workouts",
+        "body": "Pin the set to do now, swap exercises in a tap, keep your sets when you replace an exercise, and load the bar with the plate calculator.",
+        "cta": "Open workout settings"
+      },
+      "heartRate": {
+        "eyebrow": "HEART RATE",
+        "headline": "Heart rate zones, your way",
+        "body": "Set your own max and resting heart rate and zone method, then dig into detailed heart rate reports.",
+        "cta": "View heart rate"
+      },
       "medications": {
         "eyebrow": "MEDICATIONS",
         "headline": "Track your medications",
-        "body": "Add your medications, set dose schedules, and log each dose from the dashboard with optional reminders.",
+        "body": "Add your medications, set dose schedules, log each dose from the dashboard with optional reminders, and review adherence with a calendar and dose log.",
         "cta": "Set up medications"
       },
       "cycle": {
