@@ -100,6 +100,7 @@ enum ContextPayloadMapper {
                 min: (payload["runHeartRateMinBpm"] as? NSNumber)?.doubleValue,
                 max: (payload["runHeartRateMaxBpm"] as? NSNumber)?.doubleValue
             ) ?? previous.runHeartRateBand,
+            runHeartRateZones: WatchHeartRateZones.normalized(payload["runHeartRateZoneFloors"]) ?? previous.runHeartRateZones,
             runPlans: runPlans(from: payload) ?? previous.runPlans,
             indoorDistanceScale: indoorDistanceScale(from: payload) ?? previous.indoorDistanceScale
         )

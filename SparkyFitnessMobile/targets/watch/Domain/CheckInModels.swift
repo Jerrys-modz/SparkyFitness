@@ -537,6 +537,9 @@ struct WatchContext: Codable, Equatable {
     /// An alert is only ever on for the run it was chosen for.
     var runPaceBand: WatchPaceBand? = nil
     var runHeartRateBand: WatchHeartRateBand? = nil
+    /// The wearer's five heart-rate zone floors, for the zone bar on a cardio
+    /// screen. Nil until the phone has said, which draws no bar.
+    var runHeartRateZones: WatchHeartRateZones? = nil
     /// Plans a wrist-only run can follow. Nil until the phone has said.
     var runPlans: [WatchRunPlan]? = nil
     /// Learned correction for the watch's indoor distance. Nil until the

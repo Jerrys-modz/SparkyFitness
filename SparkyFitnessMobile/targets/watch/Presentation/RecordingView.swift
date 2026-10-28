@@ -6,6 +6,7 @@ import SwiftUI
 /// A control is only a request: the screen changes when the phone answers.
 struct RecordingView: View {
     @EnvironmentObject private var recording: RecordingStore
+    @EnvironmentObject private var store: CheckInStore
 
     var body: some View {
         if let state = recording.state {
@@ -29,6 +30,8 @@ struct RecordingView: View {
                 elapsed: { state.elapsed(at: $0) },
                 stats: stats(for: state),
                 controls: controls(for: state),
+                zones: store.context.runHeartRateZones,
+                heartRate: recording.liveHeartRate.map(Double.init),
                 banner: { date in
                     if let step = state.interval {
                         CardioPlanStep(

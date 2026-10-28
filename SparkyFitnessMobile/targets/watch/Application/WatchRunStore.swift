@@ -39,6 +39,9 @@ final class WatchRunStore: ObservableObject {
     /// True while paused by the movement detector rather than by the wearer.
     @Published private(set) var autoPaused = false
     @Published private(set) var lapCount = 0
+    /// Where the current pace stands against the range being held (the run's,
+    /// or the plan step's); nil with no range or not enough movement to tell.
+    @Published private(set) var paceStanding: WatchPaceStanding?
     /// The indoor run waiting on the treadmill question, already scaled.
     private var pendingResult: WatchRunResult?
     private var pendingElapsed: TimeInterval = 0
@@ -235,6 +238,7 @@ final class WatchRunStore: ObservableObject {
         coaching = WatchCoachingState()
         paceAlertState = .initial
         paceAlertStep = nil
+        paceStanding = nil
         heartRateAlertState = .initial
         heartRateAlertStep = nil
         recentPace.reset()
@@ -520,6 +524,7 @@ final class WatchRunStore: ObservableObject {
         healthKit.updateSettings(settings)
         paceAlertState = .initial
         recentPace.reset()
+        paceStanding = nil
         pushLive(force: true)
     }
 
@@ -585,7 +590,13 @@ final class WatchRunStore: ObservableObject {
             paceAlertState = .initial
         }
         let pace = recentPace.add(elapsed: elapsed, meters: metrics.distanceMeters)
-        guard let band else { return }
+        guard let band else {
+            paceStanding = nil
+            return
+        }
+        if let pace, pace > 0 {
+            paceStanding = WatchPaceStanding(pace: pace, band: band)
+        }
         guard let alert = paceAlertState.step(pace: pace, band: band, now: elapsed) else { return }
         Haptics.pace(tooFast: alert == .tooFast)
         cue(alert == .tooFast ? String(localized: "watch.run.cue.tooFast", defaultValue: "Too fast. Ease off.") : String(localized: "watch.run.cue.tooSlow", defaultValue: "Too slow. Pick it up."))

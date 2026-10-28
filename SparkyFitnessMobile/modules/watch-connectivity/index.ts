@@ -201,6 +201,12 @@ export interface WatchContextPayload {
   runHeartRateMinBpm?: number | null;
   runHeartRateMaxBpm?: number | null;
   /**
+   * The wearer's five heart-rate zone floors in bpm, zone 1 first, for the
+   * zone bar on the watch's walk, run and ride screens. Missing keeps the
+   * watch's last value; the watch draws no bar until it has them.
+   */
+  runHeartRateZoneFloors?: number[] | null;
+  /**
    * Plans a wrist-only run can follow: the training-program workout due now
    * (carrying `programId`/`programIndex`) then the built-in interval plans,
    * with step names already translated. Missing keeps the watch's last list.
