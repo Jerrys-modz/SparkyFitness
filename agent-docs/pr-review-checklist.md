@@ -184,7 +184,7 @@ gh pr view <n> --json author,isCrossRepository
 
 **Your own PR** (you are the author) — the terminal report is the whole output. Skip the draft comment; you don't need to write to yourself. Just list what needs action and stop.
 
-**Someone else's PR** — after the terminal report, add a copy-paste-ready comment for the contributor in a fenced block, so it can be pasted into GitHub untouched.
+**Someone else's PR** — after the terminal report, add a copy-paste-ready comment for the contributor in a fenced block, so it can be pasted into GitHub untouched, but only when **Blocking** or **Should change** lists something the contributor must change. An optional or convention-only point left for the maintainer to decide stays in the terminal report and out of the comment. When nothing must change, write "Nothing to post; ready to merge." and draft no comment.
 
 ### Drafting the contributor comment
 
@@ -227,7 +227,7 @@ Not blocking, but please change: `utils/day.ts:12` derives the day with
 Use the shared `todayInZone` helper.
 ```
 
-When nothing needs changing, say so in one or two lines and don't invent filler.
+Never phrase an optional point as "before merge" or "one thing before this can go in"; that wording tells the contributor it blocks.
 
 ## Depth
 
