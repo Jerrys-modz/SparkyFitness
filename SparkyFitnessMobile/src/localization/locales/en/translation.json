@@ -3361,7 +3361,19 @@
       "heartRateZones": "Heart rate zones",
       "zoneTwo": "Zone 2",
       "maxResting": "Max 185 • Resting 52",
-      "customZones": "Your own"
+      "customZones": "Your own",
+      "compare": "Compare",
+      "thirtyDays": "30 days",
+      "sleepVsMood": "Sleep vs. mood",
+      "moodHigher": "Mood is higher",
+      "todayOnWatch": "Today on watch",
+      "caloriesLeftBadge": "1,515 left",
+      "waterMeds": "Water • Meds",
+      "fastingSteps": "Fasting • Steps",
+      "weeklyGoal": "Weekly goal",
+      "weeklyRate": "−0.5 kg/week",
+      "dailyTarget": "Daily target",
+      "dailyAdjustment": "≈ −550 kcal"
     },
     "features": {
       "running": {
@@ -3393,6 +3405,24 @@
         "headline": "Heart rate zones, your way",
         "body": "Set your own max and resting heart rate and zone method, then dig into detailed heart rate reports.",
         "cta": "View heart rate"
+      },
+      "reports": {
+        "eyebrow": "REPORTS & COMPARE",
+        "headline": "See how your habits connect",
+        "body": "Browse nutrition, hydration, sleep, mood, and measurement reports, then use Compare to see whether one habit goes with another, or whether something changed since you started a new habit.",
+        "cta": "Open reports"
+      },
+      "watch": {
+        "eyebrow": "APPLE WATCH & WEAR OS",
+        "headline": "Your day on your wrist",
+        "body": "The watch app now comes to Apple Watch and Wear OS. See your goals, log water, weight, fasting, and medications, and run workouts that save to your diary, with effort ratings, jump rope, and route following on Apple Watch. Choose your pages in Watch settings.",
+        "cta": "Open watch settings"
+      },
+      "weeklyGoal": {
+        "eyebrow": "WEIGHT GOALS",
+        "headline": "Set a weekly weight goal",
+        "body": "Choose how much weight you want to lose or gain each week and Sparky works out your daily calorie target.",
+        "cta": "Open calorie settings"
       },
       "medications": {
         "eyebrow": "MEDICATIONS",

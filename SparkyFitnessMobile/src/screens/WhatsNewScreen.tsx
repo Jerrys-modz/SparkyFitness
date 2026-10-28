@@ -603,6 +603,68 @@ const HeartRateMockup: React.FC = () => {
   );
 };
 
+const ReportsMockup: React.FC = () => {
+  const { t } = useTranslation();
+  return (
+    <StatCardMockup
+      colorVariable="--color-cat-violet"
+      icon="chart-bar"
+      title={t('whatsNewPage.mockup.compare', { defaultValue: 'Compare' })}
+      badge={t('whatsNewPage.mockup.thirtyDays', { defaultValue: '30 days' })}
+      left={t('whatsNewPage.mockup.sleepVsMood', {
+        defaultValue: 'Sleep vs. mood',
+      })}
+      right={t('whatsNewPage.mockup.moodHigher', {
+        defaultValue: 'Mood is higher',
+      })}
+    />
+  );
+};
+
+const WatchMockup: React.FC = () => {
+  const { t } = useTranslation();
+  return (
+    <StatCardMockup
+      colorVariable="--color-hydration"
+      icon="watch-settings"
+      title={t('whatsNewPage.mockup.todayOnWatch', {
+        defaultValue: 'Today on watch',
+      })}
+      badge={t('whatsNewPage.mockup.caloriesLeftBadge', {
+        defaultValue: '1,515 left',
+      })}
+      left={t('whatsNewPage.mockup.waterMeds', {
+        defaultValue: 'Water • Meds',
+      })}
+      right={t('whatsNewPage.mockup.fastingSteps', {
+        defaultValue: 'Fasting • Steps',
+      })}
+    />
+  );
+};
+
+const WeeklyGoalMockup: React.FC = () => {
+  const { t } = useTranslation();
+  return (
+    <StatCardMockup
+      colorVariable="--color-calories"
+      icon="scale"
+      title={t('whatsNewPage.mockup.weeklyGoal', {
+        defaultValue: 'Weekly goal',
+      })}
+      badge={t('whatsNewPage.mockup.weeklyRate', {
+        defaultValue: '−0.5 kg/week',
+      })}
+      left={t('whatsNewPage.mockup.dailyTarget', {
+        defaultValue: 'Daily target',
+      })}
+      right={t('whatsNewPage.mockup.dailyAdjustment', {
+        defaultValue: '≈ −550 kcal',
+      })}
+    />
+  );
+};
+
 const WhatsNewScreen: React.FC<WhatsNewScreenProps> = ({ navigation }) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
@@ -710,6 +772,63 @@ const WhatsNewScreen: React.FC<WhatsNewScreenProps> = ({ navigation }) => {
           defaultValue: 'View heart rate',
         }),
         onPress: () => navigation.navigate('HeartRateReport'),
+      },
+    },
+    {
+      eyebrow: t('whatsNewPage.features.reports.eyebrow', {
+        defaultValue: 'REPORTS & COMPARE',
+      }),
+      headline: t('whatsNewPage.features.reports.headline', {
+        defaultValue: 'See how your habits connect',
+      }),
+      body: t('whatsNewPage.features.reports.body', {
+        defaultValue:
+          'Browse nutrition, hydration, sleep, mood, and measurement reports, then use Compare to see whether one habit goes with another, or whether something changed since you started a new habit.',
+      }),
+      hero: <ReportsMockup />,
+      cta: {
+        label: t('whatsNewPage.features.reports.cta', {
+          defaultValue: 'Open reports',
+        }),
+        onPress: () => navigation.navigate('Reports'),
+      },
+    },
+    {
+      eyebrow: t('whatsNewPage.features.watch.eyebrow', {
+        defaultValue: 'APPLE WATCH & WEAR OS',
+      }),
+      headline: t('whatsNewPage.features.watch.headline', {
+        defaultValue: 'Your day on your wrist',
+      }),
+      body: t('whatsNewPage.features.watch.body', {
+        defaultValue:
+          'The watch app now comes to Apple Watch and Wear OS. See your goals, log water, weight, fasting, and medications, and run workouts that save to your diary, with effort ratings, jump rope, and route following on Apple Watch. Choose your pages in Watch settings.',
+      }),
+      hero: <WatchMockup />,
+      cta: {
+        label: t('whatsNewPage.features.watch.cta', {
+          defaultValue: 'Open watch settings',
+        }),
+        onPress: () => navigation.navigate('WatchSettings'),
+      },
+    },
+    {
+      eyebrow: t('whatsNewPage.features.weeklyGoal.eyebrow', {
+        defaultValue: 'WEIGHT GOALS',
+      }),
+      headline: t('whatsNewPage.features.weeklyGoal.headline', {
+        defaultValue: 'Set a weekly weight goal',
+      }),
+      body: t('whatsNewPage.features.weeklyGoal.body', {
+        defaultValue:
+          'Choose how much weight you want to lose or gain each week and Sparky works out your daily calorie target.',
+      }),
+      hero: <WeeklyGoalMockup />,
+      cta: {
+        label: t('whatsNewPage.features.weeklyGoal.cta', {
+          defaultValue: 'Open calorie settings',
+        }),
+        onPress: () => navigation.navigate('CalorieSettings'),
       },
     },
     {
