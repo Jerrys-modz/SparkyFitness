@@ -458,6 +458,9 @@ export const workoutLocationsQueryKey = ['workoutLocations'] as const;
 export const runningTrendsQueryKey = (startDate: string, endDate: string) =>
   ['cardioSessions', 'runningTrends', startDate, endDate] as const;
 
+export const paceByZoneQueryKey = (startDate: string, endDate: string) =>
+  ['cardioSessions', 'paceByZone', startDate, endDate] as const;
+
 export const runningRecordsQueryKey = () =>
   ['cardioSessions', 'runningRecords'] as const;
 

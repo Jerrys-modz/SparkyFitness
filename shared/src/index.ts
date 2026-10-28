@@ -247,6 +247,7 @@ export * from './utils/guidedWorkoutCues.ts';
 export * from './utils/dropSetCalculator.ts';
 export * from './utils/weightRamp.ts';
 export * from './utils/runningTrends.ts';
+export * from './utils/paceByZone.ts';
 export * from './utils/raceTimePredictions.ts';
 export * from './utils/weightTrend.ts';
 export * from './utils/workoutFeedbackForm.ts';

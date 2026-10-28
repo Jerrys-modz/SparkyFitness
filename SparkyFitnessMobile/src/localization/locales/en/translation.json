@@ -6921,6 +6921,27 @@
       "title": "Readiness and Form",
       "subtitle": "How ready you are today, from training form, sleep and resting heart rate."
     },
+    "paceByZone": {
+      "title": "Pace by Heart Rate Zone",
+      "subtitle": "Pace trends matched to your heart rate zones, using monthly averages from your runs.",
+      "secondsShort": "s",
+      "zone2": "Zone 2 Easy Aerobic",
+      "zone2Hint": "Monthly average pace for low-intensity efforts.",
+      "zone2Faster_one": "Aerobic fitness improving ({{change}} over {{count}} month)",
+      "zone2Faster_other": "Aerobic fitness improving ({{change}} over {{count}} months)",
+      "zone2Slower_one": "Easy pace slowing ({{change}} over {{count}} month)",
+      "zone2Slower_other": "Easy pace slowing ({{change}} over {{count}} months)",
+      "zone2Steady_one": "Easy pace steady over {{count}} month",
+      "zone2Steady_other": "Easy pace steady over {{count}} months",
+      "zone3": "Zone 3 Tempo",
+      "zone3Hint": "Monthly average pace for moderate-intensity efforts.",
+      "zone3Faster_one": "Tempo fitness improving ({{change}} over {{count}} month)",
+      "zone3Faster_other": "Tempo fitness improving ({{change}} over {{count}} months)",
+      "zone3Slower_one": "Tempo pace slowing ({{change}} over {{count}} month)",
+      "zone3Slower_other": "Tempo pace slowing ({{change}} over {{count}} months)",
+      "zone3Steady_one": "Tempo pace steady over {{count}} month",
+      "zone3Steady_other": "Tempo pace steady over {{count}} months"
+    },
     "paceZones": {
       "title": "Pace zones",
       "perKm": "/km",
