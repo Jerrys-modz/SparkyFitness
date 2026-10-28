@@ -11,6 +11,7 @@ import {
   alcoholGramsForServing,
 } from '@workspace/shared';
 import package$0 from '../../package.json' with { type: 'json' };
+import { PARTIAL_SERVING_DATA } from '../../utils/foodRanking.js';
 import {
   normalizeBarcode,
   normalizeServingUnit,
@@ -117,6 +118,7 @@ const LEGACY_SEARCH_BATCH_SIZE = 100;
 const LEGACY_SEARCH_MAX_BATCHES = 10;
 
 interface OffProduct {
+  [PARTIAL_SERVING_DATA]?: true;
   product_name?: string;
   product_name_en?: string;
   brands?: string;
@@ -399,6 +401,12 @@ function productFromSearchHit(hit: SearchALiciousHit): OffProduct {
   };
 }
 
+// Search-a-licious does not index serving fields, so an unhydrated hit maps to
+// a 100 g reference whatever the label says.
+function indexOnlyProduct(hit: SearchALiciousHit): OffProduct {
+  return { ...productFromSearchHit(hit), [PARTIAL_SERVING_DATA]: true };
+}
+
 /**
  * Refreshes ranked hits in one Product Opener bulk request while preserving
  * every original hit when hydration is partial or unavailable.
@@ -421,7 +429,7 @@ async function hydrateSearchHits(
         .filter((code) => code.length > 0)
     ),
   ];
-  if (codes.length === 0) return hits.map(productFromSearchHit);
+  if (codes.length === 0) return hits.map(indexOnlyProduct);
 
   // Ask for both barcode forms so the bulk lookup also finds products Product
   // Opener stores under the sibling UPC-A/EAN-13 representation.
@@ -469,7 +477,6 @@ async function hydrateSearchHits(
       .find((product) => product !== undefined);
   return hits.map((hit) => {
     const code = String(hit.code || '').trim();
-    const indexedProduct = productFromSearchHit(hit);
     const currentProduct = code ? lookupProduct(code) : undefined;
 
     // The full-text index can still hold nutrition while Product Opener is
@@ -477,7 +484,7 @@ async function hydrateSearchHits(
     // case so hydration cannot underfill an otherwise valid search page.
     return currentProduct && hasUsableOffCoreNutrition(currentProduct)
       ? currentProduct
-      : indexedProduct;
+      : indexOnlyProduct(hit);
   });
 }
 
@@ -1249,6 +1256,9 @@ function mapOpenFoodFactsProduct(
     // Hotlinked in search results; localized on import (see models/food.ts).
     image_url: product.image_front_url || product.image_url || null,
     default_variant: metricVariant,
+    ...(product[PARTIAL_SERVING_DATA]
+      ? { [PARTIAL_SERVING_DATA]: true as const }
+      : {}),
     ...(householdVariant
       ? { variants: [metricVariant, householdVariant] }
       : {}),

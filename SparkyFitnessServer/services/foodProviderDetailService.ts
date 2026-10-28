@@ -153,6 +153,8 @@ export interface FetchProviderFoodDetailsParams {
   /** Explicit external provider row; when omitted the active default is used. */
   providerId?: string;
   language?: string;
+  /** Aborts the provider request (OpenFoodFacts only). */
+  signal?: AbortSignal;
   /**
    * Return null for an OpenFoodFacts product without nutrient values, which
    * would otherwise map to zeros.
@@ -175,6 +177,7 @@ export async function fetchProviderFoodDetails({
   externalId,
   providerId,
   language = 'en',
+  signal,
   requireNutrition = false,
 }: FetchProviderFoodDetailsParams): Promise<unknown | null> {
   if (!isValidProviderType(providerType)) {
@@ -201,7 +204,8 @@ export async function fetchProviderFoodDetails({
         language,
         offProvider ? credentialUserId : undefined,
         offProvider?.id,
-        offProvider?.scope ?? 'personal'
+        offProvider?.scope ?? 'personal',
+        signal
       );
       if (
         data.status === 1 &&
