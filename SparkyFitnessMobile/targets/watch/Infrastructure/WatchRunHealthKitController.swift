@@ -185,10 +185,8 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
         }
         var share: Set<HKSampleType> = [
             HKObjectType.workoutType(), Self.distanceType, Self.energyType, Self.heartRateType,
-            Self.stepType,
+            Self.stepType, HKSeriesType.workoutRoute(),
         ]
-        let askingForRoute = WorkoutRouteShare.typeToRequest()
-        if let routeType = askingForRoute { share.insert(routeType) }
         let askingForEffort = WorkoutEffort.shareTypeToRequest()
         if let effortType = askingForEffort { share.insert(effortType) }
         let read: Set<HKObjectType> = [
@@ -199,7 +197,6 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
             // `success` false is a request that failed to process, not a
             // denial, so the effort type is asked for again next time.
             if success && askingForEffort != nil { WorkoutEffort.markShareAsked() }
-            if success && askingForRoute != nil { WorkoutRouteShare.markAsked() }
             DispatchQueue.main.async { completion() }
         }
     }
