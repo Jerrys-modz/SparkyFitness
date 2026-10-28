@@ -8,7 +8,6 @@ import { CHART_LABEL_FONT_SIZE, useChartFont } from '../charts/chartFormatting';
 import { formatDateWithYear } from '../../utils/dayLabel';
 import LineSeriesMark from '../charts/LineSeriesMark';
 import TrendGoalLine from '../charts/TrendGoalLine';
-import { getAppLocale } from '../../localization';
 import type { LabHistoryPoint } from '../../utils/labResults';
 
 interface LabHistoryChartProps {
