@@ -27,6 +27,9 @@ export function pickDeviceTotalPerDay(
 ): DeviceTotalCaloriesSourceRow[] {
   const byDate = new Map<string, DeviceTotalCaloriesSourceRow>();
   for (const row of rows) {
+    // A zero total (Health Connect accepts one) is no figure at all, so it must
+    // not hide another source's real total for that day.
+    if (!(Number(row.total_calories) > 0)) continue;
     const rank = DEVICE_TOTAL_SOURCE_ORDER.indexOf(row.source_provider);
     if (rank === -1) continue;
     const current = byDate.get(row.entry_date);

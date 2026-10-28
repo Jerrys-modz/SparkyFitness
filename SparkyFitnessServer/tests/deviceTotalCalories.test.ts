@@ -67,6 +67,16 @@ describe('pickDeviceTotalPerDay', () => {
     ).toEqual(['garmin']);
   });
 
+  it('skips a zero total so another source can be used', () => {
+    expect(
+      pickDeviceTotalPerDay([
+        row('2026-07-29', 'health_connect', 0),
+        row('2026-07-29', 'garmin', 2500),
+        row('2026-07-30', 'health_connect', 0),
+      ])
+    ).toEqual([row('2026-07-29', 'garmin', 2500)]);
+  });
+
   it('returns days in date order', () => {
     expect(
       pickDeviceTotalPerDay([

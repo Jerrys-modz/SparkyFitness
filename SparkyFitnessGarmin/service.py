@@ -5,7 +5,7 @@ import logging
 import math
 import os
 import re
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, timedelta
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -86,29 +86,6 @@ def extract_daily_calories(summary_data):
             normalized[metric] = numeric_value
             break
     return normalized
-
-
-def summary_captured_at(summary_data, fetched_at):
-    """When a daily summary's figures were current.
-
-    The summary is only as fresh as the watch's last sync to Garmin Connect, which
-    can be hours before the fetch. Today's calorie projection divides by the share
-    of the day passed at this instant, so the fetch time would make it too low.
-    Uses Garmin's lastSyncTimestampGMT when it parses and is not after the fetch,
-    otherwise the fetch time.
-    """
-    raw = (summary_data or {}).get("lastSyncTimestampGMT")
-    if not isinstance(raw, str) or not raw.strip():
-        return fetched_at
-    try:
-        synced_at = datetime.fromisoformat(raw.strip().replace("Z", "+00:00"))
-    except ValueError:
-        return fetched_at
-    if synced_at.tzinfo is None:
-        synced_at = synced_at.replace(tzinfo=timezone.utc)
-    if synced_at > fetched_at:
-        return fetched_at
-    return synced_at
 
 
 def project_daily_calorie_metrics(summary_data, current_date, requested_metrics):
