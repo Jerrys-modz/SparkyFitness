@@ -27,7 +27,11 @@ import type {
 } from '../utils/workoutSession';
 import type { PhotoType } from './checkInPhotos';
 import type { Exercise } from './exercise';
-import type { FamilyDiaryUser } from './familyDiary';
+import type {
+  FamilyCopyDirection,
+  FamilyCopySource,
+  FamilyDiaryUser,
+} from './familyDiary';
 import type { FoodEntry } from './foodEntries';
 import type { FoodEntryMeal } from './foodEntryMeals';
 import type { FoodInfoItem } from './foodInfo';
@@ -86,8 +90,8 @@ export type TabParamList = {
 export type RootStackParamList = {
   Onboarding: undefined;
   Tabs: NavigatorScreenParams<TabParamList>;
-  FamilyMembers: undefined;
-  FamilyDiary: { familyUser: FamilyDiaryUser };
+  FamilyMembers: { copySource: FamilyCopySource } | undefined;
+  FamilyDiary: { familyUser: FamilyDiaryUser; date?: string };
   FamilyMealDetail: {
     familyUser: FamilyDiaryUser;
     sourceDate: string;
@@ -96,6 +100,7 @@ export type RootStackParamList = {
     entries: FoodEntry[];
   };
   FamilyCopyReview: {
+    direction?: FamilyCopyDirection;
     familyUser: FamilyDiaryUser;
     sourceDate: string;
     mealTypeId: string | null;

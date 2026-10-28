@@ -57,6 +57,8 @@ pnpm exec eslint routes/v2/foodRoutes.ts services/foodCoreService.ts
 
 ## Source Map
 
+- Family diary copies: `foodEntryRoutes.ts` exposes actor-scoped reviewed and selected copies in both directions. `foodEntryService.ts` checks the real actor's copy grant; `models/foodEntry.ts` rechecks reviewed rows and writes the whole copy atomically. `GET /meal-types/family/:familyUserId` reads recipient meal types under the same copy permission without switching profiles. Existing web `/copy-to-user` stays context-scoped.
+
 - Barcode lookup retains the local/default/fallback behavior in `foodCoreService.ts`. `services/barcodeLookupService.ts` collects accessible source matches on demand; `routes/v2/barcodeRoutes.ts` exposes the read-only alternatives endpoint. Source comparison does not persist routing settings or preferences.
 - Alternative source lookups abort product requests after 12 seconds. Only normalized external matches/misses are cached for 30 seconds per account, profile, barcode, provider and nutrition settings; repeated in-flight lookups share work. Provider availability, preferences and saved local foods are checked on every request, and errors remain retryable.
 
