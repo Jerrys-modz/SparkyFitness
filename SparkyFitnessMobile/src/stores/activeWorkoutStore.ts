@@ -471,6 +471,13 @@ export interface ActiveWorkoutState {
    */
   addSetToExercise: (entryId: string) => void;
   /**
+   * Insert a copy of a set right after it for the other side (left <-> right).
+   * A set with no side becomes left and the copy right. The copy keeps the
+   * set's weight/reps/rest/type but none of what describes a performed set
+   * (notes/rpe/completed_at/is_pr). No-op when the set is unknown.
+   */
+  addOtherSideSet: (setId: string) => void;
+  /**
    * Append drop sets (3 × -20% by default) stepping down from the base working
    * weight, rounded in the lifter's display unit. The new sets stay editable.
    */
@@ -603,6 +610,7 @@ export type ActiveSetPatch = Partial<
     | 'distance'
     | 'rpe'
     | 'rir'
+    | 'side'
     | 'set_type'
     | 'notes'
     | 'rest_time'
@@ -2257,6 +2265,48 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
         set(buildSessionEditState(state, next));
       },
 
+      addOtherSideSet: (setId) => {
+        const state = get();
+        const session = state.session;
+        if (!session) return;
+        const exercise = session.exercises.find((e) =>
+          e.sets.some((s) => String(s.id) === setId)
+        );
+        if (!exercise) return;
+        const index = exercise.sets.findIndex((s) => String(s.id) === setId);
+        const source = exercise.sets[index];
+
+        const sourceSide: 'left' | 'right' =
+          source.side === 'right' ? 'right' : 'left';
+        const otherSide: 'left' | 'right' =
+          sourceSide === 'left' ? 'right' : 'left';
+        const tempId = nextTempSetId(session, state.setRenderKeys);
+        const copy: ExerciseEntrySetResponse = {
+          ...source,
+          id: tempId,
+          side: otherSide,
+          notes: null,
+          rpe: null,
+          rir: null,
+          completed_at: null,
+          is_pr: false,
+        };
+
+        const sets = [
+          ...exercise.sets.slice(0, index),
+          { ...source, side: sourceSide },
+          copy,
+          ...exercise.sets.slice(index + 1),
+        ].map((s, i) => ({ ...s, set_number: i + 1 }));
+        const next: PresetSessionResponse = {
+          ...session,
+          exercises: session.exercises.map((e) =>
+            e.id === exercise.id ? { ...e, sets } : e
+          ),
+        };
+        set(buildSessionEditState(state, next));
+      },
+
       addDropSetsToExercise: (entryId, baseWeightKg, unit) => {
         const state = get();
         const session = state.session;
@@ -2490,6 +2540,7 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
           name: exercise.name,
           category: exercise.category ?? null,
           modality: exercise.modality ?? null,
+          load_convention: exercise.load_convention,
           images: exercise.images ?? null,
           primary_muscles: exercise.primary_muscles ?? null,
           secondary_muscles: exercise.secondary_muscles ?? null,
@@ -2556,6 +2607,7 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
           name: exercise.name,
           category: exercise.category ?? null,
           modality: exercise.modality ?? null,
+          load_convention: exercise.load_convention,
           images: exercise.images ?? null,
           primary_muscles: exercise.primary_muscles ?? null,
           secondary_muscles: exercise.secondary_muscles ?? null,

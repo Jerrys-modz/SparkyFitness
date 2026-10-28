@@ -15,6 +15,9 @@ vi.mock('../config/logging', () => ({
 // Bind positions of `modality` in the two writer statements.
 const CREATE_MODALITY_PARAM = 17;
 const UPDATE_MODALITY_PARAM = 15;
+// load_convention follows source_id, so it sits two binds after modality.
+const CREATE_LOAD_CONVENTION_PARAM = 18;
+const UPDATE_LOAD_CONVENTION_PARAM = 17;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function lastQuery(mockClient: any): [string, unknown[]] {
@@ -117,7 +120,60 @@ describe('exercise modality writers', () => {
       await exerciseDb.updateExercise(id, uuidv4(), { modality: 'duration' });
       const params = lastQuery(mockClient)[1];
       expect(params[params.length - 1]).toBe(id);
-      expect(params).toHaveLength(UPDATE_MODALITY_PARAM + 3);
+      // modality, source_id, load_convention, then the exercise id.
+      expect(params).toHaveLength(UPDATE_MODALITY_PARAM + 4);
+    });
+  });
+
+  describe('load convention (#3157)', () => {
+    async function createBind(exerciseData: object) {
+      mockClient.query.mockResolvedValueOnce({ rows: [{ id: uuidv4() }] });
+      await exerciseDb.createExercise({
+        user_id: uuidv4(),
+        name: 'Test Exercise',
+        category: 'Strength',
+        ...exerciseData,
+      });
+      return lastQuery(mockClient)[1][CREATE_LOAD_CONVENTION_PARAM];
+    }
+
+    it('creates an exercise with the chosen convention, and total when none is given', async () => {
+      expect(await createBind({ load_convention: 'per_hand' })).toBe(
+        'per_hand'
+      );
+      expect(await createBind({})).toBe('total');
+      expect(await createBind({ load_convention: 'bogus' })).toBe('total');
+    });
+
+    it('binds null on update when the convention is omitted or unrecognized, and leaves entries alone', async () => {
+      for (const updateData of [
+        { name: 'Renamed' },
+        { load_convention: 'x' },
+      ]) {
+        mockClient.query.mockReset();
+        mockClient.query.mockResolvedValue({ rows: [{ id: uuidv4() }] });
+        await exerciseDb.updateExercise(uuidv4(), uuidv4(), updateData);
+        expect(mockClient.query).toHaveBeenCalledTimes(1);
+        expect(
+          mockClient.query.mock.calls[0][1][UPDATE_LOAD_CONVENTION_PARAM]
+        ).toBeNull();
+      }
+    });
+
+    it('carries a changed convention to the exercise entries it was logged on', async () => {
+      const id = uuidv4();
+      mockClient.query.mockReset();
+      mockClient.query.mockResolvedValue({ rows: [{ id }] });
+      await exerciseDb.updateExercise(id, uuidv4(), {
+        load_convention: 'per_side',
+      });
+      expect(mockClient.query).toHaveBeenCalledTimes(2);
+      expect(
+        mockClient.query.mock.calls[0][1][UPDATE_LOAD_CONVENTION_PARAM]
+      ).toBe('per_side');
+      const [sql, params] = mockClient.query.mock.calls[1];
+      expect(sql).toContain('UPDATE exercise_entries SET load_convention');
+      expect(params).toEqual(['per_side', id]);
     });
   });
 

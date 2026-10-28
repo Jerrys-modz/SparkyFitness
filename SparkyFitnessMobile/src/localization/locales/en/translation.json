@@ -1981,6 +1981,12 @@
   },
   "workout": {
     "addDropSets": "Add {{sets}} drop sets (-{{percent}}%)",
+    "addOtherSide": "Add other side",
+    "sideBoth": "Both sides",
+    "sideLeft": "Left side",
+    "sideLeftShort": "L",
+    "sideRight": "Right side",
+    "sideRightShort": "R",
     "couldNotSave": "Could not save your workout",
     "dismissLocation": "Dismiss location",
     "gymLocation": "Gym / Location",
@@ -2190,6 +2196,12 @@
     "categoryStretching": "Stretching",
     "categoryIsometric": "Isometric",
     "trackingType": "Tracking Type",
+    "loadConvention": {
+      "label": "Volume counting",
+      "total": "Total load",
+      "per_hand": "Weight per hand",
+      "per_side": "Reps per side"
+    },
     "modalityWeightReps": "Weight & Reps",
     "modalityReps": "Reps",
     "modalityBodyweight": "Bodyweight (+/− weight)",

@@ -122,6 +122,8 @@ interface ActiveWorkoutSetRowProps {
    * `duration_distance` view rows).
    */
   modality?: ExerciseModality;
+  /** The owning exercise's volume counting (`total`, `per_hand`, `per_side`); absent counts once. */
+  loadConvention?: string | null;
   /**
    * The lifter's body weight (kg), for a bodyweight exercise's volume and
    * estimated maxes. Null when unknown: only the added weight counts then.
@@ -232,6 +234,7 @@ interface ActiveWorkoutSetRowProps {
 function ActiveWorkoutSetRow({
   set,
   modality = 'weight_reps',
+  loadConvention,
   bodyWeightKg = null,
   distanceUnit = 'km',
   renderKey,
@@ -765,7 +768,7 @@ function ActiveWorkoutSetRow({
       case 'volume':
         return {
           text: formatMetricWeight(
-            setVolumeKg(set, modality, bodyWeightKg),
+            setVolumeKg(set, modality, bodyWeightKg, loadConvention),
             weightUnit
           ),
         };
@@ -790,7 +793,13 @@ function ActiveWorkoutSetRow({
     }
   })();
 
-  const setLabel = setTypeLetter(set.set_type) ?? String(displayNumber);
+  const sideLetter =
+    set.side === 'left'
+      ? t('workout.sideLeftShort', { defaultValue: 'L' })
+      : set.side === 'right'
+        ? t('workout.sideRightShort', { defaultValue: 'R' })
+        : '';
+  const setLabel = `${setTypeLetter(set.set_type) ?? String(displayNumber)}${sideLetter}`;
 
   const setIndicator = (
     <Text

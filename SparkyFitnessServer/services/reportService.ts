@@ -27,6 +27,7 @@ import {
   primaryMusclesOf,
   bodyWeightOnDay,
   effectiveLoadKg,
+  volumeMultiplier,
   epleyOneRepMaxKg,
   resolveExerciseModality,
   buildTrainingConsistency,
@@ -119,9 +120,11 @@ interface WorkoutEntry {
   exercise_force?: string;
   exercise_mechanic?: string;
   exercise_modality?: string | null;
+  exercise_load_convention?: string | null;
   sets?: Array<{
     weight?: string | number;
     reps?: string | number;
+    side?: 'left' | 'right' | null;
   }>;
   exercises?: {
     primary_muscles?: string;
@@ -427,6 +430,7 @@ async function getReportsData(
           entry.exercise_modality,
           entry.exercise_category
         ),
+        load_convention: entry.exercise_load_convention ?? 'total',
       },
     }));
 
@@ -868,8 +872,14 @@ async function getExerciseDashboardData(
         entry.sets.forEach((set: any) => {
           const weight = setLoad(entry, set);
           const reps = parseInt(set.reps) || 0;
+          // The exercise's load convention counts per-hand weights and
+          // per-side reps in volume; 1RM and PRs below keep the logged weight.
+          const volumeFactor = volumeMultiplier(
+            entry.exercise_load_convention,
+            set.side
+          );
           // Calculate total volume and reps
-          totalVolume += weight * reps;
+          totalVolume += weight * reps * volumeFactor;
           totalReps += reps;
 
           if (isStrengthFormat) {
@@ -906,7 +916,7 @@ async function getExerciseDashboardData(
           }
           for (const muscle of primaryMuscles) {
             muscleGroupVolume[muscle] =
-              (muscleGroupVolume[muscle] || 0) + weight * reps;
+              (muscleGroupVolume[muscle] || 0) + weight * reps * volumeFactor;
           }
         });
       }

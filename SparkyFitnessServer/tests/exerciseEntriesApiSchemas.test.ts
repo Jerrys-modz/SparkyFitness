@@ -548,6 +548,32 @@ describe('Exercise entry API schemas', () => {
     });
   });
 
+  describe('set side (single-arm / single-leg)', () => {
+    const baseSetRequest = { set_number: 1, reps: 8, weight: 20 };
+
+    it('accepts left, right and null', () => {
+      for (const side of ['left', 'right', null]) {
+        expect(
+          runSchema('exerciseEntrySetRequestSchema', {
+            ...baseSetRequest,
+            side,
+          }).success
+        ).toBe(true);
+      }
+    });
+
+    it('rejects any other side', () => {
+      for (const side of ['both', 'Left', '']) {
+        expect(
+          runSchema('exerciseEntrySetRequestSchema', {
+            ...baseSetRequest,
+            side,
+          }).success
+        ).toBe(false);
+      }
+    });
+  });
+
   describe('session location', () => {
     const baseSession = { workout_preset_id: 42, entry_date: '2026-09-24' };
 

@@ -1341,6 +1341,29 @@ describe('workoutSession', () => {
       expect(payload[0].sets[0]).toMatchObject({ id: 11, rpe: 8, rir: 2 });
     });
 
+    it('round-trips side so an edit-save cannot wipe left/right tracking', () => {
+      const payload = buildExercisesPayload(
+        [
+          makeDraftExercise({
+            sets: [
+              {
+                clientId: 's1',
+                serverId: 11,
+                weight: '20',
+                reps: '10',
+                side: 'left',
+              },
+              { clientId: 's2', serverId: 12, weight: '20', reps: '10' },
+            ],
+          }),
+        ],
+        'kg',
+        'km'
+      );
+      expect(payload[0].sets[0]).toMatchObject({ id: 11, side: 'left' });
+      expect(payload[0].sets[1]).toMatchObject({ id: 12, side: null });
+    });
+
     it('defaults duration_minutes to 0 when the draft has none', () => {
       const payload = buildExercisesPayload([makeDraftExercise()], 'kg', 'km');
       expect(payload[0].duration_minutes).toBe(0);
@@ -2295,6 +2318,7 @@ describe('workoutSession', () => {
         notes: null,
         rpe: null,
         rir: null,
+        side: null,
         completed_at: null,
         is_pr: false,
       });
@@ -2310,6 +2334,7 @@ describe('workoutSession', () => {
         notes: 'felt heavy',
         rpe: 9,
         rir: null,
+        side: null,
         completed_at: null,
         is_pr: false,
       });
@@ -3859,6 +3884,54 @@ describe('workoutSession', () => {
           };
           expect(getExerciseVolumeKg(exercise as any)).toBe(600);
         }
+      });
+    });
+
+    describe('volume counting (#3157)', () => {
+      const set = (weight: number, reps: number, side?: 'left' | 'right') => ({
+        id: 1,
+        set_number: 1,
+        set_type: 'normal',
+        reps,
+        weight,
+        duration: null,
+        rest_time: null,
+        notes: null,
+        rpe: null,
+        ...(side ? { side } : {}),
+      });
+      const exercise = (
+        loadConvention: string | undefined,
+        sets: ReturnType<typeof set>[]
+      ) =>
+        ({
+          exercise_snapshot: { load_convention: loadConvention },
+          sets,
+        }) as any;
+
+      it('counts both dumbbells of a per-hand exercise', () => {
+        const sets = [set(20, 10), set(20, 10), set(20, 10)];
+        expect(getExerciseVolumeKg(exercise(undefined, sets))).toBe(600);
+        expect(getExerciseVolumeKg(exercise('total', sets))).toBe(600);
+        expect(getExerciseVolumeKg(exercise('per_hand', sets))).toBe(1200);
+      });
+
+      it('counts both sides of a per-side set logged once, but a marked side once', () => {
+        expect(setVolumeKg(set(30, 8), 'weight_reps', null, 'per_side')).toBe(
+          480
+        );
+        expect(
+          setVolumeKg(set(30, 8, 'left'), 'weight_reps', null, 'per_side')
+        ).toBe(240);
+        expect(
+          getExerciseVolumeKg(
+            exercise('per_side', [set(30, 8, 'left'), set(30, 8, 'right')])
+          )
+        ).toBe(480);
+      });
+
+      it('leaves the load alone, so a record keeps the logged weight', () => {
+        expect(setLoadKg(20, 'weight_reps', null)).toBe(20);
       });
     });
 

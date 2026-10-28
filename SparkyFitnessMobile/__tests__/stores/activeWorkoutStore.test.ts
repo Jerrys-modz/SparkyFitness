@@ -2323,6 +2323,48 @@ describe('activeWorkoutStore', () => {
       });
     });
 
+    describe('addOtherSideSet', () => {
+      it('inserts an opposite-side copy right after the set, leaving the source on its side', () => {
+        useActiveWorkoutStore
+          .getState()
+          .updateSetField('101', { weight: 20, reps: 10, rpe: 8 });
+        useActiveWorkoutStore.getState().addOtherSideSet('101');
+        const state = useActiveWorkoutStore.getState();
+        const sets = state.session!.exercises[0].sets;
+        expect(sets.map((s) => s.set_number)).toEqual([1, 2, 3]);
+        expect(sets[0]).toMatchObject({ id: 101, side: 'left' });
+        expect(sets[1]).toMatchObject({
+          id: -1,
+          side: 'right',
+          weight: 20,
+          reps: 10,
+          rpe: null,
+          completed_at: null,
+          is_pr: false,
+        });
+        expect(sets[2].id).toBe(102);
+        expect(state.hasUnsavedChanges).toBe(true);
+      });
+
+      it('copies a right-side set to the left', () => {
+        useActiveWorkoutStore.getState().updateSetField('101', {
+          side: 'right',
+        });
+        useActiveWorkoutStore.getState().addOtherSideSet('101');
+        const sets =
+          useActiveWorkoutStore.getState().session!.exercises[0].sets;
+        expect(sets[0].side).toBe('right');
+        expect(sets[1].side).toBe('left');
+      });
+
+      it('is a no-op for an unknown set', () => {
+        useActiveWorkoutStore.getState().addOtherSideSet('999');
+        expect(
+          useActiveWorkoutStore.getState().session!.exercises[0].sets
+        ).toHaveLength(2);
+      });
+    });
+
     describe('addSetToExercise', () => {
       it('appends an empty set with a negative temp id, cloning structure but not values or outcomes', () => {
         useActiveWorkoutStore.getState().updateSetField('102', { rpe: 9 });

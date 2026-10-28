@@ -180,6 +180,10 @@ export default defineConfig({
             { text: 'Adaptive Coaching', link: '/features/exercises/adaptive-coaching' },
             { text: 'Training Consistency', link: '/features/exercises/training-consistency' },
             { text: 'Warm-Up Sets', link: '/features/exercises/warm-up-sets' },
+            {
+              text: 'Dumbbell and One-Sided Volume',
+              link: '/features/exercises/dumbbell-and-unilateral-volume',
+            },
           ],
         },
         {

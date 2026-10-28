@@ -46,6 +46,7 @@ SparkyFitness tracks the parts of your life that move your body and your health:
 - [Adaptive Coaching](/features/exercises/adaptive-coaching): suggested weights based on your history
 - [Bodyweight Exercises](/features/exercises/bodyweight-exercises): weighted and assisted bodyweight sets
 - [Warm-Up Sets](/features/exercises/warm-up-sets): add a warm-up ramp to a lift in one tap
+- [Dumbbell and One-Sided Volume](/features/exercises/dumbbell-and-unilateral-volume): count per-hand weights and per-side reps correctly in volume
 
 ## Connect & share
 

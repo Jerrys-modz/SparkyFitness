@@ -91,6 +91,66 @@ describe('estimateCaloriesBurnedPerHour', () => {
     expect(withWarmup).toBe(calsForMet(4.5));
   });
 
+  // Volume counting (#3157) is about how many kilograms a session moved. The
+  // estimate rates a session by its intensity, a ratio of weights from the same
+  // sets, and its length by the logged time, so neither the weight per hand nor
+  // the side of a set changes the rating.
+  it('rates the same lift alike whether the logged weight is one dumbbell or the total', async () => {
+    const oneDumbbell = Array.from({ length: 3 }, () => ({
+      reps: 8,
+      weight: 50,
+    }));
+    const bothDumbbells = oneDumbbell.map((set) => ({ ...set, weight: 100 }));
+    const perHand = await estimateCaloriesBurnedPerHour(
+      strengthExercise,
+      USER_ID,
+      oneDumbbell
+    );
+    const total = await estimateCaloriesBurnedPerHour(
+      strengthExercise,
+      USER_ID,
+      bothDumbbells
+    );
+    expect(perHand).toBe(total);
+    expect(perHand).toBe(calsForMet(5.5));
+  });
+
+  it('rates left and right sets the same as the same sets with no side', async () => {
+    const unsided = Array.from({ length: 4 }, () => ({ reps: 8, weight: 30 }));
+    const bySide = unsided.map((set, index) => ({
+      ...set,
+      side: index % 2 === 0 ? 'left' : 'right',
+    }));
+    expect(
+      await estimateCaloriesBurnedPerHour(strengthExercise, USER_ID, bySide)
+    ).toBe(
+      await estimateCaloriesBurnedPerHour(strengthExercise, USER_ID, unsided)
+    );
+  });
+
+  it('counts a per-side set logged once for both sides when averaging the session weight', async () => {
+    // Heavy set with no side (did both sides) and a light set marked left.
+    // Counted once each the average is 60 vs a 1RM of ~112.5 (intensity ~0.53,
+    // MET 3.5); with the unsided set counted for both sides it is ~73
+    // (intensity ~0.65, MET 4.5).
+    const sets = [
+      { reps: 5, weight: 100 },
+      { reps: 5, weight: 20, side: 'left' },
+    ];
+    const asLogged = await estimateCaloriesBurnedPerHour(
+      { ...strengthExercise, load_convention: 'total' },
+      USER_ID,
+      sets
+    );
+    const perSide = await estimateCaloriesBurnedPerHour(
+      { ...strengthExercise, load_convention: 'per_side' },
+      USER_ID,
+      sets
+    );
+    expect(asLogged).toBe(calsForMet(3.5));
+    expect(perSide).toBe(calsForMet(4.5));
+  });
+
   it('falls back to the category MET when reps exceed the Brzycki validity range', async () => {
     const result = await estimateCaloriesBurnedPerHour(
       strengthExercise,

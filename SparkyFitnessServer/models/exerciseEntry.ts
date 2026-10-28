@@ -1,5 +1,6 @@
 import {
   compareByEntryTime,
+  DEFAULT_EXERCISE_LOAD_CONVENTION,
   earliestEntryTime,
   type ExerciseEntryHrZonesInitializer,
 } from '@workspace/shared';
@@ -191,7 +192,7 @@ async function _getExerciseEntryByIdWithClient(client: any, id: any) {
              COALESCE(
                (SELECT json_agg(set_data ORDER BY set_data.set_number)
                 FROM (
-                  SELECT ees.id, ees.set_number, ees.set_type, ees.reps, ees.weight, ees.duration, ees.rest_time, ees.notes, ees.rpe, ees.rir, to_char(ees.completed_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS completed_at, ees.is_pr, ees.distance
+                  SELECT ees.id, ees.set_number, ees.set_type, ees.reps, ees.weight, ees.duration, ees.rest_time, ees.notes, ees.rpe, ees.rir, ees.side, to_char(ees.completed_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS completed_at, ees.is_pr, ees.distance
                   FROM exercise_entry_sets ees
                   WHERE ees.exercise_entry_id = ee.id
                 ) AS set_data
@@ -843,6 +844,7 @@ async function _updateExerciseEntryWithClient(
     mergedData.calories_per_hour = exercise.calories_per_hour;
     mergedData.category = exercise.category;
     mergedData.modality = exercise.modality;
+    mergedData.load_convention = exercise.load_convention;
     mergedData.source_id = exercise.source_id;
     mergedData.force = exercise.force;
     mergedData.level = exercise.level;
@@ -969,6 +971,14 @@ async function _updateExerciseEntryWithClient(
     }
     throw new Error('Exercise entry not found for update.');
   }
+  // The load convention is part of the exercise snapshot; it changes only when
+  // the entry is pointed at another exercise.
+  if (mergedData.load_convention) {
+    await client.query(
+      'UPDATE exercise_entries SET load_convention = $1 WHERE id = $2 AND user_id = $3',
+      [mergedData.load_convention, id, userId]
+    );
+  }
   // Handle sets update
   if (updateData.sets !== undefined) {
     // Only modify sets if they are explicitly provided
@@ -990,12 +1000,13 @@ async function _updateExerciseEntryWithClient(
         set.notes,
         set.rpe,
         set.rir ?? null,
+        set.side ?? null,
         set.completed_at ?? null,
         set.is_pr ?? false,
         set.distance ?? null,
       ]);
       const setsQuery = format(
-        'INSERT INTO exercise_entry_sets (exercise_entry_id, set_number, set_type, reps, weight, duration, rest_time, notes, rpe, rir, completed_at, is_pr, distance) VALUES %L',
+        'INSERT INTO exercise_entry_sets (exercise_entry_id, set_number, set_type, reps, weight, duration, rest_time, notes, rpe, rir, side, completed_at, is_pr, distance) VALUES %L',
         setsValues
       );
       await client.query(setsQuery);
@@ -1164,7 +1175,7 @@ async function _createExerciseEntryWithClient(
       // No existing entry, create a new one
       // 1. Fetch the exercise details to create the snapshot
       const exerciseSnapshotQuery = await client.query(
-        `SELECT name, calories_per_hour, category, source, source_id, force, level, mechanic, equipment, primary_muscles, secondary_muscles, instructions, images, modality
+        `SELECT name, calories_per_hour, category, source, source_id, force, level, mechanic, equipment, primary_muscles, secondary_muscles, instructions, images, modality, load_convention
          FROM exercises WHERE id = $1`,
         [entryData.exercise_id]
       );
@@ -1212,6 +1223,7 @@ async function _createExerciseEntryWithClient(
         entryData.superset_group ?? null,
         entryData.entry_time ?? null,
         snapshot.modality,
+        snapshot.load_convention ?? DEFAULT_EXERCISE_LOAD_CONVENTION,
         ...telemetryValuesFrom(entryData),
         entryData.record_timezone ?? null,
       ];
@@ -1224,7 +1236,7 @@ async function _createExerciseEntryWithClient(
         'exercise_name, calories_per_hour, category, source, source_id, force, level, mechanic, ' +
         'equipment, primary_muscles, secondary_muscles, instructions, images, ' +
         'distance, avg_heart_rate, exercise_preset_entry_id, sort_order, steps, water_estimated, ' +
-        'superset_group, entry_time, modality';
+        'superset_group, entry_time, modality, load_convention';
       const allColumns = `${baseColumns}, ${EXERCISE_ENTRY_TELEMETRY_COLUMNS.join(', ')}, record_timezone${idColumn}`;
       const placeholders = entryValues
         .map((_, index) => `$${index + 1}`)
@@ -1249,12 +1261,13 @@ async function _createExerciseEntryWithClient(
           set.notes,
           set.rpe,
           set.rir ?? null,
+          set.side ?? null,
           set.completed_at ?? null,
           set.is_pr ?? false,
           set.distance ?? null,
         ]);
         const setsQuery = format(
-          'INSERT INTO exercise_entry_sets (exercise_entry_id, set_number, set_type, reps, weight, duration, rest_time, notes, rpe, rir, completed_at, is_pr, distance) VALUES %L',
+          'INSERT INTO exercise_entry_sets (exercise_entry_id, set_number, set_type, reps, weight, duration, rest_time, notes, rpe, rir, side, completed_at, is_pr, distance) VALUES %L',
           setsValues
         );
         await client.query(setsQuery);
@@ -1557,8 +1570,9 @@ async function _reconcileExerciseEntrySetsWithClient(
            completed_at = $9,
            is_pr = $10,
            distance = $11,
-           rir = $12
-       WHERE id = $13 AND exercise_entry_id = $14`,
+           rir = $12,
+           side = $13
+       WHERE id = $14 AND exercise_entry_id = $15`,
       [
         set.set_number,
         set.set_type ?? null,
@@ -1572,6 +1586,7 @@ async function _reconcileExerciseEntrySetsWithClient(
         set.is_pr ?? false,
         set.distance ?? null,
         set.rir ?? null,
+        set.side ?? null,
         set.id,
         exerciseEntryId,
       ]
@@ -1591,12 +1606,13 @@ async function _reconcileExerciseEntrySetsWithClient(
       set.notes ?? null,
       set.rpe ?? null,
       set.rir ?? null,
+      set.side ?? null,
       set.completed_at ?? null,
       set.is_pr ?? false,
       set.distance ?? null,
     ]);
     const setsQuery = format(
-      'INSERT INTO exercise_entry_sets (exercise_entry_id, set_number, set_type, reps, weight, duration, rest_time, notes, rpe, rir, completed_at, is_pr, distance) VALUES %L',
+      'INSERT INTO exercise_entry_sets (exercise_entry_id, set_number, set_type, reps, weight, duration, rest_time, notes, rpe, rir, side, completed_at, is_pr, distance) VALUES %L',
       setsValues
     );
     await client.query(setsQuery);
@@ -1643,7 +1659,7 @@ async function getExerciseEntriesByDate(userId: any, selectedDate: any) {
          COALESCE(
            (SELECT json_agg(set_data ORDER BY set_data.set_number)
             FROM (
-              SELECT ees.id, ees.set_number, ees.set_type, ees.reps, ees.weight, ees.duration, ees.rest_time, ees.notes, ees.rpe, ees.rir, to_char(ees.completed_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS completed_at, ees.is_pr, ees.distance
+              SELECT ees.id, ees.set_number, ees.set_type, ees.reps, ees.weight, ees.duration, ees.rest_time, ees.notes, ees.rpe, ees.rir, ees.side, to_char(ees.completed_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS completed_at, ees.is_pr, ees.distance
               FROM exercise_entry_sets ees
               WHERE ees.exercise_entry_id = ee.id
             ) AS set_data
@@ -1703,6 +1719,7 @@ async function getExerciseEntriesByDate(userId: any, selectedDate: any) {
           exercise_name,
           category,
           modality,
+          load_convention,
           calories_per_hour,
           source,
           source_id,
@@ -1727,6 +1744,7 @@ async function getExerciseEntriesByDate(userId: any, selectedDate: any) {
             name: exercise_name,
             category: category,
             modality: modality,
+            load_convention: load_convention,
             calories_per_hour: calories_per_hour,
             source: source,
             source_id: source_id,
@@ -1840,6 +1858,7 @@ async function getExerciseProgressData(
          epe.name AS exercise_preset_entry_name,
          e.category,
          ee.modality,
+         ee.load_convention,
          -- Body weight that day, for a bodyweight exercise's load
          -- (effectiveLoadKg in @workspace/shared).
          bw.weight::float8 AS body_weight_kg,
@@ -1861,7 +1880,7 @@ async function getExerciseProgressData(
          COALESCE(
            (SELECT json_agg(set_data ORDER BY set_data.set_number)
             FROM (
-              SELECT ees.id, ees.set_number, ees.set_type, ees.reps, ees.weight, ees.duration, ees.rest_time, ees.notes, ees.rpe, ees.rir, to_char(ees.completed_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS completed_at, ees.is_pr, ees.distance
+              SELECT ees.id, ees.set_number, ees.set_type, ees.reps, ees.weight, ees.duration, ees.rest_time, ees.notes, ees.rpe, ees.rir, ees.side, to_char(ees.completed_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS completed_at, ees.is_pr, ees.distance
               FROM exercise_entry_sets ees
               WHERE ees.exercise_entry_id = ee.id
             ) AS set_data
@@ -1898,7 +1917,7 @@ async function getExerciseHistory(userId: any, exerciseId: any, limit = 5) {
          COALESCE(
            (SELECT json_agg(set_data ORDER BY set_data.set_number)
             FROM (
-              SELECT ees.id, ees.set_number, ees.set_type, ees.reps, ees.weight, ees.duration, ees.rest_time, ees.notes, ees.rpe, ees.rir, to_char(ees.completed_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS completed_at, ees.is_pr, ees.distance
+              SELECT ees.id, ees.set_number, ees.set_type, ees.reps, ees.weight, ees.duration, ees.rest_time, ees.notes, ees.rpe, ees.rir, ees.side, to_char(ees.completed_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS completed_at, ees.is_pr, ees.distance
               FROM exercise_entry_sets ees
               WHERE ees.exercise_entry_id = ee.id
             ) AS set_data

@@ -34,6 +34,21 @@ export function setLoadSql(entryAlias: string, setAlias: string): string {
 }
 
 /**
+ * The volume one set contributed: its load times its reps times the entry's
+ * load convention (`volumeMultiplier` in @workspace/shared, #3157). Estimated
+ * 1RM and PRs use `setLoadSql` alone, so they keep the logging convention.
+ * `setAlias` needs the set's `side`.
+ */
+export function setVolumeSql(entryAlias: string, setAlias: string): string {
+  return `(${setLoadSql(entryAlias, setAlias)} * ${setAlias}.reps
+          * CASE ${entryAlias}.load_convention
+              WHEN 'per_hand' THEN 2
+              WHEN 'per_side' THEN CASE WHEN ${setAlias}.side IS NULL THEN 2 ELSE 1 END
+              ELSE 1
+            END)`;
+}
+
+/**
  * Whether an exercise entry counts as cardio, the way Exercise Statistics'
  * Cardio view decides. `entryAlias` qualifies the columns; omit it when they
  * are in scope unqualified.
