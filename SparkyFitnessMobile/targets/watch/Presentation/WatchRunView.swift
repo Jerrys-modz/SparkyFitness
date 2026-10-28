@@ -65,9 +65,60 @@ struct WatchRunView: View {
                         next: position.next
                     )
                 }
+                if let fuel = run.fuelStatus() {
+                    fuelStrip(fuel)
+                }
             }
         )
         .sheet(isPresented: $showingSettings) { settingsSheet }
+    }
+
+    /// The next fuel or drink reminder, or the one that just came due.
+    @ViewBuilder
+    private func fuelStrip(_ status: WatchRunStore.FuelStatus) -> some View {
+        switch status {
+        case .due(let grams, let ml):
+            CardioFuelStrip(
+                systemImage: grams != nil ? "bolt.fill" : "drop.fill",
+                label: dueLabel(grams: grams, ml: ml),
+                remaining: nil,
+                isDue: true,
+                onDismiss: {
+                    Haptics.tap()
+                    run.dismissFuelAlert()
+                }
+            )
+        case .upcoming(let next):
+            CardioFuelStrip(
+                systemImage: next.kind == .carbs ? "bolt.fill" : "drop.fill",
+                label: upcomingLabel(next),
+                remaining: RecordingState.clock(next.secondsLeft),
+                isDue: false,
+                onDismiss: {}
+            )
+        }
+    }
+
+    private func dueLabel(grams: Int?, ml: Int?) -> String {
+        switch (grams, ml) {
+        case let (grams?, _?):
+            return String(localized: "watch.run.fuel.takeAndDrink", defaultValue: "Take \(grams) g + drink")
+        case let (grams?, nil):
+            return String(localized: "watch.run.fuel.takeGrams", defaultValue: "Take \(grams) g")
+        case let (nil, ml?):
+            return String(localized: "watch.run.fuel.drinkMl", defaultValue: "Drink \(ml) ml")
+        case (nil, nil):
+            return ""
+        }
+    }
+
+    private func upcomingLabel(_ next: WatchFueling.Upcoming) -> String {
+        switch next.kind {
+        case .carbs:
+            return String(localized: "watch.run.fuel.fuelGrams", defaultValue: "Fuel \(next.amount) g")
+        case .drink:
+            return String(localized: "watch.run.fuel.drinkMl", defaultValue: "Drink \(next.amount) ml")
+        }
     }
 
     private func stats(elapsed: TimeInterval, metrics: WatchRunMetrics) -> [CardioStat] {
@@ -177,6 +228,7 @@ struct WatchRunView: View {
                 ))
                 paceAlertRow
                 heartRateAlertRow
+                fuelingRows
                 // Plays whatever the switch says, so a silent speaker can be
                 // told apart from cues that are off.
                 Button(String(localized: "watch.run.testVoice", defaultValue: "Test voice")) {
@@ -185,6 +237,45 @@ struct WatchRunView: View {
             }
             .navigationTitle(run.kind.title(run.place))
         }
+    }
+
+    /// What the reminders start from when turned on mid-run: what the phone
+    /// last planned, or the usual amounts.
+    private var fuelingDefaults: WatchFuelingPlan {
+        store.context.runFueling ?? .carbsOnly
+    }
+
+    /// This run's reminders with one of the two switched on or off, nil when
+    /// that leaves neither.
+    private func fueling(carbs: Bool? = nil, drinks: Bool? = nil) -> WatchFuelingPlan? {
+        let defaults = fuelingDefaults
+        var plan = run.settings.fueling ?? WatchFuelingPlan(
+            carbIntervalMin: nil,
+            portionGrams: defaults.portionGrams,
+            drinkIntervalMin: nil,
+            mlPerDrink: defaults.mlPerDrink
+        )
+        if let carbs {
+            plan.carbIntervalMin = carbs ? (defaults.carbIntervalMin ?? WatchFuelingPlan.defaultCarbIntervalMin) : nil
+        }
+        if let drinks {
+            plan.drinkIntervalMin = drinks ? (defaults.drinkIntervalMin ?? WatchFuelingPlan.defaultDrinkIntervalMin) : nil
+        }
+        return plan.isOn ? plan : nil
+    }
+
+    /// Fuel and drink reminders, switched on or off for the rest of this run.
+    /// The amounts are set on the start screen.
+    @ViewBuilder
+    private var fuelingRows: some View {
+        Toggle(String(localized: "watch.run.fuelReminders", defaultValue: "Fuel reminders"), isOn: Binding(
+            get: { run.settings.fueling?.carbIntervalMin != nil },
+            set: { run.setFueling(fueling(carbs: $0)) }
+        ))
+        Toggle(String(localized: "watch.run.drinkReminders", defaultValue: "Drink reminders"), isOn: Binding(
+            get: { run.settings.fueling?.drinkIntervalMin != nil },
+            set: { run.setFueling(fueling(drinks: $0)) }
+        ))
     }
 
     /// The pace range comes from the phone (set on its Record screen), so the

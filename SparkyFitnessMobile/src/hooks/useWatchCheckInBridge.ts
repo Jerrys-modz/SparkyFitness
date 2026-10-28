@@ -85,6 +85,12 @@ import {
   getWatchIndoorScale,
   onWatchIndoorScaleChange,
 } from '../services/watchIndoorScale';
+import {
+  getWatchFuelingPreference,
+  onWatchFuelingPreferenceChange,
+  watchFuelingContext,
+  type WatchFuelingPreference,
+} from '../services/watchFuelingPreference';
 import { presetName } from '../components/recording/IntervalSetup';
 import { programWorkoutLabel } from '../components/recording/RunProgramCard';
 
@@ -327,6 +333,25 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     };
     load();
     const unsubscribe = onWatchIndoorScaleChange(load);
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, []);
+
+  // The fuel and drink reminders last planned on this phone, re-read when a
+  // new plan is saved, so the watch's start screen offers the latest.
+  const [fuelingPreference, setFuelingPreference] =
+    useState<WatchFuelingPreference | null>(null);
+  useEffect(() => {
+    let active = true;
+    const load = () => {
+      void getWatchFuelingPreference().then((preference) => {
+        if (active) setFuelingPreference(preference);
+      });
+    };
+    load();
+    const unsubscribe = onWatchFuelingPreferenceChange(load);
     return () => {
       active = false;
       unsubscribe();
@@ -800,6 +825,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
               runPaceMaxSecondsPerKm: recording.paceBand.maxSecondsPerKm,
             }
           : {}),
+        ...watchFuelingContext(fuelingPreference),
         runPlans,
         ...(indoorDistanceScale ? { indoorDistanceScale } : {}),
         startableWorkouts,
@@ -853,6 +879,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     watchClassicWorkout,
     runPlans,
     indoorDistanceScale,
+    fuelingPreference,
     startableWorkouts,
     suggestedExercises,
     scheduledWorkouts,
