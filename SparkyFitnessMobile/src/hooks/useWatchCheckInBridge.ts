@@ -87,6 +87,7 @@ import {
 } from '../services/watchIndoorScale';
 import { presetName } from '../components/recording/IntervalSetup';
 import { programWorkoutLabel } from '../components/recording/RunProgramCard';
+import { getAppLocale } from '../localization';
 
 /** Saved workouts the watch may start. Presets with no exercises are omitted:
  * the server rejects a session that has none. */
@@ -784,6 +785,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         // ... and "do this exercise now" from the workout pages.
         exerciseDoNow: true,
         runVoiceCues: recording.audioCues,
+        appLanguage: getAppLocale(),
         runAutoPause: recording.autoPause,
         runCheckInMinutes: recording.checkInMinutes,
         ...(recording.heartRateBand

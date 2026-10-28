@@ -527,6 +527,9 @@ struct WatchContext: Codable, Equatable {
     var stepGoal: Int? = nil
     /// The phone's "Voice cues" switch: a wrist-only run speaks each completed km or mile.
     var runVoiceCues: Bool? = nil
+    /// The app's language (BCP 47), for speaking cue text the phone wrote when
+    /// the phone cannot relay the cue. Nil (an older phone build) reads as unknown.
+    var appLanguage: String? = nil
     /// The phone's "Auto-pause" switch, the default for a run begun on the
     /// wrist. Nil (an older phone build) reads as on.
     var runAutoPause: Bool? = nil
