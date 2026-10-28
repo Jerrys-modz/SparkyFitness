@@ -1134,7 +1134,7 @@
       "profileIncompleteTitle": "Profile Incomplete",
       "projectedBurn": "Projected TDEE",
       "goalModeTarget": "Goal Mode Target",
-      "healthConnectProjectionSource": "Health Connect total calories",
+      "healthConnectProjectionSource": "Device total calories",
       "fallbackProjectionSource": "BMR + active calories fallback",
       "legacyProjectionSource": "Device projection",
       "sparkyfitnessBurned": "SparkyFitness Burned",
@@ -2497,7 +2497,7 @@
       "adaptiveFootnote": "* Dynamically adjusts your Daily Goal based on your actual metabolism. Needs consistent food and weight tracking for high accuracy.",
       "burnedActivity": "Activity (Exercise & Steps only)",
       "burnedBmr": "Activity + BMR (Your base metabolism)",
-      "burnedTdee": "Health Connect total calories (BMR + active calories fallback)",
+      "burnedTdee": "Device total calories (BMR + active calories fallback)",
       "burnedTitle": "Burned Calories",
       "dynamicFootnote": "* Ideal for fueling workouts and active recovery.",
       "fixedFootnote": "* Ideal for strict caloric deficits and weight management.",
@@ -2513,7 +2513,7 @@
       "remainingTdee": "Projected TDEE × Goal Mode − Eaten",
       "remainingTdeeWeekly": "Projected TDEE + Weekly adjustment − Eaten",
       "remainingTitle": "Remaining Calories",
-      "tdeeFootnote": "* Enable Total Calories in Health Connect sync. The projection converges with the device total at midnight; BMR plus active calories is used as a fallback.",
+      "tdeeFootnote": "* Sync total calories from Health Connect, Garmin or Polar. The projection converges with the device total at midnight; BMR plus active calories is used as a fallback.",
       "title": "How your calories will be calculated"
     },
     "calorieGoalAdjustment": {
@@ -2537,7 +2537,7 @@
       "adaptiveEarnBack": "Adaptive targets already include activity. Remaining calories are Target minus Eaten. Exercise earn-back applies only to Manual targets.",
       "tdeeGoal": "Device Projection",
       "tdeeActivityHint": "Activity level is only used by the BMR + active calories fallback when a device total is unavailable.",
-      "tdeeGoalDescription": "Uses Health Connect total calories when available, projects the current burn to midnight, and applies Goal Mode directly to that TDEE. Falls back to BMR plus active calories when no device total is available.",
+      "tdeeGoalDescription": "Uses device total calories (Health Connect, Garmin or Polar) when available, projects the current burn to midnight, and applies Goal Mode directly to that TDEE. Falls back to BMR plus active calories when no device total is available.",
       "title": "Daily Calorie Goal Adjustment"
     },
     "dataImport": {
@@ -2697,7 +2697,7 @@
       "dynamicGoalYourCalorieGoal": "<span>Dynamic Goal:</span> Your calorie goal will dynamically adjust based on your daily activity level (e.g., exercise, steps). This is ideal for active individuals or those whose activity levels vary daily.",
       "fixedGoalYourCalorieGoal": "<span>Fixed Goal:</span> Your calorie goal will remain fixed, regardless of your daily activity. This is suitable for individuals with consistent activity levels or those who prefer a stable target.",
       "percentageEarnBackOnlyEarn": "<span>Percentage Earn-Back:</span> Only earn back a set percentage of your exercise calories. For example, 50% creates a safety buffer to avoid overeating from over-estimated burns.",
-      "deviceProjectionUsesHealthConnect": "<span>Device Projection:</span> Uses Health Connect total calories when available, projects the current burn to midnight, and applies Goal Mode directly to that TDEE. Falls back to BMR plus active calories when no device total is available.",
+      "deviceProjectionUsesHealthConnect": "<span>Device Projection:</span> Uses device total calories (Health Connect, Garmin or Polar) when available, projects the current burn to midnight, and applies Goal Mode directly to that TDEE. Falls back to BMR plus active calories when no device total is available.",
       "inAdaptiveModeThisIs": "💡 In Adaptive mode this is the fallback estimate until you have enough tracking data — and it keeps setting the plausibility limits afterwards. Your measured TDEE is capped to within ±500 kcal of BMR × this multiplier, so a level set too low can hold a genuinely higher expenditure down.",
       "bodyRecomposition10": "Body Recomposition (-10%)",
       "cut15": "Cut (-15%)",
@@ -8940,8 +8940,6 @@
       "supersetDAmber": "Superset D (Amber)",
       "equipmentBrand": "Equipment / Brand",
       "eGHammerStrength": "e.g. Hammer Strength",
-      "exerciseNotesCuesOptional": "Exercise Notes / Cues (Optional)",
-      "eGSeatSetting4": "e.g. Seat setting 4, wide grip, pause at bottom...",
       "addSet": "Add Set",
       "workoutPresetBlockEditIndividual": "Workout Preset block: Edit individual exercises within the preset manager.",
       "understandProgressionTechniquesAndConfig": "Understand progression techniques and configure automatic overload targets for your routine.",
@@ -8967,9 +8965,6 @@
       "examples25LbsCables": "Examples: +2.5 lbs (cables/micro-plates), +5.0 lbs (dumbbells), +10.0 lbs (deadlifts).",
       "theMachineOrStationBranding": "The machine or station branding. Leverages vary drastically between manufacturers.",
       "examplesHammerStrengthLifeFitnessCable": "Examples: Hammer Strength, LifeFitness, Cable Stack, Dumbbell, Power Rack.",
-      "exerciseNotesCues": "Exercise Notes / Cues",
-      "equipmentSetupAndFormReminders": "Equipment setup and form reminders.",
-      "examplesSeatSetting4Pin": "Examples: Seat setting 4, pin 3, Wide grip, 2s pause at chest.",
       "supersetA": "SUPERSET A",
       "supersetB": "SUPERSET B",
       "supersetC": "SUPERSET C",
@@ -9159,6 +9154,13 @@
     "sendMessage": "Send message",
     "stopGenerating": "Stop generating",
     "thisSession": "this session",
+    "tokenUsage": {
+      "total": "{{value}} total",
+      "cached": "{{value}} cached",
+      "uncached": "{{value}} uncached",
+      "input": "{{value}} in",
+      "output": "{{value}} out"
+    },
     "copy": "Copy",
     "refresh": "Refresh",
     "more": "More",
@@ -9538,6 +9540,16 @@
         "description": "Walk for fitness: eight weeks, three walks a week, with no running. You alternate brisk and easy walking and build up to 30 minutes of brisk walking.",
         "name": "Walk for fitness",
         "structure": "Weeks 1 to 4 alternate stretches of brisk walking (3 to 8 minutes) with 2 minutes of easy walking. Weeks 5 and 6 use two longer brisk stretches of 12 and 15 minutes. Weeks 7 and 8 are continuous brisk walks of 20 to 30 minutes."
+      },
+      "zone2Base": {
+        "description": "Zone 2 base: ten weeks, three easy runs a week held to your Zone 2 heart rate (or the talk test), building time in zone with a long run of up to 70 minutes. For when you can run 30 minutes.",
+        "name": "Zone 2 base",
+        "structure": "Each week has a short run, a middle run and a long run, all easy and held to Zone 2. Time in zone grows from 100 to 155 minutes a week, the long run from 40 to 70 minutes, and weeks 4 and 8 are lighter. Weeks 6, 7 and 9 end the short run with four relaxed strides. The middle run of weeks 4, 8 and 10 is a zone check."
+      },
+      "zone2Base4": {
+        "description": "Zone 2 base: ten weeks, four easy runs a week held to your Zone 2 heart rate (or the talk test), building time in zone with a long run of up to 70 minutes. For when you can run 30 minutes.",
+        "name": "Zone 2 base (4 runs a week)",
+        "structure": "Each week has two short runs, a middle run and a long run, all easy and held to Zone 2. Time in zone grows from 130 to 190 minutes a week, the long run from 40 to 70 minutes, and weeks 4 and 8 are lighter. Weeks 6, 7 and 9 end the first run with four relaxed strides. The middle run of weeks 4, 8 and 10 is a zone check."
       }
     },
     "start": {

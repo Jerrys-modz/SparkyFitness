@@ -195,7 +195,7 @@ private struct WaitingForWorkoutView: View {
                     choosingCardio = true
                 } label: {
                     Label(String(localized: "watch.cardio.title", defaultValue: "Cardio"), systemImage: "figure.run")
-                        .font(.system(size: WatchStyle.s(16), weight: .semibold))
+                        .font(.system(size: WatchStyle.s(19), weight: .semibold))
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal, 12)
@@ -273,7 +273,7 @@ private struct WaitingForWorkoutView: View {
                             start(presetId: workout.presetId)
                         } label: {
                             Text(startingId == workout.presetId ? "Starting…" : workout.name)
-                                .font(.system(size: WatchStyle.s(16), weight: .semibold))
+                                .font(.system(size: WatchStyle.s(19), weight: .semibold))
                                 .foregroundStyle(.white)
                                 .multilineTextAlignment(.leading)
                                 .lineLimit(2)
@@ -315,7 +315,7 @@ private struct WaitingForWorkoutView: View {
             .foregroundStyle(blue)
             HStack(spacing: 8) {
                 Text(startingId == workout.presetId ? "Starting…" : workout.name)
-                    .font(.system(size: WatchStyle.s(16), weight: .semibold))
+                    .font(.system(size: WatchStyle.s(19), weight: .semibold))
                     .foregroundStyle(.white)
                     .multilineTextAlignment(.leading)
                     .lineLimit(2)
@@ -873,7 +873,7 @@ private struct SquircleLabel: View {
 /// The next exercise, one swipe up from the set screen, so what comes after
 /// this one can be checked without opening the list: its name, how many sets
 /// and the first set's target, and the exercise after it. A tap opens the list.
-private struct UpNextPage: View {
+struct UpNextPage: View {
     let onOpenList: () -> Void
 
     @EnvironmentObject private var store: WorkoutSessionStore
@@ -911,7 +911,7 @@ private struct UpNextPage: View {
         Button(action: Haptics.tapping(onOpenList)) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(String(localized: "watch.workout.upNextTitle", defaultValue: "Up Next"))
-                    .font(.footnote.weight(.semibold))
+                    .watchFont(.footnote.weight(.semibold), classic: .caption2)
                     .foregroundStyle(.secondary)
                 if let next = upcoming.first {
                     Text(next.exerciseName)
@@ -931,21 +931,21 @@ private struct UpNextPage: View {
                     .accessibilityLabel(String(localized: "watch.workout.upNextSetCount", defaultValue: "Sets: \(next.setCount)"))
                     if let target = RestView.target(for: next, store: store, unit: checkIn.context.effectiveWeightUnit, carry: checkIn.context.effectiveCarryUnit) {
                         Text(target)
-                            .font(.body)
+                            .watchFont(.body, classic: .footnote)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                             .minimumScaleFactor(0.8)
                     }
                     if upcoming.count > 1 {
                         Text(String(localized: "watch.workout.upNextThen", defaultValue: "Then \(upcoming[1].exerciseName)"))
-                            .font(.footnote)
+                            .watchFont(.footnote, classic: .caption2)
                             .foregroundStyle(.secondary)
                             .lineLimit(2)
                             .padding(.top, 4)
                     }
                 } else {
                     Text(String(localized: "watch.workout.lastExercise", defaultValue: "This is the last exercise"))
-                        .font(.body)
+                        .watchFont(.body, classic: .footnote)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -1000,8 +1000,9 @@ struct SwapExerciseSheet: View {
 private struct SetScreenMetricsLine: View {
     @EnvironmentObject private var store: WorkoutSessionStore
 
-    /// The clock's width at the top right, measured on 40 and 46 mm.
-    private static var clockWidth: CGFloat { WatchStyle.s(54) }
+    /// The clock's width at the top right, measured on 40 and 46 mm, with a
+    /// gap so the calories do not touch its running glyph.
+    private static var clockWidth: CGFloat { WatchStyle.s(64) }
 
     var body: some View {
         // One Text, so a 40 mm screen shrinks the line as a whole rather than
@@ -1030,7 +1031,7 @@ private struct SetScreenMetricsLine: View {
 /// Time, heart rate and calories, one big reading per line as on Apple's
 /// Workout app. A swipe up from the set screen, so the set screen can stay
 /// about the set.
-private struct WorkoutMetricsPage: View {
+struct WorkoutMetricsPage: View {
     @EnvironmentObject private var store: WorkoutSessionStore
 
     var body: some View {
@@ -1204,7 +1205,7 @@ private struct CurrentSetView: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+                    .minimumScaleFactor(0.6)
             }
 
             // Previous and next set either side of a still-wide Done: the dots
@@ -1763,7 +1764,7 @@ private struct DoneButton: View {
     }
 }
 
-/// The exercise's name, up to two lines, with a chevron: tapping it opens the
+/// The exercise's name, one scrolling line, with a chevron: tapping it opens the
 /// exercise list, where the other exercises, Add Exercise and Finish are. A
 /// superset member wears its superset's colour as a bar beside the name.
 private struct ExerciseTitle: View {
@@ -1781,13 +1782,11 @@ private struct ExerciseTitle: View {
                         .frame(width: 4)
                 }
                 VStack(alignment: .leading, spacing: 0) {
-                    // One line when the superset line follows, so a 40 mm
-                    // screen still has room for the buttons.
-                    Text(name)
+                    // One line that scrolls when the name is long, so it is
+                    // never cut off and a 40 mm screen keeps room for the
+                    // buttons; the effort picker's title does the same.
+                    MarqueeText(text: name)
                         .font(.headline)
-                        .lineLimit(supersetWith == nil ? 2 : 1)
-                        .minimumScaleFactor(supersetWith == nil ? 0.8 : 0.7)
-                        .multilineTextAlignment(.leading)
                     // Who this set alternates with: the bar's colour alone
                     // does not say.
                     if let supersetWith {
@@ -2176,6 +2175,95 @@ private struct PendingRpe: Identifiable {
     }
 }
 
+/// One line of text that scrolls sideways to its end and back when it is wider
+/// than the space it has, so a long exercise name can be read in full. A name
+/// that fits stays still, and with Reduce Motion on it truncates instead.
+struct MarqueeText: View {
+    let text: String
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var textWidth: CGFloat = 0
+
+    private static let pointsPerSecond: Double = 25
+    private static let pause: Double = 1.5
+    private static let returnDuration: Double = 0.4
+
+    var body: some View {
+        Group {
+            if reduceMotion {
+                Text(text).lineLimit(1)
+            } else {
+                // The sizing text truncates, so it takes the width it is given
+                // and never more; the full-length copy is drawn over it and
+                // cannot widen the page (a fixed-size child inside the layout
+                // did, and pushed the whole screen off its edges). The room the
+                // copy has is read from the overlay's own geometry in the same
+                // pass, and the text's own width is written straight into state
+                // rather than sent up through a preference, which was not
+                // delivered reliably on the workout screen.
+                Text(text)
+                    .lineLimit(1)
+                    .opacity(0)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .overlay(alignment: .leading) {
+                        GeometryReader { geo in
+                            let overflow = geo.size.width > 0 ? max(0, textWidth - geo.size.width) : 0
+                            if overflow > 0.5 {
+                                // Redrawn on a clock only while there is
+                                // something to scroll; a name that fits is
+                                // drawn once.
+                                TimelineView(.animation(minimumInterval: 1.0 / 30)) { context in
+                                    fullText
+                                        .offset(x: offset(at: context.date, overflow: overflow))
+                                        .frame(width: geo.size.width, alignment: .leading)
+                                }
+                            } else {
+                                fullText
+                                    .frame(width: geo.size.width, alignment: .leading)
+                            }
+                        }
+                    }
+                    .clipped()
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(text)
+    }
+
+    /// The whole name on one line, at its own width, which it also reports.
+    private var fullText: some View {
+        Text(text)
+            .lineLimit(1)
+            .fixedSize()
+            .background(GeometryReader { proxy in
+                Color.clear
+                    .onAppear { textWidth = proxy.size.width }
+                    .onChange(of: proxy.size.width) { textWidth = proxy.size.width }
+            })
+    }
+
+    /// Wait, scroll to the end, wait, then glide back, and again. The phase
+    /// comes from the wall clock alone, so a view the workout screen's
+    /// once-a-second redraw rebuilt carries on where it was instead of
+    /// starting over (and never getting past its first pause).
+    private func offset(at date: Date, overflow: CGFloat) -> CGFloat {
+        let travel = Double(overflow) / Self.pointsPerSecond
+        let cycle = Self.pause + travel + Self.pause + Self.returnDuration
+        let t = date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: cycle)
+        let fraction: Double
+        if t < Self.pause {
+            fraction = 0
+        } else if t < Self.pause + travel {
+            fraction = (t - Self.pause) / travel
+        } else if t < Self.pause + travel + Self.pause {
+            fraction = 1
+        } else {
+            fraction = 1 - (t - (Self.pause + travel + Self.pause)) / Self.returnDuration
+        }
+        return -overflow * CGFloat(min(max(fraction, 0), 1))
+    }
+}
+
 /// Effort picked after a set: the set it is for, one big value card the Digital
 /// Crown changes through the scale, what that value means in reps left, and
 /// Skip / Save. Same flat dark squircles as the set screens. `onDone(nil)` skips.
@@ -2247,15 +2335,14 @@ private struct RpePickerView: View {
     var body: some View {
         VStack(spacing: 3) {
             VStack(alignment: .leading, spacing: 0) {
-                Text(title)
+                MarqueeText(text: title)
                     .font(.headline)
-                    .lineLimit(1)
                 Text(summary)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
+                    .minimumScaleFactor(0.75)
             }
-            .minimumScaleFactor(0.75)
             // Room for the system clock, which sits over the top right.
             .padding(.trailing, 52)
             .frame(maxWidth: .infinity, alignment: .leading)

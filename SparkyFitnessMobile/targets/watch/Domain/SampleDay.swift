@@ -125,7 +125,8 @@ enum SampleDay {
             exerciseDoNow: true,
             setScreenMetrics: !ScreenshotSeed.has("nometrics"),
             upNextPage: ScreenshotSeed.has("upnext"),
-            largeGoalsWater: ScreenshotSeed.has("large"),
+            largerText: ScreenshotSeed.has("large"),
+            classicWorkout: ScreenshotSeed.has("classicworkout"),
             // `fast`: 14 h into a 16:8 fast; otherwise synced and not fasting.
             fast: ScreenshotSeed.has("fast")
                 ? WatchFast(startedAt: Date().addingTimeInterval(-14 * 3600), targetEndAt: Date().addingTimeInterval(2 * 3600), label: "16:8")
@@ -195,7 +196,9 @@ enum SampleDay {
         exercises: [
             PlannedExercise(
                 exerciseEntryId: "preview-ex-1",
-                name: "Barbell Bench Press",
+                // `longname` swaps in a name too long for any watch, to check
+                // that the title scrolls instead of being cut off.
+                name: ScreenshotSeed.has("longname") ? "Seated Cable Row (Close Grip, Machine)" : "Barbell Bench Press",
                 supersetRun: 0,
                 sets: [
                     // A warmup first, so the label above the values is

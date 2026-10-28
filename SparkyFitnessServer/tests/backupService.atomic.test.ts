@@ -41,6 +41,8 @@ const mocks = vi.hoisted(() => ({
   // Exit code per tar run, in order; missing entries mean 0.
   tarExitCodes: [] as number[],
   pgDumpExitCode: 0,
+  // When set, pg_dump does not finish until it resolves.
+  pgDumpGate: null as Promise<void> | null,
   getBackupSettings: vi.fn(),
   updateLastBackupStatus: vi.fn(),
 }));
@@ -95,7 +97,7 @@ vi.mock('child_process', async () => {
   const spawn = () => {
     const child = new EventEmitter() as EventEmitter & { stdout: PassThrough };
     child.stdout = new PassThrough();
-    setImmediate(() => {
+    void (mocks.pgDumpGate ?? Promise.resolve()).then(() => {
       child.stdout.end('-- dump');
       setImmediate(() => child.emit('close', mocks.pgDumpExitCode));
     });
@@ -118,11 +120,13 @@ vi.mock('../config/logging.js', () => ({ log: vi.fn() }));
 import {
   BACKUP_DIR,
   BACKUP_TEMP_DIR,
+  STALE_WORK_DIR_AGE_MS,
   UPLOADS_BASE_DIR,
   applyRetentionPolicy,
   listBackups,
   performBackup,
 } from '../services/backupService.js';
+import { log } from '../config/logging.js';
 
 const HOUR = 60 * 60 * 1000;
 
@@ -263,6 +267,148 @@ describe('another run working at the same time', () => {
     expect(
       (await listBackups(BACKUP_DIR)).map((backup) => backup.fileName)
     ).toEqual([result.fileName]);
+  });
+});
+
+describe('stale work directories', () => {
+  function workDir(name: string, ageMs: number) {
+    const dir = path.join(BACKUP_TEMP_DIR, name);
+    fs.mkdirSync(dir, { recursive: true });
+    const file = path.join(dir, 'partial.sql.gz');
+    fs.writeFileSync(file, 'x');
+    backdate(file, ageMs);
+    backdate(dir, ageMs);
+    return dir;
+  }
+
+  it('removes entries older than a day and keeps newer ones', async () => {
+    const stale = workDir('killed-run', STALE_WORK_DIR_AGE_MS + HOUR);
+    const fresh = workDir('live-run', STALE_WORK_DIR_AGE_MS - HOUR);
+
+    const result = await performBackup();
+
+    expect(result.success).toBe(true);
+    expect(fs.existsSync(stale)).toBe(false);
+    expect(fs.existsSync(fresh)).toBe(true);
+  });
+
+  it('is fine when .tmp does not exist yet', async () => {
+    expect(fs.existsSync(BACKUP_TEMP_DIR)).toBe(false);
+
+    const result = await performBackup();
+
+    expect(result.success).toBe(true);
+  });
+
+  it('logs a failed removal and still backs up', async () => {
+    const stuck = workDir('stuck-run', STALE_WORK_DIR_AGE_MS + HOUR);
+    const gone = workDir('killed-run', STALE_WORK_DIR_AGE_MS + HOUR);
+    const rm = fs.promises.rm;
+    const spy = vi
+      .spyOn(fs.promises, 'rm')
+      .mockImplementation(async (target, options) => {
+        if (target === stuck) throw new Error('EBUSY: stuck');
+        return rm(target, options);
+      });
+    try {
+      const result = await performBackup();
+      expect(result.success).toBe(true);
+    } finally {
+      spy.mockRestore();
+    }
+
+    expect(fs.existsSync(stuck)).toBe(true);
+    expect(fs.existsSync(gone)).toBe(false);
+    expect(log).toHaveBeenCalledWith(
+      'warn',
+      expect.stringContaining(stuck),
+      expect.any(Error)
+    );
+  });
+
+  it('removes a stale symlink without touching its target', async () => {
+    const outside = path.join(env.root, 'outside');
+    fs.mkdirSync(outside, { recursive: true });
+    fs.writeFileSync(path.join(outside, 'keep.txt'), 'x');
+    fs.mkdirSync(BACKUP_TEMP_DIR, { recursive: true });
+    const link = path.join(BACKUP_TEMP_DIR, 'link');
+    fs.symlinkSync(outside, link);
+    fs.lutimesSync(
+      link,
+      new Date(Date.now() - 2 * STALE_WORK_DIR_AGE_MS),
+      new Date(Date.now() - 2 * STALE_WORK_DIR_AGE_MS)
+    );
+    // Old files elsewhere in BACKUP_DIR are not .tmp entries.
+    const archive = path.join(
+      BACKUP_DIR,
+      'sparkyfitness_full_backup_2026-10-01T02-00-00-000Z.tar.gz'
+    );
+    fs.writeFileSync(archive, 'x');
+    backdate(archive, 3 * STALE_WORK_DIR_AGE_MS);
+
+    const result = await performBackup();
+
+    expect(result.success).toBe(true);
+    expect(fs.existsSync(link)).toBe(false);
+    expect(fs.existsSync(path.join(outside, 'keep.txt'))).toBe(true);
+    expect(fs.existsSync(archive)).toBe(true);
+  });
+
+  it('skips the sweep when .tmp is a symlink', async () => {
+    const outside = path.join(env.root, 'outside-tmp');
+    const victim = path.join(outside, 'old-run');
+    fs.mkdirSync(victim, { recursive: true });
+    backdate(victim, 2 * STALE_WORK_DIR_AGE_MS);
+    fs.mkdirSync(BACKUP_DIR, { recursive: true });
+    fs.symlinkSync(outside, BACKUP_TEMP_DIR);
+
+    await performBackup();
+
+    expect(fs.existsSync(victim)).toBe(true);
+    expect(log).toHaveBeenCalledWith(
+      'warn',
+      expect.stringContaining('is not a directory')
+    );
+  });
+
+  it('keeps an old directory whose files are still being written', async () => {
+    const otherProcess = workDir(
+      'other-replica-run',
+      2 * STALE_WORK_DIR_AGE_MS
+    );
+    backdate(
+      path.join(otherProcess, 'partial.sql.gz'),
+      STALE_WORK_DIR_AGE_MS - HOUR
+    );
+
+    const result = await performBackup();
+
+    expect(result.success).toBe(true);
+    expect(fs.existsSync(otherProcess)).toBe(true);
+  });
+
+  it('leaves a run still in progress alone however old', async () => {
+    let release!: () => void;
+    mocks.pgDumpGate = new Promise((resolve) => {
+      release = resolve;
+    });
+    try {
+      const first = performBackup();
+      await vi.waitFor(() => expect(tmpEntries()).toHaveLength(1));
+      const [running] = tmpEntries();
+      backdate(
+        path.join(BACKUP_TEMP_DIR, running!),
+        STALE_WORK_DIR_AGE_MS + HOUR
+      );
+      const second = performBackup();
+      await vi.waitFor(() => expect(tmpEntries()).toHaveLength(2));
+      release();
+
+      expect((await first).success).toBe(true);
+      expect((await second).success).toBe(true);
+    } finally {
+      mocks.pgDumpGate = null;
+    }
   });
 });
 

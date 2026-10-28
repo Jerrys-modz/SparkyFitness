@@ -1067,7 +1067,7 @@
     "modeLabel": "Calorie Mode",
     "adjustmentMode": "Adjustment Mode",
     "modeDescription": "Controls how your daily calorie goal adjusts based on activity.",
-    "deviceProjectionDescription": "Current-day Health Connect total calories are projected to midnight; completed days use the recorded total. Goal Mode is applied to that TDEE, with BMR + active calories as a fallback.",
+    "deviceProjectionDescription": "Current-day device total calories (Health Connect, Garmin or Polar) are projected to midnight; completed days use the recorded total. Goal Mode is applied to that TDEE, with BMR + active calories as a fallback.",
     "deviceProjectionFallback": "Only used for the BMR + active calories fallback when a device total is unavailable.",
     "exerciseCaloriesApplied": "Exercise Calories Applied",
     "exerciseCaloriesDescription": "How much of your exercise calories are added back to your daily goal.",
@@ -1105,7 +1105,7 @@
       "activityWithBmr": "Activity + BMR",
       "activityOnly": "Activity only (exercise + steps)",
       "eatenBurned": "Eaten − Burned",
-      "projectedTotal": "Health Connect total calories (BMR + active calories fallback)",
+      "projectedTotal": "Device total calories (BMR + active calories fallback)",
       "dynamic": "Goal − Net Energy",
       "dynamicActivitySeparated": "Goal − Eaten + Activity",
       "percentageWithBmr": "Goal − Eaten + BMR + {{percentage}}% of Exercise",
@@ -3078,7 +3078,7 @@
     "title": "Summary",
     "projectedTdee": "Projected TDEE: {{value}} kcal",
     "goalModeTarget": "Goal Mode target: {{value}} kcal",
-    "healthConnectProjectionSource": "Health Connect total calories",
+    "healthConnectProjectionSource": "Device total calories",
     "fallbackProjectionSource": "BMR + active calories fallback",
     "legacyProjectionSource": "Device projection",
     "collapse": "Collapse this section",
@@ -5750,6 +5750,10 @@
     "orCustomName": "Or type custom symptom...",
     "ongoingEpisode": "Track as ongoing episode",
     "startedWhen": "Started when:",
+    "startDate": "Date",
+    "startDateA11y": "Start date, {{date}}",
+    "startTime": "Time",
+    "startTimeA11y": "Start time, {{time}}",
     "endEpisodeNow": "End Episode Now",
     "severityTitle": "Severity",
     "location": "Location",
@@ -5823,6 +5827,7 @@
       "m15": "-15m",
       "h1": "-1h",
       "h3": "-3h",
+      "d1": "-1d",
       "started": "Started",
       "episode": "Episode"
     },
@@ -6560,8 +6565,10 @@
     "setScreenMetricsSubtitle": "Elapsed time, heart rate and calories. Off moves them to their own page after the set screen (after Up Next, when that page is on).",
     "upNextTitle": "Up Next page",
     "upNextSubtitle": "A page one swipe up from the set screen with the next exercise, its target, and a Swap button to do another exercise first.",
-    "largeGoalsWaterTitle": "Larger text on Goals and Water",
-    "largeGoalsWaterSubtitle": "A bigger calorie ring and full-width water containers, in larger type."
+    "largerTextTitle": "Larger text on the watch",
+    "largerTextSubtitle": "Larger type and the newer layouts across the watch: Goals, Water, the workout, Fasting, Steps and more. Off keeps the original look.",
+    "classicWorkoutTitle": "Original workout page",
+    "classicWorkoutSubtitle": "Keep the original workout screen while larger text is on everywhere else. With larger text off the workout always uses it."
   },
   "progressPhotos": {
     "card": {
@@ -7512,6 +7519,7 @@
       "fast": "Fast",
       "brisk": "Brisk",
       "easy": "Easy",
+      "zone2": "Zone 2 run",
       "byTime": "By time",
       "byDistance": "By distance",
       "unitMeters": "Meters",
@@ -7528,6 +7536,8 @@
       "name": {
         "beginner5k": "Beginner 5K",
         "fiveToTenK": "5K to 10K",
+        "zone2Base": "Zone 2 base",
+        "zone2Base4": "Zone 2 base (4 runs a week)",
         "faster5k": "Faster 5K",
         "walkFit": "Walk for fitness",
         "halfMarathon": "Half marathon",
@@ -7595,6 +7605,8 @@
       "changedBySparky": "Sparky changed your plan on {{date}}: {{summary}}",
       "changed": "Plan changed on {{date}}: {{summary}}",
       "fiveToTenKDescription": "5K to 10K: eight weeks, three runs a week, for when you can run 30 minutes. It builds to a 65 minute long run.",
+      "zone2BaseDescription": "Zone 2 base: ten weeks, three easy runs a week held to your Zone 2 heart rate (or the talk test), building time in zone with a long run of up to 70 minutes. For when you can run 30 minutes.",
+      "zone2Base4Description": "Zone 2 base: ten weeks, four easy runs a week held to your Zone 2 heart rate (or the talk test), building time in zone with a long run of up to 70 minutes. For when you can run 30 minutes.",
       "faster5kDescription": "Faster 5K: six weeks of speed sessions, easy runs and tempo runs, for when you already run 5K.",
       "walkFitDescription": "Walk for fitness: eight weeks, three walks a week, with no running. You alternate brisk and easy walking and build up to 30 minutes of brisk walking.",
       "halfMarathonDescription": "Half marathon: twelve weeks, three runs a week, with long runs building to about two hours. For when you run 30 minutes comfortably.",
@@ -7686,6 +7698,18 @@
       "easyDescription": "Alerts you when your heart rate in an easy stretch is outside this range.",
       "warmTitle": "Warm-up and cool-down heart rate",
       "warmDescription": "Alerts you when your heart rate in the warm-up or cool-down is outside this range."
+    },
+    "zone2": {
+      "target": "Zone 2: {{min}}–{{max}} bpm",
+      "targetSpoken": "Zone 2, {{min}} to {{max}} beats per minute",
+      "inside": "In Zone 2. Keep this effort.",
+      "above": "Above Zone 2. Ease off, or walk until your heart rate settles.",
+      "below": "Below Zone 2. You can pick it up a little.",
+      "waiting": "Waiting for a heart rate reading…",
+      "talkTest": "Zone 2: keep it easy enough to talk in full sentences. If you can only say a few words, slow down.",
+      "noRange": "Add your date of birth in your profile to see a heart rate range for Zone 2. Until then, go by the talk test.",
+      "zoneCheck": "Zone check: run this one on a flat, familiar route at the same effort as last time, and note your pace and how easy it felt. If the same heart rate now gives a faster pace, your aerobic fitness is growing.",
+      "driftNote": "Heart rate drifts up a few beats on a long run, so the top of the range loosens a little after 20 minutes."
     },
     "suggestedRanges": {
       "title": "Suggested ranges",
@@ -8244,6 +8268,8 @@
       "structure": {
         "beginner5k": "Weeks 1 to 4 alternate short runs with walks, starting at 1 minute of running and building to 5-minute runs. Weeks 5 and 6 mix run and walk intervals with one continuous run. Weeks 7 to 9 are continuous runs of 25, 28 and then 30 minutes.",
         "fiveToTenK": "Each week has two steady runs and a long run. The long run grows from 40 to 65 minutes. Every fourth week is lighter so you can recover, and the last week eases off.",
+        "zone2Base": "Each week has a short run, a middle run and a long run, all easy and held to Zone 2. Time in zone grows from 100 to 155 minutes a week, the long run from 40 to 70 minutes, and weeks 4 and 8 are lighter. Weeks 6, 7 and 9 end the short run with four relaxed strides. The middle run of weeks 4, 8 and 10 is a zone check.",
+        "zone2Base4": "Each week has two short runs, a middle run and a long run, all easy and held to Zone 2. Time in zone grows from 130 to 190 minutes a week, the long run from 40 to 70 minutes, and weeks 4 and 8 are lighter. Weeks 6, 7 and 9 end the first run with four relaxed strides. The middle run of weeks 4, 8 and 10 is a zone check.",
         "faster5k": "Each week has a speed session (fast and easy repeats), an easy run and a longer run. In weeks 1 to 3 the longer run is easy; in weeks 4 to 6 it becomes a tempo run of 15, 20 and then 25 minutes.",
         "walkFit": "Weeks 1 to 4 alternate stretches of brisk walking (3 to 8 minutes) with 2 minutes of easy walking. Weeks 5 and 6 use two longer brisk stretches of 12 and 15 minutes. Weeks 7 and 8 are continuous brisk walks of 20 to 30 minutes.",
         "halfMarathon": "Each week has an easy run, a middle run and a long run. The long run builds from 50 to 115 minutes, every fourth week is lighter, and the last week is short before race day.",
@@ -8266,6 +8292,7 @@
         "title": "Rest days",
         "beginner": "Do not train on back-to-back days. Three workouts a week with a rest day between them, for example Monday, Wednesday and Saturday, gives your legs time to adapt. On rest days walk, stretch or do something gentle.",
         "fiveToTenK": "Keep a rest day between the two steady runs, and put the long run a day or two after a rest day. Rest or cross-train (cycling, swimming, an easy walk) on the other days.",
+        "zone2Base": "Keep a rest day between runs where you can, and put the long run a day or two after a rest day. Easy runs add up quickly, so if you feel flat, take the day off rather than running harder. Rest or cross-train on the other days.",
         "faster5k": "Give the speed session and the longer run an easy day or a rest day on each side. Never do them back to back. Spend the free days resting or cross-training gently.",
         "returnToRunning": "Leave a day or two between runs, for example Monday, Thursday and Saturday, and keep every run easy and conversational. Rest, walk or cycle gently on the other days. If anything hurts more as you go, drop back to the previous week.",
         "fourRun": "With four runs a week, take at least one full rest day and never run more than two days in a row. Keep the day before the long run easy or free, and rest or cross-train the day after it. Use the other days for rest, walking or low-impact cross-training.",
@@ -8288,6 +8315,11 @@
       "listen": {
         "title": "Listening to your body",
         "body": "Aches that settle after a day are normal; sharp or lasting pain is not, so stop and rest. If a week was too hard, repeat it or ask Sparky to ease the next workouts. Leave a rest day between workouts while you are starting out. This is general guidance, not medical advice: if you are unsure about starting a new exercise plan, check with your doctor first."
+      },
+      "zone2": {
+        "title": "Zone 2 runs",
+        "body": "Zone 2 is easy aerobic running: about 60 to 70 percent of your maximum heart rate. Zone 2 runs are held to a heart rate range, not a pace, because the same pace is harder on a hot day or a tired week. The Record screen shows the range and tells you when you are above or below it. If you have no heart rate reading, use the talk test: you should be able to speak in full sentences. Heart rate drifts up a little on a long run, so the top of the range loosens after 20 minutes. If your breathing is easy, a few beats over is fine; if it feels harder, slow down or walk. The range comes from your own heart rate zone settings; if you have not set a maximum, it is an estimate from your age, which can be off by ten beats or more either way. If it feels too easy or too hard, trust the talk test.",
+        "check": "Weeks 4, 8 and 10 each have a zone check: the middle run. Run it on the same flat, familiar route at the same heart rate or effort, and compare your pace with the last one. If it is faster at the same effort, your base is growing. If you are slower, do not push: sleep, heat and stress show up here."
       },
       "efforts": {
         "title": "Strides, hills, tempo and marathon pace",

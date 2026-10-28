@@ -16,7 +16,7 @@ struct StepsView: View {
         let progress = steps.map { min(1, Double($0) / Double(goal)) } ?? 0
         VStack(spacing: 6) {
             Text(String(localized: "watch.steps.title", defaultValue: "Steps"))
-                .font(.footnote.weight(.semibold))
+                .watchFont(.footnote.weight(.semibold), classic: .caption2)
                 .foregroundStyle(.secondary)
             ZStack {
                 Circle()
@@ -28,10 +28,10 @@ struct StepsView: View {
                     .rotationEffect(.degrees(-90))
                 VStack(spacing: 0) {
                     Image(systemName: "figure.walk")
-                        .font(.body)
+                        .watchFont(.body, classic: .caption)
                         .foregroundStyle(.mint)
                     Text(steps.map { $0.formatted() } ?? "--")
-                        .font(.system(size: WatchStyle.s(26), weight: .semibold, design: .rounded))
+                        .watchFont(.system(size: WatchStyle.s(26), weight: .semibold, design: .rounded), classic: .title3.weight(.semibold))
                         .monospacedDigit()
                         .minimumScaleFactor(0.6)
                         .lineLimit(1)
@@ -42,7 +42,7 @@ struct StepsView: View {
             Text(steps == nil
                  ? String(localized: "watch.steps.waiting", defaultValue: "Waiting for your iPhone")
                  : String(localized: "watch.steps.ofGoal", defaultValue: "of \(goal.formatted())"))
-                .font(.footnote)
+                .watchFont(.footnote, classic: .caption2)
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
         }

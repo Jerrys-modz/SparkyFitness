@@ -99,7 +99,7 @@ describe('CalorieSettingsScreen', () => {
     };
   });
 
-  it('explains that Device Projection applies Goal Mode to Health Connect TDEE', () => {
+  it('explains that Device Projection applies Goal Mode to the device TDEE', () => {
     mockPreferences.calorie_goal_adjustment_mode = 'tdee';
     const { getByText } = render(
       <CalorieSettingsScreen navigation={navigation} route={route} />
@@ -107,13 +107,11 @@ describe('CalorieSettingsScreen', () => {
 
     expect(
       getByText(
-        'Current-day Health Connect total calories are projected to midnight; completed days use the recorded total. Goal Mode is applied to that TDEE, with BMR + active calories as a fallback.'
+        'Current-day device total calories (Health Connect, Garmin or Polar) are projected to midnight; completed days use the recorded total. Goal Mode is applied to that TDEE, with BMR + active calories as a fallback.'
       )
     ).toBeTruthy();
     expect(
-      getByText(
-        'Health Connect total calories (BMR + active calories fallback)'
-      )
+      getByText('Device total calories (BMR + active calories fallback)')
     ).toBeTruthy();
     expect(getByText('Projected TDEE × Goal Mode − Eaten')).toBeTruthy();
   });

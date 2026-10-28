@@ -80,6 +80,7 @@ import {
 import { useRunProgram } from '../services/runProgramService';
 import { suggestedPaceRangesFromRace } from '../utils/suggestedRanges';
 import { buildWatchRunPlans } from '../utils/watchRunPlans';
+import { useZone2HeartRateBand } from './useZone2HeartRateBand';
 import {
   getWatchIndoorScale,
   onWatchIndoorScaleChange,
@@ -273,8 +274,9 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     (s) => s.watchSetScreenMetrics
   );
   const watchUpNextPage = useAppPreferencesStore((s) => s.watchUpNextPage);
-  const watchLargeGoalsWater = useAppPreferencesStore(
-    (s) => s.watchLargeGoalsWater
+  const watchLargerText = useAppPreferencesStore((s) => s.watchLargerText);
+  const watchClassicWorkout = useAppPreferencesStore(
+    (s) => s.watchClassicWorkout
   );
   const watchDoubleTapEnabled = useAppPreferencesStore(
     (s) => s.watchDoubleTapEnabled
@@ -346,6 +348,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         : null,
     [paceReferenceOnWatch, paceReferenceRace, programStatus]
   );
+  const zone2Band = useZone2HeartRateBand(enabled);
   const runPlans = useMemo(
     () =>
       buildWatchRunPlans(
@@ -355,9 +358,10 @@ export function useWatchCheckInBridge(enabled: boolean): void {
           program: (status) => programWorkoutLabel(t, status),
           preset: (id) => presetName(t, id),
         },
-        watchPaceRanges
+        watchPaceRanges,
+        zone2Band
       ),
-    [t, programStatus, programEnabled, watchPaceRanges]
+    [t, programStatus, programEnabled, watchPaceRanges, zone2Band]
   );
   const { presets } = useWorkoutPresets({ enabled });
   const fastQuery = useCurrentFast({ enabled });
@@ -775,7 +779,8 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         rpeEnabled: watchRpeEnabled,
         setScreenMetrics: watchSetScreenMetrics,
         upNextPage: watchUpNextPage,
-        largeGoalsWater: watchLargeGoalsWater,
+        largerText: watchLargerText,
+        classicWorkout: watchClassicWorkout,
         // This build handles a skipped dose from the watch.
         medicationSkip: true,
         // ... and "do this exercise now" from the workout pages.
@@ -844,7 +849,8 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     watchRpeEnabled,
     watchSetScreenMetrics,
     watchUpNextPage,
-    watchLargeGoalsWater,
+    watchLargerText,
+    watchClassicWorkout,
     runPlans,
     indoorDistanceScale,
     startableWorkouts,

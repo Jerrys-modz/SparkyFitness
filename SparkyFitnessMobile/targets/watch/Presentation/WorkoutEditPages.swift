@@ -185,7 +185,7 @@ private struct EditPage<Content: View>: View {
         // fought that. Hence the compact `EditPageButtonStyle`.
         VStack(spacing: 6) {
             Text(title)
-                .font(.footnote)
+                .watchFont(.footnote, classic: .caption2)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
@@ -209,7 +209,7 @@ private struct EditPageButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.body.weight(.semibold))
+            .watchFont(.body.weight(.semibold), classic: .system(size: 15, weight: .semibold))
             .lineLimit(1)
             .minimumScaleFactor(0.6)
             .foregroundStyle(.white)

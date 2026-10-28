@@ -14,8 +14,38 @@ import {
   waitForBackgroundWork,
 } from './shutdownHooks.js';
 
-const SHUTDOWN_TIMEOUT_MS = 15_000;
+export const DEFAULT_SHUTDOWN_TIMEOUT_SECONDS = 15;
+export const MIN_SHUTDOWN_TIMEOUT_SECONDS = 1;
+export const MAX_SHUTDOWN_TIMEOUT_SECONDS = 3600;
 const HALF_CLOSE_GRACE_MS = 2_000;
+
+/**
+ * SPARKY_FITNESS_SHUTDOWN_TIMEOUT_SECONDS: the most time between a stop
+ * signal and the process exiting. Whatever stops the container must wait
+ * longer before killing it (Compose stop_grace_period, Kubernetes
+ * terminationGracePeriodSeconds).
+ */
+export function shutdownTimeoutMs(
+  value = process.env.SPARKY_FITNESS_SHUTDOWN_TIMEOUT_SECONDS
+): number {
+  if (value === undefined || value.trim() === '') {
+    return DEFAULT_SHUTDOWN_TIMEOUT_SECONDS * 1000;
+  }
+  const seconds = Number(value);
+  if (
+    !Number.isFinite(seconds) ||
+    seconds < MIN_SHUTDOWN_TIMEOUT_SECONDS ||
+    seconds > MAX_SHUTDOWN_TIMEOUT_SECONDS
+  ) {
+    // 'error' so the ignored setting shows at the documented ERROR log level.
+    log(
+      'error',
+      `SPARKY_FITNESS_SHUTDOWN_TIMEOUT_SECONDS="${value}" must be from ${MIN_SHUTDOWN_TIMEOUT_SECONDS} to ${MAX_SHUTDOWN_TIMEOUT_SECONDS} seconds; using ${DEFAULT_SHUTDOWN_TIMEOUT_SECONDS}.`
+    );
+    return DEFAULT_SHUTDOWN_TIMEOUT_SECONDS * 1000;
+  }
+  return Math.round(seconds * 1000);
+}
 
 interface ConnectionTracker {
   /** Each connection's responses not yet sent in full, oldest first. */
@@ -215,14 +245,17 @@ export async function drainServer(
  */
 export function installShutdownHandlers(
   server: Server,
-  timeoutMs = SHUTDOWN_TIMEOUT_MS
+  timeoutMs = shutdownTimeoutMs()
 ) {
   trackConnections(server);
   let shuttingDown = false;
   const shutdown = (signal: string) => {
     if (shuttingDown) return;
     shuttingDown = true;
-    log('info', `${signal} received, shutting down gracefully...`);
+    log(
+      'info',
+      `${signal} received, shutting down gracefully (up to ${timeoutMs / 1000}s)...`
+    );
     setTimeout(() => {
       log(
         'error',
