@@ -5638,6 +5638,19 @@ ALTER SEQUENCE public.workout_presets_id_seq OWNED BY public.workout_presets.id;
 
 
 --
+-- Name: rls_policy_state; Type: TABLE; Schema: system; Owner: -
+--
+
+CREATE TABLE system.rls_policy_state (
+    id boolean DEFAULT true NOT NULL,
+    file_sha256 text NOT NULL,
+    catalog_fingerprint text NOT NULL,
+    applied_at timestamp with time zone NOT NULL,
+    CONSTRAINT rls_policy_state_id_check CHECK (id)
+);
+
+
+--
 -- Name: schema_migrations; Type: TABLE; Schema: system; Owner: -
 --
 
@@ -7072,6 +7085,14 @@ ALTER TABLE ONLY public.workout_preset_exercises
 
 ALTER TABLE ONLY public.workout_presets
     ADD CONSTRAINT workout_presets_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: rls_policy_state rls_policy_state_pkey; Type: CONSTRAINT; Schema: system; Owner: -
+--
+
+ALTER TABLE ONLY system.rls_policy_state
+    ADD CONSTRAINT rls_policy_state_pkey PRIMARY KEY (id);
 
 
 --
