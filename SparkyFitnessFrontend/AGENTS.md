@@ -1,6 +1,6 @@
 # AGENTS.md
 
-_Last updated: 2026-10-25_
+_Last updated: 2026-10-27_
 
 SparkyFitness Frontend is the React web app for the SparkyFitness monorepo. Use this file as the primary guide for work inside `SparkyFitnessFrontend/`.
 
@@ -53,6 +53,7 @@ Features are organized by domain, and the same domain folder name appears in `sr
 - `src/main.tsx` - app bootstrap; creates the shared `QueryClient` with global `QueryCache`/`MutationCache` handlers that render toasts from query/mutation `meta` (`errorTitle`, `errorMessage`, `successMessage`).
 - `src/App.tsx` - route registry via `createBrowserRouter`, plus `PrivateRoute` and `PermissionRoute` wrappers (permission-gated areas include `reports` and `admin`).
 - `src/pages/<Domain>/` - route screens by domain.
+- Remote MCP OAuth UI: `src/pages/Admin/AuthenticationSettings.tsx` owns the admin feature switch, HTTPS availability warning, full-access warning, and redirect URI allowlist; `src/pages/Auth/OAuthConsent.tsx` shows the client/scopes/redirect before approval; `src/pages/Settings/OAuthClientSettings.tsx` lists and revokes connected applications; API/query code is in `src/api/Auth/oauth.ts` and `src/hooks/Auth/useOAuth.ts`
 - `src/pages/Reports/Compare/` - the Reports > Compare tab (`CompareReport` is the root, mounted by `Reports.tsx` outside its loading gate), with its data from `src/hooks/Reports/useCompare.ts` and `src/api/Reports/compareApi.ts`.
 - `src/api/api.ts` - `apiCall(endpoint, options)` helper: base URL `/api`, query `params`, JSON/FormData bodies, `responseType`, error toasts, `suppress404Toast`. Use it for all backend requests.
 - `src/api/<Domain>/` - per-domain API clients built on `apiCall`.
@@ -102,6 +103,7 @@ When searching, ignore `node_modules/`, `dist/`, and every locale except `public
 - Routing/navigation/permission issue: `src/App.tsx` (router, `PrivateRoute`, `PermissionRoute`) and `src/layouts/MainLayout.tsx`.
 - API/error-toast issue: `src/api/api.ts`, then the domain client in `src/api/<Domain>/`, then the query/mutation `meta` in the calling hook.
 - Auth/session issue: `src/lib/auth-client.ts`, `src/hooks/useAuth.tsx`, `src/pages/Auth/`, and the server's `auth.ts` if it crosses packages.
+- Remote MCP OAuth admin, consent, or connected-app issue: `src/pages/Admin/AuthenticationSettings.tsx`, `src/pages/Auth/OAuthConsent.tsx`, `src/pages/Settings/OAuthClientSettings.tsx`, `src/api/Auth/oauth.ts`, and `src/hooks/Auth/useOAuth.ts`.
 - Family-access/acting-user issue: `src/contexts/ActiveUserContext.tsx` and the hooks consuming it.
 - Chat (Sparky) issue: `src/pages/Chat/`, `src/components/ai/`, `src/api/Chatbot/`. Voice controls live in `VoiceInputControl.tsx`; `VoiceInputSettings.tsx` shares server-backed enable/System/AI choices with mobile. `active_voice_ai_service_id: null` means System, never automatic inheritance from Chat. A compatible Chat model is only a suggestion. Cancelling, leaving the page, hiding the tab, or changing voice preferences releases the microphone and aborts uploads.
 - Theme/preferences issue: `src/contexts/ThemeContext.tsx`, `src/contexts/PreferencesContext.tsx`, `src/api/Settings/preferences.ts`, `src/utils/userPreferences.ts`.

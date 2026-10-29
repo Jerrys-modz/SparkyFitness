@@ -72,6 +72,21 @@ Quick reference of all tables by domain and purpose. For detailed security tier,
 | `verification` | Email verification tokens |
 | `account` | Auth credentials and email accounts |
 
+### MCP OAuth (System-Only)
+| Table | Purpose |
+|-------|---------|
+| `jwks` | OAuth signing key pairs |
+| `oauth_client` | Registered OAuth clients and redirect/authentication metadata |
+| `oauth_resource` | Protected resources, scopes, token lifetimes, and signing policy |
+| `oauth_client_resource` | Client-to-resource associations |
+| `oauth_refresh_token` | Refresh tokens, rotation state, scopes, and session/user links |
+| `oauth_access_token` | Access tokens, scopes, resource grants, and revocation state |
+| `oauth_consent` | User consent grants |
+| `oauth_authorization_revocation` | Per-user/client OAuth JWT revocation watermarks |
+| `oauth_client_assertion` | Client assertion replay-protection records |
+
+These tables are managed by Better Auth and are not exposed through family sharing or profile delegation. Better Auth's Kysely adapter serializes its `string[]` fields as JSON text, so OAuth list columns are PostgreSQL `text` values containing JSON arrays rather than native `text[]` columns.
+
 ### Food & Nutrition (Tier 2/3: Owner-Write, Delegate-Read/Write)
 | Table | Purpose |
 |-------|---------|

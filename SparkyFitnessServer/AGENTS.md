@@ -70,6 +70,7 @@ pnpm exec eslint routes/v2/foodRoutes.ts services/foodCoreService.ts
 - `services/backgroundJobScheduler.ts` - starts every scheduled background job at startup, including the demo reset; provider syncs are listed in `services/providerSyncScheduler.ts`; `SPARKY_FITNESS_DISABLE_SCHEDULED_JOBS=true` skips them all
 - `services/providerSyncClaim.ts` - every provider sync, manual or scheduled, runs through `startProviderSync`, which claims the account and stops the sync when the claim is lost or it gets no database connection and runs no query for 20 minutes; a stopped sync's next `getClient`/`getSystemClient` throws (`utils/abortScope.ts`), while a transaction already running on a connection it holds still finishes, so sync writes stay idempotent. Sync code gets connections only through those two, and never through `runOutsideAbortScope`, which is for fenced cleanup such as releasing the claim
 - `auth.ts` - Better Auth configuration, plugins, session behavior, SSO provider syncing
+- Remote MCP OAuth: `auth.ts` conditionally installs the JWT/MCP plugins only for HTTPS or loopback public URLs and rechecks authorization redirects against the administrator allowlist through Better Auth's `validateRedirectUri`; `utils/mcpOAuth.ts` owns public/resource/issuer URLs, metadata-probe classification, loopback JWKS verification URL, and redirect allowlist matching; `SparkyFitnessServer.ts` gates discovery and `/api/auth/oauth2*`; `middleware/mcpOAuthAuthInterceptor.ts` enforces registration redirect policy and safe consent deletion; `middleware/authMiddleware.ts` `authenticateMcp` accepts OAuth tokens before the API-key/session fallback; `models/oauthClientRepository.ts` enforces consent, enabled-client status, and revocation
 - `routes/` - primary HTTP route surface
 - `routes/v2/` - newer typed route surface; pair these changes with `schemas/`
 - `routes/v2/openFoodFactsContributionRoutes.ts` - owner-only single-food preview and explicit photo-backed publication; background contributions are disabled for this release
@@ -282,6 +283,8 @@ When searching, ignore noisy/generated directories unless you explicitly need th
   inspect `services/providerSyncClaim.ts` (claim, renewal, stall stop) and `utils/abortScope.ts` (how a stopped sync's next `getClient`/`getSystemClient` is refused and how connections and queries count as progress, hooked in `db/poolManager.ts`)
 - Auth, session, MFA, or API key issue:
   inspect `auth.ts`, `middleware/authMiddleware.ts`, `routes/authRoutes.ts`, and `routes/auth/`
+- Remote MCP OAuth, discovery, consent, token, or redirect allowlist issue:
+  inspect `utils/mcpOAuth.ts`, `middleware/mcpOAuthAuthInterceptor.ts`, `middleware/authMiddleware.ts` (`authenticateMcp`), `models/oauthClientRepository.ts`, the OAuth gate in `SparkyFitnessServer.ts`, and `db/migrations/20261020000000_add_mcp_oauth_provider.sql`
 - Migration, RLS, or permission issue:
   inspect `db/migrations/`, `db/rls_policies.sql`, `db/poolManager.ts`, `utils/applyRlsPolicies.ts`, and the permission middleware/helpers
 - Public v2 contract issue:
