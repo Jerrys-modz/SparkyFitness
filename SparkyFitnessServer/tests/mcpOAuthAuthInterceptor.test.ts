@@ -12,8 +12,6 @@ const getSessionUserId = vi.fn<() => Promise<string | null>>();
 const revokeAuthorization =
   vi.fn<(userId: string, consentId: string) => Promise<boolean>>();
 const getAllowedRedirectUris = vi.fn<() => Promise<string[]>>();
-const getClientRedirectUris =
-  vi.fn<(clientId: string) => Promise<string[] | null>>();
 
 const app = express();
 app.use(express.json());
@@ -22,7 +20,6 @@ app.use(async (req, res, next) => {
     getSessionUserId,
     revokeAuthorization,
     getAllowedRedirectUris,
-    getClientRedirectUris,
   });
   if (!handled) next();
 });
@@ -38,7 +35,6 @@ beforeEach(() => {
       'https://claude.com/api/mcp/auth_callback',
       'http://localhost:*',
     ]);
-  getClientRedirectUris.mockReset().mockResolvedValue(null);
 });
 
 describe('MCP OAuth Better Auth interceptor', () => {
@@ -151,54 +147,21 @@ describe('MCP OAuth Better Auth interceptor', () => {
     expect(getAllowedRedirectUris).not.toHaveBeenCalled();
   });
 
-  it('rejects form-encoded POST authorization requests', async () => {
-    const response = await request(app)
+  it('delegates authorization requests to the provider redirect validator', async () => {
+    const getResponse = await request(app).get(
+      '/api/auth/oauth2/authorize?client_id=client-1&redirect_uri=https%3A%2F%2Fclaude.ai%2Fapi%2Fmcp%2Fauth_callback'
+    );
+    const postResponse = await request(app)
       .post('/api/auth/oauth2/authorize')
       .type('form')
       .send({
         client_id: 'client-1',
-        redirect_uri: 'https://attacker.example/callback',
+        redirect_uri: 'https://claude.ai/api/mcp/auth_callback',
       });
 
-    expect(response.status).toBe(400);
-    expect(response.body.error).toBe('invalid_request');
-    expect(getClientRedirectUris).not.toHaveBeenCalled();
-  });
-
-  it('rejects repeated authorization parameters instead of skipping checks', async () => {
-    const response = await request(app).get(
-      '/api/auth/oauth2/authorize?client_id=client-1&client_id=client-2&redirect_uri=https%3A%2F%2Fclaude.ai%2Fapi%2Fmcp%2Fauth_callback'
-    );
-
-    expect(response.status).toBe(400);
-    expect(response.body.error).toBe('invalid_request');
-    expect(getClientRedirectUris).not.toHaveBeenCalled();
-  });
-
-  it('rejects authorization when the requested redirect is no longer allowed', async () => {
-    getClientRedirectUris.mockResolvedValue([
-      'https://attacker.example/callback',
-    ]);
-
-    const response = await request(app).get(
-      '/api/auth/oauth2/authorize?client_id=client-1&redirect_uri=https%3A%2F%2Fattacker.example%2Fcallback'
-    );
-
-    expect(response.status).toBe(400);
-    expect(response.body.error).toBe('invalid_redirect_uri');
-  });
-
-  it('checks registered redirects when authorization omits redirect_uri', async () => {
-    getClientRedirectUris.mockResolvedValue([
-      'https://attacker.example/callback',
-    ]);
-
-    const response = await request(app).get(
-      '/api/auth/oauth2/authorize?client_id=client-1'
-    );
-
-    expect(response.status).toBe(400);
-    expect(response.body.error).toBe('invalid_redirect_uri');
+    expect(getResponse.status).toBe(418);
+    expect(postResponse.status).toBe(418);
+    expect(getAllowedRedirectUris).not.toHaveBeenCalled();
   });
 
   it('revokes consent through the repository and preserves the empty 200 response', async () => {

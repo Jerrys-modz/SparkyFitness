@@ -6840,6 +6840,7 @@
       "clientWillBeAbleTo": "This client will be able to:",
       "deny": "Deny",
       "loadingRequest": "Loading authorization request…",
+      "missingRedirectUrl": "The OAuth provider did not return a redirect URL.",
       "declaredWebsite": "Declared website",
       "mcpAccessDescription": "Read and update your SparkyFitness data through MCP tools.",
       "offlineAccessDescription": "Stay connected and access your account when you are not actively using SparkyFitness.",

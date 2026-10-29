@@ -27,28 +27,6 @@ function parseOAuthStringArray(value: string | null): string[] {
   return parsed;
 }
 
-/** Reads the registered redirect URIs for an enabled OAuth client. */
-export async function getOAuthClientRedirectUris(
-  clientId: string
-): Promise<string[] | null> {
-  const client = await getSystemClient();
-  try {
-    const result = await client.query(
-      `SELECT redirect_uris
-         FROM oauth_client
-        WHERE client_id = $1
-          AND disabled = false`,
-      [clientId]
-    );
-    const redirectUris = result.rows[0]?.redirect_uris as string | undefined;
-    return redirectUris === undefined
-      ? null
-      : parseOAuthStringArray(redirectUris);
-  } finally {
-    client.release();
-  }
-}
-
 export async function getOAuthClientSummary(
   clientId: string
 ): Promise<OAuthClientSummary | null> {

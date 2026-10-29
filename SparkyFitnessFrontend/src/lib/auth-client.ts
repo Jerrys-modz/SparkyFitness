@@ -28,6 +28,15 @@ export function followOAuthRedirect(data: unknown): boolean {
   return true;
 }
 
+export function followOAuthRedirectOrThrow(
+  data: unknown,
+  missingRedirectMessage: string
+): void {
+  if (!followOAuthRedirect(data)) {
+    throw new Error(missingRedirectMessage);
+  }
+}
+
 export const authClient = createAuthClient({
   // Use /api/auth as the base URL.
   baseURL: window.location.origin + '/api/auth',

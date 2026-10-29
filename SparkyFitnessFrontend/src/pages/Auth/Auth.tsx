@@ -16,7 +16,11 @@ import { Zap, Loader2, Fingerprint, AlertCircle, Sparkles } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import { debug, info, error } from '@/utils/logging';
-import { authClient, followOAuthRedirect } from '@/lib/auth-client';
+import {
+  authClient,
+  followOAuthRedirect,
+  followOAuthRedirectOrThrow,
+} from '@/lib/auth-client';
 
 import { useAuth } from '@/hooks/useAuth';
 import useToggle from '@/hooks/use-toggle';
@@ -84,11 +88,10 @@ const Auth = () => {
             const { data, error: continuationError } =
               await authClient.oauth2.continue({ postLogin: true });
             if (continuationError) throw continuationError;
-            if (!followOAuthRedirect(data)) {
-              throw new Error(
-                'The OAuth provider did not return a redirect URL.'
-              );
-            }
+            followOAuthRedirectOrThrow(
+              data,
+              t('auth.oauth.missingRedirectUrl')
+            );
           } catch (reason) {
             setFormError(getErrorMessage(reason));
             oauthContinuationStartedRef.current = false;
@@ -151,6 +154,7 @@ const Auth = () => {
     loginSettings,
     initiateOidcLogin,
     isOAuthFlow,
+    t,
   ]);
 
   // Passkey Conditional UI (Autofill)

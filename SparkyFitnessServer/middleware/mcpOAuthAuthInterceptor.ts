@@ -19,7 +19,6 @@ interface McpOAuthAuthInterceptorDependencies {
   getSessionUserId: () => Promise<string | null>;
   revokeAuthorization: (userId: string, consentId: string) => Promise<boolean>;
   getAllowedRedirectUris: () => Promise<string[]>;
-  getClientRedirectUris: (clientId: string) => Promise<string[] | null>;
 }
 
 export function getCanonicalRequestPath(
@@ -136,52 +135,6 @@ export async function interceptMcpOAuthAuthRequest(
       )
     ) {
       return sendInvalidRedirectUri(res);
-    }
-  }
-
-  const isAuthorizeRequest = normalizedPath === '/api/auth/oauth2/authorize';
-  if (isAuthorizeRequest && method === 'POST') {
-    res.status(400).json({
-      error: 'invalid_request',
-      error_description:
-        'OAuth authorization requests must use GET so the redirect URI can be validated.',
-    });
-    return true;
-  }
-
-  if (method === 'GET' && isAuthorizeRequest) {
-    const rawClientId = req.query.client_id;
-    const rawRedirectUri = req.query.redirect_uri;
-    if (
-      (rawClientId !== undefined && typeof rawClientId !== 'string') ||
-      (rawRedirectUri !== undefined && typeof rawRedirectUri !== 'string')
-    ) {
-      res.status(400).json({
-        error: 'invalid_request',
-        error_description:
-          'OAuth authorization parameters must each have a single value.',
-      });
-      return true;
-    }
-
-    const clientId = rawClientId ?? null;
-    const redirectUri = rawRedirectUri ?? null;
-    if (clientId) {
-      const [allowedRedirectUris, registeredRedirectUris] = await Promise.all([
-        dependencies.getAllowedRedirectUris(),
-        dependencies.getClientRedirectUris(clientId),
-      ]);
-      const redirectUrisToCheck = redirectUri
-        ? [redirectUri]
-        : registeredRedirectUris;
-      if (
-        redirectUrisToCheck !== null &&
-        !redirectUrisToCheck.every((uri) =>
-          isMcpOAuthRedirectUriAllowed(uri, allowedRedirectUris)
-        )
-      ) {
-        return sendInvalidRedirectUri(res);
-      }
     }
   }
 

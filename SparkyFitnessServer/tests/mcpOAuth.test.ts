@@ -6,6 +6,7 @@ import { makeSignature } from 'better-auth/crypto';
 import { createMcpOAuthAuthGate } from '../middleware/mcpOAuthAuthInterceptor.js';
 import {
   classifyMcpOAuthMetadataPath,
+  createMcpOAuthAuthorizationRedirectValidator,
   getMcpOAuthAvailability,
   getMcpLoopbackJwksUrl,
   getMcpResourceMetadataUrl,
@@ -90,6 +91,48 @@ describe('MCP OAuth URLs', () => {
     expect(
       isMcpOAuthRedirectUriAllowed('https://attacker.example/callback', allowed)
     ).toBe(false);
+  });
+
+  it('rechecks authorization redirects against the current administrator allowlist', async () => {
+    const getAllowedRedirectUris = vi
+      .fn<() => Promise<string[]>>()
+      .mockResolvedValue([
+        'https://claude.ai/api/mcp/auth_callback',
+        'http://localhost:*',
+      ]);
+    const validateRedirectUri = createMcpOAuthAuthorizationRedirectValidator(
+      getAllowedRedirectUris
+    );
+
+    await expect(
+      validateRedirectUri(
+        'https://claude.ai/api/mcp/auth_callback',
+        ['https://claude.ai/api/mcp/auth_callback'],
+        true
+      )
+    ).resolves.toBe(true);
+    await expect(
+      validateRedirectUri(
+        'http://localhost:6274/oauth/callback',
+        ['http://localhost:49152/oauth/callback'],
+        true
+      )
+    ).resolves.toBe(true);
+    await expect(
+      validateRedirectUri(
+        'https://removed.example/callback',
+        ['https://removed.example/callback'],
+        true
+      )
+    ).resolves.toBe(false);
+    await expect(
+      validateRedirectUri(
+        'https://claude.ai/api/mcp/auth_callback',
+        ['https://different.example/callback'],
+        false
+      )
+    ).resolves.toBe(false);
+    expect(getAllowedRedirectUris).toHaveBeenCalledTimes(3);
   });
 
   it.each([

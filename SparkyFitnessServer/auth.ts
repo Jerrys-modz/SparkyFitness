@@ -32,11 +32,13 @@ import { isDemoMode } from './middleware/demoGuardMiddleware.js';
 import { isEmailLoginDisabled } from './utils/emailLogin.js';
 import { mcp } from '@better-auth/mcp';
 import {
+  createMcpOAuthAuthorizationRedirectValidator,
   getMcpOAuthAvailability,
   getMcpResourceUrl,
   MCP_OAUTH_SCOPE,
 } from './utils/mcpOAuth.js';
 import { jwtSchema, mcpOAuthSchema } from './utils/mcpOAuthSchema.js';
+import { getMcpOAuthAllowedRedirectUris } from './models/globalSettingsRepository.js';
 
 const { Pool } = pg;
 /**
@@ -348,6 +350,9 @@ const mcpOAuthPlugins = installMcpOAuthPlugins
           allowDynamicClientRegistration: true,
           allowUnauthenticatedClientRegistration: true,
           clientRegistrationDefaultApplicationType: 'infer',
+          validateRedirectUri: createMcpOAuthAuthorizationRedirectValidator(
+            getMcpOAuthAllowedRedirectUris
+          ),
           clientPrivileges: ({ user }) => user?.role === 'admin',
           resourcePrivileges: ({ user }) => user?.role === 'admin',
           schema: mcpOAuthSchema,

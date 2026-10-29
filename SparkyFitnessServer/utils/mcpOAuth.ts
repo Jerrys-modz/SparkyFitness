@@ -176,6 +176,25 @@ export function isMcpOAuthRedirectUriAllowed(
   return allowedRedirectUris.includes(pattern);
 }
 
+/**
+ * Builds Better Auth's authorization-time redirect validator. The provider's
+ * own match must succeed first, then the administrator's current allowlist is
+ * rechecked using the provider-parsed redirect URI.
+ */
+export function createMcpOAuthAuthorizationRedirectValidator(
+  getAllowedRedirectUris: () => Promise<string[]>
+) {
+  return async (
+    redirectUri: string,
+    _registeredUris: readonly string[],
+    defaultResult: boolean
+  ): Promise<boolean> => {
+    if (!defaultResult) return false;
+    const allowedRedirectUris = await getAllowedRedirectUris();
+    return isMcpOAuthRedirectUriAllowed(redirectUri, allowedRedirectUris);
+  };
+}
+
 /** Identifies Better Auth routes that must stay dark while MCP OAuth is off. */
 export function isMcpOAuthAuthEndpointPath(requestPath: string): boolean {
   return (

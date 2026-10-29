@@ -1,5 +1,6 @@
 import { apiCall } from '@/api/api';
-import { authClient, followOAuthRedirect } from '@/lib/auth-client';
+import { authClient, followOAuthRedirectOrThrow } from '@/lib/auth-client';
+import i18n from 'i18next';
 
 export interface OAuthConsentDetails {
   client: {
@@ -50,7 +51,5 @@ export function revokeOAuthAuthorization(consentId: string): Promise<void> {
 export async function submitOAuthConsent(accept: boolean): Promise<void> {
   const { data, error } = await authClient.oauth2.consent({ accept });
   if (error) throw error;
-  if (!followOAuthRedirect(data)) {
-    throw new Error('The OAuth provider did not return a redirect URL.');
-  }
+  followOAuthRedirectOrThrow(data, i18n.t('auth.oauth.missingRedirectUrl'));
 }

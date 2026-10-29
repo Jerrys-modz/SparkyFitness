@@ -25,6 +25,7 @@ import {
   isDemoMode,
   isDemoEmail,
   isDemoPasswordResetToken,
+  isDemoRestrictedAuthPath,
   getDemoEmail,
   demoRestrictionGuard,
 } from './middleware/demoGuardMiddleware.js';
@@ -140,10 +141,7 @@ import workoutPlanTemplateRoutes from './routes/workoutPlanTemplateRoutes.js';
 import { upsertEnvOidcProvider } from './utils/oidcEnvConfig.js';
 import userRepository from './models/userRepository.js';
 import genericHealthRoutes from './routes/genericHealthRoutes.js';
-import {
-  getOAuthClientRedirectUris,
-  revokeOAuthAuthorization,
-} from './models/oauthClientRepository.js';
+import { revokeOAuthAuthorization } from './models/oauthClientRepository.js';
 
 import { clientIpMiddleware } from './utils/clientIp.js';
 import ipaddr from 'ipaddr.js';
@@ -363,18 +361,7 @@ app.use(async (req, res, next) => {
     if (isDemoMode()) {
       // Prefix matches throughout: exact equality misses trailing-slash and
       // sub-path variants that Better Auth still routes.
-      const restrictedAuthPrefixes = [
-        '/api/auth/two-factor',
-        '/api/auth/passkey',
-        '/api/auth/change-password',
-        '/api/auth/set-password',
-        '/api/auth/change-email',
-        '/api/auth/update-user',
-        '/api/auth/delete-user',
-      ];
-      const isRestrictedAuthPath = restrictedAuthPrefixes.some(
-        (prefix) => req.path === prefix || req.path.startsWith(prefix + '/')
-      );
+      const isRestrictedAuthPath = isDemoRestrictedAuthPath(req.path);
 
       // API keys are read-only for the sandbox rather than invisible: minting
       // one would outlive the daily reset, but listing the account's own keys
@@ -487,7 +474,6 @@ app.use(async (req, res, next) => {
         },
         revokeAuthorization: revokeOAuthAuthorization,
         getAllowedRedirectUris: getMcpOAuthAllowedRedirectUris,
-        getClientRedirectUris: getOAuthClientRedirectUris,
       }
     );
     if (handledMcpOAuthRequest) return;

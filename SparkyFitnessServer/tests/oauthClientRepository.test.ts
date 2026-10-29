@@ -11,7 +11,6 @@ vi.mock('../db/poolManager.js', () => ({
 }));
 
 import {
-  getOAuthClientRedirectUris,
   isOAuthAuthorizationActive,
   listOAuthAuthorizations,
   revokeOAuthAuthorization,
@@ -55,22 +54,6 @@ describe('oauthClientRepository', () => {
       ['user-1']
     );
     expect(mockRelease).toHaveBeenCalledOnce();
-  });
-
-  it('maps registered redirect URIs from Better Auth JSON storage', async () => {
-    mockQuery.mockResolvedValueOnce({
-      rows: [
-        {
-          redirect_uris:
-            '["https://claude.ai/api/mcp/auth_callback","http://localhost:6274/oauth/callback"]',
-        },
-      ],
-    });
-
-    await expect(getOAuthClientRedirectUris('client-1')).resolves.toEqual([
-      'https://claude.ai/api/mcp/auth_callback',
-      'http://localhost:6274/oauth/callback',
-    ]);
   });
 
   it('requires consent, an enabled client, and a token newer than the revocation watermark', async () => {
