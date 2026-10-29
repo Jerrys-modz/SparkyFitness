@@ -8,7 +8,11 @@ export type LabResultSource = z.infer<typeof labResultSourceSchema>;
 
 /** A real calendar day: `2026-02-31` has the right shape but is not a date. */
 const isCalendarDay = (value: string): boolean => {
-  const [year, month, day] = value.split('-').map(Number);
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return false;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
   const parsed = new Date(Date.UTC(year, month - 1, day));
   return (
     parsed.getUTCFullYear() === year &&

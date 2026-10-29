@@ -813,6 +813,7 @@ internal object WatchConnectivityHub {
               "medicationId" to (payload["medicationId"] as? String ?: ""),
               "scheduleId" to (payload["scheduleId"] as? String ?: ""),
               "taken" to (payload["taken"] as? Boolean ?: true),
+              "skipped" to (payload["skipped"] as? Boolean ?: false),
               "ownerId" to payloadOwner
             )
           )
@@ -1062,7 +1063,8 @@ internal object WatchConnectivityHub {
           mapOf(
             "id" to (payload["id"] as? String ?: ""),
             "text" to (payload["text"] as? String ?: ""),
-            "interrupt" to (payload["interrupt"] as? Boolean ?: false)
+            "interrupt" to (payload["interrupt"] as? Boolean ?: false),
+            "language" to (payload["language"] as? String ?: "")
           )
         )
       }

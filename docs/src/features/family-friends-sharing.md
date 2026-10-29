@@ -22,6 +22,25 @@ Setting up a connection is simple and can be managed directly from the applicati
 
 ---
 
+## Copy Meals in the Mobile App
+
+Open a meal in your diary and choose **Copy to family** to log a shared meal for someone else:
+
+1. Choose a family member who has given you permission to copy into their diary.
+2. Review the foods. Keep the whole meal selected or choose individual entries, and adjust the quantities for their portion.
+3. Choose the destination date and meal. The available meal types belong to the recipient, including their custom meals.
+4. Check the recipient and destination, then confirm. The app opens their diary on the chosen date so you can check the result.
+
+Your original entries stay unchanged. Copying a complete meal without quantity changes preserves its grouping; selected or adjusted foods are saved as individual entries.
+
+Copies to family add every reviewed food, even when the recipient already has the same food in that meal. Existing entries stay unchanged.
+
+Copying requires the family member to grant you **Manage Diary** and **View Food Library**. Read-only or expired connections cannot receive copies. Permissions are checked again when you confirm, so removing access takes effect even if a review is already open. If the source foods have changed since you opened the review, refresh and review them again before copying.
+
+To copy in the other direction, open **Family Diaries**, choose a member and a meal, then use **Copy to my diary**. Family access permissions are managed in the web app. If the app asks you to update the server when copying to family, update the server before retrying.
+
+---
+
 ## Privilege Matrix by Permission Level
 
 SparkyFitness uses 7 granular permissions to determine exactly what a connected user can read or write in your profile:
@@ -35,7 +54,7 @@ SparkyFitness uses 7 granular permissions to determine exactly what a connected 
 | **View Reports**<br>`can_view_reports` | ❌ **No write privileges** | 📖 All wellness, check-in, diary (including running-shoe inventory), medication, and symptom logs to display on charts, graphs, and the dashboard. Also includes read-only access to profile, dashboard layout, and onboarding data. |
 | **View Food Library**<br>`can_view_food_library` | ❌ **No write privileges** | 📖 User's custom food list, recipes, and custom meals — including any reusable sub-meals a meal links as ingredients, and the freeform markdown **notes** saved on a food or meal — (isolated to when context is switched). Notes are read-only to delegates; only the owner can edit them.<br><br>❌ *Profile, dashboard layout, and onboarding data are **not** readable — this permission alone is insufficient.* |
 | **View Exercise Library**<br>`can_view_exercise_library` | ❌ **No write privileges** | 📖 User's custom exercise database and workout presets (isolated to when context is switched).<br><br>❌ *Profile, dashboard layout, and onboarding data are **not** readable — this permission alone is insufficient.* |
-| **Share Integrations**<br>`share_external_providers` | ❌ **No write privileges** (cannot add, edit, or delete provider configurations — owner-only). | 📖 Allows the family & friends to use the owner's non-private search provider configurations (e.g., FatSecret, USDA, OpenFoodFacts, Canadian Nutrient File, Swedish Food Agency) to search for food and exercise items and add them to their own library.<br><br>❌ *Shared personal provider credentials are never used for Open Food Facts contributions. Manual contributions require the server-wide administrator gate and the food owner acting as themselves. The owner must review one product and separately confirm the packaging data and rights to their own photo for that exact preview; this sharing permission grants neither consent. Preview and confirmation product reads share the server-wide safety budget.*<br><br>🧭 *A Valhalla routing provider (route generation and Follow roads) can be shared the same way, and an admin can make one public for everyone. Anyone using it sends their route points (start, end and waypoints) to that provider's server, and a shared API key is used on their behalf but never shown to them. Saved routes, segments and heatmaps stay owner-only; only the provider configuration is shared, never anyone's GPS data. Route generation itself is always for the signed-in person only.*<br><br>❌ *Health integrations (Garmin, Fitbit, Withings, Google Health, Polar, Strava, COROS, Hevy, Liftosaur) are strictly private and **never** shared — this permission does not grant access to them.* |
+| **Share Integrations**<br>`share_external_providers` | ❌ **No write privileges** (cannot add, edit, or delete provider configurations — owner-only). | 📖 Allows the family & friends to use the owner's non-private search provider configurations (e.g., FatSecret, USDA, OpenFoodFacts, Canadian Nutrient File, Swedish Food Agency) to search for food and exercise items and add them to their own library.<br><br>❌ *Shared personal provider credentials are never used for Open Food Facts contributions. Manual contributions require the server-wide administrator gate and the food owner acting as themselves. The owner must review one product and separately confirm the packaging data and rights to their own photo for that exact preview; this sharing permission grants neither consent. Preview and confirmation product reads share the server-wide safety budget.*<br><br>🧭 *A Valhalla routing provider (route generation and Follow roads) can be shared the same way, and an admin can make one public for everyone. Anyone using it sends their route points (start, end and waypoints) to that provider's server, and a shared API key is used on their behalf but never shown to them. Saved routes, segments and heatmaps stay owner-only; only the provider configuration is shared, never anyone's GPS data. Route generation itself is always for the signed-in person only.*<br><br>❌ *Health integrations (Garmin, Fitbit, Withings, Google Health, Polar, Strava, COROS, Hevy, Liftosaur, Intervals.icu) are strictly private and **never** shared — this permission does not grant access to them.* |
 
 **Mood check-ins:** delegates with **Manage Check-in** or **View Reports** access see each of your mood check-ins for a day, including its journal text.
 
@@ -53,14 +72,18 @@ Certain tables contain private user data that is **never** accessible to any fam
 * Personal Fasting Preferences and auto-calculation configuration (`user_fasting_preferences` table)
 * Cycle & Pregnancy hub data (`cycle_settings`, `cycle_daily_entries`, `cycles`, `user_cycle_display_preferences`, `cycle_test_entries`, `pregnancies`, `pregnancy_kick_sessions`, `pregnancy_contractions`, `pregnancy_photos`, `pregnancy_checklist_state`, `health_appointments` tables) — this reproductive-health data is **never** shared or delegated, even with `can_view_reports`. It is strictly owner-only. Bump photo *files* are owner-only too: they are excluded from the public uploads URLs and can only be fetched through an authenticated request by their owner.
 * Run program (`run_programs` table): your Beginner 5K program, your place in it, the days it shows in your Diary, its first day and your goal date, and any changes the AI assistant or you made to its workouts. A training plan is personal, so it is never shared or delegated.
+* Running goals (`run_goals` table): your weekly running distance target and the race you are counting down to. Like the run program, they are personal and never shared or delegated.
 * Your own run plans (`custom_run_programs` table): plans you wrote yourself, with their names and workouts. They are personal, so they are never shared or delegated.
+* Running fitness tests (`fitness_tests` table): your 5K time trials, 30-minute runs and Cooper tests (outdoors or on a treadmill), their results and the training paces each one gave. They are personal training data, so they are never shared or delegated, and they are not available while you act on behalf of someone else.
 * Your saved routes (`routes` table): routes you drew, imported or saved from a workout, with their points and turn cues. They are personal, so they are never shared or delegated.
+* Your plates and bars (`plate_inventories` table): the bars you own and how many pairs of each plate, for the plate calculator. They are personal, so they are never shared or delegated, and the server refuses requests for them while you act on behalf of someone else. Someone logging workouts for you sees the calculator with the standard set for your weight unit.
 
 ### 2. Tier 2: Read-Only Profile & Settings Data
 The following data can be **read** by delegates who hold at least one of `can_manage_diary`, `can_manage_checkin`, `can_manage_medications`, `can_manage_symptoms`, or `can_view_reports` — but **only the account owner can modify it**:
 * Profile information (`profiles` table — name, date of birth, height, avatar, etc.)
 * General preferences (`user_preferences` table — themes, units, calculation methods, the optional separate activity-calorie setting, calorie safety-floor settings, weekly weight-change goals, report chart scaling, heart rate zone settings (max and resting heart rate, zone method, custom zones — the Heart Rate Zones screen is also owner-only for family members), and Chat/Vision/Voice selections). Weekly weight-change goals sync across web and mobile and use the same owner-only editing rules as other calculation preferences; changing them does not grant family members additional access. Voice visibility, the System/AI selection, and the separate activity-calorie choice also sync across web and mobile. Only the owner can change them; disabling voice preserves the selected model.
 * Nutrient column display preferences (`user_nutrient_display_preferences`)
+* Calorie settings history (`user_calorie_rule_history` — the goal mode, activity level, BMR and other calorie settings in force from each change on, so past days keep the calorie target they were logged against). It is recorded automatically when the owner changes those settings; family members can see it alongside the preferences, but cannot change it.
 * Dashboard widget layout (`user_dashboard_layouts`)
 * Onboarding data and completion status (`onboarding_data`, `onboarding_status`)
 
