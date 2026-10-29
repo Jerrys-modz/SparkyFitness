@@ -4,6 +4,7 @@ import { View, Text, ScrollView, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCSSVariable } from 'uniwind';
 
+import WatchConnectivity from '../../modules/watch-connectivity';
 import Icon, { type IconName } from '../components/Icon';
 import { useActiveWorkoutBarPadding } from '../components/ActiveWorkoutBar';
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
@@ -683,6 +684,10 @@ const WhatsNewScreen: React.FC<WhatsNewScreenProps> = ({ navigation }) => {
   // so its card is gated on the same capability check the setting uses.
   const showLiquidGlassCard = canUseLiquidGlass();
 
+  const hasPairedWatch =
+    WatchConnectivity?.isSupported() === true &&
+    WatchConnectivity.isPaired() === true;
+
   // Added or changed a card below? Bump WHATS_NEW_CONTENT_VERSION in
   // services/whatsNewBanner.ts so the banner re-appears for existing users.
   const features: Feature[] = [
@@ -812,12 +817,18 @@ const WhatsNewScreen: React.FC<WhatsNewScreenProps> = ({ navigation }) => {
           'The watch app now comes to Apple Watch and Wear OS. See your goals, log water, weight, fasting, and medications, and run workouts that save to your diary, with effort ratings, jump rope, and route following on Apple Watch. Choose your pages in Watch settings.',
       }),
       hero: <WatchMockup />,
-      cta: {
-        label: t('whatsNewPage.features.watch.cta', {
-          defaultValue: 'Open watch settings',
-        }),
-        onPress: () => navigation.navigate('WatchSettings'),
-      },
+      // Settings only lists this row with a watch paired, because the screen
+      // does nothing without one, so the button follows the same rule.
+      ...(hasPairedWatch
+        ? {
+            cta: {
+              label: t('whatsNewPage.features.watch.cta', {
+                defaultValue: 'Open watch settings',
+              }),
+              onPress: () => navigation.navigate('WatchSettings'),
+            },
+          }
+        : {}),
     },
     {
       eyebrow: t('whatsNewPage.features.weeklyGoal.eyebrow', {
