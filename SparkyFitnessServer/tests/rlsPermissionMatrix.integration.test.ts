@@ -223,6 +223,8 @@ describe.runIf(RUN)('RLS permission matrix', () => {
     day_classification_cache: 'checkin',
     fasting_logs: 'checkin',
     health_metric_samples: 'checkin',
+    lab_markers: 'checkin',
+    lab_results: 'checkin',
     mindfulness_sessions: 'checkin',
     mood_entries: 'checkin',
     user_custom_moods: 'checkin',
