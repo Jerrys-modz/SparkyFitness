@@ -54,6 +54,93 @@ const options = {
         },
       },
       schemas: {
+        LabMarker: {
+          type: 'object',
+          properties: {
+            id: { type: 'string', format: 'uuid' },
+            user_id: { type: 'string', format: 'uuid' },
+            name: { type: 'string' },
+            unit: { type: 'string' },
+            ref_range_low: { type: 'number', nullable: true },
+            ref_range_high: { type: 'number', nullable: true },
+            created_at: { type: 'string', format: 'date-time' },
+            updated_at: { type: 'string', format: 'date-time' },
+          },
+        },
+        LabMarkerInput: {
+          type: 'object',
+          required: ['name'],
+          properties: {
+            name: { type: 'string' },
+            unit: { type: 'string' },
+            ref_range_low: { type: 'number', nullable: true },
+            ref_range_high: { type: 'number', nullable: true },
+          },
+        },
+        LabResult: {
+          type: 'object',
+          properties: {
+            id: { type: 'string', format: 'uuid' },
+            user_id: { type: 'string', format: 'uuid' },
+            marker_key: {
+              type: 'string',
+              nullable: true,
+              description: 'Built-in marker key, such as hba1c',
+            },
+            custom_marker_id: {
+              type: 'string',
+              format: 'uuid',
+              nullable: true,
+            },
+            entry_date: { type: 'string', format: 'date' },
+            value_numeric: { type: 'number', nullable: true },
+            value_text: { type: 'string', nullable: true },
+            unit: { type: 'string' },
+            ref_range_low: { type: 'number', nullable: true },
+            ref_range_high: { type: 'number', nullable: true },
+            lab_name: { type: 'string', nullable: true },
+            notes: { type: 'string', nullable: true },
+            source: { type: 'string', enum: ['manual', 'report', 'fhir'] },
+            created_at: { type: 'string', format: 'date-time' },
+            updated_at: { type: 'string', format: 'date-time' },
+          },
+        },
+        LabResultInput: {
+          type: 'object',
+          required: ['entry_date'],
+          description:
+            'Exactly one of marker_key or custom_marker_id, and value_numeric or value_text.',
+          properties: {
+            marker_key: { type: 'string', nullable: true },
+            custom_marker_id: {
+              type: 'string',
+              format: 'uuid',
+              nullable: true,
+            },
+            entry_date: { type: 'string', format: 'date' },
+            value_numeric: { type: 'number', nullable: true },
+            value_text: { type: 'string', nullable: true },
+            unit: { type: 'string' },
+            ref_range_low: { type: 'number', nullable: true },
+            ref_range_high: { type: 'number', nullable: true },
+            lab_name: { type: 'string', nullable: true },
+            notes: { type: 'string', nullable: true },
+            source: { type: 'string', enum: ['manual', 'report', 'fhir'] },
+          },
+        },
+        LabResultUpdate: {
+          type: 'object',
+          properties: {
+            entry_date: { type: 'string', format: 'date' },
+            value_numeric: { type: 'number', nullable: true },
+            value_text: { type: 'string', nullable: true },
+            unit: { type: 'string' },
+            ref_range_low: { type: 'number', nullable: true },
+            ref_range_high: { type: 'number', nullable: true },
+            lab_name: { type: 'string', nullable: true },
+            notes: { type: 'string', nullable: true },
+          },
+        },
         Exercise: {
           type: 'object',
           properties: {

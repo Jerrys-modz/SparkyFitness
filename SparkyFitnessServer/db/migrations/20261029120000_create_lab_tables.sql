@@ -13,8 +13,8 @@ CREATE TABLE IF NOT EXISTS public.lab_markers (
     ref_range_high DOUBLE PRECISION,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    created_by_user_id UUID REFERENCES public."user"(id),
-    updated_by_user_id UUID REFERENCES public."user"(id),
+    created_by_user_id UUID REFERENCES public."user"(id) ON DELETE SET NULL,
+    updated_by_user_id UUID REFERENCES public."user"(id) ON DELETE SET NULL,
     CONSTRAINT lab_markers_ref_range_check
         CHECK (ref_range_low IS NULL OR ref_range_high IS NULL OR ref_range_low <= ref_range_high)
 );
@@ -38,8 +38,8 @@ CREATE TABLE IF NOT EXISTS public.lab_results (
     source TEXT NOT NULL DEFAULT 'manual',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    created_by_user_id UUID REFERENCES public."user"(id),
-    updated_by_user_id UUID REFERENCES public."user"(id),
+    created_by_user_id UUID REFERENCES public."user"(id) ON DELETE SET NULL,
+    updated_by_user_id UUID REFERENCES public."user"(id) ON DELETE SET NULL,
     CONSTRAINT lab_results_one_marker_check
         CHECK ((marker_key IS NOT NULL) <> (custom_marker_id IS NOT NULL)),
     CONSTRAINT lab_results_value_check

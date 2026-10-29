@@ -42,6 +42,28 @@ const invalidBody = (res: Response, error: z.ZodError) =>
     .status(400)
     .json({ error: 'Invalid request body', details: error.format() });
 
+/**
+ * @swagger
+ * /v2/lab-results/markers:
+ *   get:
+ *     summary: List the user's own lab markers
+ *     tags: [Wellness & Metrics]
+ *     security:
+ *       - cookieAuth: []
+ *     responses:
+ *       200:
+ *         description: Custom markers, A to Z
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/LabMarker'
+ *       403:
+ *         description: Missing check-in permission
+ *       500:
+ *         description: Internal server error
+ */
 // GET /api/v2/lab-results/markers
 router.get('/markers', async (req, res, next) => {
   try {
@@ -52,6 +74,36 @@ router.get('/markers', async (req, res, next) => {
   }
 });
 
+/**
+ * @swagger
+ * /v2/lab-results/markers:
+ *   post:
+ *     summary: Create a lab marker
+ *     tags: [Wellness & Metrics]
+ *     security:
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/LabMarkerInput'
+ *     responses:
+ *       201:
+ *         description: The new marker
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/LabMarker'
+ *       400:
+ *         description: Invalid body, or a low bound above the high bound
+ *       409:
+ *         description: A marker with this name already exists
+ *       403:
+ *         description: Missing check-in permission
+ *       500:
+ *         description: Internal server error
+ */
 // POST /api/v2/lab-results/markers
 router.post('/markers', async (req, res, next) => {
   try {
@@ -69,6 +121,44 @@ router.post('/markers', async (req, res, next) => {
   }
 });
 
+/**
+ * @swagger
+ * /v2/lab-results/markers/{id}:
+ *   put:
+ *     summary: Update a lab marker (send null to clear a bound)
+ *     tags: [Wellness & Metrics]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Marker id
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/LabMarkerInput'
+ *     responses:
+ *       200:
+ *         description: The updated marker
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/LabMarker'
+ *       400:
+ *         description: Invalid body, or a low bound above the high bound
+ *       404:
+ *         description: Marker not found
+ *       403:
+ *         description: Missing check-in permission
+ *       500:
+ *         description: Internal server error
+ */
 // PUT /api/v2/lab-results/markers/:id
 router.put('/markers/:id', async (req, res, next) => {
   try {
@@ -92,6 +182,32 @@ router.put('/markers/:id', async (req, res, next) => {
   }
 });
 
+/**
+ * @swagger
+ * /v2/lab-results/markers/{id}:
+ *   delete:
+ *     summary: Delete a lab marker and all of its results
+ *     tags: [Wellness & Metrics]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Marker id
+ *     responses:
+ *       200:
+ *         description: Deleted
+ *       404:
+ *         description: Marker not found
+ *       403:
+ *         description: Missing check-in permission
+ *       500:
+ *         description: Internal server error
+ */
 // DELETE /api/v2/lab-results/markers/:id (also deletes the marker's results)
 router.delete('/markers/:id', async (req, res, next) => {
   try {
@@ -112,6 +228,28 @@ router.delete('/markers/:id', async (req, res, next) => {
   }
 });
 
+/**
+ * @swagger
+ * /v2/lab-results/latest:
+ *   get:
+ *     summary: Newest result of every marker the user has results for
+ *     tags: [Wellness & Metrics]
+ *     security:
+ *       - cookieAuth: []
+ *     responses:
+ *       200:
+ *         description: One result per marker
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/LabResult'
+ *       403:
+ *         description: Missing check-in permission
+ *       500:
+ *         description: Internal server error
+ */
 // GET /api/v2/lab-results/latest: the newest result of every marker
 router.get('/latest', async (req, res, next) => {
   try {
@@ -122,6 +260,59 @@ router.get('/latest', async (req, res, next) => {
   }
 });
 
+/**
+ * @swagger
+ * /v2/lab-results/entries:
+ *   get:
+ *     summary: List lab results, newest first
+ *     tags: [Wellness & Metrics]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: markerKey
+ *         schema:
+ *           type: string
+ *         description: Built-in marker key such as hba1c (not with markerId)
+ *       - in: query
+ *         name: markerId
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Custom marker id (not with markerKey)
+ *       - in: query
+ *         name: startDate
+ *         schema:
+ *           type: string
+ *           format: date
+ *       - in: query
+ *         name: endDate
+ *         schema:
+ *           type: string
+ *           format: date
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 5000
+ *           default: 1000
+ *     responses:
+ *       200:
+ *         description: Results
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/LabResult'
+ *       400:
+ *         description: Invalid filter, or both markerKey and markerId
+ *       403:
+ *         description: Missing check-in permission
+ *       500:
+ *         description: Internal server error
+ */
 // GET /api/v2/lab-results/entries?markerKey=|markerId=&startDate=&endDate=&limit=
 router.get('/entries', async (req, res, next) => {
   try {
@@ -140,6 +331,36 @@ router.get('/entries', async (req, res, next) => {
   }
 });
 
+/**
+ * @swagger
+ * /v2/lab-results/entries/{id}:
+ *   get:
+ *     summary: Get one lab result
+ *     tags: [Wellness & Metrics]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Result id
+ *     responses:
+ *       200:
+ *         description: The result
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/LabResult'
+ *       404:
+ *         description: Result not found
+ *       403:
+ *         description: Missing check-in permission
+ *       500:
+ *         description: Internal server error
+ */
 // GET /api/v2/lab-results/entries/:id
 router.get('/entries/:id', async (req, res, next) => {
   try {
@@ -159,6 +380,34 @@ router.get('/entries/:id', async (req, res, next) => {
   }
 });
 
+/**
+ * @swagger
+ * /v2/lab-results/entries:
+ *   post:
+ *     summary: Add a lab result (several per marker per day are allowed)
+ *     tags: [Wellness & Metrics]
+ *     security:
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/LabResultInput'
+ *     responses:
+ *       201:
+ *         description: The new result
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/LabResult'
+ *       400:
+ *         description: Invalid body, an unknown marker, or a low bound above the high bound
+ *       403:
+ *         description: Missing check-in permission
+ *       500:
+ *         description: Internal server error
+ */
 // POST /api/v2/lab-results/entries
 router.post('/entries', async (req, res, next) => {
   try {
@@ -179,6 +428,44 @@ router.post('/entries', async (req, res, next) => {
   }
 });
 
+/**
+ * @swagger
+ * /v2/lab-results/entries/{id}:
+ *   put:
+ *     summary: Update a lab result's values (the marker cannot change)
+ *     tags: [Wellness & Metrics]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Result id
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/LabResultUpdate'
+ *     responses:
+ *       200:
+ *         description: The updated result
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/LabResult'
+ *       400:
+ *         description: Invalid body, or a range or value the database rejects
+ *       404:
+ *         description: Result not found
+ *       403:
+ *         description: Missing check-in permission
+ *       500:
+ *         description: Internal server error
+ */
 // PUT /api/v2/lab-results/entries/:id
 router.put('/entries/:id', async (req, res, next) => {
   try {
@@ -202,6 +489,32 @@ router.put('/entries/:id', async (req, res, next) => {
   }
 });
 
+/**
+ * @swagger
+ * /v2/lab-results/entries/{id}:
+ *   delete:
+ *     summary: Delete a lab result
+ *     tags: [Wellness & Metrics]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Result id
+ *     responses:
+ *       200:
+ *         description: Deleted
+ *       404:
+ *         description: Result not found
+ *       403:
+ *         description: Missing check-in permission
+ *       500:
+ *         description: Internal server error
+ */
 // DELETE /api/v2/lab-results/entries/:id
 router.delete('/entries/:id', async (req, res, next) => {
   try {

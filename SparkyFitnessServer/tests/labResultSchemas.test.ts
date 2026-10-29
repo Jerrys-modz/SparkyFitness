@@ -86,6 +86,20 @@ describe('createLabResultBodySchema', () => {
     expect(reversed.success).toBe(false);
   });
 
+  it('rejects dates that are not on the calendar', () => {
+    for (const entry_date of ['2026-02-31', '2026-13-45', '2025-02-29']) {
+      expect(
+        createLabResultBodySchema.safeParse({ ...valid, entry_date }).success
+      ).toBe(false);
+    }
+    expect(
+      createLabResultBodySchema.safeParse({
+        ...valid,
+        entry_date: '2024-02-29',
+      }).success
+    ).toBe(true);
+  });
+
   it('allows a one-sided range', () => {
     expect(
       createLabResultBodySchema.safeParse({ ...valid, ref_range_high: 5.6 })
@@ -139,6 +153,15 @@ describe('labResultListQuerySchema', () => {
   it('applies a default limit and coerces it', () => {
     expect(labResultListQuerySchema.parse({}).limit).toBe(1000);
     expect(labResultListQuerySchema.parse({ limit: '25' }).limit).toBe(25);
+  });
+
+  it('rejects a filter date that is not on the calendar', () => {
+    expect(
+      labResultListQuerySchema.safeParse({ startDate: '2026-02-31' }).success
+    ).toBe(false);
+    expect(
+      labResultListQuerySchema.safeParse({ endDate: '2026-04-31' }).success
+    ).toBe(false);
   });
 
   it('rejects both marker filters at once', () => {
