@@ -128,7 +128,8 @@ class WearSessionManager private constructor(private val appContext: Context) :
    * Reads persisted DataClient context and queued transfers and requests a live context refresh from the phone.
    */
   fun pullInitialDataItems() {
-    lastContextRequestMs.set(System.currentTimeMillis())
+    val requestStartedAt = System.currentTimeMillis()
+    lastContextRequestMs.set(requestStartedAt)
     scope.launch {
       checkInStore.pruneStaleDayData()
     }
@@ -151,8 +152,12 @@ class WearSessionManager private constructor(private val appContext: Context) :
         dataItems.release()
       } catch (_: Throwable) {}
       try {
-        sendLiveMessage(OutboundPayloads.contextRequest())
-      } catch (_: Throwable) {}
+        if (!sendLiveMessage(OutboundPayloads.contextRequest())) {
+          lastContextRequestMs.compareAndSet(requestStartedAt, 0L)
+        }
+      } catch (_: Throwable) {
+        lastContextRequestMs.compareAndSet(requestStartedAt, 0L)
+      }
     }
   }
 

@@ -382,7 +382,8 @@ object TileModels {
     }
 
     val headlineText = if (validExercise != null) {
-      "${minutes}m · $calories kcal"
+      val calorieText = if (caloriesGoal > 0) "$calories/$caloriesGoal kcal" else "$calories kcal"
+      "${minutes}m · $calorieText"
     } else if (validSteps != null) {
       "${validSteps.count} steps"
     } else {

@@ -535,7 +535,7 @@ class WearOsParityTest {
         assertTrue(exerciseTile.hasData)
         assertEquals(45, exerciseTile.minutes)
         assertEquals(60, exerciseTile.minutesGoal)
-        assertEquals("45m · 380 kcal", exerciseTile.headlineText)
+        assertEquals("45m · 380/500 kcal", exerciseTile.headlineText)
         assertEquals("Upper Body Push", exerciseTile.rows[0].title)
     }
 }
