@@ -5638,6 +5638,18 @@ ALTER SEQUENCE public.workout_presets_id_seq OWNED BY public.workout_presets.id;
 
 
 --
+-- Name: rate_limit_windows; Type: TABLE; Schema: system; Owner: -
+--
+
+CREATE TABLE system.rate_limit_windows (
+    key text NOT NULL,
+    window_start timestamp with time zone NOT NULL,
+    count integer NOT NULL,
+    expires_at timestamp with time zone NOT NULL
+);
+
+
+--
 -- Name: rls_policy_state; Type: TABLE; Schema: system; Owner: -
 --
 
@@ -7088,6 +7100,14 @@ ALTER TABLE ONLY public.workout_presets
 
 
 --
+-- Name: rate_limit_windows rate_limit_windows_pkey; Type: CONSTRAINT; Schema: system; Owner: -
+--
+
+ALTER TABLE ONLY system.rate_limit_windows
+    ADD CONSTRAINT rate_limit_windows_pkey PRIMARY KEY (key);
+
+
+--
 -- Name: rls_policy_state rls_policy_state_pkey; Type: CONSTRAINT; Schema: system; Owner: -
 --
 
@@ -8146,6 +8166,13 @@ CREATE UNIQUE INDEX workout_feedback_preset_entry_unique ON public.workout_feedb
 --
 
 CREATE INDEX workout_feedback_user_created_idx ON public.workout_feedback USING btree (user_id, created_at DESC);
+
+
+--
+-- Name: idx_rate_limit_windows_expires_at; Type: INDEX; Schema: system; Owner: -
+--
+
+CREATE INDEX idx_rate_limit_windows_expires_at ON system.rate_limit_windows USING btree (expires_at);
 
 
 --
