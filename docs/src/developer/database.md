@@ -208,6 +208,7 @@ Quick reference of all tables by domain and purpose. For detailed security tier,
 | `openfoodfacts_product_read_rate_limit` | Singleton lease and cooldown coordinating Open Food Facts product reads across server instances |
 | `openfoodfacts_sync_queue` | Dormant revision-aware automatic upload state and retained history; unused by manual contributions |
 | `rate_limit` | Sign-in rate limit counters shared across server instances |
+| `system.rate_limit_windows` | Per-address limits of the server's own routes (`middleware/ipRateLimit.ts`) shared across server instances |
 | `medication_types` | Medication categories lookup |
 | `medication_route_types` | Medication administration routes lookup |
 | `medication_schedule_types` | Medication scheduling frequencies lookup |
@@ -331,7 +332,7 @@ Example: `20240315103000_add_exercise_tracking.sql`
 
 3. **`db_schema_backup.sql` updates itself** — after merge, CI regenerates it from the migrations and opens an automated sync PR; never edit it by hand
 
-4. **Apply RLS policies** (these are reapplied automatically on startup from `db/rls_policies.sql`)
+4. **Apply RLS policies** (startup applies `db/rls_policies.sql` again whenever the file or the policies in the database changed; it records what it applied in `system.rls_policy_state`)
 
 ### Migration Best Practices
 

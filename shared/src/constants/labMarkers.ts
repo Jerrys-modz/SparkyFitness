@@ -1,14 +1,15 @@
-// Presets for lab-result markers. Picking one creates a custom category with
-// `is_lab` set, the unit prefilled into `measurement_type`, and the reference
-// range prefilled. Ranges are common adult defaults only; labs differ, so the
-// user can edit them. `refRangeLow`/`refRangeHigh` are the sex-neutral default;
-// markers that differ by sex also have an entry in `LAB_MARKER_SEX_RANGES`,
-// which `labPresetRange` prefers when the profile's sex is known. Markers with
-// no sensible single default have no range. Age is not used. `aliases` are the
+// Presets for lab-result markers. Each preset defines a stable key, display
+// name, unit, default reference range, and aliases. Built-in markers are not
+// stored in the database; their `key` is kept in `lab_results.marker_key`.
+// Ranges are common adult defaults only; labs differ, so the user can edit
+// them. `refRangeLow`/`refRangeHigh` are the sex-neutral default; markers that
+// differ by sex also have an entry in `LAB_MARKER_SEX_RANGES`, which
+// `labPresetRange` prefers when the profile's sex is known. Markers with no
+// sensible single default have no range. Age is not used. `aliases` are the
 // other names a lab report may print, used to match scanned results to a
 // marker.
 export interface LabMarkerPreset {
-  /** Stable key, also used as the category `name`. */
+  /** Stable key. Built-in markers store it in `lab_results.marker_key`. */
   key: string;
   displayName: string;
   unit: string;

@@ -8,7 +8,7 @@ Follow this checklist whenever you add or change a server database migration —
 - [ ] Keep **one migration file per PR** and edit it in place while developing; don't add follow-up migrations for fixes to your own unmerged SQL.
 - [ ] Make it **re-runnable without errors**: `ADD COLUMN IF NOT EXISTS`, `CREATE TABLE/INDEX IF NOT EXISTS`, `DROP CONSTRAINT IF EXISTS` before `ADD CONSTRAINT`, guarded backfills (`WHERE ... IS NULL` / `NOT EXISTS`), `CREATE OR REPLACE` for functions.
 - [ ] Agents don't start the server themselves: tell the user when the migration is ready, and they start it once to apply it.
-- [ ] Do not invent alternate migration mechanisms; server startup applies pending migrations and then reapplies RLS policies.
+- [ ] Do not invent alternate migration mechanisms; server startup applies pending migrations and then reapplies RLS policies when `rls_policies.sql` or the policies in the database changed.
 - [ ] The runner applies each file and records it in `system.schema_migrations` inside one transaction, so a file contains no `BEGIN;`/`COMMIT;` of its own (`tests/migrationFiles.test.ts` fails otherwise). To commit steps separately (for example `NOT VALID`, then `VALIDATE CONSTRAINT`), write two migration files.
 - [ ] Never use a statement that cannot run inside a transaction block, such as `CREATE INDEX CONCURRENTLY` or `VACUUM`. Startup refuses such a file with an error naming it.
 

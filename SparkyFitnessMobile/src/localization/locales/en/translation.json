@@ -168,6 +168,7 @@
       "about": "About",
       "shareReport": "Share Diagnostic Report",
       "watch": "Apple Watch",
+      "addMenu": "Quick Actions",
       "wearOs": "Wear OS",
       "customMeasurements": "Custom Measurements",
       "ai": "AI",
@@ -555,9 +556,19 @@
     "logPregnancyEntry": "Log Pregnancy Entry",
     "logCycle": "Log Cycle",
     "mindfulness": "Mindfulness",
+    "title": "Quick Actions",
+    "scanShort": "Scan",
+    "measureShort": "Measure",
+    "symptomsHealth": "Symptoms & Health",
+    "syncHealthShort": "Sync Health",
+    "photosHint": "Visual",
+    "symptomsHint": "Log",
+    "moodHint": "Track state",
+    "mindfulnessHint": "Breathing, zen",
     "recordActivity": "Record Activity",
     "recordActivityHint": "Track a walk, run or ride with GPS",
-    "checkIn": "Check-In"
+    "checkIn": "Daily Check-In",
+    "checkInHint": "Habits"
   },
   "screens": {
     "foods": "Foods",
@@ -669,6 +680,7 @@
     "cardioSession": "Cardio Session",
     "activityShare": "Share Activity",
     "watchSettings": "Apple Watch",
+    "addMenuSettings": "Quick Actions",
     "wearOsSettings": "Wear OS",
     "aiSettings": "AI",
     "fastingSettings": "Fasting Settings",
@@ -3355,13 +3367,93 @@
       "caloriesInValue": "1,540",
       "caloriesOutValue": "255",
       "eightAm": "8:00 AM",
-      "eyebrow": "iOS 26"
+      "eyebrow": "iOS 26",
+      "zoneTwoBase": "Zone 2 Base",
+      "weekThree": "Week 3",
+      "easyRun": "Easy run • 40 min",
+      "zoneTwoRange": "125–142 bpm",
+      "riverLoop": "River Loop",
+      "routeDistance": "5.2 km",
+      "routeClimb": "48 m climb",
+      "followRoads": "Follows roads",
+      "checkIn": "Check-in",
+      "stepTwoOfThree": "Step 2 of 3",
+      "checkInStepName": "Measurements",
+      "saveContinue": "Save & continue",
+      "plates": "Plates",
+      "plateTarget": "100 kg",
+      "plateBar": "Bar 20 kg",
+      "platesPerSide": "20 + 20 per side",
+      "heartRate": "Heart rate",
+      "zoneTwo": "Zone 2",
+      "maxResting": "Max 185 • Resting 52",
+      "customZones": "Your own",
+      "compare": "Compare",
+      "thirtyDays": "30 days",
+      "sleepVsMood": "Sleep vs. mood",
+      "moodHigher": "Mood is higher",
+      "watchApp": "Watch app",
+      "caloriesLeftBadge": "1,515 left",
+      "waterMeds": "Water • Meds",
+      "fastingSteps": "Fasting • Steps",
+      "weeklyGoal": "Weekly goal",
+      "weeklyRate": "−0.5 kg",
+      "dailyTarget": "Daily target",
+      "dailyAdjustment": "≈ −550 kcal"
     },
     "features": {
+      "running": {
+        "eyebrow": "RUNNING",
+        "headline": "Train with run programs",
+        "body": "Follow a Zone 2 Base plan with heart rate guidance, set a weekly distance goal and race countdown, take a guided fitness test to set your paces, and review splits after every run.",
+        "cta": "Open run programs"
+      },
+      "routes": {
+        "eyebrow": "ROUTES",
+        "headline": "Plan and follow routes",
+        "body": "Draw routes on a satellite map, snap them to roads, generate loops of a set distance, and follow a saved route on your Apple Watch.",
+        "cta": "Open routes"
+      },
+      "checkIn": {
+        "eyebrow": "GUIDED CHECK-IN",
+        "headline": "Check in in one flow",
+        "body": "Log your mood, measurements, and a progress photo in three quick steps. Turn it on in Diary settings.",
+        "cta": "Open diary settings"
+      },
+      "strength": {
+        "eyebrow": "STRENGTH TOOLS",
+        "headline": "Smarter strength workouts",
+        "body": "Pin the set to do now, swap exercises in a tap, keep your sets when you replace an exercise, and load the bar with the plate calculator.",
+        "cta": "Open workout settings"
+      },
+      "heartRate": {
+        "eyebrow": "HEART RATE",
+        "headline": "Heart rate zones, your way",
+        "body": "Set your own max and resting heart rate and zone method, then dig into detailed heart rate reports.",
+        "cta": "Open zone settings"
+      },
+      "reports": {
+        "eyebrow": "REPORTS & COMPARE",
+        "headline": "See how your habits connect",
+        "body": "Browse nutrition, hydration, sleep, mood, and measurement reports, then use Compare to see whether one habit goes with another, or whether something changed since you started a new habit.",
+        "cta": "Open reports"
+      },
+      "watch": {
+        "eyebrow": "APPLE WATCH & WEAR OS",
+        "headline": "Your day on your wrist",
+        "body": "The watch app now comes to Apple Watch and Wear OS. See your goals, log water, weight, fasting, and medications, and run workouts that save to your diary, with effort ratings, jump rope, and route following on Apple Watch. Choose your pages in Watch settings.",
+        "cta": "Open watch settings"
+      },
+      "weeklyGoal": {
+        "eyebrow": "WEIGHT GOALS",
+        "headline": "Set a weekly weight goal",
+        "body": "Choose how much weight you want to lose or gain each week and Sparky works out your daily calorie target.",
+        "cta": "Open calorie settings"
+      },
       "medications": {
         "eyebrow": "MEDICATIONS",
         "headline": "Track your medications",
-        "body": "Add your medications, set dose schedules, and log each dose from the dashboard with optional reminders.",
+        "body": "Add your medications, set dose schedules, log each dose from the dashboard with optional reminders, and review adherence with a calendar and dose log.",
         "cta": "Set up medications"
       },
       "cycle": {
@@ -3727,6 +3819,32 @@
     "emptySubtitle": "Schedule your saved workouts on set days, or as a cycle you work through.",
     "moreAssignments_one": "+{{count}} more",
     "moreAssignments_other": "+{{count}} more"
+  },
+  "addMenuSettings": {
+    "reorder": "Reorder {{name}}",
+    "reorderHint": "Changes where this row sits in Quick Actions",
+    "reset": "Reset to default",
+    "cardsTitle": "Tiles",
+    "cardsDescription": "The four tiles at the top of Quick Actions. Tap one to choose what goes there. Choosing something already placed swaps the two.",
+    "rowsTitle": "List",
+    "rowsDescription": "Rows under the tiles. Drag a row by its handle to move it. Toggle a row off to hide it.",
+    "previewTitle": "Preview",
+    "previewDescription": "How Quick Actions looks with your choices.",
+    "lineNumber": "Line {{number}}",
+    "needsCheckIn": "Not shown: guided check-in is off",
+    "needsCycle": "Not shown: cycle tracking is off",
+    "showAs": "Show as",
+    "showAsValue": "Show as {{style}}",
+    "styleList": "List",
+    "stylePair": "Pair",
+    "styleButton": "Button",
+    "pairsTitle": "Pairs",
+    "pairsDescription": "Shown two to a line, under the list. One on its own takes the whole line.",
+    "buttonsTitle": "Buttons",
+    "buttonsDescription": "Shown side by side at the bottom of the sheet.",
+    "chooseCard": "Choose a tile",
+    "slotLabel": "Tile {{number}}: {{name}}",
+    "slotHint": "Opens a list to choose what goes here"
   },
   "mealPlans": {
     "title": "Meal plans",

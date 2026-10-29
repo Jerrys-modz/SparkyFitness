@@ -123,6 +123,47 @@ export interface WatchContainerPayload {
   unit: string;
 }
 
+/** Today's sleep snapshot relayed to the watch for its Sleep Health tile. */
+export interface WatchSleepSnapshotPayload {
+  day: string;
+  /** Total time asleep in seconds (main sleep + naps). */
+  totalSeconds: number;
+  /** Main sleep bedtime-to-waketime span in seconds. */
+  timeInBedSeconds: number;
+  sleepScore: number | null;
+  /** Pre-formatted bedtime in the user's time format, or empty. */
+  bedtime: string;
+  /** Pre-formatted wake time in the user's time format, or empty. */
+  wakeTime: string;
+  deepSeconds: number | null;
+  remSeconds: number | null;
+  lightSeconds: number | null;
+  awakeSeconds: number | null;
+  restingHeartRate: number | null;
+  hrvMs: number | null;
+  spo2: number | null;
+  napCount: number;
+  napSeconds: number;
+}
+
+/** One logged exercise session relayed in `WatchExerciseSummaryPayload`. */
+export interface WatchExerciseSessionPayload {
+  name: string;
+  durationMinutes: number;
+  calories: number;
+}
+
+/** Today's exercise summary relayed to the watch for its Exercise tile. */
+export interface WatchExerciseSummaryPayload {
+  day: string;
+  minutes: number;
+  minutesGoal: number;
+  calories: number;
+  caloriesGoal: number;
+  sessionCount: number;
+  sessions: WatchExerciseSessionPayload[];
+}
+
 /** Seed values, history and acknowledgements pushed to the watch. */
 export interface WatchContextPayload {
   /**
@@ -395,6 +436,10 @@ export interface WatchContextPayload {
   steps?: { day: string; count: number } | null;
   /** Daily step goal the Steps page and complication measure against. */
   stepGoal?: number | null;
+  /** Today's sleep health snapshot for the watch's Sleep Health tile. */
+  sleep?: WatchSleepSnapshotPayload | null;
+  /** Today's exercise summary for the watch's Exercise tile. */
+  exerciseSummary?: WatchExerciseSummaryPayload | null;
 }
 
 /** One target set the watch shows for a planned exercise. */

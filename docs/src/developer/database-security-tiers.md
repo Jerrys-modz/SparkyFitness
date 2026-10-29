@@ -63,6 +63,7 @@ These tables contain highly sensitive credentials, API keys, SSO tokens, 2FA rec
 | `openfoodfacts_product_read_rate_limit` | Singleton coordination lease and cooldown for Open Food Facts product reads, including manual previews; contains no user data or credentials | System services only | Deny all |
 | `openfoodfacts_sync_queue` | Dormant automatic Open Food Facts upload state and retained history; stores food/user identifiers and retry metadata, never provider credentials. The manual first release does not enqueue or process these rows. | System worker and owning user | Owner-Only |
 | `rate_limit` | Sign-in rate limit counters shared by every server instance, keyed by client address and route; holds no account data or credentials | Better Auth only | Deny all |
+| `system.rate_limit_windows` | Fixed-window counters shared by every server instance for the per-address limits of the server's own routes (MFA factor lookup, demo login, passkey tickets), keyed by limiter and client address; holds no account data or credentials | Rate limiter via the owner pool only | Deny all; the app role has no grant on the `system` schema's tables, so no RLS policy is needed |
 
 ---
 
