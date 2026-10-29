@@ -184,13 +184,26 @@ export interface ApplyPlanProposalsResult {
  * Writes the planned weights the rules propose for the given assignments.
  * Recomputes the proposals instead of trusting any weight from the caller.
  * A prefill plan has diary entries generated from its weights, so it is
- * refused here and goes through a full plan update instead.
+ * refused here and goes through a full plan update instead. Only the plan's
+ * owner may write, like every other plan mutation: row-level security also
+ * lets family delegates read shared plans, so ownership is checked here.
  */
 async function applyPlanProposals(
   userId: string,
   planId: string | number,
   assignmentIds: readonly (string | number)[]
 ): Promise<ApplyPlanProposalsResult | 'prefill' | null> {
+  const ownerId =
+    await workoutPlanTemplateRepository.getWorkoutPlanTemplateOwnerId(
+      planId,
+      userId
+    );
+  if (!ownerId) return null;
+  if (ownerId !== userId) {
+    throw new Error(
+      'Forbidden: You do not have permission to update this workout plan template.'
+    );
+  }
   const result = await getPlanProposals(userId, planId);
   if (!result) return null;
   if (result.plan.entry_mode === 'prefill') return 'prefill';

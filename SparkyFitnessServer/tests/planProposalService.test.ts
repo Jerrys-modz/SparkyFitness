@@ -7,6 +7,7 @@ vi.mock('../models/workoutPlanTemplateRepository.js', () => ({
   default: {
     getWorkoutPlanTemplateById: vi.fn(),
     getWorkoutPlanTemplatesByUserId: vi.fn(),
+    getWorkoutPlanTemplateOwnerId: vi.fn(),
     updatePlannedSetWeights: vi.fn(),
   },
 }));
@@ -29,6 +30,7 @@ import planProposalService from '../services/planProposalService.js';
 const repo = planRepo as unknown as {
   getWorkoutPlanTemplateById: ReturnType<typeof vi.fn>;
   getWorkoutPlanTemplatesByUserId: ReturnType<typeof vi.fn>;
+  getWorkoutPlanTemplateOwnerId: ReturnType<typeof vi.fn>;
   updatePlannedSetWeights: ReturnType<typeof vi.fn>;
 };
 const entries = reportRepository as unknown as {
@@ -89,6 +91,7 @@ beforeEach(() => {
     adaptive_suggestions: true,
     signals: [],
   });
+  repo.getWorkoutPlanTemplateOwnerId.mockResolvedValue('user-1');
   repo.updatePlannedSetWeights.mockResolvedValue(2);
 });
 
@@ -163,7 +166,16 @@ describe('applyPlanProposals', () => {
     expect(repo.updatePlannedSetWeights).not.toHaveBeenCalled();
   });
 
+  it('rejects a plan owned by another user without writing', async () => {
+    repo.getWorkoutPlanTemplateOwnerId.mockResolvedValue('someone-else');
+    await expect(
+      planProposalService.applyPlanProposals('user-1', 42, [7])
+    ).rejects.toThrow('Forbidden');
+    expect(repo.updatePlannedSetWeights).not.toHaveBeenCalled();
+  });
+
   it('returns null for a missing plan', async () => {
+    repo.getWorkoutPlanTemplateOwnerId.mockResolvedValue(null);
     repo.getWorkoutPlanTemplateById.mockResolvedValue(null);
     expect(
       await planProposalService.applyPlanProposals('user-1', 9, [7])
