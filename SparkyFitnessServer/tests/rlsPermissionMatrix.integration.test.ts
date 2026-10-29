@@ -283,7 +283,16 @@ describe.runIf(RUN)('RLS permission matrix', () => {
     workout_preset_exercise_sets: 'custom',
     workout_preset_exercises: 'custom',
     // system/internal: RLS-enabled with an explicit deny-all policy; only
-    // getSystemClient (which bypasses RLS) touches it.
+    // owner-pool/getSystemClient paths (which bypass RLS) touch them.
+    jwks: 'custom',
+    oauth_access_token: 'custom',
+    oauth_authorization_revocation: 'custom',
+    oauth_client: 'custom',
+    oauth_client_assertion: 'custom',
+    oauth_client_resource: 'custom',
+    oauth_consent: 'custom',
+    oauth_refresh_token: 'custom',
+    oauth_resource: 'custom',
     openfoodfacts_product_read_rate_limit: 'custom',
     passkey_registration_tickets: 'custom',
     rate_limit: 'custom',

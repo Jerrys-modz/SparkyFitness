@@ -66,6 +66,7 @@ SparkyFitness uses 7 granular permissions to determine exactly what a connected 
 Certain tables contain private user data that is **never** accessible to any family member or friend, regardless of the permission level. This includes:
 * API Keys (`api_key` table)
 * OIDC SSO Connections (`user_oidc_links` table)
+* Remote MCP OAuth clients, signing keys, consent grants, access/refresh tokens, and revocation records (`jwks` and `oauth_*` tables). These are system-managed and never exposed through family profile switching or delegation. The server-wide OAuth switch and redirect URI allowlist are administrator settings, not family-sharing permissions.
 * Personal AI Assistant Chat History (`sparky_chat_history` table)
 * Lasting food preferences, food task drafts and their operation history (`food_assistant_preferences`, `food_assistant_tasks`, `food_assistant_operations`). These belong to the signed-in person and are never delegated while viewing a family diary.
 * Voice recordings are transient and are never shared or stored as diary entries. AI transcription uses only the signed-in user's accessible AI configuration, never credentials from a switched family profile.

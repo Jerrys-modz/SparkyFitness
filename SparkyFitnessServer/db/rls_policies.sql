@@ -67,6 +67,15 @@ BEGIN
     'food_assistant_operations',
     'admin_activity_logs',
     'api_key',
+    'jwks',
+    'oauth_client',
+    'oauth_resource',
+    'oauth_client_resource',
+    'oauth_refresh_token',
+    'oauth_access_token',
+    'oauth_consent',
+    'oauth_authorization_revocation',
+    'oauth_client_assertion',
     'user_calorie_rule_history',
     'user_goals',
     'user_ignored_updates',
@@ -1065,6 +1074,20 @@ WITH CHECK (has_symptom_access(user_id) AND (source <> 'cycle' OR authenticated_
 -- Medications Display Preferences (Tier 2 - Owner-Only Write, Delegate Read)
 CREATE POLICY select_policy ON public.user_medication_display_preferences FOR SELECT TO PUBLIC USING (has_medication_read_access(user_id));
 CREATE POLICY modify_policy ON public.user_medication_display_preferences FOR ALL TO PUBLIC USING (authenticated_user_id() = user_id) WITH CHECK (authenticated_user_id() = user_id);
+
+-- MCP OAuth tables (system/internal). Better Auth and the explicit OAuth
+-- repositories use the owner pool, which bypasses RLS. Deny the app role so
+-- signing keys, client secrets, grants, and tokens can never be reached by a
+-- user-scoped query even if a future GRANT is too broad.
+CREATE POLICY deny_all_policy ON public.jwks FOR ALL TO PUBLIC USING (false) WITH CHECK (false);
+CREATE POLICY deny_all_policy ON public.oauth_client FOR ALL TO PUBLIC USING (false) WITH CHECK (false);
+CREATE POLICY deny_all_policy ON public.oauth_resource FOR ALL TO PUBLIC USING (false) WITH CHECK (false);
+CREATE POLICY deny_all_policy ON public.oauth_client_resource FOR ALL TO PUBLIC USING (false) WITH CHECK (false);
+CREATE POLICY deny_all_policy ON public.oauth_refresh_token FOR ALL TO PUBLIC USING (false) WITH CHECK (false);
+CREATE POLICY deny_all_policy ON public.oauth_access_token FOR ALL TO PUBLIC USING (false) WITH CHECK (false);
+CREATE POLICY deny_all_policy ON public.oauth_consent FOR ALL TO PUBLIC USING (false) WITH CHECK (false);
+CREATE POLICY deny_all_policy ON public.oauth_authorization_revocation FOR ALL TO PUBLIC USING (false) WITH CHECK (false);
+CREATE POLICY deny_all_policy ON public.oauth_client_assertion FOR ALL TO PUBLIC USING (false) WITH CHECK (false);
 
 -- Passkey registration tickets (Tier 3 - system/internal). These short-lived,
 -- single-use rows are only ever read/written by getSystemClient (which bypasses
