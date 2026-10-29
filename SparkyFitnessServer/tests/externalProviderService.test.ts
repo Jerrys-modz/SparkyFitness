@@ -1348,6 +1348,14 @@ describe('createExternalDataProvider - Open-Meteo weather provider', () => {
     );
   });
 
+  it('accepts an upper-case scheme without prepending another one', async () => {
+    await externalProviderService.createExternalDataProvider(
+      OWNER,
+      weather('HTTP://8.8.8.8:8080')
+    );
+    expect(create).toHaveBeenCalled();
+  });
+
   it('refuses an internal address from a non-admin', async () => {
     await expect(
       externalProviderService.createExternalDataProvider(

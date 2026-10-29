@@ -64,11 +64,7 @@ async function validateFoodProviderBaseUrl(
   // https:// (e.g. "mealie.example.com"). Normalize the same way before
   // validating so a bare host/IP isn't rejected as a malformed URL.
   let normalized = String(baseUrl).trim();
-  if (
-    normalized &&
-    !normalized.startsWith('http://') &&
-    !normalized.startsWith('https://')
-  ) {
+  if (normalized && !/^https?:\/\//i.test(normalized)) {
     normalized = `https://${normalized}`;
   }
   const isAdmin = await resolveIsAdminByUserId(authenticatedUserId);
