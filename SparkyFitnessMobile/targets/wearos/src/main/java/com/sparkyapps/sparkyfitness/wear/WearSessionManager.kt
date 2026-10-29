@@ -96,19 +96,32 @@ class WearSessionManager private constructor(private val appContext: Context) :
     pullInitialDataItems()
   }
 
+  /**
+   * Transitions to the target [WatchPage] and dismisses any active sleep detail overlay.
+   */
   fun requestNavigateTo(page: WatchPage) {
     _showSleepDetail.value = false
     _requestedPage.value = page
   }
 
+  /**
+   * Clears the pending page navigation request once the pager has scrolled to it.
+   */
   fun consumeRequestedPage() {
     _requestedPage.value = null
   }
 
+  /**
+   * Opens the sleep health detail overlay and clears any pending page navigation.
+   */
   fun requestSleepDetail() {
+    _requestedPage.value = null
     _showSleepDetail.value = true
   }
 
+  /**
+   * Closes the sleep health detail overlay.
+   */
   fun dismissSleepDetail() {
     _showSleepDetail.value = false
   }
