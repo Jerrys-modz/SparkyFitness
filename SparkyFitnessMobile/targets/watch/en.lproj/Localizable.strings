@@ -64,6 +64,7 @@
 "watch.run.cue.tooFast" = "Too fast. Ease off.";
 "watch.run.cue.tooSlow" = "Too slow. Pick it up.";
 "watch.run.cue.planComplete" = "Plan complete.";
+"watch.run.cue.fitnessTestComplete" = "Test complete. Slow down and finish.";
 "watch.run.cue.autoPaused" = "Auto-paused.";
 "watch.run.lapCount" = "Lap, %lld so far";
 "watch.run.lap" = "Lap";

@@ -148,7 +148,7 @@ const FitnessTestSetup: React.FC<FitnessTestSetupProps> = ({
             : recordWith === 'watch'
               ? t('fitnessTest.setup.watchNote', {
                   defaultValue:
-                    'Your watch records the test with its own GPS and heart rate sensor, and your phone scores it when the run reaches it. The watch does not tell you when the mark is reached, so watch the clock or distance.',
+                    'Your watch records the test with its own GPS and heart rate sensor, and your phone scores it when the run reaches it. It buzzes when you reach the mark, and says so with voice cues on.',
                 })
               : t('fitnessTest.setup.outdoorNote', {
                   defaultValue:
