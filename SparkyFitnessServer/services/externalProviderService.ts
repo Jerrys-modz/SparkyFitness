@@ -43,7 +43,8 @@ const BASE_URL_FETCHING_PROVIDER_TYPES = new Set([
   WEATHER_PROVIDER_TYPE,
 ]);
 
-// Reject a private/internal base_url for the self-hosted recipe providers.
+// Reject a private/internal base_url for the self-hosted providers (recipe,
+// routing and weather).
 // Admins may point at a private/LAN address (a single-user self-host is an
 // admin, so no config is needed); a non-admin on a multi-user server is
 // blocked unless the operator opts in, either with the admin
@@ -80,7 +81,7 @@ async function validateFoodProviderBaseUrl(
   } catch (error) {
     if (isOutboundUrlBlockedError(error)) {
       throw badRequest(
-        'Provider base URL resolves to a private or internal address. Only admins can use a local/self-hosted address by default; to allow all users, enable "Allow Private / LAN Recipe Providers" in Admin > Global Provider Settings (or set ALLOW_PRIVATE_NETWORK_FOOD_PROVIDERS=true in your server environment).'
+        'Provider base URL resolves to a private or internal address. Only admins can use a local/self-hosted address by default; to allow all users, enable "Allow Private / LAN Recipe Providers" in Admin > Global Provider Settings (the setting covers every self-hosted provider, including routing and weather) or set ALLOW_PRIVATE_NETWORK_FOOD_PROVIDERS=true in your server environment.'
       );
     }
     if (error instanceof OutboundUrlShapeError) {
