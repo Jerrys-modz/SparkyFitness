@@ -1,4 +1,4 @@
-import { addDays } from "./timezone.ts";
+import { addDays } from './timezone.ts';
 
 /**
  * Deterministic reading of recent running: how often and how far, whether
@@ -73,16 +73,16 @@ function paceOf(sessions: readonly RunSession[]): number | null {
 export function buildRunReview(
   sessions: readonly RunSession[],
   today: string,
-  windowDays: number = 28,
+  windowDays: number = 28
 ): RunReview {
   const from = addDays(today, -(windowDays - 1));
   const previousFrom = addDays(from, -windowDays);
   const valid = sessions.filter(
-    (run) => run.distanceKm > 0 && run.day <= today,
+    (run) => run.distanceKm > 0 && run.day <= today
   );
   const inWindow = valid.filter((run) => run.day >= from);
   const previous = valid.filter(
-    (run) => run.day >= previousFrom && run.day < from,
+    (run) => run.day >= previousFrom && run.day < from
   );
 
   const weekCount = Math.max(1, Math.floor(windowDays / 7));
@@ -122,13 +122,13 @@ export function buildRunReview(
   const paceChangePercent =
     paceSecPerKm !== null && previousPaceSecPerKm !== null
       ? round1(
-          ((paceSecPerKm - previousPaceSecPerKm) / previousPaceSecPerKm) * 100,
+          ((paceSecPerKm - previousPaceSecPerKm) / previousPaceSecPerKm) * 100
         )
       : null;
 
   const lastRunDay = inWindow.reduce<string | null>(
     (latest, run) => (latest === null || run.day > latest ? run.day : latest),
-    null,
+    null
   );
 
   return {
@@ -138,7 +138,7 @@ export function buildRunReview(
     enoughData: inWindow.length >= RUN_REVIEW_MIN_RUNS,
     totalKm: round1(inWindow.reduce((sum, run) => sum + run.distanceKm, 0)),
     longestRunKm: round1(
-      inWindow.reduce((max, run) => Math.max(max, run.distanceKm), 0),
+      inWindow.reduce((max, run) => Math.max(max, run.distanceKm), 0)
     ),
     weeks,
     jumps,

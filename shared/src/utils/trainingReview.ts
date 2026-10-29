@@ -1,12 +1,12 @@
-import { normalizeMuscleList } from "../constants/exerciseTaxonomy.ts";
-import { addDays } from "./timezone.ts";
-import { isWarmupSetType } from "./dropSetCalculator.ts";
-import { epleyOneRepMaxKg } from "./exerciseLoad.ts";
-import { ADAPTIVE_HIGH_RPE, ADAPTIVE_LOW_RIR } from "./adaptiveCoaching.ts";
+import { normalizeMuscleList } from '../constants/exerciseTaxonomy.ts';
+import { addDays } from './timezone.ts';
+import { isWarmupSetType } from './dropSetCalculator.ts';
+import { epleyOneRepMaxKg } from './exerciseLoad.ts';
+import { ADAPTIVE_HIGH_RPE, ADAPTIVE_LOW_RIR } from './adaptiveCoaching.ts';
 import {
   primaryMusclesOf,
   type MuscleEntry,
-} from "./exerciseMuscleAggregates.ts";
+} from './exerciseMuscleAggregates.ts';
 
 /**
  * Deterministic reading of recent strength training: how often, which lifts
@@ -26,7 +26,7 @@ export interface ReviewSet {
 
 export interface ReviewEntry extends Omit<
   MuscleEntry,
-  "exercise_name" | "sets"
+  'exercise_name' | 'sets'
 > {
   entry_date?: string;
   exercise_id?: string | null;
@@ -77,9 +77,9 @@ const MAX_REPS_FOR_ESTIMATE = 12;
 export const TRAINING_REVIEW_MIN_SESSIONS = 3;
 
 const NEAR_FAILURE_MIN_SETS = 3;
-const CARDIO_MODALITY = "duration_distance";
+const CARDIO_MODALITY = 'duration_distance';
 /** Synced calorie summaries are logged as entries but are not workouts. */
-const NOT_A_WORKOUT = "Active Calories";
+const NOT_A_WORKOUT = 'Active Calories';
 
 function dayOf(entry: ReviewEntry): string | null {
   const raw = entry.entry_date;
@@ -97,7 +97,7 @@ function workingSets(entry: ReviewEntry): ReviewSet[] {
   return (entry.sets ?? []).filter(
     (set) =>
       !isWarmupSetType(set.set_type) &&
-      ((Number(set.reps) || 0) > 0 || (Number(set.duration) || 0) > 0),
+      ((Number(set.reps) || 0) > 0 || (Number(set.duration) || 0) > 0)
   );
 }
 
@@ -146,7 +146,7 @@ export function countStalledSessions(oneRepMaxes: readonly number[]): number {
 export function buildTrainingReview(
   entries: readonly ReviewEntry[],
   today: string,
-  windowDays: number = 28,
+  windowDays: number = 28
 ): TrainingReview {
   const from = addDays(today, -(windowDays - 1));
   const strength = entries.filter(isStrengthEntry);
@@ -168,10 +168,10 @@ export function buildTrainingReview(
   for (const entry of strength) {
     const day = dayOf(entry);
     if (!day || day > today) continue;
-    if (entry.exercise_modality === "bodyweight_reps") continue;
+    if (entry.exercise_modality === 'bodyweight_reps') continue;
     const estimate = bestEstimatedOneRepMax(entry);
     if (estimate <= 0) continue;
-    const key = entry.exercise_id ?? entry.exercise_name ?? "";
+    const key = entry.exercise_id ?? entry.exercise_name ?? '';
     if (!key) continue;
     const bucket = byExercise.get(key) ?? {
       name: entry.exercise_name ?? key,
@@ -209,7 +209,7 @@ export function buildTrainingReview(
     { name: string; rpe: number[]; rir: number[] }
   >();
   for (const entry of inWindow) {
-    const key = entry.exercise_id ?? entry.exercise_name ?? "";
+    const key = entry.exercise_id ?? entry.exercise_name ?? '';
     for (const set of workingSets(entry)) {
       const rpe = set.rpe == null ? null : Number(set.rpe);
       const rir = set.rir == null ? null : Number(set.rir);
