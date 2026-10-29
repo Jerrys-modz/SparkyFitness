@@ -285,6 +285,7 @@ export * from './schemas/api/FoodAssistant.api.zod.ts';
 export * from './schemas/database/FoodAssistant.zod.ts';
 export * from './schemas/database/Routes.zod.ts';
 export * from './constants/routingProviderTypes.ts';
+export * from './constants/weatherProviderTypes.ts';
 export * from './utils/runProgramAdjust.ts';
 export * from './utils/runProgramBreak.ts';
 export * from './utils/runProgramRealign.ts';

@@ -3079,6 +3079,14 @@
       "publicServerNote": "There is no default server. The public Valhalla server run by FOSSGIS is a demo for light personal testing, and its maintainers say it is not meant for production use by third parties, so do not point a shared server at it. Run your own Valhalla, use a hosted service (Stadia Maps, for one, offers a free plan for non-commercial use only) or a server whose operator has agreed. A sent API key is used only for this provider.",
       "unlockNote": "Once this provider is active, route generation and Follow roads become available in the mobile app."
     },
+    "weatherProvider": {
+      "baseUrlLabel": "Open-Meteo server URL",
+      "apiKeyLabel": "API key (optional)",
+      "apiKeyPlaceholder": "Only for Open-Meteo's commercial service",
+      "privacyNote": "The time a GPS-recorded activity started and its start place, rounded to two decimals (about 1 km), are sent to this server, which can see them. Use a server you trust, or run your own. With no weather provider, nothing is looked up or sent.",
+      "freeTierNote": "There is no default server. Open-Meteo's free service ({{url}}; its archive for older activities is served from archive-api.open-meteo.com) is for non-commercial use only. For commercial use, use its paid service (customer-api.open-meteo.com) with an API key, or run your own Open-Meteo server. A sent API key is used only for this provider.",
+      "resultNote": "Once this provider is active, new GPS-recorded activities get the temperature and conditions at their start. Activities that already have weather (such as from Garmin) keep it."
+    },
     "providerSpecificFields": {
       "appURL": "App URL",
       "eGHttpYourInstance": "e.g., http://your-{{provider_type}}-instance.com",
