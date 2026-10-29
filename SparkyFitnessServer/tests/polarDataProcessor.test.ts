@@ -423,9 +423,6 @@ describe('polar daily_health_metrics merge sources (issue #2471)', () => {
         frequency: 'Daily',
         measurement_type: 'N/A',
         data_type: 'numeric',
-        is_lab: false,
-        ref_range_low: null,
-        ref_range_high: null,
       },
     });
   });

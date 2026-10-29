@@ -241,8 +241,8 @@ describe('errorHandler', () => {
     const res = await request(
       appThrowing(
         withFields(
-          'new row for relation "custom_categories" violates check constraint "custom_categories_ref_range_check"',
-          { code: '23514', constraint: 'custom_categories_ref_range_check' }
+          'new row for relation "lab_results" violates check constraint "lab_results_ref_range_check"',
+          { code: '23514', constraint: 'lab_results_ref_range_check' }
         )
       )
     ).get('/boom');

@@ -5,6 +5,12 @@ import { describeError, isInternalError } from '../utils/errors.js';
 
 const unavailableRetryAfterSeconds = 5;
 
+const labConstraintMessages: Record<string, string> = {
+  lab_markers_ref_range_check: 'ref_range_low must not exceed ref_range_high',
+  lab_results_ref_range_check: 'ref_range_low must not exceed ref_range_high',
+  lab_results_value_check: 'Provide value_numeric or value_text',
+};
+
 interface ErrorFields {
   name?: unknown;
   message?: unknown;
@@ -83,12 +89,14 @@ const errorHandler = (
             'Conflict: A resource with this unique identifier already exists.';
         } else if (
           error.code === '23514' &&
-          error.constraint === 'custom_categories_ref_range_check'
+          typeof error.constraint === 'string' &&
+          error.constraint in labConstraintMessages
         ) {
-          // A partial update can leave a new bound on the wrong side of the
-          // stored one, which only the database sees.
+          // A partial update can leave a lab value or reference bound in a
+          // state only the database sees, such as a new bound on the wrong
+          // side of the stored one.
           statusCode = 400;
-          message = 'ref_range_low must not exceed ref_range_high';
+          message = labConstraintMessages[error.constraint];
         } else if (
           statusCode >= 500 &&
           process.env.NODE_ENV !== 'development' &&

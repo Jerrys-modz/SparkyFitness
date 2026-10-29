@@ -25,9 +25,6 @@ describe('getOrCreateCustomCategory - health display_name', () => {
         frequency: 'Daily',
         measurement_type: 'N/A',
         data_type: 'numeric',
-        is_lab: false,
-        ref_range_low: null,
-        ref_range_high: null,
       },
     });
 
@@ -57,9 +54,6 @@ describe('getOrCreateCustomCategory - health display_name', () => {
         frequency: 'Hourly',
         measurement_type: 'N/A',
         data_type: 'numeric',
-        is_lab: false,
-        ref_range_low: null,
-        ref_range_high: null,
       },
     });
 
@@ -146,9 +140,6 @@ describe('createCustomCategory', () => {
         frequency: 'Daily',
         measurement_type: 'cm',
         data_type: 'numeric',
-        is_lab: false,
-        ref_range_low: null,
-        ref_range_high: null,
       },
     });
 
@@ -170,9 +161,6 @@ describe('createCustomCategory', () => {
         frequency: 'Daily',
         measurement_type: 'cm',
         data_type: 'numeric',
-        is_lab: false,
-        ref_range_low: null,
-        ref_range_high: null,
       },
     });
 

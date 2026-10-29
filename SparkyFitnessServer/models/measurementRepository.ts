@@ -766,7 +766,7 @@ async function getCustomCategories(userId: any) {
   const client = await getClient(userId); // User-specific operation
   try {
     const result = await client.query(
-      'SELECT id, name, display_name, frequency, measurement_type, data_type, is_lab, ref_range_low, ref_range_high FROM custom_categories WHERE user_id = $1',
+      'SELECT id, name, display_name, frequency, measurement_type, data_type FROM custom_categories WHERE user_id = $1',
       [userId]
     );
     return result.rows;
@@ -782,9 +782,6 @@ interface CustomCategoryRow {
   frequency: string;
   measurement_type: string;
   data_type: string | null;
-  is_lab: boolean;
-  ref_range_low: number | null;
-  ref_range_high: number | null;
 }
 async function createCustomCategory(categoryData: any) {
   const client = await getClient(categoryData.created_by_user_id); // User-specific operation, using created_by_user_id for RLS context
@@ -793,10 +790,10 @@ async function createCustomCategory(categoryData: any) {
     // waits for the first and then gets that category, with its settings, so a
     // caller never applies its own defaults to a category someone else made.
     const columns =
-      'id, name, display_name, frequency, measurement_type, data_type, is_lab, ref_range_low, ref_range_high';
+      'id, name, display_name, frequency, measurement_type, data_type';
     const result = await client.query(
-      `INSERT INTO custom_categories (user_id, name, display_name, frequency, measurement_type, data_type, is_lab, ref_range_low, ref_range_high, created_by_user_id, updated_by_user_id, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10, now(), now())
+      `INSERT INTO custom_categories (user_id, name, display_name, frequency, measurement_type, data_type, created_by_user_id, updated_by_user_id, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $7, now(), now())
        ON CONFLICT (user_id, name) DO NOTHING
        RETURNING ${columns}`,
       [
@@ -806,9 +803,6 @@ async function createCustomCategory(categoryData: any) {
         categoryData.frequency,
         categoryData.measurement_type,
         categoryData.data_type,
-        categoryData.is_lab ?? false,
-        categoryData.ref_range_low ?? null,
-        categoryData.ref_range_high ?? null,
         categoryData.created_by_user_id,
       ]
     );
@@ -846,12 +840,9 @@ async function updateCustomCategory(
         frequency = COALESCE($3, frequency),
         measurement_type = COALESCE($4, measurement_type),
         data_type = COALESCE($5, data_type),
-        is_lab = COALESCE($6, is_lab),
-        ref_range_low = CASE WHEN $7::boolean THEN $8::double precision ELSE ref_range_low END,
-        ref_range_high = CASE WHEN $9::boolean THEN $10::double precision ELSE ref_range_high END,
         updated_at = now(),
-        updated_by_user_id = $11
-      WHERE id = $12 AND user_id = $13
+        updated_by_user_id = $6
+      WHERE id = $7 AND user_id = $8
       RETURNING *`,
       [
         updateData.name,
@@ -859,11 +850,6 @@ async function updateCustomCategory(
         updateData.frequency,
         updateData.measurement_type,
         updateData.data_type,
-        updateData.is_lab,
-        updateData.ref_range_low !== undefined,
-        updateData.ref_range_low ?? null,
-        updateData.ref_range_high !== undefined,
-        updateData.ref_range_high ?? null,
         actingUserId,
         id,
         userId,
@@ -921,10 +907,7 @@ async function getCustomMeasurementEntries(
                'display_name', cc.display_name,
                'measurement_type', cc.measurement_type,
                'frequency', cc.frequency,
-               'data_type', cc.data_type,
-               'is_lab', cc.is_lab,
-               'ref_range_low', cc.ref_range_low,
-               'ref_range_high', cc.ref_range_high
+               'data_type', cc.data_type
              ) AS custom_categories
       FROM custom_measurements cm
       JOIN custom_categories cc ON cm.category_id = cc.id
@@ -988,10 +971,7 @@ async function getCustomMeasurementEntriesByDate(userId: any, date: any) {
                'display_name', cc.display_name,
                'measurement_type', cc.measurement_type,
                'frequency', cc.frequency,
-               'data_type', cc.data_type,
-               'is_lab', cc.is_lab,
-               'ref_range_low', cc.ref_range_low,
-               'ref_range_high', cc.ref_range_high
+               'data_type', cc.data_type
              ) AS custom_categories
        FROM custom_measurements cm
        JOIN custom_categories cc ON cm.category_id = cc.id
@@ -1061,10 +1041,7 @@ async function getCustomMeasurementEntriesByDateRange(
                 'name', cc.name,
                 'display_name', cc.display_name,
                 'measurement_type', cc.measurement_type,
-                'data_type', cc.data_type,
-                'is_lab', cc.is_lab,
-                'ref_range_low', cc.ref_range_low,
-                'ref_range_high', cc.ref_range_high
+                'data_type', cc.data_type
               ) AS custom_categories
        FROM custom_measurements cm
        JOIN custom_categories cc ON cm.category_id = cc.id
