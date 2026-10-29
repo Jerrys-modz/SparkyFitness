@@ -27,6 +27,8 @@ BEGIN
     'check_in_photos',
     'custom_categories',
     'custom_measurements',
+    'lab_markers',
+    'lab_results',
     'exercise_entries',
     'exercise_entry_sets',
     'exercise_entry_activity_details',
@@ -797,6 +799,10 @@ SELECT create_owner_policy('routes');
 -- consistency (a delegate managing the owner's check-in sees the owner's moods).
 SELECT create_checkin_policy('user_custom_moods');
 SELECT create_checkin_policy('mindfulness_sessions');
+-- Lab results are check-in data. Built-in markers live in @workspace/shared; only a
+-- user's own markers and their results are stored, both under the check-in policy.
+SELECT create_checkin_policy('lab_markers');
+SELECT create_checkin_policy('lab_results');
 
 -- Mood display preferences: personal picker config, owner-only.
 SELECT create_owner_policy('user_mood_display_preferences');
