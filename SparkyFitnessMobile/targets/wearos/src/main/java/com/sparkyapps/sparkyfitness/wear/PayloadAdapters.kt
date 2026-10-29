@@ -13,6 +13,10 @@ import java.util.TimeZone
  */
 object ContextPayloadMapper {
 
+  /**
+   * Parses an incoming phone-to-watch JSON context payload into a [WatchContext],
+   * carrying forward sticky preferences from [previous] when omitted.
+   */
   fun parseContext(obj: JSONObject, previous: WatchContext): WatchContext {
     val fastKnown = obj.optBoolean("fastKnown", false) || obj.has("fast")
     return WatchContext(
@@ -225,6 +229,9 @@ object ContextPayloadMapper {
     return StepsSnapshot(day = day, count = count)
   }
 
+  /**
+   * Parses the day's sleep summary snapshot from the context payload.
+   */
   private fun parseSleep(obj: JSONObject?): SleepSnapshot? {
     if (obj == null) return null
     val day = obj.optStringOrNull("day") ?: return null
@@ -249,6 +256,9 @@ object ContextPayloadMapper {
     )
   }
 
+  /**
+   * Parses the day's exercise summary and logged sessions from the context payload.
+   */
   private fun parseExerciseSummary(obj: JSONObject?): ExerciseSummarySnapshot? {
     if (obj == null) return null
     val day = obj.optStringOrNull("day") ?: return null

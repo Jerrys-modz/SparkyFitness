@@ -754,9 +754,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         day: summaryDate,
         minutes: Math.round(dailySummary.exerciseMinutes || 0),
         minutesGoal: Math.round(dailySummary.exerciseMinutesGoal || 0),
-        calories: Math.round(
-          dailySummary.otherExerciseCalories || dailySummary.caloriesBurned || 0
-        ),
+        calories: Math.round(dailySummary.otherExerciseCalories || 0),
         caloriesGoal: Math.round(dailySummary.exerciseCaloriesGoal || 0),
         sessionCount: loggedSessions.length,
         sessions: loggedSessions.slice(0, 3),

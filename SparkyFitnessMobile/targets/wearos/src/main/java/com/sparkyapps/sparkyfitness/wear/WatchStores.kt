@@ -291,6 +291,9 @@ class CheckInStore(private val context: Context) {
     Haptics.success()
   }
 
+  /**
+   * Clears any day-scoped snapshots and pending water mutations that belong to a previous calendar day.
+   */
   fun pruneStaleDayData() {
     val today = CheckInDate.today()
     val curWater = _water.value
@@ -564,6 +567,9 @@ class CheckInStore(private val context: Context) {
     }
   }
 
+  /**
+   * Toggles a scheduled medication dose between taken and pending and queues the mutation to the phone.
+   */
   fun toggleMedication(dose: MedicationDose) {
     val ownerId = activeOwnerId() ?: return
     val cur = _medications.value ?: return
@@ -633,6 +639,9 @@ class CheckInStore(private val context: Context) {
     }
   }
 
+  /**
+   * Resets all cached account state, snapshots, and persisted preferences on sign-out or account switch.
+   */
   fun clearAccountState(newOwnerId: String? = null) {
     confirmedOwnerId = newOwnerId?.takeIf { it.isNotEmpty() }
     _watchContext.value = WatchContext.empty
@@ -673,6 +682,9 @@ class CheckInStore(private val context: Context) {
     TileUpdater.requestAll(context)
   }
 
+  /**
+   * Applies a remote context JSON payload from the phone, validating account ownership and refreshing complications and tiles.
+   */
   fun applyRemoteContextJson(obj: JSONObject, rawJson: String? = null) {
     val incomingOwner = obj.optStringOrNull("workoutServerId")?.takeIf { it.isNotEmpty() }
     val storedOwner = prefs.getString("context_owner_id", null)?.takeIf { it.isNotEmpty() }
@@ -745,7 +757,6 @@ class CheckInStore(private val context: Context) {
         resendQueued()
       } else {
         prefs.edit()
-          .remove("context_owner_id")
           .remove("context_owner_id")
           .remove("last_context_json")
           .apply()

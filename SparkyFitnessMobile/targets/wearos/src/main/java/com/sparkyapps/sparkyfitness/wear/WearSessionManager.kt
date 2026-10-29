@@ -42,6 +42,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import java.util.concurrent.atomic.AtomicLong
 import org.json.JSONObject
 import java.nio.charset.StandardCharsets
 import java.util.UUID
@@ -62,8 +63,7 @@ class WearSessionManager private constructor(private val appContext: Context) :
 
   private var telemetryOwner: String = "watch"
   private val seenCommandKeys = LinkedHashSet<String>()
-  @Volatile
-  private var lastContextRequestMs: Long = 0L
+  private val lastContextRequestMs = AtomicLong(0L)
 
   private fun firstTime(key: String?): Boolean {
     if (key.isNullOrEmpty()) return true
@@ -101,15 +101,22 @@ class WearSessionManager private constructor(private val appContext: Context) :
     _requestedPage.value = null
   }
 
+  /**
+   * Requests a fresh context push from the phone, throttled to at most once every 15 seconds.
+   */
   fun requestContextFromPhoneThrottled() {
     val now = System.currentTimeMillis()
-    if (now - lastContextRequestMs < 15_000L) return
-    lastContextRequestMs = now
+    val prev = lastContextRequestMs.get()
+    if (now - prev < 15_000L) return
+    if (!lastContextRequestMs.compareAndSet(prev, now)) return
     pullInitialDataItems()
   }
 
+  /**
+   * Reads persisted DataClient context and queued transfers and requests a live context refresh from the phone.
+   */
   fun pullInitialDataItems() {
-    lastContextRequestMs = System.currentTimeMillis()
+    lastContextRequestMs.set(System.currentTimeMillis())
     scope.launch {
       checkInStore.pruneStaleDayData()
     }

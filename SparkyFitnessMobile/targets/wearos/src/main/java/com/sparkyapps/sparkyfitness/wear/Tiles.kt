@@ -115,6 +115,9 @@ data class ExerciseTileModel(
 )
 
 object TileModels {
+  /**
+   * Formats a duration in seconds as `Xh Ym` or `Ym` when under an hour.
+   */
   fun formatDurationSeconds(seconds: Int): String {
     val clamped = max(0, seconds)
     val hours = clamped / 3600
@@ -122,6 +125,9 @@ object TileModels {
     return if (hours > 0) "${hours}h ${mins}m" else "${mins}m"
   }
 
+  /**
+   * Formats a nutrient amount as an integer when close to a whole number, or to one decimal place.
+   */
   private fun formatNutrientAmount(value: Double): String {
     val rounded = value.roundToInt()
     return if (kotlin.math.abs(value - rounded) < 0.05) {
@@ -131,6 +137,9 @@ object TileModels {
     }
   }
 
+  /**
+   * Maps a nutrient key to its display accent color ARGB value.
+   */
   private fun colorForNutrientKey(key: String): Int = when (key.lowercase(Locale.US)) {
     "protein" -> 0xFF38BDF8.toInt()
     "carbs" -> 0xFFFBBF24.toInt()
@@ -141,6 +150,9 @@ object TileModels {
     else -> 0xFF2DD4BF.toInt()
   }
 
+  /**
+   * Builds the display model for the Nutrition tile from today's [NutritionSnapshot].
+   */
   fun buildNutritionTileModel(nutrition: NutritionSnapshot?): NutritionTileModel {
     if (nutrition == null || !nutrition.isToday) {
       return NutritionTileModel(
@@ -214,6 +226,9 @@ object TileModels {
     )
   }
 
+  /**
+   * Builds the display model for the Sleep Health tile from today's [SleepSnapshot].
+   */
   fun buildSleepTileModel(sleep: SleepSnapshot?): SleepTileModel {
     if (sleep == null || !sleep.isToday || sleep.totalSeconds <= 0) {
       return SleepTileModel(
@@ -268,6 +283,9 @@ object TileModels {
     )
   }
 
+  /**
+   * Builds the display model for the Medications tile from today's [MedicationSnapshot].
+   */
   fun buildMedicationsTileModel(medications: MedicationSnapshot?): MedicationsTileModel {
     if (medications == null || !medications.isToday) {
       return MedicationsTileModel(
@@ -342,6 +360,9 @@ object TileModels {
     )
   }
 
+  /**
+   * Builds the display model for the Exercise tile from today's exercise summary, scheduled workouts, and steps.
+   */
   fun buildExerciseTileModel(
     exercise: ExerciseSummarySnapshot?,
     scheduledWorkouts: List<ScheduledWorkout>,
@@ -433,6 +454,9 @@ object TileUpdater {
     ExerciseTileService::class.java
   )
 
+  /**
+   * Requests a system refresh for all registered SparkyFitness Wear OS tiles.
+   */
   fun requestAll(context: Context) {
     val appCtx = context.applicationContext
     val updater = try {
@@ -449,6 +473,9 @@ object TileUpdater {
 }
 
 class PackageReplacedTileReceiver : BroadcastReceiver() {
+  /**
+   * Refreshes watch context, complications, and tiles after the app package is updated.
+   */
   override fun onReceive(context: Context, intent: Intent?) {
     if (intent?.action == Intent.ACTION_MY_PACKAGE_REPLACED) {
       WearSessionManager.getInstance(context.applicationContext).pullInitialDataItems()
@@ -464,6 +491,9 @@ abstract class BaseSparkyTileService : TileService() {
 
   protected abstract fun buildContentLayout(session: WearSessionManager): LayoutElement
 
+  /**
+   * Builds the ProtoLayout timeline response for this tile service.
+   */
   override fun onTileRequest(requestParams: RequestBuilders.TileRequest): ListenableFuture<Tile> {
     val session = WearSessionManager.getInstance(applicationContext)
     session.checkInStore.pruneStaleDayData()
@@ -521,6 +551,7 @@ abstract class BaseSparkyTileService : TileService() {
     )
   }
 
+  /** Builds a clickable action that opens [MainActivity] deep-linked to [pageKey]. */
   protected fun launchPageClickable(pageKey: String): Clickable {
     val activity = ActionBuilders.AndroidActivity.Builder()
       .setPackageName(packageName)
@@ -539,6 +570,7 @@ abstract class BaseSparkyTileService : TileService() {
   }
 }
 
+/** Wraps tile [content] in a circular shell with a 300-degree progress arc and tap handler. */
 private fun buildTileShell(
   content: LayoutElement,
   progress: Float,
@@ -549,7 +581,7 @@ private fun buildTileShell(
   val sweepDegrees = (clamped * 300f).coerceIn(0.1f, 300f)
 
   val progressArc = Arc.Builder()
-    .setAnchorAngle(degrees(0f))
+    .setAnchorAngle(degrees(-150f))
     .setAnchorType(LayoutElementBuilders.ARC_ANCHOR_START)
     .addContent(
       ArcLine.Builder()
@@ -605,6 +637,9 @@ private fun buildTileShell(
     .build()
 }
 
+/**
+ * Builds a single-line or multi-line ProtoLayout [Text] element with the given size, color, and weight.
+ */
 private fun tileText(
   value: String,
   sizeSp: Float,
@@ -752,6 +787,9 @@ class NutritionTileService : BaseSparkyTileService() {
     return TileModels.buildNutritionTileModel(session.checkInStore.nutrition.value).calorieProgress
   }
 
+  /**
+   * Builds the ProtoLayout content column for the Nutrition tile.
+   */
   override fun buildContentLayout(session: WearSessionManager): LayoutElement {
     val model = TileModels.buildNutritionTileModel(session.checkInStore.nutrition.value)
     val col = Column.Builder()
@@ -856,6 +894,9 @@ class SleepTileService : BaseSparkyTileService() {
     return TileModels.buildSleepTileModel(session.checkInStore.sleep.value).progress
   }
 
+  /**
+   * Builds the ProtoLayout content column for the Sleep Health tile.
+   */
   override fun buildContentLayout(session: WearSessionManager): LayoutElement {
     val model = TileModels.buildSleepTileModel(session.checkInStore.sleep.value)
     val headerLabel = if (model.hasData && model.biometricsText != null && model.stages.size >= 3) {
@@ -960,6 +1001,9 @@ class MedicationsTileService : BaseSparkyTileService() {
     return TileModels.buildMedicationsTileModel(session.checkInStore.medications.value).progress
   }
 
+  /**
+   * Builds the ProtoLayout content column for the Medications tile.
+   */
   override fun buildContentLayout(session: WearSessionManager): LayoutElement {
     val model = TileModels.buildMedicationsTileModel(session.checkInStore.medications.value)
     val col = Column.Builder()
@@ -1031,6 +1075,9 @@ class ExerciseTileService : BaseSparkyTileService() {
     ).progress
   }
 
+  /**
+   * Builds the ProtoLayout content column for the Exercise tile.
+   */
   override fun buildContentLayout(session: WearSessionManager): LayoutElement {
     val store = session.checkInStore
     val model = TileModels.buildExerciseTileModel(

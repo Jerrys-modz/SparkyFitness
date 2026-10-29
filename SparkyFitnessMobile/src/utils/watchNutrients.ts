@@ -18,6 +18,9 @@ const SERVER_DEFAULT_NUTRIENTS = [
   'alcohol_g',
 ];
 
+/**
+ * Checks whether two string arrays have identical length and elements in order.
+ */
 function isSameList(a: readonly string[], b: readonly string[]): boolean {
   return a.length === b.length && a.every((item, idx) => item === b[idx]);
 }
