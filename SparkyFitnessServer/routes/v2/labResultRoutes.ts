@@ -142,7 +142,7 @@ router.post('/markers', async (req, res, next) => {
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/LabMarkerInput'
+ *             $ref: '#/components/schemas/LabMarkerUpdate'
  *     responses:
  *       200:
  *         description: The updated marker

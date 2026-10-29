@@ -56,6 +56,7 @@ const options = {
       schemas: {
         LabMarker: {
           type: 'object',
+          additionalProperties: false,
           properties: {
             id: { type: 'string', format: 'uuid' },
             user_id: { type: 'string', format: 'uuid' },
@@ -69,7 +70,19 @@ const options = {
         },
         LabMarkerInput: {
           type: 'object',
+          additionalProperties: false,
           required: ['name'],
+          properties: {
+            name: { type: 'string' },
+            unit: { type: 'string' },
+            ref_range_low: { type: 'number', nullable: true },
+            ref_range_high: { type: 'number', nullable: true },
+          },
+        },
+        LabMarkerUpdate: {
+          type: 'object',
+          additionalProperties: false,
+          description: 'Send only the fields to change; null clears a bound.',
           properties: {
             name: { type: 'string' },
             unit: { type: 'string' },
@@ -79,6 +92,7 @@ const options = {
         },
         LabResult: {
           type: 'object',
+          additionalProperties: false,
           properties: {
             id: { type: 'string', format: 'uuid' },
             user_id: { type: 'string', format: 'uuid' },
@@ -107,16 +121,24 @@ const options = {
         },
         LabResultInput: {
           type: 'object',
+          additionalProperties: false,
           required: ['entry_date'],
           description:
-            'Exactly one of marker_key or custom_marker_id, and value_numeric or value_text.',
+            'Exactly one of marker_key or custom_marker_id, and at least one of value_numeric or value_text.',
+          oneOf: [
+            { required: ['marker_key'] },
+            { required: ['custom_marker_id'] },
+          ],
+          anyOf: [
+            { required: ['value_numeric'] },
+            { required: ['value_text'] },
+          ],
           properties: {
-            marker_key: { type: 'string', nullable: true },
-            custom_marker_id: {
+            marker_key: {
               type: 'string',
-              format: 'uuid',
-              nullable: true,
+              description: 'Built-in marker key, such as hba1c',
             },
+            custom_marker_id: { type: 'string', format: 'uuid' },
             entry_date: { type: 'string', format: 'date' },
             value_numeric: { type: 'number', nullable: true },
             value_text: { type: 'string', nullable: true },
@@ -130,6 +152,7 @@ const options = {
         },
         LabResultUpdate: {
           type: 'object',
+          additionalProperties: false,
           properties: {
             entry_date: { type: 'string', format: 'date' },
             value_numeric: { type: 'number', nullable: true },
