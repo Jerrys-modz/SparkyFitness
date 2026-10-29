@@ -25,13 +25,15 @@ version_at() {
 
 # -G also matches edits that keep the number (an added comment, a reformat), so
 # take the newest commit whose value really differs from its first parent's.
+# -m --first-parent makes merge commits candidates too, diffed against their
+# first parent, so a bump made while resolving a merge conflict is found.
 marker=
 while read -r commit; do
   if [ "$(version_at "$commit")" != "$(version_at "$commit^")" ]; then
     marker=$commit
     break
   fi
-done < <(git log --format=%H -G"$version_pattern" -- "$version_file")
+done < <(git log --first-parent -m --format=%H -G"$version_pattern" -- "$version_file")
 
 if [ -z "$marker" ]; then
   echo "Could not find a WHATS_NEW_CONTENT_VERSION change in history" >&2
