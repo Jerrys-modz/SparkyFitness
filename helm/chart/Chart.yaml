@@ -4,7 +4,7 @@ description: Sparkyfitness fitness tracking application
 type: application
 # x-release-please-start-version
 version: 1.10.0
-appVersion: "v1.10.0"
+appVersion: "1.10.0"
 # x-release-please-end
 kubeVersion: ">= 1.28.0-0"
 home: https://github.com/CodeWithCJ/SparkyFitness
