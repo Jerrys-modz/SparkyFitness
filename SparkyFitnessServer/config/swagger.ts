@@ -144,7 +144,7 @@ const options = {
             },
             {
               required: ['value_text'],
-              properties: { value_text: { type: 'string', minLength: 1 } },
+              properties: { value_text: { type: 'string' } },
             },
           ],
           properties: {
@@ -160,7 +160,15 @@ const options = {
             },
             entry_date: { type: 'string', format: 'date' },
             value_numeric: { type: 'number', nullable: true },
-            value_text: { type: 'string', nullable: true },
+            value_text: {
+              type: 'string',
+              nullable: true,
+              minLength: 1,
+              maxLength: 200,
+              pattern: '\\S',
+              description:
+                'Qualitative result; must contain a non-space character',
+            },
             unit: { type: 'string' },
             ref_range_low: { type: 'number', nullable: true },
             ref_range_high: { type: 'number', nullable: true },
@@ -175,7 +183,15 @@ const options = {
           properties: {
             entry_date: { type: 'string', format: 'date' },
             value_numeric: { type: 'number', nullable: true },
-            value_text: { type: 'string', nullable: true },
+            value_text: {
+              type: 'string',
+              nullable: true,
+              minLength: 1,
+              maxLength: 200,
+              pattern: '\\S',
+              description:
+                'Qualitative result; must contain a non-space character',
+            },
             unit: { type: 'string' },
             ref_range_low: { type: 'number', nullable: true },
             ref_range_high: { type: 'number', nullable: true },
