@@ -10,7 +10,7 @@
  * (a superuser, as in CI).
  */
 import { spawn, type ChildProcess } from 'node:child_process';
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -24,7 +24,7 @@ const childScript = path.join(here, 'fixtures', 'restoreGuardChild.ts');
 const suffix = randomUUID().slice(0, 8);
 const DB_NAME = `restore_guard_${suffix}`;
 const OWNER = `restore_guard_owner_${suffix}`;
-const OWNER_PASSWORD = `pw_${randomUUID()}`;
+const OWNER_PASSWORD = randomBytes(16).toString('hex');
 
 const target = {
   host: process.env.SPARKY_FITNESS_DB_HOST,
