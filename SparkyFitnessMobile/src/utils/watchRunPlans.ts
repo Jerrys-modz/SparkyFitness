@@ -1,5 +1,9 @@
 import type { TFunction } from 'i18next';
 import {
+  COOPER_SECONDS,
+  FIVE_K_METERS,
+  THIRTY_MINUTE_SECONDS,
+  type FitnessTestType,
   applyHeartRateTargets,
   applyPaceTargets,
   buildIntervalPlan,
@@ -10,6 +14,7 @@ import {
 } from '@workspace/shared';
 import { programSpokenCues } from './programCues';
 import { intervalStepName } from './recordingCues';
+import { fitnessTestName } from './fitnessTest';
 import type { RacePaceRanges } from './suggestedRanges';
 
 /**
@@ -161,5 +166,39 @@ export function buildWatchStartPlan(
         }
       : {}),
     steps: toSteps(t, plan),
+  };
+}
+
+/** Prefix of the plan id that marks a watch run as a fitness test. */
+const FITNESS_TEST_PLAN_PREFIX = 'fitness-test:';
+
+/** The fitness test a watch run's plan id names, or null for any other plan. */
+export function fitnessTestFromPlanId(
+  planId: string | null
+): FitnessTestType | null {
+  if (!planId?.startsWith(FITNESS_TEST_PLAN_PREFIX)) return null;
+  const type = planId.slice(FITNESS_TEST_PLAN_PREFIX.length);
+  return type === '5k' || type === '30min' || type === 'cooper' ? type : null;
+}
+
+/**
+ * The plan the watch is given for an outdoor fitness test: one step that is
+ * the test itself, a distance step for the 5K and a timed one for the others.
+ * The plan id carries the test type back with the finished run, so the phone
+ * can score it.
+ */
+export function buildWatchFitnessTestPlan(
+  t: TFunction,
+  type: FitnessTestType
+): WatchRunPlanPayload {
+  const name = fitnessTestName(t, type);
+  const step =
+    type === '5k'
+      ? { seconds: 1500, meters: FIVE_K_METERS }
+      : { seconds: type === 'cooper' ? COOPER_SECONDS : THIRTY_MINUTE_SECONDS };
+  return {
+    id: `${FITNESS_TEST_PLAN_PREFIX}${type}`,
+    name,
+    steps: [{ label: name, ...step }],
   };
 }

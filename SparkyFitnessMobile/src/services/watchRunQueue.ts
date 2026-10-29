@@ -14,7 +14,14 @@ import { setExerciseEntryEffort } from './api/exerciseApi';
 import { queryClient } from '../hooks/queryClient';
 import { invalidateExerciseCache } from '../hooks/invalidateExerciseCache';
 import { toLocalDateString } from '../utils/dateUtils';
-import { parseWatchRunPayload, type WatchRunPayload } from '../utils/watchRun';
+import {
+  parseWatchRunPayload,
+  watchRunPoints,
+  type WatchRunPayload,
+} from '../utils/watchRun';
+import { fitnessTestFromPlanId } from '../utils/watchRunPlans';
+import { measureFitnessTest } from '../utils/fitnessTest';
+import { saveFitnessTest } from './fitnessTestService';
 
 /**
  * Walks and runs the watch sent that are not in the diary yet. A payload is
@@ -331,6 +338,41 @@ async function tickOffProgram(
   }
 }
 
+/**
+ * A run that followed the watch's fitness test plan is scored like a phone
+ * recording of the test: the time to 5 km, or the distance at the test's own
+ * mark, read from the route. A run that never reached the mark is left an
+ * ordinary run. The server replaces the test of an entry, so a retry is safe.
+ */
+async function fileFitnessTest(
+  payload: WatchRunPayload,
+  entryId: string
+): Promise<void> {
+  const type = fitnessTestFromPlanId(payload.planId);
+  if (!type || payload.place !== 'outdoor') return;
+  const measurement = measureFitnessTest(type, watchRunPoints(payload));
+  if (!measurement) return;
+  try {
+    await saveFitnessTest({
+      test_type: measurement.type,
+      test_date: toLocalDateString(new Date(payload.startedAt)),
+      distance_meters: measurement.distanceMeters,
+      duration_seconds: measurement.durationSeconds,
+      split_distance_meters: measurement.splitDistanceMeters ?? null,
+      exercise_entry_id: entryId,
+      surface: 'outdoor',
+      incline_percent: null,
+      incline_adjusted: false,
+    });
+  } catch (error) {
+    if (isRetryable(error)) throw error;
+    addLog(
+      `[Watch Run] Could not file the fitness test: ${String(error)}`,
+      'WARNING'
+    );
+  }
+}
+
 const isRetryable = (error: unknown): boolean => {
   const status = error instanceof ApiError ? error.statusCode : undefined;
   return !(
@@ -455,6 +497,7 @@ async function drainOnce(
         expectsProgram: !!item.payload.program && item.payload.planCompleted,
       });
       await tickOffProgram(item.payload, entryId);
+      await fileFitnessTest(item.payload, entryId);
       // A treadmill distance entered on the wrist teaches the indoor factor.
       // Before marking done, so a run that stops here is learned on retry.
       if (

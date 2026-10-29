@@ -58,6 +58,9 @@ export interface FitnessTestSetupProps {
   onIndoorChange: (indoor: boolean) => void;
   /** Last test's surface, to say why this one is suggested. */
   suggestedFromLast?: boolean;
+  /** With a paired watch, which device records an outdoor test; absent hides the choice. */
+  recordWith?: 'phone' | 'watch';
+  onRecordWithChange?: (value: 'phone' | 'watch') => void;
   audioCues: boolean;
   onAudioCuesChange: (value: boolean) => void;
   busy: boolean;
@@ -73,6 +76,8 @@ const FitnessTestSetup: React.FC<FitnessTestSetupProps> = ({
   indoor,
   onIndoorChange,
   suggestedFromLast = false,
+  recordWith,
+  onRecordWithChange,
   audioCues,
   onAudioCuesChange,
   busy,
@@ -112,16 +117,43 @@ const FitnessTestSetup: React.FC<FitnessTestSetupProps> = ({
             onSelect={(key) => onIndoorChange(key === 'indoor')}
           />
         </View>
+        {recordWith && onRecordWithChange && !indoor ? (
+          <View className="mt-3" testID="fitness-test-record-with">
+            <SegmentedControl<'phone' | 'watch'>
+              segments={[
+                {
+                  key: 'phone',
+                  label: t('recordActivity.watch.phone', {
+                    defaultValue: 'Phone GPS',
+                  }),
+                },
+                {
+                  key: 'watch',
+                  label: t('recordActivity.watch.outdoor', {
+                    defaultValue: 'Watch GPS',
+                  }),
+                },
+              ]}
+              activeKey={recordWith}
+              onSelect={onRecordWithChange}
+            />
+          </View>
+        ) : null}
         <Text className="text-text-muted text-xs mt-3">
           {indoor
             ? t('fitnessTest.setup.indoorNote', {
                 defaultValue:
                   'On a treadmill nothing is tracked by GPS. The test is timed, and when you finish you enter the distance your treadmill shows and its incline. It is saved as an indoor run and marked as a fitness test.',
               })
-            : t('fitnessTest.setup.outdoorNote', {
-                defaultValue:
-                  'Outdoors the test is recorded with your phone’s GPS, as a run, and marked as a fitness test on the activity.',
-              })}
+            : recordWith === 'watch'
+              ? t('fitnessTest.setup.watchNote', {
+                  defaultValue:
+                    'Your watch records the test with its own GPS and heart rate sensor, and your phone scores it when the run reaches it. The watch does not tell you when the mark is reached, so watch the clock or distance.',
+                })
+              : t('fitnessTest.setup.outdoorNote', {
+                  defaultValue:
+                    'Outdoors the test is recorded with your phone’s GPS, as a run, and marked as a fitness test on the activity.',
+                })}
         </Text>
         {suggestedFromLast ? (
           <Text className="text-text-muted text-xs mt-1">

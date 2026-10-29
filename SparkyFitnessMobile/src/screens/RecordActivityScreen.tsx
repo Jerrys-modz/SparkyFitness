@@ -59,7 +59,10 @@ import { usePreferences } from '../hooks/usePreferences';
 import { useSuggestedRanges } from '../hooks/useSuggestedRanges';
 import { useWatchConnectivity } from '../hooks/useWatchConnectivity';
 import { startRunOnWatch } from '../services/watchRunControl';
-import { buildWatchStartPlan } from '../utils/watchRunPlans';
+import {
+  buildWatchFitnessTestPlan,
+  buildWatchStartPlan,
+} from '../utils/watchRunPlans';
 import { useZone2HeartRateBand } from '../hooks/useZone2HeartRateBand';
 import { useRecordingHeartRate } from '../stores/liveHeartRateStore';
 import { notificationText } from '../utils/recordingNotification';
@@ -296,6 +299,14 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
   const watchAvailable =
     !fitnessTestParam && watchSupported && watchPaired && activity !== 'ride';
   const onWatch = watchAvailable && recordWith === 'watch';
+  // An outdoor test can be recorded by the watch; the phone scores the run
+  // when it arrives. A treadmill test needs the phone's distance entry.
+  const testOnWatch =
+    !!fitnessTestParam &&
+    !indoor &&
+    watchSupported &&
+    watchPaired &&
+    recordWith === 'watch';
   // A saved route for the watch to follow, for an outdoor walk or run (optional).
   const [routeId, setRouteId] = useState('');
   const { routes: savedRoutes } = useRoutes();
@@ -726,6 +737,19 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
       run(
         async () => {
           setPermissionProblem(null);
+          if (fitnessTestParam && testOnWatch) {
+            await startRunOnWatch({
+              kind: 'run',
+              place: 'outdoor',
+              // The test is timed on the run's active time; auto-pause would
+              // take time out of it.
+              autoPause: false,
+              voiceCues: audioCues,
+              plan: buildWatchFitnessTestPlan(t, fitnessTestParam),
+            });
+            navigation.navigate('WatchRunLive');
+            return;
+          }
           if (fitnessTestParam) {
             setStartedHere(true);
             await startRecording({
@@ -826,6 +850,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
       audioCues,
       checkInMinutes,
       fitnessTestParam,
+      testOnWatch,
       autoPause,
       paceAlert,
       currentPaceBand,
@@ -1231,6 +1256,8 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
           suggestedFromLast={
             route.params?.indoor !== undefined && route.params.indoor === indoor
           }
+          recordWith={watchSupported && watchPaired ? recordWith : undefined}
+          onRecordWithChange={setRecordWith}
           audioCues={audioCues}
           onAudioCuesChange={(value) => {
             preferenceEdits.current.audioCues = true;
