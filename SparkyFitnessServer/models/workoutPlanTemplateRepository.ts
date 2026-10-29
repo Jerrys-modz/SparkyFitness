@@ -258,7 +258,7 @@ async function getWorkoutPlanTemplateById(
                         FROM (
                             SELECT 
                                 a.id, a.day_of_week, a.sort_order, a.session_index, a.session_name, a.workout_preset_id, wp.name as workout_preset_name,
-                                a.exercise_id, e.name as exercise_name, e.modality as modality,
+                                a.exercise_id, e.name as exercise_name, e.modality as modality, a.proposals_applied_at,
                                 (
                                     SELECT COALESCE(json_agg(set_data ORDER BY set_data.set_number), '[]'::json)
                                     FROM (

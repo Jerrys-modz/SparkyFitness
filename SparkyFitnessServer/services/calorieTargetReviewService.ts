@@ -35,11 +35,11 @@ async function getCalorieTargetReview(
     profile?.gender?.toLowerCase() === 'female' ? 'female' : 'male';
   return reviewCalorieTarget({
     maintenanceKcal: tdee.tdee,
-    maintenanceReliable: isAdaptiveTdeeMature(
-      tdee.tdee,
-      tdee.isFallback,
-      tdee.daysOfData
-    ),
+    // A clamped estimate was pulled to a plausible range, so it is not the
+    // maintenance the weight trend implies and cannot judge a followed target.
+    maintenanceReliable:
+      isAdaptiveTdeeMature(tdee.tdee, tdee.isFallback, tdee.daysOfData) &&
+      !tdee.wasClamped,
     daysLogged: tdee.daysOfData,
     windowDays: tdee.daysInWindow ?? 28,
     averageIntakeKcal: tdee.avgIntake ?? null,

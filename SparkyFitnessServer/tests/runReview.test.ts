@@ -101,4 +101,15 @@ describe('buildRunReview', () => {
     expect(review.weeks.reduce((sum, week) => sum + week.km, 0)).toBe(15);
     expect(review.weeks[0]!.start).toBe(review.window.from);
   });
+
+  it('does not compare a longer oldest block with the next week', () => {
+    // 30-day window: the oldest block is 9 days, so its total is not a week.
+    const review = buildRunReview(
+      [run('2026-09-16', 20, 120), run('2026-10-10', 10, 60)],
+      TODAY,
+      30
+    );
+    expect(review.weeks[0]!.start).toBe(review.window.from);
+    expect(review.jumps).toEqual([]);
+  });
 });

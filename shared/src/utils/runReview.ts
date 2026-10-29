@@ -15,7 +15,10 @@ export interface RunSession {
 }
 
 export interface RunWeek {
-  /** First day of this 7-day block; the last block ends today. */
+  /**
+   * First day of this block. Blocks are 7 days and the last ends today; the
+   * oldest starts at the window start, so it can be longer than 7 days.
+   */
   start: string;
   km: number;
   runs: number;
@@ -106,6 +109,8 @@ export function buildRunReview(
     const before = weeks[i - 1]!;
     const week = weeks[i]!;
     if (before.km <= 0) continue;
+    // A longer oldest block has an inflated total; it is not a week to compare.
+    if (addDays(before.start, 7) !== week.start) continue;
     const increase = ((week.km - before.km) / before.km) * 100;
     if (increase > RUN_WEEKLY_JUMP_PERCENT) {
       jumps.push({

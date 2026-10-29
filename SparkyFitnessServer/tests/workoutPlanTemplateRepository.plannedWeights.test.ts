@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { updatePlannedSetWeights } from '../models/workoutPlanTemplateRepository.js';
+import {
+  getWorkoutPlanTemplateById,
+  updatePlannedSetWeights,
+} from '../models/workoutPlanTemplateRepository.js';
 import { getClient } from '../db/poolManager.js';
 
 vi.mock('../db/poolManager.js', () => ({ getClient: vi.fn() }));
@@ -52,5 +55,13 @@ describe('updatePlannedSetWeights', () => {
   it('does nothing for an empty change list', async () => {
     expect(await updatePlannedSetWeights('user-1', 42, [])).toBe(0);
     expect(getClient).not.toHaveBeenCalled();
+  });
+});
+
+describe('getWorkoutPlanTemplateById', () => {
+  it('selects the assignment proposals_applied_at', async () => {
+    query.mockResolvedValue({ rows: [{ id: 42, assignments: [] }] });
+    await getWorkoutPlanTemplateById(42, 'user-1');
+    expect(String(query.mock.calls[0]![0])).toContain('a.proposals_applied_at');
   });
 });
