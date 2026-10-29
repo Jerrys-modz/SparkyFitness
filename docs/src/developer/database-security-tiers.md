@@ -58,10 +58,12 @@ These tables contain highly sensitive credentials, API keys, SSO tokens, 2FA rec
 | `custom_run_programs` | A person's own saved run or walk plans (name, activity, workouts) that they can start | Owner-Only | Owner-Only |
 | `fitness_tests` | A person's running fitness tests (5K time trial, 30-minute run, Cooper test): the measurements, the surface (outdoor or treadmill) and incline, the result and the derived training paces, linked to the recorded activity | Owner-Only | Owner-Only |
 | `routes` | A person's saved routes (a simplified track of points, optional turn cues, distance and elevation) that they drew, imported from GPX or saved from a recorded activity | Owner-Only | Owner-Only |
+| `plate_inventories` | Bars and plates a person owns (one row per user; JSON bars and plates, unit, collar weight) for the plate calculator | Owner-Only | Owner-Only |
 | `health_appointments` | Prenatal & other health appointments | Owner-Only | Owner-Only |
 | `openfoodfacts_product_read_rate_limit` | Singleton coordination lease and cooldown for Open Food Facts product reads, including manual previews; contains no user data or credentials | System services only | Deny all |
 | `openfoodfacts_sync_queue` | Dormant automatic Open Food Facts upload state and retained history; stores food/user identifiers and retry metadata, never provider credentials. The manual first release does not enqueue or process these rows. | System worker and owning user | Owner-Only |
 | `rate_limit` | Sign-in rate limit counters shared by every server instance, keyed by client address and route; holds no account data or credentials | Better Auth only | Deny all |
+| `system.rate_limit_windows` | Fixed-window counters shared by every server instance for the per-address limits of the server's own routes (MFA factor lookup, demo login, passkey tickets), keyed by limiter and client address; holds no account data or credentials | Rate limiter via the owner pool only | Deny all; the app role has no grant on the `system` schema's tables, so no RLS policy is needed |
 
 ---
 
@@ -71,7 +73,7 @@ These tables contain user profiles, layouts, display settings, and custom databa
 | Table Name | Description | Write (insert/update/delete) | Read (select) |
 | :--- | :--- | :--- | :--- |
 | `profiles` | User full name, height, and display metrics | **Owner-Only** (`authenticated_user_id()`) | Switched Delegate (`current_user_id()`) |
-| `user_preferences` | Unit, calculation-method, separate activity-calorie (`adaptive_activity_separate`, default false; active only for Dynamic + Adaptive), calorie safety-floor, weekly weight-change goal, chart-scale, heart rate zone settings (`max_heart_rate`, `resting_heart_rate`, `hr_zone_method`, `hr_zone_custom_floors`; read and written only through the owner-only `/api/v2/heart-rate-zones` route), and Chat/Vision/Voice configuration preferences (`goal_mode_weekly_change_kg` is signed kg/week, defaults to zero, and is used only for `goal_mode = 'weekly'`; `active_voice_ai_service_id` is nullable; NULL means system recognition, never the Chat provider; `voice_input_enabled` defaults to true and controls microphone visibility on web/mobile without clearing the selection). Calculation preferences use the existing owner-write policies; they add no access grants. | **Owner-Only** (`authenticated_user_id()`) | Switched Delegate |
+| `user_preferences` | Unit, calculation-method, separate activity-calorie (`adaptive_activity_separate`, default false; active only for Dynamic + Adaptive), calorie safety-floor, weekly weight-change goal, chart-scale, heart rate zone settings (`max_heart_rate`, `resting_heart_rate`, `hr_zone_method`, `hr_zone_custom_floors`, `hr_zone_display_count`; read and written only through the owner-only `/api/v2/heart-rate-zones` route), and Chat/Vision/Voice configuration preferences (`goal_mode_weekly_change_kg` is signed kg/week, defaults to zero, and is used only for `goal_mode = 'weekly'`; `active_voice_ai_service_id` is nullable; NULL means system recognition, never the Chat provider; `voice_input_enabled` defaults to true and controls microphone visibility on web/mobile without clearing the selection). Calculation preferences use the existing owner-write policies; they add no access grants. | **Owner-Only** (`authenticated_user_id()`) | Switched Delegate |
 | `user_nutrient_display_preferences` | Rearranged nutrient column preferences | **Owner-Only** | Switched Delegate |
 | `user_medication_display_preferences` | Private preference on GLP-1/Medication display | **Owner-Only** | Delegate with `can_manage_medications` or `can_view_reports` |
 | `user_calorie_rule_history` | The `user_preferences` calorie settings in force from `effective_date` on (`-infinity` for the rules before the first recorded change), so a past day keeps its calorie target (#1795). Written only by the `record_calorie_rule_change` trigger on `user_preferences`; same policies as `user_preferences`. | **Owner-Only** (`authenticated_user_id()`) | Switched Delegate |
@@ -189,7 +191,7 @@ These tables store global configuration settings, lookup values, and reference m
 
 | Table Name | Description | Write (insert/update/delete) | Read (select) |
 | :--- | :--- | :--- | :--- |
-| `global_settings` | Application global feature flags and system configurations | Admin-Only | Authenticated Users |
+| `global_settings` | Application global feature flags and system configurations, including whether the server asks GitHub for the latest release (`enable_version_check`, on by default) | Admin-Only | Authenticated Users |
 | `backup_settings` | Automated database backup timing and storage credentials | Admin-Only | Admin-Only |
 | `sso_provider` | Active Single Sign-On providers (Google, Apple, etc.) | Admin-Only | Public (Login page) |
 | `oidc_providers` | OpenID Connect integration settings and metadata | Admin-Only | Public |

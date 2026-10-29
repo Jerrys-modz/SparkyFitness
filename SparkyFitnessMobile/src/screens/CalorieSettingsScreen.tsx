@@ -463,7 +463,7 @@ const CalorieSettingsScreen: React.FC<CalorieSettingsScreenProps> = () => {
       mode === 'tdee'
         ? t('calorieSettings.formulas.projectedTotal', {
             defaultValue:
-              'Health Connect total calories (BMR + active calories fallback)',
+              'Device total calories (BMR + active calories fallback)',
           })
         : bmr
           ? t('calorieSettings.formulas.activityWithBmr', {
@@ -601,7 +601,7 @@ const CalorieSettingsScreen: React.FC<CalorieSettingsScreenProps> = () => {
             <Text className="text-text-secondary text-sm mt-3">
               {t('calorieSettings.deviceProjectionDescription', {
                 defaultValue:
-                  'Current-day Health Connect total calories are projected to midnight; completed days use the recorded total. Goal Mode is applied to that TDEE, with BMR + active calories as a fallback.',
+                  'Current-day device total calories (Health Connect, Garmin or Polar) are projected to midnight; completed days use the recorded total. Goal Mode is applied to that TDEE, with BMR + active calories as a fallback.',
               })}
             </Text>
           )}

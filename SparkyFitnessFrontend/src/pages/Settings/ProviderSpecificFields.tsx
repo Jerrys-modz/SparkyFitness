@@ -76,6 +76,7 @@ export const ProviderSpecificFields = ({
     'googlehealth',
     'strava',
     'polar',
+    'intervals',
   ].includes(provider.provider_type || '');
   const needsAppKey = [
     'mealie',
@@ -92,6 +93,7 @@ export const ProviderSpecificFields = ({
     'polar',
     'hevy',
     'liftosaur',
+    'intervals',
   ].includes(provider.provider_type || '');
 
   const providerDashboard =
@@ -192,7 +194,9 @@ export const ProviderSpecificFields = ({
                     'settings.providerSpecificFields.yazioEmailUsername',
                     'YAZIO Email / Username'
                   )
-                : t('settings.providerSpecificFields.appID', 'App ID')}
+                : provider.provider_type === 'intervals'
+                  ? t('integrations.intervalsAthleteId', 'Athlete ID')
+                  : t('settings.providerSpecificFields.appID', 'App ID')}
           </Label>
           <Input
             id="new_app_id"
@@ -201,10 +205,14 @@ export const ProviderSpecificFields = ({
             onChange={(e) =>
               setProvider((prev) => ({ ...prev, app_id: e.target.value }))
             }
-            placeholder={t(
-              'settings.providerSpecificFields.enterID',
-              'Enter ID'
-            )}
+            placeholder={
+              provider.provider_type === 'intervals'
+                ? t(
+                    'integrations.intervalsAthleteIdPlaceholder',
+                    'Enter Athlete ID (i12345)'
+                  )
+                : t('settings.providerSpecificFields.enterID', 'Enter ID')
+            }
             autoComplete="off"
           />
         </div>
@@ -674,6 +682,15 @@ export const ProviderSpecificFields = ({
             }
             components={{ span: <span className="font-mono" /> }}
           />
+        </p>
+      )}
+
+      {provider.provider_type === 'intervals' && (
+        <p className="text-sm text-muted-foreground col-span-2">
+          {t(
+            'integrations.intervalsCredentialsHelp',
+            'Find your Athlete ID and API Key on intervals.icu under Settings > Developer Settings.'
+          )}
         </p>
       )}
 

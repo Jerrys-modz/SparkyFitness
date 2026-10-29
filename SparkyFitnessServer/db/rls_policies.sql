@@ -1,7 +1,7 @@
 -- File: rls_policies.sql
 -- =============================================================================
 -- THIS FILE IS THE SINGLE SOURCE OF TRUTH FOR ALL RLS POLICIES IN THE APPLICATION.
--- It is executed on every server startup after migrations to ensure a consistent security state.
+-- Server startup applies it after migrations whenever it, or the policies it defines in the database, changed.
 -- This script is generated from the db_schema_backup.sql to ensure all custom policies are included.
 -- =============================================================================
 
@@ -51,6 +51,7 @@ BEGIN
     'run_programs',
     'run_goals',
     'shoes',
+    'plate_inventories',
     'custom_run_programs',
     'fitness_tests',
     'routes',
@@ -633,7 +634,8 @@ SELECT create_owner_policy('food_assistant_operations');
 CREATE POLICY select_policy ON public.profiles FOR SELECT TO PUBLIC USING (has_profile_read_access(id));
 CREATE POLICY modify_policy ON public.profiles FOR ALL TO PUBLIC USING (authenticated_user_id() = id) WITH CHECK (authenticated_user_id() = id);
 
--- max_heart_rate, resting_heart_rate, hr_zone_method and hr_zone_custom_floors
+-- max_heart_rate, resting_heart_rate, hr_zone_method, hr_zone_custom_floors and
+-- hr_zone_display_count
 -- (heart rate zones) also follow these policies: only the owner writes them.
 -- Delegates can read the row, but the /api/v2/heart-rate-zones route is
 -- owner-only and refuses a delegated context for reads as well.
@@ -707,6 +709,8 @@ SELECT create_checkin_policy('custom_measurements');
 SELECT create_diary_policy('exercise_entries');
 -- Running shoes belong to the exercise diary, so diary delegates manage them.
 SELECT create_diary_policy('shoes');
+-- Plate inventories are the person's own gear: owner-only, no delegates.
+SELECT create_owner_policy('plate_inventories');
 -- Custom policy for exercise_entries to allow access if linked to an owned exercise_preset_entry
 CREATE POLICY select_exercise_preset_entry_linked_policy ON public.exercise_entries FOR SELECT TO PUBLIC
 USING (

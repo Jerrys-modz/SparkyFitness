@@ -2989,6 +2989,7 @@ CREATE TABLE public.global_settings (
     dev_tools_enabled boolean DEFAULT false NOT NULL,
     mock_data_enabled boolean DEFAULT false NOT NULL,
     enable_passkey_login boolean DEFAULT true NOT NULL,
+    enable_version_check boolean DEFAULT true NOT NULL,
     CONSTRAINT single_row_check CHECK ((id = 1))
 );
 
@@ -3731,6 +3732,29 @@ CREATE TABLE public.passkey_registration_tickets (
     expires_at timestamp with time zone NOT NULL,
     used_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: plate_inventories; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.plate_inventories (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    weight_unit character varying(3) DEFAULT 'kg'::character varying NOT NULL,
+    bars jsonb DEFAULT '[]'::jsonb NOT NULL,
+    plates jsonb DEFAULT '[]'::jsonb NOT NULL,
+    collars_enabled boolean DEFAULT false NOT NULL,
+    collar_weight numeric(7,3) DEFAULT 0 NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by_user_id uuid,
+    updated_by_user_id uuid,
+    CONSTRAINT plate_inventories_bars_check CHECK ((jsonb_typeof(bars) = 'array'::text)),
+    CONSTRAINT plate_inventories_collar_check CHECK ((collar_weight >= (0)::numeric)),
+    CONSTRAINT plate_inventories_plates_check CHECK ((jsonb_typeof(plates) = 'array'::text)),
+    CONSTRAINT plate_inventories_unit_check CHECK (((weight_unit)::text = ANY ((ARRAY['kg'::character varying, 'lbs'::character varying])::text[])))
 );
 
 
@@ -4810,6 +4834,7 @@ CREATE TABLE public.user_preferences (
     hr_zone_method text DEFAULT 'percent_max'::text NOT NULL,
     hr_zone_custom_floors smallint[],
     goal_mode_weekly_change_kg double precision DEFAULT 0 NOT NULL,
+    hr_zone_display_count smallint DEFAULT 5 NOT NULL,
     CONSTRAINT check_energy_unit CHECK (((energy_unit)::text = ANY ((ARRAY['kcal'::character varying, 'kJ'::character varying])::text[]))),
     CONSTRAINT logging_level_check CHECK ((logging_level = ANY (ARRAY['DEBUG'::text, 'INFO'::text, 'WARN'::text, 'ERROR'::text, 'SILENT'::text]))),
     CONSTRAINT user_preferences_caffeine_half_life_range CHECK (((caffeine_half_life_hours >= 2.0) AND (caffeine_half_life_hours <= 8.0))),
@@ -4817,6 +4842,7 @@ CREATE TABLE public.user_preferences (
     CONSTRAINT user_preferences_calorie_safety_floor_value_check CHECK (((calorie_safety_floor_value >= 800) AND (calorie_safety_floor_value <= 5000))),
     CONSTRAINT user_preferences_chart_scale_mode_check CHECK ((chart_scale_mode = ANY (ARRAY['time'::text, 'point'::text]))),
     CONSTRAINT user_preferences_hr_zone_custom_floors_check CHECK (((hr_zone_custom_floors IS NULL) OR (array_length(hr_zone_custom_floors, 1) = 5))),
+    CONSTRAINT user_preferences_hr_zone_display_count_check CHECK ((hr_zone_display_count = ANY (ARRAY[4, 5]))),
     CONSTRAINT user_preferences_hr_zone_method_check CHECK ((hr_zone_method = ANY (ARRAY['percent_max'::text, 'heart_rate_reserve'::text, 'custom'::text]))),
     CONSTRAINT user_preferences_max_heart_rate_check CHECK (((max_heart_rate IS NULL) OR ((max_heart_rate >= 100) AND (max_heart_rate <= 250)))),
     CONSTRAINT user_preferences_openfoodfacts_product_language_check CHECK ((openfoodfacts_product_language ~ '^[a-z]{2}$'::text)),
@@ -4981,6 +5007,13 @@ COMMENT ON COLUMN public.user_preferences.hr_zone_custom_floors IS 'Five ascendi
 --
 
 COMMENT ON COLUMN public.user_preferences.goal_mode_weekly_change_kg IS 'Signed kilograms per week for goal_mode=weekly: negative loses, positive gains, zero maintains. Stored to gram precision; does not change existing percentage goals.';
+
+
+--
+-- Name: COLUMN user_preferences.hr_zone_display_count; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.user_preferences.hr_zone_display_count IS 'Heart rate bands shown in reports and settings: 5 zones or 4 tiers (zones 1-2 merged as Light). Storage and training load always use five zones.';
 
 
 --
@@ -5602,6 +5635,31 @@ CREATE SEQUENCE public.workout_presets_id_seq
 --
 
 ALTER SEQUENCE public.workout_presets_id_seq OWNED BY public.workout_presets.id;
+
+
+--
+-- Name: rate_limit_windows; Type: TABLE; Schema: system; Owner: -
+--
+
+CREATE TABLE system.rate_limit_windows (
+    key text NOT NULL,
+    window_start timestamp with time zone NOT NULL,
+    count integer NOT NULL,
+    expires_at timestamp with time zone NOT NULL
+);
+
+
+--
+-- Name: rls_policy_state; Type: TABLE; Schema: system; Owner: -
+--
+
+CREATE TABLE system.rls_policy_state (
+    id boolean DEFAULT true NOT NULL,
+    file_sha256 text NOT NULL,
+    catalog_fingerprint text NOT NULL,
+    applied_at timestamp with time zone NOT NULL,
+    CONSTRAINT rls_policy_state_id_check CHECK (id)
+);
 
 
 --
@@ -6362,6 +6420,22 @@ ALTER TABLE ONLY public.passkey_registration_tickets
 
 
 --
+-- Name: plate_inventories plate_inventories_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.plate_inventories
+    ADD CONSTRAINT plate_inventories_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: plate_inventories plate_inventories_user_unique; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.plate_inventories
+    ADD CONSTRAINT plate_inventories_user_unique UNIQUE (user_id);
+
+
+--
 -- Name: pregnancies pregnancies_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -7023,6 +7097,22 @@ ALTER TABLE ONLY public.workout_preset_exercises
 
 ALTER TABLE ONLY public.workout_presets
     ADD CONSTRAINT workout_presets_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: rate_limit_windows rate_limit_windows_pkey; Type: CONSTRAINT; Schema: system; Owner: -
+--
+
+ALTER TABLE ONLY system.rate_limit_windows
+    ADD CONSTRAINT rate_limit_windows_pkey PRIMARY KEY (key);
+
+
+--
+-- Name: rls_policy_state rls_policy_state_pkey; Type: CONSTRAINT; Schema: system; Owner: -
+--
+
+ALTER TABLE ONLY system.rls_policy_state
+    ADD CONSTRAINT rls_policy_state_pkey PRIMARY KEY (id);
 
 
 --
@@ -7729,6 +7819,13 @@ CREATE INDEX idx_sleep_entries_entry_date ON public.sleep_entries USING btree (e
 
 
 --
+-- Name: idx_sleep_entries_user_date_source; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_sleep_entries_user_date_source ON public.sleep_entries USING btree (user_id, entry_date, source);
+
+
+--
 -- Name: idx_sleep_entries_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -8023,13 +8120,6 @@ CREATE INDEX openfoodfacts_sync_queue_user_status_idx ON public.openfoodfacts_sy
 
 
 --
--- Name: sleep_entries_user_date_source_key; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX sleep_entries_user_date_source_key ON public.sleep_entries USING btree (user_id, entry_date, source);
-
-
---
 -- Name: sleep_entry_stages_entry_natural_key_idx; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -8076,6 +8166,13 @@ CREATE UNIQUE INDEX workout_feedback_preset_entry_unique ON public.workout_feedb
 --
 
 CREATE INDEX workout_feedback_user_created_idx ON public.workout_feedback USING btree (user_id, created_at DESC);
+
+
+--
+-- Name: idx_rate_limit_windows_expires_at; Type: INDEX; Schema: system; Owner: -
+--
+
+CREATE INDEX idx_rate_limit_windows_expires_at ON system.rate_limit_windows USING btree (expires_at);
 
 
 --
@@ -9535,6 +9632,30 @@ ALTER TABLE ONLY public.passkey_registration_tickets
 
 ALTER TABLE ONLY public.passkey
     ADD CONSTRAINT passkey_user_id_fkey FOREIGN KEY (user_id) REFERENCES public."user"(id) ON DELETE CASCADE;
+
+
+--
+-- Name: plate_inventories plate_inventories_created_by_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.plate_inventories
+    ADD CONSTRAINT plate_inventories_created_by_user_id_fkey FOREIGN KEY (created_by_user_id) REFERENCES public."user"(id);
+
+
+--
+-- Name: plate_inventories plate_inventories_updated_by_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.plate_inventories
+    ADD CONSTRAINT plate_inventories_updated_by_user_id_fkey FOREIGN KEY (updated_by_user_id) REFERENCES public."user"(id);
+
+
+--
+-- Name: plate_inventories plate_inventories_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.plate_inventories
+    ADD CONSTRAINT plate_inventories_user_id_fkey FOREIGN KEY (user_id) REFERENCES public."user"(id) ON DELETE CASCADE;
 
 
 --
@@ -11412,6 +11533,13 @@ CREATE POLICY owner_policy ON public.openfoodfacts_sync_queue USING ((user_id = 
 
 
 --
+-- Name: plate_inventories owner_policy; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY owner_policy ON public.plate_inventories USING ((user_id = public.authenticated_user_id())) WITH CHECK ((user_id = public.authenticated_user_id()));
+
+
+--
 -- Name: pregnancies owner_policy; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -11543,6 +11671,12 @@ CREATE POLICY owner_policy ON public.workout_plan_template_assignments USING ((E
 --
 
 ALTER TABLE public.passkey_registration_tickets ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: plate_inventories; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.plate_inventories ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: pregnancies; Type: ROW SECURITY; Schema: public; Owner: -
@@ -13352,6 +13486,13 @@ GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.passkey TO sparky_app;
 --
 
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.passkey_registration_tickets TO sparky_app;
+
+
+--
+-- Name: TABLE plate_inventories; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.plate_inventories TO sparky_app;
 
 
 --

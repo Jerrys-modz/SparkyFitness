@@ -13,6 +13,11 @@ export const dailySummaryQueryKey = (date: string) =>
 export const dailySummaryRootQueryKey = ['dailySummary'] as const;
 
 export const familyUsersQueryKey = ['familyDiaryUsers'] as const;
+export const familyCopySourceRootQueryKey = ['familyCopySource'] as const;
+export const familyCopySourceQueryKey = (date: string) =>
+  [...familyCopySourceRootQueryKey, date] as const;
+export const familyMealTypesQueryKey = (familyUserId: string) =>
+  ['familyMealTypes', familyUserId] as const;
 export const familyDailySummaryQueryKey = (
   familyUserId: string,
   date: string
@@ -105,6 +110,7 @@ export const allProvidersFoodSearchQueryKey = (
 export const mealTypesQueryKey = ['mealTypes'] as const;
 
 export const shoesQueryKey = ['shoes'] as const;
+export const plateInventoryQueryKey = ['plateInventory'] as const;
 export const allergenPreferencesQueryKey = ['allergenPreferences'] as const;
 
 export const goalsQueryKey = (date: string) => ['goals', date] as const;
@@ -169,8 +175,10 @@ export const checkInPhotoDatesQueryKey = [
 ] as const;
 
 export const customCategoriesQueryKey = ['customCategories'] as const;
+/** Root of every per-day custom-entry list; each row embeds its category info. */
+export const customMeasurementsRootQueryKey = ['customMeasurements'] as const;
 export const customMeasurementsByDateQueryKey = (date: string) =>
-  ['customMeasurements', date] as const;
+  [...customMeasurementsRootQueryKey, date] as const;
 
 /**
  * Per-field carry-forward lookup (newest value on or before the day). Separate

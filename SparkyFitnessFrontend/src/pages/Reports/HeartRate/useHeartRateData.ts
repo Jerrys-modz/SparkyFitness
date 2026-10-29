@@ -1,18 +1,14 @@
 import { useMemo } from 'react';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import { useSleepEntriesQuery } from '@/hooks/CheckIn/useSleep';
-import { useHeartRateZones } from '@/hooks/Settings/useHeartRateZones';
+import { useResolvedHeartRateZones } from '@/hooks/Settings/useHeartRateZones';
 import {
   useDailyHealthMetrics,
   useHealthMetricSamples,
 } from '@/hooks/useGenericHealth';
 import { DailyExerciseEntry } from '@/types/reports';
 import { dayStringToMs, msToDayString } from '@/utils/heartRateWindow';
-import {
-  fallbackZoneFloors,
-  tierGradientStops,
-  tierThresholds,
-} from '@/utils/heartRateZoneTiers';
+import { zoneGradientStops } from '@/utils/heartRateZoneBands';
 import { formatTimeOfDayString } from '@/utils/timeFormatters';
 import { useTranslation } from 'react-i18next';
 import type { HeartRateWindow } from './useHeartRateWindow';
@@ -65,14 +61,8 @@ export const useHeartRateData = (
   const { dayWindow, zoomDays, isDetailed, focusedDate } = heartRateWindow;
 
   // The person's own zones decide where the line changes color
-  const { data: zoneData } = useHeartRateZones();
-  const thresholds = useMemo(
-    () =>
-      tierThresholds(
-        zoneData?.resolved.zones.map((z) => z.lower_bpm) ?? fallbackZoneFloors()
-      ),
-    [zoneData]
-  );
+  const zones = useResolvedHeartRateZones();
+  const { bands } = zones;
 
   // Query health metric continuous samples across the entire selected date range
   const { data: hrSampleBuckets = [] } = useHealthMetricSamples(
@@ -813,7 +803,7 @@ export const useHeartRateData = (
   const gradientFor = (values: Array<number | null | undefined>) => {
     const real = values.filter((v): v is number => typeof v === 'number');
     if (real.length === 0) return [];
-    return tierGradientStops(Math.min(...real), Math.max(...real), thresholds);
+    return zoneGradientStops(Math.min(...real), Math.max(...real), bands);
   };
   const rangeGradientStops = gradientFor(rangeChartPoints.map((p) => p.bpm));
 
@@ -1020,7 +1010,6 @@ export const useHeartRateData = (
   }, [mergedRestingHeartRateData, startDate, endDate, focusedDate]);
 
   return {
-    thresholds,
     workoutNameById,
     relevantWorkouts,
     mergedRestingHeartRateData,
@@ -1044,7 +1033,7 @@ export const useHeartRateData = (
     dayGradientStops,
     formatRangeTick,
     restingHrTrendStats,
-    zoneData,
+    zones,
     hrSampleBuckets,
     sleepEntries,
     dailyHealthMetrics,
