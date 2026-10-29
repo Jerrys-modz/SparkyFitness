@@ -41,12 +41,12 @@ jest.mock('../../src/components/Icon', () => {
 });
 
 const mockWatch = { supported: false, paired: false };
-jest.mock('../../modules/watch-connectivity', () => ({
-  __esModule: true,
-  default: {
-    isSupported: () => mockWatch.supported,
-    isPaired: () => mockWatch.paired,
-  },
+jest.mock('../../src/hooks/useWatchConnectivity', () => ({
+  useWatchConnectivity: () => ({
+    isSupported: mockWatch.supported,
+    isPaired: mockWatch.paired,
+    isReachable: false,
+  }),
 }));
 
 jest.mock('uniwind', () => ({

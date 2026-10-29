@@ -4,11 +4,11 @@ import { View, Text, ScrollView, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCSSVariable } from 'uniwind';
 
-import WatchConnectivity from '../../modules/watch-connectivity';
 import Icon, { type IconName } from '../components/Icon';
 import { useActiveWorkoutBarPadding } from '../components/ActiveWorkoutBar';
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import { useScreenHeader } from '../hooks/useScreenHeader';
+import { useWatchConnectivity } from '../hooks/useWatchConnectivity';
 import { getTodayDate } from '../utils/dateUtils';
 import { canUseLiquidGlass } from '../utils/liquidGlass';
 import type { RootStackScreenProps } from '../types/navigation';
@@ -684,9 +684,11 @@ const WhatsNewScreen: React.FC<WhatsNewScreenProps> = ({ navigation }) => {
   // so its card is gated on the same capability check the setting uses.
   const showLiquidGlassCard = canUseLiquidGlass();
 
-  const hasPairedWatch =
-    WatchConnectivity?.isSupported() === true &&
-    WatchConnectivity.isPaired() === true;
+  // The hook re-renders when pairing is discovered later (Android finds its
+  // nodes asynchronously), so the watch button appears without a manual refresh.
+  const { isSupported: watchSupported, isPaired: watchPaired } =
+    useWatchConnectivity();
+  const hasPairedWatch = watchSupported && watchPaired;
 
   // Added or changed a card below? Bump WHATS_NEW_CONTENT_VERSION in
   // services/whatsNewBanner.ts so the banner re-appears for existing users.
