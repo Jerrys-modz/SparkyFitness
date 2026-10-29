@@ -67,6 +67,12 @@ jobs:
               echo "...and $((count - MAX_LISTED)) more. Run \`.github/scripts/whats-new-drift.sh\` for the full list."
             fi
             echo
+            echo "**This list is a heads-up, not a complete audit.** It only matches commit subjects starting with \`feat(\`, \`feat:\` or \`feat!\`, and shows at most $MAX_LISTED commits. A feature committed under another type is missed, so also audit the rest of the mobile commits:"
+            echo
+            echo "\`\`\`"
+            echo "git log --no-merges --format='%h %s' \"\$(.github/scripts/whats-new-drift.sh --marker)..HEAD\" -- SparkyFitnessMobile/src"
+            echo "\`\`\`"
+            echo
             echo "Not every feature needs a card. Group related commits and skip internal or minor ones."
           } > body.md
 

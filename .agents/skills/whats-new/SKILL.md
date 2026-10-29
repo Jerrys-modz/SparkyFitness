@@ -11,7 +11,8 @@ The screen is `SparkyFitnessMobile/src/screens/WhatsNewScreen.tsx`. Its hero ima
 
 ## Steps
 
-1. **Find what is new.** Run `.github/scripts/whats-new-drift.sh` (needs full git history). It prints `sha|subject` for each `feat` commit touching `SparkyFitnessMobile/src` since the version was last bumped. A matching open issue titled "What's New screen is out of date" lists the same commits.
+1. **Find what is new.** Run `.github/scripts/whats-new-drift.sh` (needs full git history; works from any directory in the repo). It prints `sha|subject` for each `feat` commit touching `SparkyFitnessMobile/src` since the version was last bumped. A matching open issue titled "What's New screen is out of date" lists the same commits, but only the first 40.
+   This list is a heads-up, not a complete audit: it only matches subjects starting with `feat(`, `feat:` or `feat!`. Always audit the other mobile commits too, since a feature can be committed under another type: `git log --no-merges --format='%h %s' "$(.github/scripts/whats-new-drift.sh --marker)..HEAD" -- SparkyFitnessMobile/src`.
 2. **Decide the cards.** Group related commits into a few cards (about 3 to 8). Skip internal, minor, or fix-like changes and fold small ones into a card's body. Check the code or `docs/` for what a feature really does before describing it; do not guess from a commit title. Ask the user if it is unclear which features deserve a card.
 3. **Add each card** to the `features` array in `WhatsNewScreen.tsx`:
    - `eyebrow`, `headline`, `body`, a `hero`, and a `cta` that navigates to the matching root-stack screen (check the route exists in `src/types/navigation.ts` and takes no required params).
