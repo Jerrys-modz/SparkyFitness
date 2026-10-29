@@ -776,11 +776,11 @@ The watches are native, not React Native, so sections 2–9 (Uniwind tokens, `gl
 
 ### 10.1 Targets
 
-| Surface                       | Code                                                                                                                     | UI toolkit                            |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------- |
-| Apple Watch app               | `targets/watch` (`Presentation/`, `Domain/`, `Application/`, `Infrastructure/`, `Adapters/`)                             | SwiftUI                               |
-| Apple Watch complications     | `targets/watch-widget` (`index.swift` lists them: Energy, Water, Protein, Carbs, Fat, Fasting, Steps)                    | WidgetKit                             |
-| Wear OS app and complications | `targets/wearos/src/main/java/com/sparkyapps/sparkyfitness/wear` (`Screens.kt`, `WorkoutScreens.kt`, `Complications.kt`) | Compose for Wear OS (`MaterialTheme`) |
+| Surface                              | Code                                                                                                                                 | UI toolkit                                         |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------- |
+| Apple Watch app                      | `targets/watch` (`Presentation/`, `Domain/`, `Application/`, `Infrastructure/`, `Adapters/`)                                         | SwiftUI                                            |
+| Apple Watch complications            | `targets/watch-widget` (`index.swift` lists them: Energy, Water, Protein, Carbs, Fat, Fasting, Steps)                                | WidgetKit                                          |
+| Wear OS app, complications and tiles | `targets/wearos/src/main/java/com/sparkyapps/sparkyfitness/wear` (`Screens.kt`, `WorkoutScreens.kt`, `Complications.kt`, `Tiles.kt`) | Compose for Wear OS (`MaterialTheme`), ProtoLayout |
 
 Android home-screen widgets (`targets/android-widget`) and the iOS phone widget (`targets/widget`) are separate from these.
 
@@ -852,6 +852,7 @@ Take macro and nutrient colors from `GoalPalette` (`GoalPalette.color(forNutrien
 
 - Cards are `RoundedCornerShape(10.dp)` on `CardBg` with 10dp by 6dp padding; macro rows are a label (11sp medium, white), a value and a progress bar in the nutrient color.
 - Complications are `SuspendingComplicationDataSourceService` classes in `Complications.kt` (Energy, Protein, Carbs, Fat, Water, Fasting, Steps), registered in `AndroidManifest.xml`, with monochrome icons in `res/drawable/ic_complication_*.xml`.
+- Tiles are ProtoLayout `TileService` subclasses in `Tiles.kt` (`NutritionTileService`, `SleepTileService`, `MedicationsTileService`, `ExerciseTileService`), wrapped in `buildTileShell` (pure black background, a 300° progress arc on a `CardBg` track anchored at `-150°`, and up to three compact pill rows), registered in `AndroidManifest.xml` with preview images in `res/drawable-nodpi/tile_preview_*.png` and icons in `res/drawable/ic_tile_*.xml`. Nutrition tile macro rows use `nutrientColor` (`SparkyColors`) from `Screens.kt`. Tapping a tile launches `MainActivity` with a `target_page` extra (`goals`, `sleep`, `meds`, `workout`).
 - The phone finds the watch by the `sparky_wear_companion` capability in `res/values/wear.xml`.
 - `WearOsParityTest` covers Wear OS payload parsing and builders against hard-coded JSON. It does not compare them with the Apple Watch definitions, so it cannot catch a one-sided schema change; keep both watches in step by hand.
 
