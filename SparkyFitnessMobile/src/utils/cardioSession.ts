@@ -316,7 +316,7 @@ export function cardioSessionFromDiaryEntry(
   const floors = toFiniteNumber(session.floors_climbed);
   const elevationGain = toFiniteNumber(session.elevation_gain_meters);
   // Unlike the counts above, 0 °C is a real reading; only a missing value is null.
-  const rawWeatherTemp = session.weather_temp_celsius;
+  const rawWeatherTemp: unknown = session.weather_temp_celsius;
   const weatherTemp =
     rawWeatherTemp == null ||
     (typeof rawWeatherTemp === 'string' && rawWeatherTemp.trim() === '') ||
