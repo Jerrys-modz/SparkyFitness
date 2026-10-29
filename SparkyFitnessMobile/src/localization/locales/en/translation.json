@@ -7455,6 +7455,8 @@
     "unitMi": "mi",
     "unitKm": "km",
     "unitBpm": "bpm",
+    "unitKcal": "kcal",
+    "calories": "Calories (est.)",
     "bar": {
       "recording": "Recording",
       "saveHint": "Tap to review and save",

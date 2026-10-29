@@ -126,6 +126,8 @@ import {
   type RunSummaryParams,
 } from '../utils/runSummary';
 import { toLocalDateString } from '../utils/dateUtils';
+import { useBodyWeightKg } from '../hooks/useBodyWeightKg';
+import { estimateRecordingKcal } from '../utils/recordingCalories';
 import { saveRecordedActivity } from '../services/gpsRecordingSave';
 import { useShoeMutations } from '../hooks/useShoes';
 import { promptToRetireShoe } from '../utils/retireShoePrompt';
@@ -282,6 +284,10 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
       : t('recordActivity.unitKm', { defaultValue: 'km' });
 
   const { session, points } = useGpsRecording();
+  const weightKg = useBodyWeightKg(
+    session ? toLocalDateString(new Date(session.startedAt)) : null,
+    !!session
+  );
   const heartRate = useRecordingHeartRate(session?.id ?? null);
   const [activity, setActivity] = useState<RecordingActivity>('run');
   const [busy, setBusy] = useState(false);
@@ -1791,6 +1797,13 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
         })
       : null;
     const indoorSession = session.indoor === true;
+    const kcal = estimateRecordingKcal(
+      session.activity,
+      weightKg,
+      distance,
+      active,
+      indoorSession
+    );
     // Still running from before this visit (or from earlier in it): say when it
     // began so a leftover recording is never mistaken for a new one.
     const carriedOver = !startedHere && !finished;
@@ -1963,15 +1976,26 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
             </View>
           </>
         )}
-        {heartRate != null && !finished ? (
+        {kcal != null || (heartRate != null && !finished) ? (
           <View className="flex-row mb-4">
-            <Stat
-              label={t('recordActivity.heartRate', {
-                defaultValue: 'Heart rate',
-              })}
-              value={number(heartRate, 0)}
-              unit={t('recordActivity.unitBpm', { defaultValue: 'bpm' })}
-            />
+            {kcal != null ? (
+              <Stat
+                label={t('recordActivity.calories', {
+                  defaultValue: 'Calories (est.)',
+                })}
+                value={number(kcal, 0)}
+                unit={t('recordActivity.unitKcal', { defaultValue: 'kcal' })}
+              />
+            ) : null}
+            {heartRate != null && !finished ? (
+              <Stat
+                label={t('recordActivity.heartRate', {
+                  defaultValue: 'Heart rate',
+                })}
+                value={number(heartRate, 0)}
+                unit={t('recordActivity.unitBpm', { defaultValue: 'bpm' })}
+              />
+            ) : null}
           </View>
         ) : null}
         {finished && laps.length > 0 ? (
