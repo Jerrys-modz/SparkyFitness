@@ -112,6 +112,22 @@ Key rules that must be maintained:
 
 A related trap: `food_entries.images` stores paths into `uploads/foods/<foodId>/`. Removing that directory on a plain `delete` blanks the picture on every preserved entry, including other users'. It is only cleared on `delete_with_history`, where no reference can remain.
 
+### MCP OAuth System Tables (Tier 1 – System-Only)
+
+These Better Auth tables support OAuth for the remote MCP endpoint. They have no family-sharing or profile-switching access path. RLS denies the app role entirely; Better Auth and the explicit OAuth repositories access them only through owner-pool/system connections.
+
+| Table Name | Description |
+| :--- | :--- |
+| `jwks` | OAuth signing public/private key pairs |
+| `oauth_client` | Registered OAuth clients and client metadata |
+| `oauth_resource` | Protected resources, allowed scopes, and token/signing policy |
+| `oauth_client_resource` | Client-to-resource authorization mappings |
+| `oauth_refresh_token` | Refresh tokens, rotation state, scopes, and session/user links |
+| `oauth_access_token` | Access tokens, resource grants, scopes, and revocation state |
+| `oauth_consent` | OAuth consent grants |
+| `oauth_authorization_revocation` | OAuth JWT revocation watermarks |
+| `oauth_client_assertion` | Expiring client assertion replay-protection records |
+
 ### Tier 3: Delegate-Writable (Daily Logs & Schedules)
 These tables contain daily diaries, logging entries, and scheduler items. **Caregivers/delegates with active delegation permissions are granted full read and write access to log or modify data on behalf of the owner.**
 
@@ -173,6 +189,8 @@ Symptoms are their own domain (they used to share the medications permission). P
 | `fasting_logs` | Logs of fasting timelines (start/end fast) | Delegate with `can_manage_checkin` | Delegate with `can_manage_checkin` or `can_view_reports` |
 | `mood_entries` | Logged mood check-ins, several per day: optional mood, energy and focus ratings, tags and journal notes, with a timestamp and a `source` (`manual`, `garmin` or `import`) | Delegate with `can_manage_checkin` | Delegate with `can_manage_checkin` or `can_view_reports` |
 | `mindfulness_sessions` | Logged mindfulness, meditation, and breathwork sessions | Delegate with `can_manage_checkin` | Delegate with `can_manage_checkin` or `can_view_reports` |
+| `lab_markers` | A user's own lab markers (name, unit, optional default reference range). Built-in markers such as HbA1c are identified by key in `@workspace/shared` and are not stored | Delegate with `can_manage_checkin` | Delegate with `can_manage_checkin` or `can_view_reports` |
+| `lab_results` | Lab results for a built-in marker (`marker_key`) or a custom marker (`custom_marker_id`), each with its own unit and reference range, a numeric or text value, and a `source` (`manual`, `report` or `fhir`). Several results per marker per day are allowed. Only the owner's own markers can be referenced | Delegate with `can_manage_checkin` | Delegate with `can_manage_checkin` or `can_view_reports` |
 | `day_classification_cache` | Daily summary caching logs | Delegate with `can_manage_checkin` | Delegate with `can_manage_checkin` or `can_view_reports` |
 | `custom_categories` | User-defined custom measurement categories (e.g. GLP-1 daily check-in metrics) | Delegate with `can_manage_checkin` | Delegate with `can_manage_checkin` or `can_view_reports` |
 | `custom_measurements` | Logged values for custom measurement categories | Delegate with `can_manage_checkin` | Delegate with `can_manage_checkin` or `can_view_reports` |
@@ -192,7 +210,7 @@ These tables store global configuration settings, lookup values, and reference m
 
 | Table Name | Description | Write (insert/update/delete) | Read (select) |
 | :--- | :--- | :--- | :--- |
-| `global_settings` | Application global feature flags and system configurations, including whether the server asks GitHub for the latest release (`enable_version_check`, on by default) | Admin-Only | Authenticated Users |
+| `global_settings` | Application global feature flags and system configurations, including release checks and the Remote MCP OAuth switch plus redirect URI allowlist | Admin-Only | Authenticated Users |
 | `backup_settings` | Automated database backup timing and storage credentials | Admin-Only | Admin-Only |
 | `sso_provider` | Active Single Sign-On providers (Google, Apple, etc.) | Admin-Only | Public (Login page) |
 | `oidc_providers` | OpenID Connect integration settings and metadata | Admin-Only | Public |

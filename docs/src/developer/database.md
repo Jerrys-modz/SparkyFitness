@@ -72,6 +72,21 @@ Quick reference of all tables by domain and purpose. For detailed security tier,
 | `verification` | Email verification tokens |
 | `account` | Auth credentials and email accounts |
 
+### MCP OAuth (System-Only)
+| Table | Purpose |
+|-------|---------|
+| `jwks` | OAuth signing key pairs |
+| `oauth_client` | Registered OAuth clients and redirect/authentication metadata |
+| `oauth_resource` | Protected resources, scopes, token lifetimes, and signing policy |
+| `oauth_client_resource` | Client-to-resource associations |
+| `oauth_refresh_token` | Refresh tokens, rotation state, scopes, and session/user links |
+| `oauth_access_token` | Access tokens, scopes, resource grants, and revocation state |
+| `oauth_consent` | User consent grants |
+| `oauth_authorization_revocation` | Per-user/client OAuth JWT revocation watermarks |
+| `oauth_client_assertion` | Client assertion replay-protection records |
+
+These tables are managed by Better Auth and are not exposed through family sharing or profile delegation. Better Auth's Kysely adapter serializes its `string[]` fields as JSON text, so OAuth list columns are PostgreSQL `text` values containing JSON arrays rather than native `text[]` columns.
+
 ### Food & Nutrition (Tier 2/3: Owner-Write, Delegate-Read/Write)
 | Table | Purpose |
 |-------|---------|
@@ -134,6 +149,8 @@ Quick reference of all tables by domain and purpose. For detailed security tier,
 | `user_fasting_preferences` | Intermittent fasting targets, auto-calculation config, and alert timing |
 | `mood_entries` | Logged mood check-ins, several per day: optional mood, energy and focus ratings, tags and journal notes, with a timestamp and a `source` (`manual`, `garmin` or `import`) |
 | `mindfulness_sessions` | Logged mindfulness, meditation, and breathwork sessions |
+| `lab_markers` | A user's own lab markers with optional default reference range (built-in markers are defined in `@workspace/shared`) |
+| `lab_results` | Lab results with their own unit and reference range, for built-in or custom markers |
 | `user_custom_moods` | User-defined mood tags (icon/color) |
 | `medications` | Custom medication inventory lists |
 | `medication_schedules` | Reminders and schedules for medications |
