@@ -164,10 +164,9 @@ const options = {
               type: 'string',
               nullable: true,
               minLength: 1,
-              maxLength: 200,
               pattern: '\\S',
               description:
-                'Qualitative result; must contain a non-space character',
+                'Qualitative result; must contain a non-space character. The server trims it first and then allows at most 200 characters.',
             },
             unit: { type: 'string' },
             ref_range_low: { type: 'number', nullable: true },
@@ -187,10 +186,9 @@ const options = {
               type: 'string',
               nullable: true,
               minLength: 1,
-              maxLength: 200,
               pattern: '\\S',
               description:
-                'Qualitative result; must contain a non-space character',
+                'Qualitative result; must contain a non-space character. The server trims it first and then allows at most 200 characters.',
             },
             unit: { type: 'string' },
             ref_range_low: { type: 'number', nullable: true },
