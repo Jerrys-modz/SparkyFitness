@@ -86,4 +86,19 @@ describe('buildRunReview', () => {
     expect(review.runs).toBe(0);
     expect(review.lastRunDay).toBeNull();
   });
+
+  it('keeps every in-window run in a weekly block when the window is not a multiple of 7', () => {
+    const review = buildRunReview(
+      [
+        run('2026-09-15', 4, 24),
+        run('2026-10-14', 5, 30),
+        run('2026-10-01', 6, 36),
+      ],
+      TODAY,
+      30
+    );
+    expect(review.totalKm).toBe(15);
+    expect(review.weeks.reduce((sum, week) => sum + week.km, 0)).toBe(15);
+    expect(review.weeks[0]!.start).toBe(review.window.from);
+  });
 });

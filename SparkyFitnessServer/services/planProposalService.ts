@@ -39,6 +39,7 @@ type SetRow = {
 
 type HistoryEntry = ReviewEntry & {
   exercise_id?: string | null;
+  created_at?: string | Date | null;
   sets?: {
     set_type?: string | null;
     reps?: number | null;
@@ -73,15 +74,36 @@ function toAssignments(plan: WorkoutPlanTemplateRow): PlanProposalAssignment[] {
   return out;
 }
 
+/**
+ * Evidence already acted on is not reused: once a plan's weights were
+ * changed after it was created, only sessions and feedback logged after that
+ * change count toward the next proposal. A plan never edited has no cutoff.
+ */
+function evidenceCutoff(plan: WorkoutPlanTemplateRow): Date | null {
+  if (!plan.updated_at || !plan.created_at) return null;
+  const updated = new Date(plan.updated_at);
+  return updated.getTime() > new Date(plan.created_at).getTime()
+    ? updated
+    : null;
+}
+
 /** Performed sessions per exercise, newest first, one per logged day. */
 function toHistory(
-  entries: readonly HistoryEntry[]
+  entries: readonly HistoryEntry[],
+  evidenceAfter: Date | null
 ): Record<string, PerformedSession[]> {
   const byExercise = new Map<string, Map<string, PerformedSession>>();
   for (const entry of entries) {
     const exerciseId = entry.exercise_id;
     const day = entry.entry_date?.slice(0, 10);
     if (!exerciseId || !day) continue;
+    if (
+      evidenceAfter &&
+      entry.created_at &&
+      new Date(entry.created_at).getTime() <= evidenceAfter.getTime()
+    ) {
+      continue;
+    }
     const days = byExercise.get(exerciseId) ?? new Map();
     const session = days.get(day) ?? { day, sets: [] };
     for (const set of entry.sets ?? []) {
@@ -141,13 +163,14 @@ async function getPlanProposals(
   const exerciseIds = [...new Set(assignments.map((a) => a.exerciseId))];
   const timezone = await loadUserTimezone(userId);
   const today = todayInZone(timezone);
+  const cutoff = evidenceCutoff(plan);
   const [entries, coaching, prefs] = await Promise.all([
     reportRepository.getExerciseEntries(
       userId,
       addDays(today, -LOOKBACK_DAYS),
       today
     ) as Promise<HistoryEntry[]>,
-    getWorkoutCoachingSignals(userId, userId, exerciseIds, null),
+    getWorkoutCoachingSignals(userId, userId, exerciseIds, null, cutoff),
     preferenceService.getUserPreferences(userId, userId),
   ]);
 
@@ -166,7 +189,7 @@ async function getPlanProposals(
     unit,
     proposals: proposePlanChanges({
       assignments,
-      history: toHistory(entries),
+      history: toHistory(entries, cutoff),
       signals,
       stalledExerciseIds: review.stalls.map((stall) => stall.exerciseId),
       unit,
@@ -220,11 +243,16 @@ async function applyPlanProposals(
       weightKg: change.toKg,
     }))
   );
-  await workoutPlanTemplateRepository.updatePlannedSetWeights(
+  const updated = await workoutPlanTemplateRepository.updatePlannedSetWeights(
     userId,
     planId,
     changes
   );
+  if (updated !== changes.length) {
+    throw new Error(
+      `Only ${updated} of ${changes.length} planned set weights were updated; the plan may have changed. Review the plan and try again.`
+    );
+  }
   const applied = new Set(applicable.map((p) => String(p.assignmentId)));
   return {
     applied: applicable,

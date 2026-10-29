@@ -87,7 +87,9 @@ export function buildRunReview(
 
   const weekCount = Math.max(1, Math.floor(windowDays / 7));
   const weeks: RunWeek[] = Array.from({ length: weekCount }, (_, i) => ({
-    start: addDays(today, -(7 * (weekCount - i) - 1)),
+    // The oldest block starts at the window start so a window that is not a
+    // multiple of 7 days leaves no run outside every block.
+    start: i === 0 ? from : addDays(today, -(7 * (weekCount - i) - 1)),
     km: 0,
     runs: 0,
   }));

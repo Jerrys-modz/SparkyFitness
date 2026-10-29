@@ -557,6 +557,7 @@ async function getExerciseEntries(
     let query = `SELECT
          ee.id,
          TO_CHAR(ee.entry_date, 'YYYY-MM-DD') AS entry_date,
+         ee.created_at,
          ee.duration_minutes,
          ee.calories_burned,
          ee.notes,

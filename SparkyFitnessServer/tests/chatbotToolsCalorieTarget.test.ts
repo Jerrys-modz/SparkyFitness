@@ -83,6 +83,14 @@ describe('sparky_review_calorie_target', () => {
     expect(result).toContain('Ask which weekly rate the user wants');
   });
 
+  it('treats a null desired rate as not given', async () => {
+    await run({ desired_kg_per_week: null });
+    expect(svc.getCalorieTargetReview).toHaveBeenCalledWith(
+      'user-1',
+      undefined
+    );
+  });
+
   it("gives the target for the desired rate in the user's unit", async () => {
     prefs.getUserPreferences.mockResolvedValue({ default_weight_unit: 'lbs' });
     svc.getCalorieTargetReview.mockResolvedValue({

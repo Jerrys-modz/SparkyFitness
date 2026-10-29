@@ -129,6 +129,45 @@ describe('getPlanProposals', () => {
   });
 });
 
+describe('evidence already acted on', () => {
+  it('passes the last weight change as the cutoff and drops older sessions', async () => {
+    repo.getWorkoutPlanTemplateById.mockResolvedValue({
+      ...plan(),
+      created_at: '2026-09-01T10:00:00Z',
+      updated_at: '2026-10-10T10:00:00Z',
+    });
+    entries.getExerciseEntries.mockResolvedValue([
+      { ...session('2026-10-12'), created_at: '2026-10-12T18:00:00Z' },
+      { ...session('2026-10-08'), created_at: '2026-10-08T18:00:00Z' },
+    ]);
+    const result = await planProposalService.getPlanProposals('user-1', 42);
+    expect(getWorkoutCoachingSignals).toHaveBeenCalledWith(
+      'user-1',
+      'user-1',
+      ['ex-squat'],
+      null,
+      new Date('2026-10-10T10:00:00Z')
+    );
+    expect(result?.proposals).toEqual([]);
+  });
+
+  it('has no cutoff for a plan that was never edited', async () => {
+    repo.getWorkoutPlanTemplateById.mockResolvedValue({
+      ...plan(),
+      created_at: '2026-09-01T10:00:00Z',
+      updated_at: '2026-09-01T10:00:00Z',
+    });
+    await planProposalService.getPlanProposals('user-1', 42);
+    expect(getWorkoutCoachingSignals).toHaveBeenCalledWith(
+      'user-1',
+      'user-1',
+      ['ex-squat'],
+      null,
+      null
+    );
+  });
+});
+
 describe('applyPlanProposals', () => {
   it('writes only the recomputed weights for the asked assignments', async () => {
     const result = await planProposalService.applyPlanProposals(
@@ -149,6 +188,7 @@ describe('applyPlanProposals', () => {
 
   it('writes nothing when the assignment has no current proposal', async () => {
     entries.getExerciseEntries.mockResolvedValue([session('2026-10-12')]);
+    repo.updatePlannedSetWeights.mockResolvedValue(0);
     const result = await planProposalService.applyPlanProposals(
       'user-1',
       42,
@@ -164,6 +204,13 @@ describe('applyPlanProposals', () => {
       await planProposalService.applyPlanProposals('user-1', 42, [7])
     ).toBe('prefill');
     expect(repo.updatePlannedSetWeights).not.toHaveBeenCalled();
+  });
+
+  it('throws when fewer set weights were updated than asked', async () => {
+    repo.updatePlannedSetWeights.mockResolvedValue(1);
+    await expect(
+      planProposalService.applyPlanProposals('user-1', 42, [7])
+    ).rejects.toThrow('1 of 2');
   });
 
   it('rejects a plan owned by another user without writing', async () => {

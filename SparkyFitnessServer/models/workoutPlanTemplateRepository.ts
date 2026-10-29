@@ -643,7 +643,8 @@ async function unlinkExerciseEntriesByTemplateId(
  * Sets the planned weight of individual set rows of one template, in one
  * statement. A set that does not belong to the template (or that the caller
  * cannot see through RLS) is simply not matched, so the count tells the
- * caller whether every change landed.
+ * caller whether every change landed. The template's `updated_at` moves
+ * with the weights: proposals only count evidence logged after it.
  */
 async function updatePlannedSetWeights(
   userId: string,
@@ -653,6 +654,7 @@ async function updatePlannedSetWeights(
   if (changes.length === 0) return 0;
   const client = await getClient(userId);
   try {
+    await client.query('BEGIN');
     const result = await client.query(
       `UPDATE workout_plan_assignment_sets s
        SET weight = c.weight
@@ -667,7 +669,17 @@ async function updatePlannedSetWeights(
         changes.map((change) => change.weightKg),
       ]
     );
+    if ((result.rowCount ?? 0) > 0) {
+      await client.query(
+        'UPDATE workout_plan_templates SET updated_at = now() WHERE id = $1',
+        [templateId]
+      );
+    }
+    await client.query('COMMIT');
     return result.rowCount ?? 0;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
   } finally {
     client.release();
   }
