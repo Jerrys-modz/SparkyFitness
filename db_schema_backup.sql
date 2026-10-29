@@ -3105,6 +3105,89 @@ CREATE TABLE public.injection_entries (
 
 
 --
+-- Name: lab_markers; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.lab_markers (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    name text NOT NULL,
+    unit text DEFAULT ''::text NOT NULL,
+    ref_range_low double precision,
+    ref_range_high double precision,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by_user_id uuid,
+    updated_by_user_id uuid,
+    CONSTRAINT lab_markers_ref_range_check CHECK (((ref_range_low IS NULL) OR (ref_range_high IS NULL) OR (ref_range_low <= ref_range_high)))
+);
+
+
+--
+-- Name: TABLE lab_markers; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.lab_markers IS 'A user''s own lab markers. Built-in markers are identified by key in @workspace/shared and are not stored.';
+
+
+--
+-- Name: COLUMN lab_markers.ref_range_low; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.lab_markers.ref_range_low IS 'Default lower reference bound, in the marker unit. NULL when unknown.';
+
+
+--
+-- Name: lab_results; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.lab_results (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    marker_key text,
+    custom_marker_id uuid,
+    entry_date date DEFAULT CURRENT_DATE NOT NULL,
+    value_numeric double precision,
+    value_text text,
+    unit text DEFAULT ''::text NOT NULL,
+    ref_range_low double precision,
+    ref_range_high double precision,
+    lab_name text,
+    notes text,
+    source text DEFAULT 'manual'::text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by_user_id uuid,
+    updated_by_user_id uuid,
+    CONSTRAINT lab_results_one_marker_check CHECK (((marker_key IS NOT NULL) <> (custom_marker_id IS NOT NULL))),
+    CONSTRAINT lab_results_ref_range_check CHECK (((ref_range_low IS NULL) OR (ref_range_high IS NULL) OR (ref_range_low <= ref_range_high))),
+    CONSTRAINT lab_results_source_check CHECK ((source = ANY (ARRAY['manual'::text, 'report'::text, 'fhir'::text]))),
+    CONSTRAINT lab_results_value_check CHECK (((value_numeric IS NOT NULL) OR (value_text IS NOT NULL)))
+);
+
+
+--
+-- Name: TABLE lab_results; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.lab_results IS 'One lab result for a built-in marker (marker_key) or a custom marker (custom_marker_id). Keeps its own unit and reference range as printed by the lab.';
+
+
+--
+-- Name: COLUMN lab_results.value_text; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.lab_results.value_text IS 'Qualitative result (e.g. Negative, Trace) when there is no number.';
+
+
+--
+-- Name: COLUMN lab_results.source; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.lab_results.source IS 'How the result got here: manual, report (imported from a PDF or photo) or fhir.';
+
+
+--
 -- Name: meal_foods; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -6204,6 +6287,22 @@ ALTER TABLE ONLY public.injection_entries
 
 
 --
+-- Name: lab_markers lab_markers_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.lab_markers
+    ADD CONSTRAINT lab_markers_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: lab_results lab_results_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.lab_results
+    ADD CONSTRAINT lab_results_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: meal_foods meal_foods_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -7578,6 +7677,34 @@ CREATE INDEX idx_injection_entries_medication_id ON public.injection_entries USI
 --
 
 CREATE INDEX idx_injection_entries_user_id ON public.injection_entries USING btree (user_id);
+
+
+--
+-- Name: idx_lab_markers_user_name; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_lab_markers_user_name ON public.lab_markers USING btree (user_id, lower(name));
+
+
+--
+-- Name: idx_lab_results_user_custom_date; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_lab_results_user_custom_date ON public.lab_results USING btree (user_id, custom_marker_id, entry_date DESC) WHERE (custom_marker_id IS NOT NULL);
+
+
+--
+-- Name: idx_lab_results_user_date; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_lab_results_user_date ON public.lab_results USING btree (user_id, entry_date DESC);
+
+
+--
+-- Name: idx_lab_results_user_key_date; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_lab_results_user_key_date ON public.lab_results USING btree (user_id, marker_key, entry_date DESC) WHERE (marker_key IS NOT NULL);
 
 
 --
@@ -9307,6 +9434,62 @@ ALTER TABLE ONLY public.injection_entries
 
 
 --
+-- Name: lab_markers lab_markers_created_by_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.lab_markers
+    ADD CONSTRAINT lab_markers_created_by_user_id_fkey FOREIGN KEY (created_by_user_id) REFERENCES public."user"(id) ON DELETE SET NULL;
+
+
+--
+-- Name: lab_markers lab_markers_updated_by_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.lab_markers
+    ADD CONSTRAINT lab_markers_updated_by_user_id_fkey FOREIGN KEY (updated_by_user_id) REFERENCES public."user"(id) ON DELETE SET NULL;
+
+
+--
+-- Name: lab_markers lab_markers_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.lab_markers
+    ADD CONSTRAINT lab_markers_user_id_fkey FOREIGN KEY (user_id) REFERENCES public."user"(id) ON DELETE CASCADE;
+
+
+--
+-- Name: lab_results lab_results_created_by_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.lab_results
+    ADD CONSTRAINT lab_results_created_by_user_id_fkey FOREIGN KEY (created_by_user_id) REFERENCES public."user"(id) ON DELETE SET NULL;
+
+
+--
+-- Name: lab_results lab_results_custom_marker_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.lab_results
+    ADD CONSTRAINT lab_results_custom_marker_id_fkey FOREIGN KEY (custom_marker_id) REFERENCES public.lab_markers(id) ON DELETE CASCADE;
+
+
+--
+-- Name: lab_results lab_results_updated_by_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.lab_results
+    ADD CONSTRAINT lab_results_updated_by_user_id_fkey FOREIGN KEY (updated_by_user_id) REFERENCES public."user"(id) ON DELETE SET NULL;
+
+
+--
+-- Name: lab_results lab_results_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.lab_results
+    ADD CONSTRAINT lab_results_user_id_fkey FOREIGN KEY (user_id) REFERENCES public."user"(id) ON DELETE CASCADE;
+
+
+--
 -- Name: meal_foods meal_foods_child_meal_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -10793,6 +10976,18 @@ CREATE POLICY insert_policy ON public.food_entries FOR INSERT WITH CHECK ((publi
 
 
 --
+-- Name: lab_markers; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.lab_markers ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: lab_results; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.lab_results ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: meal_foods; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -11053,6 +11248,20 @@ CREATE POLICY modify_policy ON public.health_metric_samples USING (((public.auth
 --
 
 CREATE POLICY modify_policy ON public.injection_entries USING (public.has_medication_access(user_id)) WITH CHECK (public.has_medication_access(user_id));
+
+
+--
+-- Name: lab_markers modify_policy; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY modify_policy ON public.lab_markers USING (((public.authenticated_user_id() = user_id) OR public.has_family_access(user_id, 'can_manage_checkin'::text))) WITH CHECK (((public.authenticated_user_id() = user_id) OR public.has_family_access(user_id, 'can_manage_checkin'::text)));
+
+
+--
+-- Name: lab_results modify_policy; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY modify_policy ON public.lab_results USING (((public.authenticated_user_id() = user_id) OR public.has_family_access(user_id, 'can_manage_checkin'::text))) WITH CHECK (((public.authenticated_user_id() = user_id) OR public.has_family_access(user_id, 'can_manage_checkin'::text)));
 
 
 --
@@ -11944,6 +12153,20 @@ CREATE POLICY select_policy ON public.health_metric_samples FOR SELECT USING (pu
 --
 
 CREATE POLICY select_policy ON public.injection_entries FOR SELECT USING (public.has_medication_read_access(user_id));
+
+
+--
+-- Name: lab_markers select_policy; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY select_policy ON public.lab_markers FOR SELECT USING (public.has_checkin_read_access(user_id));
+
+
+--
+-- Name: lab_results select_policy; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY select_policy ON public.lab_results FOR SELECT USING (public.has_checkin_read_access(user_id));
 
 
 --
@@ -13311,6 +13534,20 @@ GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.health_metric_samples TO spark
 --
 
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.injection_entries TO sparky_app;
+
+
+--
+-- Name: TABLE lab_markers; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.lab_markers TO sparky_app;
+
+
+--
+-- Name: TABLE lab_results; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.lab_results TO sparky_app;
 
 
 --
