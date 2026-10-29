@@ -1,29 +1,9 @@
 import type { WatchGoalNutrientPayload } from '../../modules/watch-connectivity';
 import { NUTRIENT_META, getNutrientLabel } from '../constants/nutrients';
-import { DEFAULT_WATCH_NUTRIENTS } from '../constants/watchPages';
-import type { NutrientDisplayPreference } from '../services/api/preferencesApi';
 import type { DailySummary } from '../types/dailySummary';
 import { dayCustomNutrient, dayStandardNutrient } from './nutrientUtils';
 
 type Translator = (key: string, options: { defaultValue: string }) => string;
-
-const SERVER_DEFAULT_NUTRIENTS = [
-  'calories',
-  'protein',
-  'carbs',
-  'fat',
-  'dietary_fiber',
-  'sugars',
-  'caffeine_mg',
-  'alcohol_g',
-];
-
-/**
- * Checks whether two string arrays have identical length and elements in order.
- */
-function isSameList(a: readonly string[], b: readonly string[]): boolean {
-  return a.length === b.length && a.every((item, idx) => item === b[idx]);
-}
 
 /**
  * Standard nutrients the watch's Goals page can list. Calories are the ring
@@ -46,67 +26,6 @@ export function shownInOrder(
     ...order.filter((key) => shown.includes(key)),
     ...shown.filter((key) => !order.includes(key)),
   ];
-}
-
-/**
- * Resolves the ordered nutrient keys for the watch Goals page and Nutrition tile.
- *
- * Uses explicit watch nutrient settings (`watchOrder` / `shownWatch`) when the
- * user customized them; otherwise falls back to the user's Nutrient Display
- * preferences (`summary`, `food_database`, `report_tabular`, or `goal`), and
- * finally to `DEFAULT_WATCH_NUTRIENTS`.
- */
-export function resolveWatchNutrientKeys(
-  watchOrder: readonly string[],
-  shownWatch: readonly string[],
-  nutrientDisplayPreferences?: readonly NutrientDisplayPreference[]
-): string[] {
-  const watchCustomized =
-    watchOrder.length > 0 || !isSameList(shownWatch, DEFAULT_WATCH_NUTRIENTS);
-  if (watchCustomized) {
-    return shownInOrder(watchOrder, shownWatch);
-  }
-
-  if (nutrientDisplayPreferences && nutrientDisplayPreferences.length > 0) {
-    const candidates: [string, string][] = [
-      ['summary', 'mobile'],
-      ['food_database', 'mobile'],
-      ['report_tabular', 'mobile'],
-      ['goal', 'mobile'],
-      ['summary', 'desktop'],
-      ['goal', 'desktop'],
-    ];
-    for (const [group, platform] of candidates) {
-      const row = nutrientDisplayPreferences.find(
-        (p) => p.view_group === group && p.platform === platform
-      );
-      if (
-        row &&
-        row.visible_nutrients.length > 0 &&
-        !isSameList(row.visible_nutrients, SERVER_DEFAULT_NUTRIENTS)
-      ) {
-        const filtered = row.visible_nutrients.filter(
-          (k) => k !== 'calories' && k !== 'glycemic_index'
-        );
-        if (filtered.length > 0) return filtered;
-      }
-    }
-    const summaryRow =
-      nutrientDisplayPreferences.find(
-        (p) => p.view_group === 'summary' && p.platform === 'mobile'
-      ) ??
-      nutrientDisplayPreferences.find(
-        (p) => p.view_group === 'food_database' && p.platform === 'mobile'
-      );
-    if (summaryRow) {
-      const filtered = summaryRow.visible_nutrients.filter(
-        (k) => k !== 'calories' && k !== 'glycemic_index'
-      );
-      if (filtered.length > 0) return filtered;
-    }
-  }
-
-  return shownInOrder(watchOrder, shownWatch);
 }
 
 /**

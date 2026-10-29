@@ -5,6 +5,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import androidx.compose.ui.graphics.toArgb
 import androidx.wear.protolayout.ActionBuilders
 import androidx.wear.protolayout.ColorBuilders.argb
 import androidx.wear.protolayout.DimensionBuilders.degrees
@@ -138,17 +139,9 @@ object TileModels {
   }
 
   /**
-   * Maps a nutrient key to its display accent color ARGB value.
+   * Maps a nutrient key to its display accent color ARGB value using [SparkyColors].
    */
-  private fun colorForNutrientKey(key: String): Int = when (key.lowercase(Locale.US)) {
-    "protein" -> 0xFF38BDF8.toInt()
-    "carbs" -> 0xFFFBBF24.toInt()
-    "fat" -> 0xFFF472B6.toInt()
-    "dietary_fiber", "fiber" -> 0xFF4ADE80.toInt()
-    "sugars" -> 0xFFFB923C.toInt()
-    "sodium" -> 0xFFA78BFA.toInt()
-    else -> 0xFF2DD4BF.toInt()
-  }
+  private fun colorForNutrientKey(key: String): Int = nutrientColor(key).toArgb()
 
   /**
    * Builds the display model for the Nutrition tile from today's [NutritionSnapshot].
@@ -887,7 +880,7 @@ class NutritionTileService : BaseSparkyTileService() {
 }
 
 class SleepTileService : BaseSparkyTileService() {
-  override val targetPageKey = "goals"
+  override val targetPageKey = "sleep"
   override val accentColorArgb = 0xFF818CF8.toInt()
 
   override fun currentRingProgress(session: WearSessionManager): Float {

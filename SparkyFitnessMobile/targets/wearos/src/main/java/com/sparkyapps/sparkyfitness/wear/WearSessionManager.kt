@@ -61,6 +61,9 @@ class WearSessionManager private constructor(private val appContext: Context) :
   private val _requestedPage = MutableStateFlow<WatchPage?>(null)
   val requestedPage: StateFlow<WatchPage?> = _requestedPage.asStateFlow()
 
+  private val _showSleepDetail = MutableStateFlow(false)
+  val showSleepDetail: StateFlow<Boolean> = _showSleepDetail.asStateFlow()
+
   private var telemetryOwner: String = "watch"
   private val seenCommandKeys = LinkedHashSet<String>()
   private val lastContextRequestMs = AtomicLong(0L)
@@ -94,11 +97,20 @@ class WearSessionManager private constructor(private val appContext: Context) :
   }
 
   fun requestNavigateTo(page: WatchPage) {
+    _showSleepDetail.value = false
     _requestedPage.value = page
   }
 
   fun consumeRequestedPage() {
     _requestedPage.value = null
+  }
+
+  fun requestSleepDetail() {
+    _showSleepDetail.value = true
+  }
+
+  fun dismissSleepDetail() {
+    _showSleepDetail.value = false
   }
 
   /**

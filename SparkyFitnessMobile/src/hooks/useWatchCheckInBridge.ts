@@ -59,14 +59,11 @@ import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import { useDailySummary, type DailySummaryRawData } from './useDailySummary';
 import { WATCH_PAGE_KEYS } from '../constants/watchPages';
 import { resolveKeyOrder } from '../utils/reorderUtils';
-import {
-  buildWatchGoalNutrients,
-  resolveWatchNutrientKeys,
-} from '../utils/watchNutrients';
+import { buildWatchGoalNutrients, shownInOrder } from '../utils/watchNutrients';
 import { useCustomNutrients } from './useCustomNutrients';
-import { useNutrientDisplayPreferences } from './useNutrientDisplayPreferences';
 import { useSleepDay } from './useSleepDay';
 import { formatClockTime, resolveSleepZone } from '../utils/sleepDay';
+import { getSessionCalories, getWorkoutSummary } from '../utils/workoutSession';
 import { useTranslation } from 'react-i18next';
 import type { CheckInMeasurement } from '../types/measurements';
 import type { WorkoutPreset } from '../types/workoutPresets';
@@ -314,8 +311,6 @@ export function useWatchCheckInBridge(enabled: boolean): void {
   // Units for the custom nutrients the Goals page may list. Rides the same
   // cached query the nutrition screens use.
   const { customNutrients } = useCustomNutrients({ enabled });
-  const { preferences: nutrientDisplayPreferences } =
-    useNutrientDisplayPreferences({ enabled });
   const weightUnit: 'kg' | 'lbs' =
     preferences?.default_weight_unit === 'lbs' ||
     preferences?.default_weight_unit === 'st_lbs'
@@ -634,11 +629,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     );
     return buildWatchGoalNutrients(
       dailySummary,
-      resolveWatchNutrientKeys(
-        watchNutrientOrder,
-        shownWatchNutrients,
-        nutrientDisplayPreferences
-      ),
+      shownInOrder(watchNutrientOrder, shownWatchNutrients),
       customUnits,
       t
     );
@@ -647,7 +638,6 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     customNutrients,
     watchNutrientOrder,
     shownWatchNutrients,
-    nutrientDisplayPreferences,
     t,
   ]);
 
@@ -725,28 +715,18 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     useMemo(() => {
       if (!dailySummary) return null;
       const loggedSessions = dailySummary.exerciseEntries.flatMap((entry) => {
-        if (entry.type === 'preset') {
-          const cal = entry.exercises.reduce(
-            (sum, ex) => sum + (Number(ex.calories_burned) || 0),
-            0
-          );
-          return [
-            {
-              name: entry.name || 'Workout',
-              durationMinutes: Math.round(
-                Number(entry.total_duration_minutes) || 0
-              ),
-              calories: Math.round(cal),
-            },
-          ];
+        if (
+          entry.type !== 'preset' &&
+          (entry.name ?? entry.exercise_snapshot?.name) === 'Active Calories'
+        ) {
+          return [];
         }
-        const rawName = entry.name ?? entry.exercise_snapshot?.name ?? '';
-        if (rawName === 'Active Calories') return [];
+        const summary = getWorkoutSummary(entry, t);
         return [
           {
-            name: rawName || 'Exercise',
-            durationMinutes: Math.round(Number(entry.duration_minutes) || 0),
-            calories: Math.round(Number(entry.calories_burned) || 0),
+            name: summary.name,
+            durationMinutes: Math.round(Number(summary.duration) || 0),
+            calories: Math.round(Number(getSessionCalories(entry)) || 0),
           },
         ];
       });
@@ -759,7 +739,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         sessionCount: loggedSessions.length,
         sessions: loggedSessions.slice(0, 3),
       };
-    }, [dailySummary, summaryDate]);
+    }, [dailySummary, summaryDate, t]);
 
   const figuresForSummaryDate = useMemo(
     () => ({

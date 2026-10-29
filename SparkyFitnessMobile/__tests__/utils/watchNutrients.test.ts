@@ -1,6 +1,5 @@
 import {
   buildWatchGoalNutrients,
-  resolveWatchNutrientKeys,
   shownInOrder,
   WATCH_STANDARD_NUTRIENT_KEYS,
 } from '../../src/utils/watchNutrients';
@@ -106,52 +105,5 @@ describe('buildWatchGoalNutrients', () => {
         t
       ).map((row) => row.key)
     ).toEqual(['protein']);
-  });
-});
-
-describe('resolveWatchNutrientKeys', () => {
-  test('prefers customized watch nutrients when order or shown list differs from default', () => {
-    expect(
-      resolveWatchNutrientKeys(
-        ['fat', 'protein'],
-        ['protein', 'fat'],
-        [
-          {
-            view_group: 'summary',
-            platform: 'mobile',
-            visible_nutrients: ['carbs', 'dietary_fiber'],
-          },
-        ]
-      )
-    ).toEqual(['fat', 'protein']);
-  });
-
-  test('uses Nutrient Display preferences when watch nutrients are still at defaults', () => {
-    expect(
-      resolveWatchNutrientKeys(
-        [],
-        ['protein', 'carbs', 'fat'],
-        [
-          {
-            view_group: 'food_database',
-            platform: 'mobile',
-            visible_nutrients: [
-              'calories',
-              'protein',
-              'dietary_fiber',
-              'sodium',
-            ],
-          },
-        ]
-      )
-    ).toEqual(['protein', 'dietary_fiber', 'sodium']);
-  });
-
-  test('falls back to default watch nutrients when no preferences are provided', () => {
-    expect(resolveWatchNutrientKeys([], ['protein', 'carbs', 'fat'])).toEqual([
-      'protein',
-      'carbs',
-      'fat',
-    ]);
   });
 });

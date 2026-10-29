@@ -1,5 +1,6 @@
 package com.sparkyapps.sparkyfitness.wear
 
+import androidx.compose.ui.graphics.toArgb
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
@@ -504,8 +505,10 @@ class WearOsParityTest {
         assertEquals(2, nutritionTile.macros.size)
         assertEquals("Protein", nutritionTile.macros[0].label)
         assertEquals("130/170g", nutritionTile.macros[0].valueText)
+        assertEquals(SparkyColors.Cyan.toArgb(), nutritionTile.macros[0].colorArgb)
         assertEquals("Fiber", nutritionTile.macros[1].label)
         assertEquals("24/32g", nutritionTile.macros[1].valueText)
+        assertEquals(SparkyColors.Green.toArgb(), nutritionTile.macros[1].colorArgb)
 
         val sleepTile = TileModels.buildSleepTileModel(ctx.sleep)
         assertTrue(sleepTile.hasData)

@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -94,6 +95,10 @@ class MainActivity : ComponentActivity() {
     if (intent == null) return
     val targetPageExtra = intent.getStringExtra("target_page")
     if (targetPageExtra != null) {
+      if (targetPageExtra == "sleep") {
+        sessionManager.requestSleepDetail()
+        return
+      }
       WatchPage.fromKey(targetPageExtra)?.let { page ->
         sessionManager.requestNavigateTo(page)
         return
@@ -102,6 +107,10 @@ class MainActivity : ComponentActivity() {
     val data = intent.data ?: return
     if (data.scheme == "sparkyfitness" && data.host == "watch") {
       val seg = data.pathSegments.firstOrNull()
+      if (seg == "sleep") {
+        sessionManager.requestSleepDetail()
+        return
+      }
       val page = when (seg) {
         "goals" -> WatchPage.GOALS
         "water" -> WatchPage.WATER
@@ -140,7 +149,12 @@ class MainActivity : ComponentActivity() {
 fun SparkyWearRoot(sessionManager: WearSessionManager) {
   val enabledPages by sessionManager.checkInStore.enabledPages.collectAsState()
   val requestedPage by sessionManager.requestedPage.collectAsState()
+  val showSleepDetail by sessionManager.showSleepDetail.collectAsState()
   val pages = if (enabledPages.isNotEmpty()) enabledPages else WatchPage.defaultOrder
+
+  BackHandler(enabled = showSleepDetail) {
+    sessionManager.dismissSleepDetail()
+  }
 
   val pagerState = rememberPagerState(
     initialPage = 0,
@@ -159,6 +173,13 @@ fun SparkyWearRoot(sessionManager: WearSessionManager) {
   Scaffold(
     timeText = { TimeText() }
   ) {
+    if (showSleepDetail) {
+      SleepDetailPage(
+        store = sessionManager.checkInStore,
+        onDismiss = { sessionManager.dismissSleepDetail() }
+      )
+      return@Scaffold
+    }
     Box(
       modifier = Modifier
         .fillMaxSize()
