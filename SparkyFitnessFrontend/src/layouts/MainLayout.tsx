@@ -49,7 +49,7 @@ import { useCycleSettings } from '@/hooks/useCycle';
 import { cn } from '@/lib/utils';
 import { getGridClassNormal } from '@/utils/layout';
 
-const SHOW_SPONSOR_BUTTON = false;
+const SHOW_SPONSOR_BUTTON = true;
 
 interface AddCompItem {
   value: string;
@@ -57,6 +57,10 @@ interface AddCompItem {
   icon: LucideIcon;
   fullWidth?: boolean;
 }
+
+/** A tab stays highlighted on its own sub-pages (e.g. /exercises/training-programs). */
+const isTabActive = (pathname: string, tab: string): boolean =>
+  pathname === tab || (tab !== '/' && pathname.startsWith(`${tab}/`));
 
 interface MainLayoutProps {
   onShowAboutDialog: () => void;
@@ -564,7 +568,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
               key={value}
               variant="ghost"
               className={`relative flex items-center gap-2 hover:bg-background/50 transition-all ${
-                location.pathname === value
+                isTabActive(location.pathname, value)
                   ? 'bg-background shadow-sm text-foreground'
                   : 'text-muted-foreground'
               }`}
@@ -601,8 +605,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
                 key={value}
                 variant="ghost"
                 className={`flex flex-col items-center gap-1 py-2 ${
-                  location.pathname ===
-                  (value === 'Add' ? location.pathname : value)
+                  value === 'Add' || isTabActive(location.pathname, value)
                     ? 'text-primary'
                     : ''
                 }`}

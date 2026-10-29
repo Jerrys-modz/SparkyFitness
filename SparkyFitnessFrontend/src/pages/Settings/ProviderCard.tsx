@@ -18,11 +18,13 @@ import {
 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { useCnfStatusQuery } from '@/hooks/Foods/useCanadianNutrientFile';
+import { useLivsmedelsverketStatusQuery } from '@/hooks/Foods/useLivsmedelsverket';
 import { decodeYazioAppId } from '@/utils/settings';
 import { useExternalProviderTypesQuery } from '@/hooks/Settings/useExternalProviderSettings';
 import SyncRangeDialog from './SyncRangeDialog';
 import type { SyncMockOptions } from './SyncRangeDialog';
 import { CnfBulkImportDialog } from './CnfBulkImportDialog';
+import { LivsmedelsverketBulkImportDialog } from './LivsmedelsverketBulkImportDialog';
 import { Trans } from 'react-i18next';
 
 import {
@@ -49,6 +51,8 @@ import {
   useSyncHevyMutation,
   useSyncLiftosaurMutation,
   useDisconnectLiftosaurMutation,
+  useSyncIntervalsMutation,
+  useDisconnectIntervalsMutation,
   useConnectCorosMutation,
   useDisconnectCorosMutation,
   useManualSyncCorosMutation,
@@ -124,6 +128,10 @@ const PROVIDER_PORTALS: Record<string, { label: string; url: string }> = {
     label: 'Health Canada CNF Open Data Portal',
     url: 'https://open.canada.ca/data/en/dataset/1b6139bd-ed7e-4043-bc28-ff00e10f3109',
   },
+  livsmedelsverket: {
+    label: 'Swedish Food Agency (Livsmedelsverket) Open Data',
+    url: 'https://www.livsmedelsverket.se/en/about-us/open-data/food-composition-data/',
+  },
 };
 
 export const ProviderCard = ({
@@ -138,6 +146,11 @@ export const ProviderCard = ({
   const isCnf = provider.provider_type === 'canadian-nutrient-file';
   const { data: cnfStatus } = useCnfStatusQuery({
     enabled: isCnf && isAdminMode,
+  });
+  const [isSlvDialogOpen, setIsSlvDialogOpen] = useState(false);
+  const isSlv = provider.provider_type === 'livsmedelsverket';
+  const { data: slvStatus } = useLivsmedelsverketStatusQuery({
+    enabled: isSlv && isAdminMode,
   });
   const { data: providerTypes } = useExternalProviderTypesQuery();
   const yazioDisplay = decodeYazioAppId(provider.app_id);
@@ -219,6 +232,12 @@ export const ProviderCard = ({
     mutate: handleDisconnectLiftosaur,
     isPending: isDisconnectLiftosaurPending,
   } = useDisconnectLiftosaurMutation();
+  const { mutate: syncIntervalsData, isPending: isSyncIntervalsPending } =
+    useSyncIntervalsMutation();
+  const {
+    mutate: handleDisconnectIntervals,
+    isPending: isDisconnectIntervalsPending,
+  } = useDisconnectIntervalsMutation();
 
   const [isSyncDialogOpen, setIsSyncDialogOpen] = useState(false);
 
@@ -291,6 +310,14 @@ export const ProviderCard = ({
           endDate,
         });
         break;
+      case 'intervals':
+        syncIntervalsData({
+          providerId: provider.id,
+          startDate,
+          endDate,
+          ...mock,
+        });
+        break;
     }
   };
 
@@ -325,7 +352,9 @@ export const ProviderCard = ({
     isSyncCorosPending ||
     isSyncHevyPending ||
     isSyncLiftosaurPending ||
-    isDisconnectLiftosaurPending;
+    isDisconnectLiftosaurPending ||
+    isSyncIntervalsPending ||
+    isDisconnectIntervalsPending;
 
   const handleToggleActive = async (providerId: string, isActive: boolean) => {
     try {
@@ -402,8 +431,11 @@ export const ProviderCard = ({
       provider.garmin_connect_status === 'linked' ||
       provider.garmin_connect_status === 'connected' ||
       provider.hevy_connect_status === 'connected' ||
-      provider.liftosaur_connect_status === 'connected';
+      provider.liftosaur_connect_status === 'connected' ||
+      provider.intervals_connect_status === 'connected';
 
+    // Polar's is the only token expiry shown: the other OAuth providers refresh their
+    // access tokens on their own, so their short expiry misleads users into reconnecting.
     switch (provider.provider_type) {
       case 'withings':
         return {
@@ -411,7 +443,7 @@ export const ProviderCard = ({
           disconnect: () => handleDisconnectWithings(),
           sync: () => setIsSyncDialogOpen(true),
           lastSync: provider.withings_last_sync_at,
-          tokenExpires: provider.withings_token_expires,
+          tokenExpires: null,
           hasToken: isLinked && provider.is_active,
         };
       case 'fitbit':
@@ -420,7 +452,7 @@ export const ProviderCard = ({
           disconnect: () => handleDisconnectFitbit(),
           sync: () => setIsSyncDialogOpen(true),
           lastSync: provider.fitbit_last_sync_at,
-          tokenExpires: provider.fitbit_token_expires,
+          tokenExpires: null,
           hasToken: isLinked && provider.is_active,
         };
       case 'oura':
@@ -429,7 +461,7 @@ export const ProviderCard = ({
           disconnect: () => handleDisconnectOura(),
           sync: () => setIsSyncDialogOpen(true),
           lastSync: provider.oura_last_sync_at,
-          tokenExpires: provider.oura_token_expires,
+          tokenExpires: null,
           hasToken: isLinked && provider.is_active,
         };
       case 'googlehealth':
@@ -438,7 +470,7 @@ export const ProviderCard = ({
           disconnect: () => handleDisconnectGoogleHealth(),
           sync: () => setIsSyncDialogOpen(true),
           lastSync: provider.googlehealth_last_sync_at,
-          tokenExpires: null, // access tokens auto-refresh; showing 1h expiry misleads users
+          tokenExpires: null,
           hasToken: isLinked && provider.is_active,
         };
       case 'polar':
@@ -456,7 +488,7 @@ export const ProviderCard = ({
           disconnect: () => handleDisconnectStrava(),
           sync: () => setIsSyncDialogOpen(true),
           lastSync: provider.strava_last_sync_at,
-          tokenExpires: provider.strava_token_expires,
+          tokenExpires: null,
           hasToken: isLinked && provider.is_active,
         };
       case 'coros_mcp':
@@ -465,7 +497,7 @@ export const ProviderCard = ({
           disconnect: () => handleDisconnectCoros(provider.id),
           sync: () => setIsSyncDialogOpen(true),
           lastSync: provider.coros_last_sync_at,
-          tokenExpires: provider.coros_token_expires,
+          tokenExpires: null,
           hasToken: isLinked && provider.is_active,
         };
       case 'garmin':
@@ -474,7 +506,7 @@ export const ProviderCard = ({
           disconnect: () => handleDisconnectGarmin(),
           sync: () => setIsSyncDialogOpen(true),
           lastSync: provider.garmin_last_status_check,
-          tokenExpires: provider.garmin_token_expires,
+          tokenExpires: null,
           hasToken: isLinked && provider.is_active,
         };
       case 'hevy':
@@ -492,6 +524,15 @@ export const ProviderCard = ({
           disconnect: () => handleDisconnectLiftosaur(provider.id),
           sync: () => setIsSyncDialogOpen(true),
           lastSync: provider.liftosaur_last_sync_at,
+          tokenExpires: null,
+          hasToken: isLinked && provider.is_active,
+        };
+      case 'intervals':
+        return {
+          connect: null,
+          disconnect: () => handleDisconnectIntervals(provider.id),
+          sync: () => setIsSyncDialogOpen(true),
+          lastSync: provider.intervals_last_sync_at,
           tokenExpires: null,
           hasToken: isLinked && provider.is_active,
         };
@@ -541,6 +582,43 @@ export const ProviderCard = ({
                       'settings.providerCard.importing',
                       'Importing ({{progress}}%)...',
                       { progress: cnfStatus.progress }
+                    )}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <Download className="h-4 w-4" />
+                  <span>
+                    {t(
+                      'settings.providerCard.bulkImportSync',
+                      'Bulk Import / Sync'
+                    )}
+                  </span>
+                </>
+              )}
+            </Button>
+          )}
+
+          {isAdminMode && isSlv && (
+            <Button
+              variant={slvStatus?.isRunning ? 'secondary' : 'outline'}
+              size="sm"
+              onClick={() => setIsSlvDialogOpen(true)}
+              disabled={loading}
+              title={t(
+                'settings.providerCard.bulkImportReSync',
+                'Bulk Import / Re-Sync'
+              )}
+              className="flex items-center gap-1.5"
+            >
+              {slvStatus?.isRunning ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                  <span>
+                    {t(
+                      'settings.providerCard.importing',
+                      'Importing ({{progress}}%)...',
+                      { progress: slvStatus.progress }
                     )}
                   </span>
                 </>
@@ -652,6 +730,7 @@ export const ProviderCard = ({
               'mealie',
               'tandoor',
               'norish',
+              'valhalla',
               'free-exercise-db',
               'wger',
             ].includes(provider.provider_type) && (
@@ -769,6 +848,70 @@ export const ProviderCard = ({
           </>
         )}
 
+        {isSlv && (
+          <>
+            <p className="text-xs text-muted-foreground mt-1.5 max-w-2xl leading-relaxed">
+              <Trans
+                i18nKey="settings.livsmedelsverket.providerCardLicence"
+                defaults="Contains information published by the Swedish Food Agency (Livsmedelsverket) licensed under <1>Creative Commons Attribution 4.0 (CC BY 4.0)</1>. Supported languages: <3>Swedish (sv)</3> and <5>English (en)</5>. <7>Swedish Food Composition Database</7>"
+                components={{
+                  1: (
+                    <a
+                      href="https://creativecommons.org/licenses/by/4.0/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline font-medium"
+                    />
+                  ),
+                  3: <strong />,
+                  5: <strong />,
+                  7: (
+                    <a
+                      href="https://www.livsmedelsverket.se/en/about-us/open-data/food-composition-data/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline font-medium ml-1"
+                    />
+                  ),
+                }}
+              />
+            </p>
+
+            {slvStatus?.isRunning && (
+              <div className="mt-3 space-y-2 rounded-lg border bg-muted/40 p-3 max-w-2xl">
+                <div className="flex items-center justify-between text-xs font-medium">
+                  <span className="flex items-center gap-1.5">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                    {t(
+                      'settings.providerCard.importingCatalogFoods',
+                      'Importing catalog: {{processed}} / {{total}} foods',
+                      { processed: slvStatus.processed, total: slvStatus.total }
+                    )}
+                  </span>
+                  <span className="font-mono text-xs font-semibold">
+                    {slvStatus.progress}%
+                  </span>
+                </div>
+                <Progress value={slvStatus.progress} className="h-2" />
+                <div className="flex justify-between text-[11px] text-muted-foreground">
+                  <span>
+                    {t(
+                      'settings.providerCard.imported',
+                      '{{imported}} imported',
+                      { imported: slvStatus.imported }
+                    )}
+                  </span>
+                  <span>
+                    {t('settings.providerCard.updated', '{{updated}} updated', {
+                      updated: slvStatus.updated,
+                    })}
+                  </span>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
         {provider.provider_type === 'free-exercise-db' && (
           <p className="text-xs text-muted-foreground mt-1.5 max-w-2xl leading-relaxed">
             <Trans
@@ -859,6 +1002,15 @@ export const ProviderCard = ({
           </div>
         )}
 
+        {provider.provider_type === 'intervals' && (
+          <p className="text-xs text-muted-foreground mt-2">
+            {t(
+              'integrations.intervalsGarminNote',
+              'Activities that Intervals.icu received from Garmin Connect are skipped while Garmin is connected here, so they are not imported twice.'
+            )}
+          </p>
+        )}
+
         {provider.availability_error && (
           <p className="text-sm text-destructive mt-2">
             {provider.availability_error}
@@ -943,6 +1095,13 @@ export const ProviderCard = ({
         <CnfBulkImportDialog
           open={isCnfDialogOpen}
           onOpenChange={setIsCnfDialogOpen}
+        />
+      )}
+
+      {isSlv && isAdminMode && (
+        <LivsmedelsverketBulkImportDialog
+          open={isSlvDialogOpen}
+          onOpenChange={setIsSlvDialogOpen}
         />
       )}
     </div>

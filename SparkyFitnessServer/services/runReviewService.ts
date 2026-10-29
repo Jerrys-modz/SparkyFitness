@@ -1,4 +1,9 @@
-import { addDays, buildRunReview, todayInZone } from '@workspace/shared';
+import {
+  addDays,
+  buildRunReview,
+  classifyActivitySport,
+  todayInZone,
+} from '@workspace/shared';
 import type { RunReview, TrainingLoad } from '@workspace/shared';
 import reportRepository from '../models/reportRepository.js';
 import reportService from './reportService.js';
@@ -23,14 +28,31 @@ async function getRunReview(
 ): Promise<RunReviewResult> {
   const timezone = await loadUserTimezone(userId);
   const today = todayInZone(timezone);
-  const [runs, load] = await Promise.all([
-    reportRepository.getRunSessions(
+  const [candidates, load] = await Promise.all([
+    reportRepository.getRunCandidates(
       userId,
       addDays(today, -(windowDays * 2 - 1)),
       today
     ),
     reportService.getTrainingLoad(userId, userId),
   ]);
+  const runs = candidates
+    .filter(
+      (candidate) =>
+        classifyActivitySport({
+          exerciseName: candidate.exerciseName,
+          category: candidate.category,
+          notes: candidate.notes,
+          providerName: candidate.providerName,
+          detailData: candidate.detailData,
+          exerciseSourceId: candidate.exerciseSourceId,
+        }).sport === 'running'
+    )
+    .map((candidate) => ({
+      day: candidate.day,
+      distanceKm: candidate.distanceKm,
+      durationMinutes: candidate.durationMinutes,
+    }));
   return { review: buildRunReview(runs, today, windowDays), load };
 }
 

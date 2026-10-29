@@ -18,6 +18,8 @@ import {
 import { searchYazioFoods } from '../integrations/yazio/yazioService.js';
 import { searchSwissFoods } from '../integrations/swissfood/swissFoodService.js';
 import { searchCanadianNutrientFoods } from '../integrations/cnf/cnfService.js';
+import { searchLivsmedelsverketFoods } from '../integrations/livsmedelsverket/livsmedelsverketService.js';
+import { isPublicFoodProvider } from '@workspace/shared';
 import {
   searchFatSecretFoods,
   getFatSecretNutrients,
@@ -27,6 +29,7 @@ import {
 } from './foodIntegrationService.js';
 import {
   rankProviderMatches,
+  PARTIAL_SERVING_DATA,
   type ProviderFoodItem,
 } from '../utils/foodRanking.js';
 
@@ -95,15 +98,7 @@ export async function resolveProviderCredentials(
   providerId: string | undefined,
   providerType: ProviderType
 ): Promise<ProviderCredentials> {
-  if (providerType === 'openfoodfacts') {
-    return {};
-  }
-
-  if (
-    (providerType === 'swissfood' ||
-      providerType === 'canadian-nutrient-file') &&
-    !providerId
-  ) {
+  if (isPublicFoodProvider(providerType) && !providerId) {
     return {};
   }
 
@@ -269,7 +264,13 @@ export async function enrichFatSecretResults(
     }
   });
 
-  return [...enrichedTop, ...enrichedRest];
+  // An item left as search-mapped carries the summary serving, not the
+  // detail record's default that a save will use.
+  return [...enrichedTop, ...enrichedRest].map((item, index) =>
+    item === items[index] && item?.provider_external_id
+      ? { ...item, [PARTIAL_SERVING_DATA]: true }
+      : item
+  );
 }
 
 // `userId` is the active (possibly switched) data context — used for
@@ -454,6 +455,19 @@ export async function searchProviderFoods(
 
     case 'canadian-nutrient-file': {
       const result = await searchCanadianNutrientFoods(
+        query,
+        page,
+        pageSize,
+        language,
+        credentials.base_url || undefined
+      );
+      foods = result.foods || [];
+      pagination = result.pagination;
+      break;
+    }
+
+    case 'livsmedelsverket': {
+      const result = await searchLivsmedelsverketFoods(
         query,
         page,
         pageSize,

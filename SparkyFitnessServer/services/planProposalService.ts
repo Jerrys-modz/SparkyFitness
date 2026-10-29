@@ -75,15 +75,15 @@ function toAssignments(plan: WorkoutPlanTemplateRow): PlanProposalAssignment[] {
 }
 
 /**
- * Evidence already acted on is not reused: once a plan's weights were
- * changed after it was created, only sessions and feedback logged after that
- * change count toward the next proposal. A plan never edited has no cutoff.
+ * Evidence already acted on is not reused: once proposals were applied to an
+ * assignment, only sessions and feedback logged after that moment count
+ * toward its next proposal. Other assignments of the plan keep their evidence.
  */
-function evidenceCutoff(plan: WorkoutPlanTemplateRow): Date | null {
-  if (!plan.updated_at || !plan.created_at) return null;
-  const updated = new Date(plan.updated_at);
-  return updated.getTime() > new Date(plan.created_at).getTime()
-    ? updated
+function appliedAt(assignment: {
+  proposals_applied_at?: string | Date | null;
+}) {
+  return assignment.proposals_applied_at
+    ? new Date(assignment.proposals_applied_at)
     : null;
 }
 
@@ -160,24 +160,61 @@ async function getPlanProposals(
   if (!plan) return null;
 
   const assignments = toAssignments(plan);
+  const cutoffs = new Map<string, Date | null>();
+  const groups = new Map<string, PlanProposalAssignment[]>();
+  for (const assignment of assignments) {
+    const source = (plan.assignments ?? []).find(
+      (row) => String(row.id) === String(assignment.assignmentId)
+    );
+    const cutoff = appliedAt(source ?? {});
+    const key = cutoff ? cutoff.toISOString() : '';
+    cutoffs.set(key, cutoff);
+    groups.set(key, [...(groups.get(key) ?? []), assignment]);
+  }
   const exerciseIds = [...new Set(assignments.map((a) => a.exerciseId))];
   const timezone = await loadUserTimezone(userId);
   const today = todayInZone(timezone);
-  const cutoff = evidenceCutoff(plan);
-  const [entries, coaching, prefs] = await Promise.all([
+  const [entries, prefs] = await Promise.all([
     reportRepository.getExerciseEntries(
       userId,
       addDays(today, -LOOKBACK_DAYS),
       today
     ) as Promise<HistoryEntry[]>,
-    getWorkoutCoachingSignals(userId, userId, exerciseIds, null, cutoff),
     preferenceService.getUserPreferences(userId, userId),
   ]);
-
-  const signals: Record<string, ExerciseCoachingSignal> = {};
-  for (const signal of coaching.signals) signals[signal.exercise_id] = signal;
   const review = buildTrainingReview(entries as ReviewEntry[], today);
   const unit = prefs.default_weight_unit === 'lbs' ? 'lbs' : 'kg';
+
+  const proposals: PlanProposal[] = [];
+  for (const [key, group] of groups) {
+    const cutoff = cutoffs.get(key) ?? null;
+    const coaching = await getWorkoutCoachingSignals(
+      userId,
+      userId,
+      exerciseIds.filter((id) => group.some((a) => a.exerciseId === id)),
+      null,
+      cutoff
+    );
+    const signals: Record<string, ExerciseCoachingSignal> = {};
+    for (const signal of coaching.signals) signals[signal.exercise_id] = signal;
+    proposals.push(
+      ...proposePlanChanges({
+        assignments: group,
+        history: toHistory(entries, cutoff),
+        signals,
+        stalledExerciseIds: review.stalls.map((stall) => stall.exerciseId),
+        unit,
+      })
+    );
+  }
+  const order = new Map(
+    assignments.map((a, index) => [String(a.assignmentId), index])
+  );
+  proposals.sort(
+    (x, y) =>
+      (order.get(String(x.assignmentId)) ?? 0) -
+      (order.get(String(y.assignmentId)) ?? 0)
+  );
 
   return {
     plan: {
@@ -187,13 +224,7 @@ async function getPlanProposals(
       entry_mode: plan.entry_mode,
     },
     unit,
-    proposals: proposePlanChanges({
-      assignments,
-      history: toHistory(entries, cutoff),
-      signals,
-      stalledExerciseIds: review.stalls.map((stall) => stall.exerciseId),
-      unit,
-    }),
+    proposals,
   };
 }
 
@@ -243,16 +274,11 @@ async function applyPlanProposals(
       weightKg: change.toKg,
     }))
   );
-  const updated = await workoutPlanTemplateRepository.updatePlannedSetWeights(
+  await workoutPlanTemplateRepository.updatePlannedSetWeights(
     userId,
     planId,
     changes
   );
-  if (updated !== changes.length) {
-    throw new Error(
-      `Only ${updated} of ${changes.length} planned set weights were updated; the plan may have changed. Review the plan and try again.`
-    );
-  }
   const applied = new Set(applicable.map((p) => String(p.assignmentId)));
   return {
     applied: applicable,

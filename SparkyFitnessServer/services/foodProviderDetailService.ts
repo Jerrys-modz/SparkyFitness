@@ -17,6 +17,7 @@ import {
 } from './externalFoodSearchService.js';
 import {
   searchOpenFoodFactsByBarcodeFields,
+  hasCompleteOffCoreNutrition,
   mapOpenFoodFactsProduct,
 } from '../integrations/openfoodfacts/openFoodFactsService.js';
 import {
@@ -27,6 +28,7 @@ import { mapFatSecretFood } from '../integrations/fatsecret/fatsecretService.js'
 import { getYazioFoodDetails } from '../integrations/yazio/yazioService.js';
 import { getSwissFoodDetails } from '../integrations/swissfood/swissFoodService.js';
 import { getCanadianNutrientFoodDetails } from '../integrations/cnf/cnfService.js';
+import { getLivsmedelsverketFoodDetails } from '../integrations/livsmedelsverket/livsmedelsverketService.js';
 import {
   getFatSecretNutrients,
   getMealieFoodDetails,
@@ -151,6 +153,13 @@ export interface FetchProviderFoodDetailsParams {
   /** Explicit external provider row; when omitted the active default is used. */
   providerId?: string;
   language?: string;
+  /** Aborts the provider request (OpenFoodFacts only). */
+  signal?: AbortSignal;
+  /**
+   * Return null for an OpenFoodFacts product missing energy, protein,
+   * carbohydrates or fat, which would otherwise map to zeros.
+   */
+  requireNutrition?: boolean;
 }
 
 /**
@@ -168,6 +177,8 @@ export async function fetchProviderFoodDetails({
   externalId,
   providerId,
   language = 'en',
+  signal,
+  requireNutrition = false,
 }: FetchProviderFoodDetailsParams): Promise<unknown | null> {
   if (!isValidProviderType(providerType)) {
     throw Object.assign(new Error(`Invalid provider type: ${providerType}`), {
@@ -193,9 +204,14 @@ export async function fetchProviderFoodDetails({
         language,
         offProvider ? credentialUserId : undefined,
         offProvider?.id,
-        offProvider?.scope ?? 'personal'
+        offProvider?.scope ?? 'personal',
+        signal
       );
-      if (data.status === 1 && data.product) {
+      if (
+        data.status === 1 &&
+        data.product &&
+        (!requireNutrition || hasCompleteOffCoreNutrition(data.product))
+      ) {
         return mapOpenFoodFactsProduct(data.product, { language });
       }
       return null;
@@ -302,6 +318,16 @@ export async function fetchProviderFoodDetails({
     case 'canadian-nutrient-file': {
       return (
         (await getCanadianNutrientFoodDetails(
+          externalId,
+          language,
+          credentials.base_url || undefined
+        )) ?? null
+      );
+    }
+
+    case 'livsmedelsverket': {
+      return (
+        (await getLivsmedelsverketFoodDetails(
           externalId,
           language,
           credentials.base_url || undefined

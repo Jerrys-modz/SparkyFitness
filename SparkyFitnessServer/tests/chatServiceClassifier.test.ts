@@ -4,6 +4,7 @@ import {
   classifyByKeywords,
   getSystemPrompt,
   hasImageParts,
+  heldBackChatTools,
 } from '../services/chatService.js';
 
 describe('classifyByKeywords', () => {
@@ -25,6 +26,15 @@ describe('classifyByKeywords', () => {
   it('stems summarize/summarise/recap to reports', () => {
     expect(classifyByKeywords('can you recap my week')).toContain('reports');
     expect(classifyByKeywords('please summarise my progress')).toContain(
+      'reports'
+    );
+  });
+
+  it('sends correlation questions to reports (sparky_compare_metrics)', () => {
+    expect(
+      classifyByKeywords('is there a correlation between caffeine and focus')
+    ).toContain('reports');
+    expect(classifyByKeywords('does alcohol correlate with my HRV')).toContain(
       'reports'
     );
   });
@@ -312,5 +322,47 @@ describe('buildEscalationPrepareStep', () => {
     });
     // No valid slug requested -> no override.
     expect(result).toEqual({});
+  });
+});
+
+describe('heldBackChatTools', () => {
+  const user = (content: string) => ({ role: 'user', content });
+
+  it('holds back the on-demand tools for plain food logging', () => {
+    expect(
+      heldBackChatTools([
+        user('I eat 2 eggs, 1 spoon olive oil and 50gr bread.'),
+      ])
+    ).toEqual(['sparky_food_assistant_state', 'sparky_get_caffeine_kinetics']);
+  });
+
+  it('keeps a tool once any user message in the chat asks for it', () => {
+    expect(
+      heldBackChatTools([user('plan my meals for the week'), user('ok')])
+    ).not.toContain('sparky_food_assistant_state');
+    expect(
+      heldBackChatTools([user('how much caffeine is left before bedtime?')])
+    ).not.toContain('sparky_get_caffeine_kinetics');
+  });
+
+  it('keeps the task tool for an edit across several diary entries', () => {
+    expect(
+      heldBackChatTools([
+        user("Update yesterday's breakfast and dinner entries"),
+      ])
+    ).not.toContain('sparky_food_assistant_state');
+  });
+
+  it('keeps a tool an earlier step already called', () => {
+    expect(
+      heldBackChatTools([
+        user('yes'),
+        {
+          role: 'assistant',
+          parts: [{ type: 'tool-sparky_get_caffeine_kinetics' }],
+        },
+        user('and tomorrow?'),
+      ])
+    ).toEqual(['sparky_food_assistant_state']);
   });
 });

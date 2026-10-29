@@ -59,6 +59,8 @@ import {
 import { useFavoritesQuery } from '@/hooks/Foods/useFavorites.ts';
 import FoodResultCard from './FoodResultCard.tsx';
 import { BarcodeScannerDialog } from './BarcodeScannerDialog.tsx';
+import { BarcodeSearchResult } from './BarcodeSearchResult';
+import { barcodeFoodToFood } from '@/utils/barcodeFood';
 import { FoodFormDialog } from './FoodFormDialog.tsx';
 import { useExternalProvidersQuery } from '@/hooks/Settings/useExternalProviderSettings.ts';
 import {
@@ -82,6 +84,13 @@ import {
   getProviderCategory,
   resolveFoodProviderId,
 } from '@/utils/settings.ts';
+import {
+  isPublicFoodProvider,
+  foodProviderNeedsDetailFetch,
+  BARCODE_FALLBACK_PROVIDER_ID,
+  type BarcodeLookupResponse,
+  type BarcodeCandidate,
+} from '@workspace/shared';
 
 // Stable empty fallback so the providers reference does not change each render
 // (an inline [] default would re-run the online search effect during loading).
@@ -200,7 +209,11 @@ const EnhancedFoodSearch = ({
   }, [searchTerm]);
   // A new search supersedes any barcode-scanned product.
   useEffect(() => {
-    if (searchTerm.trim()) setScannedFood(null);
+    if (searchTerm.trim()) {
+      barcodeRequest.current += 1;
+      setScannedBarcode(null);
+      setIsOnlineLoading(false);
+    }
   }, [searchTerm]);
   const [meals, setMeals] = useState<Meal[]>([]);
   const [isMealLoading, setIsMealLoading] = useState(false);
@@ -233,9 +246,22 @@ const EnhancedFoodSearch = ({
   // A product resolved from a barcode scan, shown even with an empty query.
   // Kept separate from live online-search results (which clear on an empty
   // query) so a scan result is not hidden or flickered away.
-  const [scannedFood, setScannedFood] = useState<ExternalResultWrapper | null>(
-    null
-  );
+  const [scannedBarcode, setScannedBarcode] = useState<{
+    barcode: string;
+    response: BarcodeLookupResponse;
+    accountId: string;
+    profileId: string;
+    requestId: number;
+  } | null>(null);
+  const barcodeRequest = useRef(0);
+  useEffect(() => {
+    barcodeRequest.current += 1;
+    setScannedBarcode(null);
+    setBarcodeProviderId(null);
+    setIsOnlineLoading(false);
+    setEditingProduct(null);
+    setShowEditDialog(false);
+  }, [user?.id, user?.activeUserId]);
 
   const queryClient = useQueryClient();
   const { data: customNutrients } = useCustomNutrients();
@@ -456,14 +482,14 @@ const EnhancedFoodSearch = ({
     foodDataProviders.find((p) => p.id === selectedFoodDataProvider)
       ?.provider_name ?? '';
 
-  // Barcode provider: prefer explicit user selection, then the dedicated barcode
-  // provider preference (set in External Provider Settings → Default Barcode Provider),
-  // then fall back to the first active barcode-capable provider.
+  // Keep the existing explicit/default provider selection for a normal scan.
   const selectedBarcodeProvider =
     barcodeProviderId ||
     defaultBarcodeProviderId ||
-    foodDataProviders.find((p) =>
-      ['openfoodfacts', 'usda', 'fatsecret', 'yazio'].includes(p.provider_type)
+    foodDataProviders.find((provider) =>
+      ['openfoodfacts', 'usda', 'fatsecret', 'yazio'].includes(
+        provider.provider_type
+      )
     )?.id ||
     null;
 
@@ -764,6 +790,25 @@ const EnhancedFoodSearch = ({
           hasMore: data.pagination?.hasMore ?? false,
         };
       },
+      livsmedelsverket: async (term, id, _provider, page) => {
+        const data = await queryClient.fetchQuery(
+          searchFoodsV2Options(
+            'livsmedelsverket',
+            term,
+            id,
+            undefined,
+            undefined,
+            page
+          )
+        );
+        return {
+          items: data.foods.map((food: Food) => ({
+            provider_type: 'livsmedelsverket' as const,
+            food,
+          })),
+          hasMore: data.pagination?.hasMore ?? false,
+        };
+      },
     }),
     [queryClient, autoScaleOpenFoodFactsImports, itemDisplayLimit]
   );
@@ -925,6 +970,13 @@ const EnhancedFoodSearch = ({
   ]);
 
   const searchBarcode = async (barcode: string) => {
+    if (!user) return;
+    const requestId = ++barcodeRequest.current;
+    const accountId = user.id;
+    const profileId = user.activeUserId;
+    const providerId = selectedBarcodeProvider || undefined;
+    setScannedBarcode(null);
+    setSearchTerm('');
     setIsOnlineLoading(true);
 
     toast({
@@ -936,41 +988,44 @@ const EnhancedFoodSearch = ({
 
     try {
       const data = await queryClient.fetchQuery(
-        searchBarcodeV2Options(barcode, selectedBarcodeProvider || undefined)
+        searchBarcodeV2Options(barcode, providerId, accountId, profileId)
       );
-
+      if (requestId !== barcodeRequest.current) return;
+      const configuredProvider = foodDataProviders.find(
+        (provider) => provider.id === providerId
+      );
+      let sourceMetadata: Pick<
+        BarcodeLookupResponse,
+        'providerId' | 'providerName'
+      > = {};
+      if (data.source === 'local') {
+        sourceMetadata = {
+          providerId: 'local',
+          providerName: t('barcodeLookup.yourFoods', 'Your foods'),
+        };
+      } else if (configuredProvider?.provider_type === data.source) {
+        sourceMetadata = {
+          providerId: configuredProvider.id,
+          providerName: configuredProvider.provider_name,
+        };
+      } else if (data.source === 'openfoodfacts') {
+        sourceMetadata = {
+          providerId: BARCODE_FALLBACK_PROVIDER_ID,
+          providerName: 'Open Food Facts',
+        };
+      }
+      setScannedBarcode({
+        barcode,
+        response: {
+          ...data,
+          providerId: data.providerId ?? sourceMetadata.providerId,
+          providerName: data.providerName ?? sourceMetadata.providerName,
+        },
+        accountId,
+        profileId,
+        requestId,
+      });
       if (data.food) {
-        if (data.source === 'local') {
-          onFoodSelect(data.food, 'food');
-          setShowBarcodeScanner(false);
-          toast({
-            title: t(
-              'foodSearch.foodFoundInDatabase',
-              'Food found in database'
-            ),
-            description: t('foodSearch.found', 'Found: {{name}}', {
-              name: data.food.name,
-            }),
-          });
-          return;
-        }
-
-        type BarcodeProviderType =
-          | 'openfoodfacts'
-          | 'usda'
-          | 'fatsecret'
-          | 'mealie'
-          | 'tandoor'
-          | 'yazio'
-          | 'norish'
-          | 'swissfood';
-        const mapped: ExternalResultWrapper = {
-          provider_type: data.source as BarcodeProviderType,
-          food: data.food,
-        } as ExternalResultWrapper;
-
-        setScannedFood(mapped);
-
         toast({
           title: t(
             'foodSearch.barcodeScannedSuccessfully',
@@ -981,17 +1036,17 @@ const EnhancedFoodSearch = ({
           }),
         });
       } else {
-        setScannedFood(null);
         toast({
           title: t('foodSearch.productNotFound', 'Product not found'),
           description: t(
             'foodSearch.noProductFoundForThis',
-            'No product found for this barcode using selected provider.'
+            'No product found for this barcode. Check other sources or add a food manually.'
           ),
           variant: 'destructive',
         });
       }
     } catch {
+      if (requestId !== barcodeRequest.current) return;
       toast({
         title: t('common.error', 'Error'),
         description: t(
@@ -1001,8 +1056,21 @@ const EnhancedFoodSearch = ({
         variant: 'destructive',
       });
     } finally {
-      setIsOnlineLoading(false);
+      if (requestId === barcodeRequest.current) setIsOnlineLoading(false);
     }
+  };
+
+  const handleBarcodeFoodUse = (candidate: BarcodeCandidate) => {
+    if (!candidate.food) return;
+    const food = barcodeFoodToFood(candidate.food);
+    if (candidate.source === 'local') {
+      onFoodSelect(food, 'food');
+      return;
+    }
+    // Barcode results already contain complete details. Do not refetch via the
+    // old text-search provider or send the fallback sentinel as credentials.
+    setEditingProduct(food);
+    setShowEditDialog(true);
   };
 
   const handleSaveEditedFood = async (foodData: Food) => {
@@ -1071,22 +1139,14 @@ const EnhancedFoodSearch = ({
     providerIdOverride?: string
   ) => {
     const needsDetailFetch =
-      (food.provider_type === 'fatsecret' ||
-        food.provider_type === 'usda' ||
-        food.provider_type === 'yazio' ||
-        food.provider_type === 'swissfood' ||
-        food.provider_type === 'canadian-nutrient-file') &&
+      foodProviderNeedsDetailFetch(food.provider_type) &&
       food.provider_external_id;
 
     if (needsDetailFetch) {
       // In All Providers mode searchProviderId isn't set, so callers pass the
       // result's own provider id to fetch full nutrients with the right creds.
       const providerId = providerIdOverride || searchProviderId || undefined;
-      if (
-        !providerId &&
-        food.provider_type !== 'swissfood' &&
-        food.provider_type !== 'canadian-nutrient-file'
-      ) {
+      if (!providerId && !isPublicFoodProvider(food.provider_type)) {
         // No provider credentials available — data is already complete (barcode flow)
         setEditingProduct(food);
         setShowEditDialog(true);
@@ -1355,7 +1415,7 @@ const EnhancedFoodSearch = ({
 
       <div className="space-y-2 max-h-96 overflow-y-auto">
         {/* Landing: recent + top foods and meals (local mode, empty query) */}
-        {showLocalFoods && isSearchEmpty && (
+        {showLocalFoods && isSearchEmpty && !scannedBarcode && (
           <>
             {(isLoadingRecentFoods ||
               isLoadingFavorites ||
@@ -1417,7 +1477,7 @@ const EnhancedFoodSearch = ({
         )}
 
         {/* Online-only mode prompt (e.g. Foods page import) */}
-        {onlineOnly && isSearchEmpty && (
+        {onlineOnly && isSearchEmpty && !scannedBarcode && (
           <div className="text-center py-8 text-gray-500">
             {t(
               'enhancedFoodSearch.searchOnlineToImport',
@@ -1427,14 +1487,19 @@ const EnhancedFoodSearch = ({
         )}
 
         {/* Barcode scan result (shown even with an empty query) */}
-        {isSearchEmpty && scannedFood && (
-          <>
-            <SectionHeader>
-              {t('enhancedFoodSearch.scannedProduct', 'Scanned product')}
-            </SectionHeader>
-            {renderExternalCard(scannedFood)}
-          </>
-        )}
+        {isSearchEmpty &&
+          scannedBarcode &&
+          scannedBarcode.accountId === user?.id &&
+          scannedBarcode.profileId === user?.activeUserId && (
+            <BarcodeSearchResult
+              key={`${scannedBarcode.accountId}-${scannedBarcode.profileId}-${scannedBarcode.requestId}`}
+              barcode={scannedBarcode.barcode}
+              accountId={scannedBarcode.accountId}
+              profileId={scannedBarcode.profileId}
+              response={scannedBarcode.response}
+              onUseFood={handleBarcodeFoodUse}
+            />
+          )}
 
         {/* Search results */}
         {!isSearchEmpty && (

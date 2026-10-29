@@ -5,14 +5,19 @@ import {
   finishCue,
   heartRateAlertCue,
   paceAlertCue,
+  intervalCue,
+  intervalStepName,
+  intervalToGoCue,
+  spokenDuration,
+  splitCue,
+  stepDistanceText,
+  stepToGoMeters,
   halfwayCue,
   lastMinuteCue,
   milestoneCue,
   programDoneCue,
   programStartCue,
   splitTrendNote,
-  spokenDuration,
-  splitCue,
   stepCountdownCue,
   stepWarningCue,
 } from '../../src/utils/recordingCues';
@@ -91,6 +96,40 @@ describe('heartRateAlertCue', () => {
   it('tells the runner which way to go', () => {
     expect(heartRateAlertCue(tt, 'tooHigh')).toBe('Heart rate high. Ease off.');
     expect(heartRateAlertCue(tt, 'tooLow')).toBe('Heart rate low. Pick it up.');
+  });
+});
+
+describe('distance steps', () => {
+  it('shows and says a step in the unit it was set in', () => {
+    expect(stepDistanceText(tt, 400)).toBe('400 m');
+    expect(stepDistanceText(tt, 1500)).toBe('1.5 km');
+    expect(stepDistanceText(tt, 402, 'mi')).toBe('0.25 mi');
+    expect(stepDistanceText(tt, 1609, 'mi')).toBe('1 mi');
+    expect(
+      intervalCue(tt, {
+        step: { kind: 'work', seconds: 145, meters: 402, unit: 'mi' },
+        style: 'fastEasy',
+      })
+    ).toBe('Fast. 0.25 miles.');
+    expect(
+      intervalCue(tt, {
+        step: { kind: 'work', seconds: 144, meters: 400 },
+        style: 'fastEasy',
+      })
+    ).toBe('Fast. 400 meters.');
+  });
+
+  it('calls a brisk walk Brisk and Easy, never Run', () => {
+    expect(intervalStepName(tt, 'work', 'briskWalk')).toBe('Brisk');
+    expect(intervalStepName(tt, 'recovery', 'briskWalk')).toBe('Easy');
+    expect(intervalStepName(tt, 'work', 'runWalk')).toBe('Run');
+    expect(intervalStepName(tt, 'work', 'fastEasy')).toBe('Fast');
+  });
+
+  it('says the last tenth of a mile on a step set in miles', () => {
+    expect(intervalToGoCue(tt)).toBe('100 meters to go.');
+    expect(intervalToGoCue(tt, 'mi')).toBe('0.1 miles to go.');
+    expect(stepToGoMeters('mi')).toBeCloseTo(160.9, 1);
   });
 });
 
@@ -230,5 +269,21 @@ describe('countdown and milestone cues', () => {
     expect(milestoneCue(tt, 10000)).toBe('10K done. Strong effort.');
     expect(milestoneCue(tt, 21097.5)).toBe('Half marathon distance. Amazing.');
     expect(milestoneCue(tt, 42195)).toBe('Marathon distance. Incredible.');
+  });
+});
+
+describe('a Zone 2 step', () => {
+  it('is named Zone 2 run in the spoken cue and the step name, other work steps are not', () => {
+    const step = {
+      kind: 'work' as const,
+      seconds: 1800,
+      effort: 'zone2' as const,
+    };
+    expect(intervalStepName(tt, 'work', 'runWalk', 'zone2')).toBe('Zone 2 run');
+    expect(intervalStepName(tt, 'work', 'runWalk')).toBe('Run');
+    expect(intervalStepName(tt, 'recovery', 'runWalk', 'zone2')).toBe('Walk');
+    expect(intervalCue(tt, { step, style: 'runWalk' })).toBe(
+      'Zone 2 run. 30 minutes.'
+    );
   });
 });

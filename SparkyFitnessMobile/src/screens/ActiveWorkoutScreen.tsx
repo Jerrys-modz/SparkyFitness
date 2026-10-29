@@ -7,18 +7,20 @@ import {
   LayoutAnimation,
   Text,
   View,
+  type LayoutChangeEvent,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
+  useWindowDimensions,
 } from 'react-native';
 import {
   KeyboardAwareScrollView,
-  KeyboardStickyView,
   type KeyboardAwareScrollViewRef,
 } from 'react-native-keyboard-controller';
 import {
   calculateWarmupSets,
   findDropSetBaseIndex,
   findWarmupBaseIndex,
+  usesBarbell,
 } from '@workspace/shared';
 import { useIsFocused } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -31,15 +33,21 @@ import ActiveWorkoutRail, {
   useSupersetBorders,
 } from '../components/ActiveWorkoutRail';
 import type { SetRowAccessoryHandle } from '../components/ActiveWorkoutSetRow';
-import KeyboardCollapsible from '../components/KeyboardCollapsible';
 import {
-  SetInputAccessoryBar,
+  SET_ACCESSORY_BAR_HEIGHT,
+  StickySetInputAccessoryBar,
   useDeactivateOnKeyboardDismiss,
   type SetAccessoryAction,
   type SetInputField,
 } from '../components/SetRowChrome';
 import { MetricColumnMenu, SetTypeMenu } from '../components/WorkoutMenus';
-import ActiveWorkoutRestBar, {
+import PlateCalculatorSheet from '../components/PlateCalculatorSheet';
+import { storedWeightInUnit } from '../utils/unitConversions';
+import {
+  ActiveWorkoutCompactRestRow,
+  COMPACT_REST_ROW_HEIGHT,
+  MIN_WINDOW_HEIGHT_FOR_COMPACT_REST_ROW,
+  LiveActiveWorkoutRestBar,
   REST_BAR_GLASS_CLEARANCE,
 } from '../components/ActiveWorkoutRestBar';
 import type { ActionSheetRef } from '../components/ActionSheet';
@@ -52,6 +60,7 @@ import WorkoutDurationSheet, {
 import WorkoutReorderList from '../components/WorkoutReorderList';
 import ActiveWorkoutIntervalHud from '../components/ActiveWorkoutIntervalHud';
 import ActiveWorkoutGuidedCard from '../components/ActiveWorkoutGuidedCard';
+import ActiveWorkoutNowCard from '../components/ActiveWorkoutNowCard';
 import ActiveWorkoutRenameModal from '../components/ActiveWorkoutRenameModal';
 import ActiveWorkoutLocationModal from '../components/ActiveWorkoutLocationModal';
 import ActiveWorkoutOverflowSheet, {
@@ -63,7 +72,6 @@ import { useActiveWorkoutAutosave } from '../hooks/useActiveWorkoutAutosave';
 import { useExerciseImageSource } from '../hooks/useExerciseImageSource';
 import { useNavigationActionGuard } from '../hooks/useNavigationActionGuard';
 import { usePreferences } from '../hooks/usePreferences';
-import { useRestCountdown } from '../hooks/useRestCountdown';
 import { useNativeIOSTabsActive } from '../services/nativeTabBarPreference';
 import { getActiveServerConfig } from '../services/storage';
 import {
@@ -108,11 +116,9 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
   const setRenderKeys = useActiveWorkoutStore((s) => s.setRenderKeys);
   const activeSetId = useActiveWorkoutStore((s) => s.activeSetId);
   const plannedSetValues = useActiveWorkoutStore((s) => s.plannedSetValues);
-  const {
-    state: restState,
-    remainingMs: restRemainingMs,
-    progress: restProgress,
-  } = useRestCountdown({ selfTick: false });
+  // Only the rest state's transitions reach the screen; the countdown itself
+  // ticks inside the rest bar.
+  const restState = useActiveWorkoutStore((s) => s.rest.state);
   const usesGlassRestBar = useNativeIOSTabsActive();
   const createdByLiveStart = useActiveWorkoutStore((s) => s.createdByLiveStart);
   const queryClient = useQueryClient();
@@ -123,6 +129,7 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
   const guidedWorkoutEnabled = useAppPreferencesStore(
     (s) => s.guidedWorkoutEnabled
   );
+  const nowCardEnabled = useAppPreferencesStore((s) => s.activeWorkoutNowCard);
 
   const { preferences } = usePreferences();
   const weightUnit = (preferences?.default_weight_unit ?? 'kg') as 'kg' | 'lbs';
@@ -131,10 +138,7 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
   const { getImageSource } = useExerciseImageSource();
 
   const workoutFormat = useActiveWorkoutStore((s) => s.workoutFormat);
-  const { now } = useActiveWorkoutIntervalLifecycle(
-    workoutFormat,
-    guidedWorkoutEnabled
-  );
+  useActiveWorkoutIntervalLifecycle(workoutFormat, guidedWorkoutEnabled);
 
   const isFocused = useIsFocused();
   const [verifiedSourcePresetId, setVerifiedSourcePresetId] = useState<
@@ -178,7 +182,22 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
     sourcePresetId == null ||
     (isFocused && settledPresetCheckKey === presetCheckKey);
 
-  const { flush } = useActiveWorkoutAutosave();
+  // The set cell holding the keyboard (its render key) and which field. The
+  // ref is written with the state, not by an effect after the commit, so the
+  // rest-expiry subscription below already sees a tap from the same tick.
+  const [focusedSetKey, setFocusedSetKeyState] = useState<string | null>(null);
+  const focusedSetKeyRef = useRef<string | null>(null);
+  const setFocusedSetKey = useCallback((key: string | null) => {
+    focusedSetKeyRef.current = key;
+    setFocusedSetKeyState(key);
+  }, []);
+  const [focusedField, setFocusedField] = useState<SetInputField>('weight');
+
+  // While a set is being edited the autosave holds the server's replies back
+  // from the keyboard (see useActiveWorkoutAutosave).
+  const { flush } = useActiveWorkoutAutosave({
+    editing: focusedSetKey != null,
+  });
   const { runNavigationAction } = useNavigationActionGuard(navigation);
 
   useEffect(() => {
@@ -545,19 +564,34 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
     overflowSheetRef.current?.present();
   }, []);
 
-  const [focusedSetKey, setFocusedSetKey] = useState<string | null>(null);
-  const [focusedField, setFocusedField] = useState<SetInputField>('weight');
+  const handleSwapExercise = useCallback((entryId: string) => {
+    Keyboard.dismiss();
+    setOverflowMenu({ entryId, mode: 'swap' });
+    overflowSheetRef.current?.present();
+  }, []);
+
+  const handleDoExerciseNow = useCallback(
+    (entryId: string) => {
+      useActiveWorkoutStore.getState().doExerciseNow(entryId);
+      handleRailPress(entryId);
+    },
+    [handleRailPress]
+  );
+
   const handleActivateSet = useCallback(
     (setKey: string, field: Exclude<SetInputField, 'rpe'>) => {
       setFocusedField(field);
       setFocusedSetKey(setKey);
     },
-    []
+    [setFocusedSetKey]
   );
-  const handleActivateRpe = useCallback((setKey: string) => {
-    setFocusedField('rpe');
-    setFocusedSetKey(setKey);
-  }, []);
+  const handleActivateRpe = useCallback(
+    (setKey: string) => {
+      setFocusedField('rpe');
+      setFocusedSetKey(setKey);
+    },
+    [setFocusedSetKey]
+  );
 
   const accessoryHandlesRef = useRef<Record<string, SetRowAccessoryHandle>>({});
   const handleRegisterAccessoryHandle = useCallback(
@@ -570,8 +604,10 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
 
   // When a rest runs out on its own, put the cursor in the next set's first
   // value cell so the lifter can type without tapping. Skip / dismiss don't
-  // stamp restExpiredAt, so they never steal focus. A store subscription (not
-  // an effect on the value) because this reacts to an event, once.
+  // stamp restExpiredAt, so they never steal focus, and neither does an
+  // expiry while a set cell already has the keyboard: the lifter is typing
+  // there. A store subscription (not an effect on the value) because this
+  // reacts to an event, once.
   const isFocusedRef = useRef(isFocused);
   useEffect(() => {
     isFocusedRef.current = isFocused;
@@ -586,6 +622,7 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
           return;
         if (
           !isFocusedRef.current ||
+          focusedSetKeyRef.current != null ||
           AppState.currentState !== 'active' ||
           state.activeSetId == null
         )
@@ -605,32 +642,184 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
     [handleActivateSet]
   );
 
-  useDeactivateOnKeyboardDismiss(useCallback(() => setFocusedSetKey(null), []));
+  useDeactivateOnKeyboardDismiss(
+    useCallback(() => setFocusedSetKey(null), [setFocusedSetKey]),
+    focusedSetKey != null
+  );
+
+  // The set the plate calculator is open for (its weight is kg, as stored).
+  const [plateCalc, setPlateCalc] = useState<{
+    weightKg: number | null;
+    equipment: readonly string[] | null;
+  } | null>(null);
+  // The plate calculator's target for a set: only a barbell exercise has one.
+  // Reads the store so a weight committed a moment ago (a row flushing its
+  // draft) is not missed by a stale render.
+  const plateTargetFor = useCallback(
+    (setId: string) => {
+      const current = useActiveWorkoutStore.getState().session;
+      const ex = current?.exercises.find((e) =>
+        e.sets.some((s) => String(s.id) === setId)
+      );
+      const equipment = ex?.exercise_snapshot?.equipment ?? null;
+      if (!ex || !usesBarbell(equipment)) return null;
+      const set = ex.sets.find((s) => String(s.id) === setId);
+      const weightKg = Number(set?.weight ?? plannedSetValues[setId]?.weight);
+      return {
+        weightKg: Number.isFinite(weightKg) && weightKg > 0 ? weightKg : null,
+        equipment,
+      };
+    },
+    [plannedSetValues]
+  );
+  const openPlateCalculator = useCallback(
+    (setId: string) => {
+      const target = plateTargetFor(setId);
+      if (target) setPlateCalc(target);
+    },
+    [plateTargetFor]
+  );
 
   const handleAccessoryDone = useCallback(() => {
     setFocusedSetKey(null);
     Keyboard.dismiss();
-  }, []);
+  }, [setFocusedSetKey]);
 
-  const handleCompleteSet = useCallback((setId: string) => {
-    useActiveWorkoutStore.getState().completeSet(setId);
-    setFocusedSetKey(null);
-    setExpandedSetKey(null);
-    Keyboard.dismiss();
-    const store = useActiveWorkoutStore.getState();
-    const completed = store.completedSetIds;
-    const remaining =
-      store.session?.exercises.reduce(
-        (sum, e) => sum + e.sets.filter((s) => !completed[String(s.id)]).length,
-        0
-      ) ?? 0;
-    if (remaining === 0) {
-      runAfterKeyboardSettles(() => {
-        programmaticScrollUntilRef.current = Date.now() + 600;
-        scrollRef.current?.scrollToEnd({ animated: true });
-      }, 350);
-    }
-  }, []);
+  // The keyboard bar is mounted the whole time, so its props are memoized: a
+  // screen render that changes nothing on it (a sheet or menu opening, a rest
+  // pausing or resuming) must not re-render it. Next walks weight → reps → RPE
+  // (or a cardio form's duration → distance); the last field offers Log on an
+  // unlogged set, Next Set on a logged one, or only Done.
+  const accessoryActions = useMemo<SetAccessoryAction[]>(() => {
+    if (focusedSetKey == null || session == null) return [];
+    const key = focusedSetKey;
+    const focusedSetId =
+      Object.keys(setRenderKeys).find((id) => setRenderKeys[id] === key) ?? key;
+    const focusedEntryIsCardioForm = session.exercises.some(
+      (e) =>
+        e.sets.some((s) => String(s.id) === focusedSetId) &&
+        rendersCardioEffortForm(e.exercise_snapshot, e.sets.length)
+    );
+    const nextField = focusedEntryIsCardioForm
+      ? focusedField === 'duration'
+        ? ('distance' as const)
+        : null
+      : focusedField === 'weight'
+        ? ('reps' as const)
+        : (focusedField === 'reps' || focusedField === 'duration') &&
+            metricColumn === 'rpe'
+          ? ('rpe' as const)
+          : null;
+    const focusedSetCompleted = completedSetIds[focusedSetId] != null;
+    const focusedExercise = session.exercises.find((e) =>
+      e.sets.some((s) => String(s.id) === focusedSetId)
+    );
+    const showCalculator =
+      focusedField === 'weight' &&
+      usesBarbell(focusedExercise?.exercise_snapshot?.equipment);
+    return [
+      ...(showCalculator
+        ? [
+            {
+              key: 'plate-calculator',
+              label: t('plates.calculatorShort', {
+                defaultValue: 'Calculator',
+              }),
+              onPress: () => {
+                // The row commits its weight draft when it loses focus, which
+                // happens after this handler: flush first so the calculator
+                // sees what is on screen.
+                accessoryHandlesRef.current[key]?.flushWeight?.();
+                setFocusedSetKey(null);
+                Keyboard.dismiss();
+                openPlateCalculator(focusedSetId);
+              },
+            },
+          ]
+        : []),
+      ...(nextField != null
+        ? [
+            {
+              key: 'next',
+              label: t('workout.next', { defaultValue: 'Next' }),
+              onPress: () => {
+                accessoryHandlesRef.current[key]?.focusField(nextField);
+              },
+            },
+          ]
+        : []),
+      ...(nextField == null && focusedSetCompleted && !focusedEntryIsCardioForm
+        ? [
+            {
+              key: 'next-set',
+              label: t('workout.nextSet', { defaultValue: 'Next Set' }),
+              onPress: () => {
+                accessoryHandlesRef.current[key]?.advance();
+              },
+            },
+          ]
+        : []),
+      ...(!focusedSetCompleted
+        ? [
+            {
+              key: 'log',
+              label: t('workout.log', { defaultValue: 'Log' }),
+              bold: true,
+              onPress: () => {
+                accessoryHandlesRef.current[key]?.log();
+              },
+            },
+          ]
+        : []),
+    ];
+  }, [
+    focusedSetKey,
+    focusedField,
+    session,
+    setRenderKeys,
+    completedSetIds,
+    metricColumn,
+    openPlateCalculator,
+    setFocusedSetKey,
+    t,
+  ]);
+
+  // While a rest runs, the keyboard bar carries its controls: the docked rest
+  // bar is behind the keyboard. A short screen leaves the row out, or it would
+  // cover the set being edited. The row ticks on the shared clock by itself,
+  // so the element only changes when a rest starts or ends.
+  const restRunning = restState !== 'ready';
+  const { height: windowHeight } = useWindowDimensions();
+  const barCarriesRest =
+    restRunning && windowHeight >= MIN_WINDOW_HEIGHT_FOR_COMPACT_REST_ROW;
+  const accessoryRestSlot = useMemo(
+    () => (barCarriesRest ? <ActiveWorkoutCompactRestRow /> : undefined),
+    [barCarriesRest]
+  );
+
+  const handleCompleteSet = useCallback(
+    (setId: string) => {
+      useActiveWorkoutStore.getState().completeSet(setId);
+      setFocusedSetKey(null);
+      setExpandedSetKey(null);
+      Keyboard.dismiss();
+      const store = useActiveWorkoutStore.getState();
+      const completed = store.completedSetIds;
+      const remaining =
+        store.session?.exercises.reduce(
+          (sum, e) =>
+            sum + e.sets.filter((s) => !completed[String(s.id)]).length,
+          0
+        ) ?? 0;
+      if (remaining === 0) {
+        runAfterKeyboardSettles(() => {
+          programmaticScrollUntilRef.current = Date.now() + 600;
+          scrollRef.current?.scrollToEnd({ animated: true });
+        }, 350);
+      }
+    },
+    [setFocusedSetKey]
+  );
 
   const handleCompleteActiveSet = useCallback(() => {
     const id = useActiveWorkoutStore.getState().activeSetId;
@@ -727,6 +916,48 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
     safeGoBack,
   });
 
+  // Everything handed to a memoized child below is kept stable here, so a
+  // screen render that changes nothing for that child (a cell gaining focus,
+  // a rest starting) does not re-render it.
+  const progress = useMemo(
+    () =>
+      session == null ? [] : buildExerciseProgress(session, completedSetIds),
+    [session, completedSetIds]
+  );
+  const handleOpenRename = useCallback(() => setRenameVisible(true), []);
+  const handleOpenLocation = useCallback(() => setLocationVisible(true), []);
+
+  const restBarVisible = restRunning || activeSetId != null;
+  const scrollContentStyle = useMemo(() => {
+    const restBarPadding = usesGlassRestBar
+      ? REST_BAR_GLASS_CLEARANCE + insets.bottom
+      : 16;
+    return {
+      paddingBottom: restBarVisible ? restBarPadding : insets.bottom + 16,
+    };
+  }, [restBarVisible, usesGlassRestBar, insets.bottom]);
+  const handleScrollLayout = useCallback((e: LayoutChangeEvent) => {
+    viewportHeightRef.current = e.nativeEvent.layout.height;
+  }, []);
+
+  const handleAdjustRest = useCallback((deltaSec: number) => {
+    useActiveWorkoutStore.getState().adjustRest(deltaSec);
+  }, []);
+  const handleSkipRest = useCallback(() => {
+    useActiveWorkoutStore.getState().dismissRest();
+  }, []);
+  const handlePauseRest = useCallback(() => {
+    useActiveWorkoutStore.getState().pauseRest();
+  }, []);
+  const handleResumeRest = useCallback(() => {
+    useActiveWorkoutStore.getState().resumeRest();
+  }, []);
+
+  const handleReorderMove = useCallback((from: number, to: number) => {
+    useActiveWorkoutStore.getState().reorderExercises(from, to);
+  }, []);
+  const handleReorderDone = useCallback(() => setReorderVisible(false), []);
+
   if (session == null || sessionId == null) {
     return (
       <View
@@ -740,12 +971,7 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
     );
   }
 
-  const progress = buildExerciseProgress(session, completedSetIds);
   const hasAnyCompletedSets = Object.keys(completedSetIds).length > 0;
-  const restBarVisible = restState !== 'ready' || activeSetId != null;
-  const restBarPadding = usesGlassRestBar
-    ? REST_BAR_GLASS_CLEARANCE + insets.bottom
-    : 16;
   const activeSetDescription = describeActiveSet(session, activeSetId);
   const restLabel =
     activeSetDescription == null
@@ -756,124 +982,72 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
       ? null
       : formatSetLoad(activeSetDescription, weightUnit, t);
 
-  const focusedSetId =
-    focusedSetKey == null
-      ? null
-      : (Object.keys(setRenderKeys).find(
-          (id) => setRenderKeys[id] === focusedSetKey
-        ) ?? focusedSetKey);
-  const focusedEntryIsCardioForm =
-    focusedSetId != null &&
-    session.exercises.some(
-      (e) =>
-        e.sets.some((s) => String(s.id) === focusedSetId) &&
-        rendersCardioEffortForm(e.exercise_snapshot, e.sets.length)
-    );
-  const accessoryNextField = focusedEntryIsCardioForm
-    ? focusedField === 'duration'
-      ? ('distance' as const)
-      : null
-    : focusedField === 'weight'
-      ? ('reps' as const)
-      : (focusedField === 'reps' || focusedField === 'duration') &&
-          metricColumn === 'rpe'
-        ? ('rpe' as const)
-        : null;
-  const focusedSetCompleted =
-    focusedSetId != null && completedSetIds[focusedSetId] != null;
-  const accessoryActions: SetAccessoryAction[] = [
-    ...(accessoryNextField != null
-      ? [
-          {
-            key: 'next',
-            label: t('workout.next', { defaultValue: 'Next' }),
-            onPress: () => {
-              if (focusedSetKey == null) return;
-              accessoryHandlesRef.current[focusedSetKey]?.focusField(
-                accessoryNextField
-              );
-            },
-          },
-        ]
-      : []),
-    ...(accessoryNextField == null &&
-    focusedSetCompleted &&
-    !focusedEntryIsCardioForm
-      ? [
-          {
-            key: 'next-set',
-            label: t('workout.nextSet', { defaultValue: 'Next Set' }),
-            onPress: () => {
-              if (focusedSetKey == null) return;
-              accessoryHandlesRef.current[focusedSetKey]?.advance();
-            },
-          },
-        ]
-      : []),
-    ...(focusedSetId != null && !focusedSetCompleted
-      ? [
-          {
-            key: 'log',
-            label: t('workout.log', { defaultValue: 'Log' }),
-            bold: true,
-            onPress: () => {
-              if (focusedSetKey == null) return;
-              accessoryHandlesRef.current[focusedSetKey]?.log();
-            },
-          },
-        ]
-      : []),
-  ];
-
   return (
     <View className="flex-1 bg-background" style={{ paddingTop: insets.top }}>
       <ActiveWorkoutHeader
         name={session.name}
         location={session.location}
         startedAt={startedAt}
-        now={now}
         progress={progress}
         onBack={safeGoBack}
         onDiscard={handleDiscard}
         onEndWorkout={handleConfirmEnd}
-        onRename={() => setRenameVisible(true)}
-        onEditLocation={() => setLocationVisible(true)}
+        onRename={handleOpenRename}
+        onEditLocation={handleOpenLocation}
         onAddExercise={handleAddExercise}
         onReorder={reorderItemCount >= 2 ? handleOpenReorder : undefined}
         onOpenSettings={handleOpenWorkoutSettings}
         onClearAllSets={hasAnyCompletedSets ? handleClearAllSets : undefined}
       />
 
-      <KeyboardCollapsible>
-        <ActiveWorkoutRail
-          exercises={session.exercises}
-          completedSetIds={completedSetIds}
-          focusedEntryId={focusedExerciseId}
-          activeEntryId={activeExerciseId}
-          supersetBorders={supersetBorders}
-          getImageSource={getImageSource}
-          onPressExercise={handleRailPress}
-          onPressAdd={handleAddExercise}
-        />
-      </KeyboardCollapsible>
+      <ActiveWorkoutRail
+        exercises={session.exercises}
+        completedSetIds={completedSetIds}
+        focusedEntryId={focusedExerciseId}
+        activeEntryId={activeExerciseId}
+        supersetBorders={supersetBorders}
+        getImageSource={getImageSource}
+        onPressExercise={handleRailPress}
+        onPressAdd={handleAddExercise}
+      />
+
+      {/* Pinned rather than in the list, so the scroll to the active exercise
+          never hides it; out of the way while a set value is being typed. */}
+      {nowCardEnabled &&
+        !guidedWorkoutEnabled &&
+        workoutFormat === 'standard' &&
+        focusedSetKey == null && (
+          <ActiveWorkoutNowCard
+            session={session}
+            activeSetId={activeSetId}
+            completedSetIds={completedSetIds}
+            weightUnit={weightUnit}
+            resting={restState === 'resting'}
+            getImageSource={getImageSource}
+            onPressExercise={handleRailPress}
+            onSwap={handleSwapExercise}
+          />
+        )}
 
       <KeyboardAwareScrollView
         ref={scrollRef}
         className="flex-1"
         contentContainerClassName="px-3 pt-2"
-        contentContainerStyle={{
-          paddingBottom: restBarVisible ? restBarPadding : insets.bottom + 16,
-        }}
+        contentContainerStyle={scrollContentStyle}
         onScroll={handleScroll}
         scrollEventThrottle={32}
-        onLayout={(e) => {
-          viewportHeightRef.current = e.nativeEvent.layout.height;
-        }}
+        onLayout={handleScrollLayout}
         keyboardShouldPersistTaps="handled"
-        bottomOffset={80}
+        // The focused cell stays clear of the keyboard bar riding on top of
+        // the keyboard, and of the rest row it carries while a rest runs.
+        bottomOffset={
+          SET_ACCESSORY_BAR_HEIGHT +
+          (barCarriesRest ? COMPACT_REST_ROW_HEIGHT : 0) +
+          16
+        }
         disableScrollOnKeyboardHide
       >
-        <ActiveWorkoutIntervalHud now={now} getImageSource={getImageSource} />
+        <ActiveWorkoutIntervalHud getImageSource={getImageSource} />
 
         {guidedWorkoutEnabled && workoutFormat === 'standard' && (
           <ActiveWorkoutGuidedCard
@@ -940,33 +1114,24 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
       </KeyboardAwareScrollView>
 
       {restBarVisible && (
-        <ActiveWorkoutRestBar
-          remainingMs={restRemainingMs}
-          progress={restProgress}
-          state={restState}
+        <LiveActiveWorkoutRestBar
           label={restLabel}
           nextSetText={restNextSetText}
-          onAdjust={(deltaSec) =>
-            useActiveWorkoutStore.getState().adjustRest(deltaSec)
-          }
-          onSkip={() => useActiveWorkoutStore.getState().dismissRest()}
-          onPause={() => useActiveWorkoutStore.getState().pauseRest()}
-          onResume={() => useActiveWorkoutStore.getState().resumeRest()}
+          onAdjust={handleAdjustRest}
+          onSkip={handleSkipRest}
+          onPause={handlePauseRest}
+          onResume={handleResumeRest}
           onCompleteSet={handleCompleteActiveSet}
           onPressBar={handlePressRestBar}
         />
       )}
 
-      {focusedSetKey != null && (
-        <KeyboardStickyView
-          style={{ position: 'absolute', bottom: 0, left: 0, right: 0 }}
-        >
-          <SetInputAccessoryBar
-            onDone={handleAccessoryDone}
-            actions={accessoryActions}
-          />
-        </KeyboardStickyView>
-      )}
+      <StickySetInputAccessoryBar
+        visible={focusedSetKey != null}
+        onDone={handleAccessoryDone}
+        actions={accessoryActions}
+        restSlot={accessoryRestSlot}
+      />
 
       <ExerciseSetRestSheet
         ref={setRestSheetRef}
@@ -1004,6 +1169,8 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
         session={session}
         supersetRuns={supersetRuns}
         completedSetIds={completedSetIds}
+        activeSetId={activeSetId}
+        onDoExerciseNow={handleDoExerciseNow}
         onPressThumb={handlePressThumb}
         onToggleExerciseNote={handleToggleExerciseNote}
         onReplaceExercise={handleReplaceExercise}
@@ -1019,6 +1186,9 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
         }}
         onSwitchToPickMode={() => {
           setOverflowMenu((prev) => (prev ? { ...prev, mode: 'pick' } : prev));
+        }}
+        onSwitchToSwapMode={() => {
+          setOverflowMenu((prev) => (prev ? { ...prev, mode: 'swap' } : prev));
         }}
         onSwitchToMainMode={() => {
           setOverflowMenu((prev) => (prev ? { ...prev, mode: 'main' } : prev));
@@ -1038,6 +1208,16 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
               .updateSetField(setId, { set_type: type });
           }
         }}
+        onOpenPlateCalculator={(() => {
+          const setId = setTypeMenu?.setId;
+          if (setId == null) return undefined;
+          const target = plateTargetFor(setId);
+          if (!target) return undefined;
+          return () => {
+            setPlateCalc(target);
+            setSetTypeMenu(null);
+          };
+        })()}
         onGenerateDropSets={(() => {
           const setId = setTypeMenu?.setId;
           if (setId == null) return undefined;
@@ -1064,14 +1244,26 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
         })()}
       />
 
+      {plateCalc != null && (
+        <PlateCalculatorSheet
+          visible
+          onClose={() => setPlateCalc(null)}
+          targetWeight={
+            plateCalc?.weightKg != null
+              ? storedWeightInUnit(plateCalc.weightKg, weightUnit)
+              : null
+          }
+          weightUnit={weightUnit}
+          equipment={plateCalc?.equipment}
+        />
+      )}
+
       <WorkoutReorderList
         visible={reorderVisible}
         exercises={session.exercises}
         getImageSource={getImageSource}
-        onMoveItem={(from, to) =>
-          useActiveWorkoutStore.getState().reorderExercises(from, to)
-        }
-        onDone={() => setReorderVisible(false)}
+        onMoveItem={handleReorderMove}
+        onDone={handleReorderDone}
       />
     </View>
   );

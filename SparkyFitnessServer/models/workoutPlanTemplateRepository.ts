@@ -65,6 +65,8 @@ export interface WorkoutPlanAssignmentRow extends AssignmentProgressionInput {
   exercise_id?: string | null;
   exercise_name?: string | null;
   modality?: string | null;
+  /** When planned-weight proposals were last applied to this assignment. */
+  proposals_applied_at?: string | Date | null;
   sets?: WorkoutPlanAssignmentSetInput[];
 }
 
@@ -162,7 +164,7 @@ async function createWorkoutPlanTemplate(
                         FROM (
                             SELECT 
                                 a.id, a.day_of_week, a.sort_order, a.session_index, a.session_name, a.workout_preset_id, wp.name as workout_preset_name, wp.workout_format as workout_preset_format,
-                                a.exercise_id, e.name as exercise_name, e.modality as modality,
+                                a.exercise_id, e.name as exercise_name, e.modality as modality, a.proposals_applied_at,
                                 (
                                     SELECT COALESCE(json_agg(set_data ORDER BY set_data.set_number), '[]'::json)
                                     FROM (
@@ -640,11 +642,12 @@ async function unlinkExerciseEntriesByTemplateId(
 }
 
 /**
- * Sets the planned weight of individual set rows of one template, in one
- * statement. A set that does not belong to the template (or that the caller
- * cannot see through RLS) is simply not matched, so the count tells the
- * caller whether every change landed. The template's `updated_at` moves
- * with the weights: proposals only count evidence logged after it.
+ * Sets the planned weight of individual set rows of one template in a single
+ * transaction. Every change must land: a set that does not belong to the
+ * template (or that the caller cannot see through RLS), for instance after a
+ * concurrent plan edit, rolls the whole update back and throws. The assignments
+ * touched are stamped with `proposals_applied_at`, so later proposals only
+ * count evidence logged after it.
  */
 async function updatePlannedSetWeights(
   userId: string,
@@ -662,21 +665,36 @@ async function updatePlannedSetWeights(
             workout_plan_template_assignments a
        WHERE s.id = c.id
          AND a.id = s.assignment_id
-         AND a.template_id = $1`,
+         AND a.template_id = $1
+       RETURNING s.assignment_id`,
       [
         templateId,
         changes.map((change) => Number(change.setId)),
         changes.map((change) => change.weightKg),
       ]
     );
-    if ((result.rowCount ?? 0) > 0) {
-      await client.query(
-        'UPDATE workout_plan_templates SET updated_at = now() WHERE id = $1',
-        [templateId]
+    const updated = result.rowCount ?? 0;
+    if (updated !== changes.length) {
+      throw new Error(
+        `Only ${updated} of ${changes.length} planned set weights were updated; the plan may have changed. Review the plan and try again.`
       );
     }
+    await client.query(
+      `UPDATE workout_plan_template_assignments
+       SET proposals_applied_at = now()
+       WHERE id = ANY($1::int[])`,
+      [
+        [
+          ...new Set(
+            (result.rows as { assignment_id: number }[]).map(
+              (row) => row.assignment_id
+            )
+          ),
+        ],
+      ]
+    );
     await client.query('COMMIT');
-    return result.rowCount ?? 0;
+    return updated;
   } catch (error) {
     await client.query('ROLLBACK');
     throw error;
