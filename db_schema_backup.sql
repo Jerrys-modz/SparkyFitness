@@ -5705,6 +5705,7 @@ CREATE TABLE public.workout_plan_template_assignments (
     sort_order integer DEFAULT 0,
     session_index integer,
     session_name character varying(100),
+    proposals_applied_at timestamp with time zone,
     CONSTRAINT chk_workout_assignment_type CHECK ((((workout_preset_id IS NOT NULL) AND (exercise_id IS NULL)) OR ((workout_preset_id IS NULL) AND (exercise_id IS NOT NULL))))
 );
 
