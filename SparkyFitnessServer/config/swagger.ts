@@ -124,21 +124,40 @@ const options = {
           additionalProperties: false,
           required: ['entry_date'],
           description:
-            'Exactly one of marker_key or custom_marker_id, and at least one of value_numeric or value_text.',
+            'Exactly one of marker_key or custom_marker_id is non-null, and at least one of value_numeric or value_text is non-null. A null counts as not sent, as on the server.',
           oneOf: [
-            { required: ['marker_key'] },
-            { required: ['custom_marker_id'] },
+            {
+              required: ['marker_key'],
+              properties: { marker_key: { type: 'string' } },
+            },
+            {
+              required: ['custom_marker_id'],
+              properties: {
+                custom_marker_id: { type: 'string', format: 'uuid' },
+              },
+            },
           ],
           anyOf: [
-            { required: ['value_numeric'] },
-            { required: ['value_text'] },
+            {
+              required: ['value_numeric'],
+              properties: { value_numeric: { type: 'number' } },
+            },
+            {
+              required: ['value_text'],
+              properties: { value_text: { type: 'string', minLength: 1 } },
+            },
           ],
           properties: {
             marker_key: {
               type: 'string',
+              nullable: true,
               description: 'Built-in marker key, such as hba1c',
             },
-            custom_marker_id: { type: 'string', format: 'uuid' },
+            custom_marker_id: {
+              type: 'string',
+              format: 'uuid',
+              nullable: true,
+            },
             entry_date: { type: 'string', format: 'date' },
             value_numeric: { type: 'number', nullable: true },
             value_text: { type: 'string', nullable: true },
