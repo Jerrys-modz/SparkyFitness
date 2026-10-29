@@ -223,7 +223,7 @@ object TileModels {
    * Builds the display model for the Sleep Health tile from today's [SleepSnapshot].
    */
   fun buildSleepTileModel(sleep: SleepSnapshot?): SleepTileModel {
-    if (sleep == null || !sleep.isToday || sleep.totalSeconds <= 0) {
+    if (sleep == null || !sleep.isToday || (sleep.totalSeconds <= 0 && sleep.timeInBedSeconds <= 0)) {
       return SleepTileModel(
         hasData = false,
         durationText = "—",
@@ -234,7 +234,11 @@ object TileModels {
         stages = emptyList()
       )
     }
-    val durationText = formatDurationSeconds(sleep.totalSeconds)
+    val durationText = if (sleep.totalSeconds > 0) {
+      formatDurationSeconds(sleep.totalSeconds)
+    } else {
+      "In bed ${formatDurationSeconds(sleep.timeInBedSeconds)}"
+    }
     val scoreText = sleep.sleepScore?.let { "Score $it" }
     val windowText = when {
       sleep.bedtime.isNotBlank() && sleep.wakeTime.isNotBlank() -> "${sleep.bedtime} – ${sleep.wakeTime}"
@@ -259,10 +263,11 @@ object TileModels {
     sleep.spo2?.takeIf { it > 0 }?.let { bioParts.add("SpO2 ${it}%") }
     val biometricsText = bioParts.takeIf { it.isNotEmpty() }?.joinToString(" · ")
 
+    val spanSeconds = if (sleep.totalSeconds > 0) sleep.totalSeconds else sleep.timeInBedSeconds
     val progress = if (sleep.sleepScore != null && sleep.sleepScore > 0) {
       (sleep.sleepScore / 100f).coerceIn(0f, 1f)
     } else {
-      (sleep.totalSeconds / (8 * 3600f)).coerceIn(0f, 1f)
+      (spanSeconds / (8 * 3600f)).coerceIn(0f, 1f)
     }
 
     return SleepTileModel(

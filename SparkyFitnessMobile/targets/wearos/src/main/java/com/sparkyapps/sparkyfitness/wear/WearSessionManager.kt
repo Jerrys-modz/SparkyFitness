@@ -234,7 +234,7 @@ class WearSessionManager private constructor(private val appContext: Context) :
           !firstTime("$type:${identity.joinToString("|")}")) return
         val plan = ContextPayloadMapper.parseWorkoutPlan(json, allowEmpty = true) ?: return
         workoutStore.startOrUpdatePlan(plan)
-        _requestedPage.value = WatchPage.WORKOUT
+        requestNavigateTo(WatchPage.WORKOUT)
         bringAppToForeground()
       }
       type == "workoutStop" -> {
@@ -259,7 +259,7 @@ class WearSessionManager private constructor(private val appContext: Context) :
         val state = ContextPayloadMapper.parseRecordingState(json) ?: return
         recordingStore.applyRemoteState(state)
         if (recordingStore.isActive) {
-          _requestedPage.value = WatchPage.WORKOUT
+          requestNavigateTo(WatchPage.WORKOUT)
         }
       }
       type == "watchRunStart" || type == "runStart" -> {
@@ -267,7 +267,7 @@ class WearSessionManager private constructor(private val appContext: Context) :
         if (requestId.isNotEmpty() && !firstTime("runStart:$requestId")) return
         val req = ContextPayloadMapper.parseRunStartRequest(json) ?: return
         runStore.startRun(req)
-        _requestedPage.value = WatchPage.WORKOUT
+        requestNavigateTo(WatchPage.WORKOUT)
         bringAppToForeground()
       }
       type == "watchRunControl" || type == "runControl" -> {

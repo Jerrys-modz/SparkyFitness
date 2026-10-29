@@ -320,6 +320,9 @@ class CheckInStore(private val context: Context) {
     if (curExercise != null && curExercise.day != today) {
       _exerciseSummary.value = null
     }
+    if (!_watchContext.value.today.isNullOrEmpty() && _watchContext.value.today != today) {
+      _scheduledWorkouts.value = emptyList()
+    }
     val filteredTaps = _pendingWaterTaps.value.filter { it.day == today }
     val filteredDeletes = _pendingWaterDeletes.value.filter { it.day == today }
     if (filteredTaps.size != _pendingWaterTaps.value.size || filteredDeletes.size != _pendingWaterDeletes.value.size) {
@@ -719,7 +722,11 @@ class CheckInStore(private val context: Context) {
     _nutrition.value = nextCtx.nutrition?.takeIf { it.isToday }
     _medications.value = nextCtx.medications?.takeIf { it.isToday }
     _startableWorkouts.value = nextCtx.startableWorkouts ?: emptyList()
-    _scheduledWorkouts.value = nextCtx.scheduledWorkouts ?: emptyList()
+    _scheduledWorkouts.value = if (nextCtx.today.isNullOrEmpty() || nextCtx.today == CheckInDate.today()) {
+      nextCtx.scheduledWorkouts ?: emptyList()
+    } else {
+      emptyList()
+    }
     _fast.value = nextCtx.fast
     _steps.value = nextCtx.steps?.takeIf { it.isToday } ?: _steps.value?.takeIf { it.isToday }
     nextCtx.stepGoal?.let { _stepGoal.value = it }

@@ -648,15 +648,22 @@ export function useWatchCheckInBridge(enabled: boolean): void {
   const watchSleep: WatchSleepSnapshotPayload | null = useMemo(() => {
     if (!mainSleep && sleepNaps.length === 0) return null;
     const napSeconds = sleepNaps.reduce(
+      (sum, nap) => sum + Math.max(0, nap.time_asleep_in_seconds ?? 0),
+      0
+    );
+    const napInBedSeconds = sleepNaps.reduce(
       (sum, nap) =>
         sum +
-        Math.max(0, nap.time_asleep_in_seconds ?? nap.duration_in_seconds ?? 0),
+        Math.max(0, nap.duration_in_seconds ?? nap.time_asleep_in_seconds ?? 0),
       0
     );
     const mainAsleepSeconds = mainSleep
+      ? Math.max(0, mainSleep.time_asleep_in_seconds ?? 0)
+      : 0;
+    const mainInBedSeconds = mainSleep
       ? Math.max(
           0,
-          mainSleep.time_asleep_in_seconds ?? mainSleep.duration_in_seconds ?? 0
+          mainSleep.duration_in_seconds ?? mainSleep.time_asleep_in_seconds ?? 0
         )
       : 0;
     const zone = mainSleep
@@ -671,7 +678,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     return {
       day: summaryDate,
       totalSeconds: Math.round(mainAsleepSeconds + napSeconds),
-      timeInBedSeconds: Math.round(mainSleep?.duration_in_seconds ?? 0),
+      timeInBedSeconds: Math.round(mainInBedSeconds + napInBedSeconds),
       sleepScore:
         mainSleep?.sleep_score != null
           ? Math.round(mainSleep.sleep_score)
