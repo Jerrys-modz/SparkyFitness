@@ -2893,6 +2893,94 @@ describe('activeWorkoutStore', () => {
       expect(state.activeSetId).toBe('502');
     });
 
+    it('pairs exercises by entry id when the reply comes back in another order (#3295)', async () => {
+      useActiveWorkoutStore.getState().completeActiveSet(); // 101 done
+      await flushPromises();
+      const sentRevision = useActiveWorkoutStore.getState().sessionRevision;
+
+      // Same exercises and ids as sent, but the server lists them swapped.
+      const response = makeSession();
+      response.exercises.reverse();
+      useActiveWorkoutStore
+        .getState()
+        .applyServerSession(response, sentRevision, SENT_ENTRY_IDS);
+
+      const state = useActiveWorkoutStore.getState();
+      // Exercise 1's sets keep their own ids rather than taking exercise 2's.
+      expect(state.completedSetIds).toEqual({ '101': FIXED_NOW });
+      expect(
+        state.session?.exercises
+          .find((e) => e.id === 'ex-uuid-1')
+          ?.sets.map((s) => s.id)
+      ).toEqual([101, 102]);
+      expect(
+        state.session?.exercises
+          .find((e) => e.id === 'ex-uuid-2')
+          ?.sets.map((s) => s.id)
+      ).toEqual([201]);
+      expect(state.steps.map((s) => s.setId).sort()).toEqual([
+        '101',
+        '102',
+        '201',
+      ]);
+    });
+
+    it('does not carry completion onto another exercise when the reply is reordered (#3295)', async () => {
+      useActiveWorkoutStore.getState().completeActiveSet(); // 101 done
+      await flushPromises();
+      useActiveWorkoutStore.getState().updateSetField('102', { weight: 72.5 });
+      const sentRevision = useActiveWorkoutStore.getState().sessionRevision;
+      // Edit lands mid-flight, so the graft branch runs.
+      useActiveWorkoutStore.getState().updateSetField('201', { weight: 40 });
+
+      const response = makeSession();
+      response.exercises.reverse();
+      useActiveWorkoutStore
+        .getState()
+        .applyServerSession(response, sentRevision, SENT_ENTRY_IDS);
+
+      const state = useActiveWorkoutStore.getState();
+      expect(Object.keys(state.completedSetIds)).toEqual(['101']);
+      expect(state.session?.exercises.map((e) => e.id)).toEqual([
+        'ex-uuid-1',
+        'ex-uuid-2',
+      ]);
+    });
+
+    it('logs a warning when the reply does not hold the sent exercises in the sent order', () => {
+      const { addLog } = jest.requireMock('../../src/services/LogService');
+      addLog.mockClear();
+      useActiveWorkoutStore.getState().updateSetField('101', { weight: 65 });
+      const sentRevision = useActiveWorkoutStore.getState().sessionRevision;
+
+      const response = makeSession();
+      response.exercises.reverse();
+      useActiveWorkoutStore
+        .getState()
+        .applyServerSession(response, sentRevision, SENT_ENTRY_IDS);
+
+      expect(addLog).toHaveBeenCalledWith(
+        expect.stringContaining('does not match what was sent'),
+        'WARNING'
+      );
+    });
+
+    it('does not log when the reply matches what was sent', () => {
+      const { addLog } = jest.requireMock('../../src/services/LogService');
+      addLog.mockClear();
+      useActiveWorkoutStore.getState().updateSetField('101', { weight: 65 });
+      const sentRevision = useActiveWorkoutStore.getState().sessionRevision;
+
+      useActiveWorkoutStore
+        .getState()
+        .applyServerSession(makeSession(), sentRevision, SENT_ENTRY_IDS);
+
+      expect(addLog).not.toHaveBeenCalledWith(
+        expect.stringContaining('does not match what was sent'),
+        'WARNING'
+      );
+    });
+
     it('preserves a running rest when the cursor id changes but the logical set survives', async () => {
       mockSchedule.mockResolvedValueOnce('notif-keep-across-recreate');
       useActiveWorkoutStore.getState().completeActiveSet(); // cursor → 102, resting
