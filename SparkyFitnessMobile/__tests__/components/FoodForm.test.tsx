@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert } from 'react-native';
+import { Alert, Dimensions } from 'react-native';
 import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import FoodForm from '../../src/components/FoodForm';
 
@@ -1737,5 +1737,98 @@ describe('FoodForm sodium entry unit', () => {
     expect(onSubmit).toHaveBeenLastCalledWith(
       expect.objectContaining({ servingSize: '200', sodium: '400' })
     );
+  });
+
+  it('ignores a salt keystroke that leaves the amount unreadable', () => {
+    const { screen, onSubmit } = renderForm();
+
+    selectSodiumUnit('salt_g');
+    fireEvent.changeText(screen.getByLabelText('Salt (g)'), '1.5');
+    fireEvent.changeText(screen.getByLabelText('Salt (g)'), '1..5');
+
+    expect(screen.getByLabelText('Salt (g)').props.value).toBe('1.5');
+    fireEvent.press(screen.getByText('Add Food'));
+    expect(onSubmit).toHaveBeenLastCalledWith(
+      expect.objectContaining({ sodium: '600' })
+    );
+  });
+
+  it('keeps the stored sodium when the first salt keystroke is malformed', () => {
+    const { screen, onSubmit } = renderForm();
+
+    selectSodiumUnit('salt_g');
+    fireEvent.changeText(screen.getByLabelText('Salt (g)'), '1..');
+
+    expect(screen.getByLabelText('Salt (g)').props.value).toBe('1');
+    fireEvent.press(screen.getByText('Add Food'));
+    expect(onSubmit).toHaveBeenLastCalledWith(
+      expect.objectContaining({ sodium: '400' })
+    );
+  });
+
+  it.each(['.', ','])(
+    'lets a salt amount start with a bare %s separator',
+    (separator) => {
+      const { screen, onSubmit } = renderForm();
+
+      selectSodiumUnit('salt_g');
+      fireEvent.changeText(screen.getByLabelText('Salt (g)'), separator);
+      expect(screen.getByLabelText('Salt (g)').props.value).toBe(separator);
+
+      fireEvent.changeText(screen.getByLabelText('Salt (g)'), `${separator}5`);
+      expect(screen.getByLabelText('Salt (g)').props.value).toBe(
+        `${separator}5`
+      );
+      fireEvent.press(screen.getByText('Add Food'));
+      expect(onSubmit).toHaveBeenLastCalledWith(
+        expect.objectContaining({ sodium: '200' })
+      );
+    }
+  );
+
+  describe('layout by window width', () => {
+    const withWindow = (width: number, fontScale = 1) =>
+      jest.spyOn(Dimensions, 'get').mockReturnValue({
+        width,
+        height: 800,
+        scale: 2,
+        fontScale,
+      });
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('puts the unit picker under the sodium input on a 320 dp screen', () => {
+      withWindow(320);
+      const { screen } = renderForm();
+
+      const controls = screen.getByTestId('sodium-field-controls');
+      expect(controls.props.className).not.toContain('flex-row');
+      expect(
+        screen.getByLabelText('Sodium (mg)').props.className
+      ).not.toContain('flex-1');
+      expect(screen.getByText('sodium')).toBeTruthy();
+    });
+
+    it('keeps the unit picker beside the input on a wide screen', () => {
+      withWindow(412);
+      const { screen } = renderForm();
+
+      const controls = screen.getByTestId('sodium-field-controls');
+      expect(controls.props.className).toContain('flex-row');
+      expect(screen.getByLabelText('Sodium (mg)').props.className).toContain(
+        'flex-1'
+      );
+    });
+
+    it('stacks the picker on a wide screen when the font is scaled up', () => {
+      withWindow(412, 1.3);
+      const { screen } = renderForm();
+
+      expect(
+        screen.getByTestId('sodium-field-controls').props.className
+      ).not.toContain('flex-row');
+    });
   });
 });

@@ -10,6 +10,7 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { useCSSVariable } from 'uniwind';
 import BottomSheetPicker from './BottomSheetPicker';
@@ -134,6 +135,13 @@ export interface FoodFormProps {
 
 /** How the sodium field is typed: as the stored sodium (mg) or as the salt (g) printed on a label. */
 type SodiumEntryUnit = 'sodium_mg' | 'salt_g';
+
+// The sodium field shares a row with cholesterol, so its column is about
+// (window - 44) / 2 dp wide (px-4 form padding, gap-3 between the columns).
+// The unit picker beside the input takes ~95 dp, which leaves a 320 dp screen
+// almost no room to read the number. Below this window width (scaled with the
+// font size) the picker moves under the input, giving it the full column.
+const SODIUM_PICKER_INLINE_MIN_WINDOW_WIDTH = 390;
 
 const androidSparkleStyle =
   Platform.OS === 'android'
@@ -313,6 +321,9 @@ const FoodForm: React.FC<FoodFormProps> = ({
     text: string;
     sodium: string;
   } | null>(null);
+  const { width: windowWidth, fontScale } = useWindowDimensions();
+  const sodiumPickerInline =
+    windowWidth >= SODIUM_PICKER_INLINE_MIN_WINDOW_WIDTH * fontScale;
 
   // Confidence-tone text colors for the AI badge that appears below the unit
   // row after AI auto-applies. Sparkle icon lives inside the picker dropdown
@@ -925,10 +936,13 @@ const FoodForm: React.FC<FoodFormProps> = ({
     return (
       <View className="gap-1.5 flex-1">
         <Text className="text-text-secondary text-sm font-medium">{label}</Text>
-        <View className="flex-row gap-1.5">
+        <View
+          testID="sodium-field-controls"
+          className={sodiumPickerInline ? 'flex-row gap-1.5' : 'gap-1.5'}
+        >
           <FormInput
             ref={fieldRefs.sodium}
-            className="flex-1"
+            className={sodiumPickerInline ? 'flex-1' : ''}
             style={{ minWidth: 0 }}
             accessibilityLabel={label}
             placeholder="0"
@@ -940,6 +954,18 @@ const FoodForm: React.FC<FoodFormProps> = ({
                 return;
               }
               const saltGrams = parseDecimalInput(v);
+              // Refuse a keystroke that leaves the salt unreadable ("1..5"),
+              // so the field never shows text that would save no sodium. A
+              // lone separator is let through: it is how ".5" starts.
+              const trimmed = v.trim();
+              if (
+                !Number.isFinite(saltGrams) &&
+                trimmed !== '' &&
+                trimmed !== '.' &&
+                trimmed !== ','
+              ) {
+                return;
+              }
               const sodium = Number.isFinite(saltGrams)
                 ? String(saltGramsToSodiumMg(saltGrams))
                 : '';
@@ -977,7 +1003,7 @@ const FoodForm: React.FC<FoodFormProps> = ({
                 accessibilityLabel={t('foodForm.sodiumEntryUnit', {
                   defaultValue: 'Enter sodium as',
                 })}
-                className="bg-raised rounded-lg border border-border-subtle px-2.5 flex-row items-center gap-1"
+                className={`bg-raised rounded-lg border border-border-subtle px-2.5 flex-row items-center gap-1${sodiumPickerInline ? '' : ' justify-between'}`}
                 style={{ height: 44 }}
               >
                 {/* Short word on the trigger; the field label above carries the unit. */}
