@@ -129,9 +129,9 @@ const SleepAnalyticsCharts = ({
       // point instead of charting the 1970 epoch.
       const zone = sleepEntryZone(data, timezone);
       let bedtimeHours: number | null = null;
-      if (data.earliestBedtime) {
+      if (data.mainBedtime) {
         const { hour, minute } = instantHourMinuteInZone(
-          data.earliestBedtime,
+          data.mainBedtime,
           zone
         );
         bedtimeHours = hour + minute / 60;
@@ -144,9 +144,9 @@ const SleepAnalyticsCharts = ({
       }
 
       let wakeTimeHours: number | null = null;
-      if (data.latestWakeTime) {
+      if (data.mainWakeTime) {
         const { hour, minute } = instantHourMinuteInZone(
-          data.latestWakeTime,
+          data.mainWakeTime,
           zone
         );
         wakeTimeHours = hour + minute / 60;

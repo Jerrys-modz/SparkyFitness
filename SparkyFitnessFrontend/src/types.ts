@@ -58,8 +58,10 @@ export interface SleepAnalyticsData {
   totalSleepDuration: number;
   timeAsleep: number;
   sleepScore: number;
-  earliestBedtime: string | null;
-  latestWakeTime: string | null;
+  /** Bedtime of the day's main sleep, not of a nap. */
+  mainBedtime: string | null;
+  /** Wake time of the day's main sleep, not of a nap. */
+  mainWakeTime: string | null;
   sleepEfficiency: number;
   sleepDebt: number;
   weight?: number;
