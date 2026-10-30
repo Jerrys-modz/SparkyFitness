@@ -8961,7 +8961,7 @@
     "result": {
       "missing": "This test is no longer saved.",
       "when": "{{date}} · {{test}}",
-      "derived": "Threshold pace {{pace}}. As a 5K that is about {{time}}.",
+      "derived": "5K pace {{race}} ({{time}}). Threshold pace {{pace}} is the slower pace you could hold for about an hour.",
       "changeTitle": "Since your test on {{date}}",
       "changeThreshold": "Threshold pace: {{change}}.",
       "pacesTitle": "Your training paces",

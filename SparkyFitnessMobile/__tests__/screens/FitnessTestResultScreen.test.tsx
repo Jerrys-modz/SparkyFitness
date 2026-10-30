@@ -66,7 +66,7 @@ it('shows the result, the threshold and the training paces it set', () => {
   renderScreen('earlier');
   expect(screen.getByText('5K in 25:00')).toBeTruthy();
   expect(
-    screen.getByText(/Threshold pace .* As a 5K that is about 25:00/)
+    screen.getByText(/5K pace .* \(25:00\)\. Threshold pace .* slower pace/)
   ).toBeTruthy();
   expect(screen.getByText('Your training paces')).toBeTruthy();
   expect(screen.getByTestId('fitness-pace-zone-easy')).toBeTruthy();
