@@ -20,7 +20,7 @@ import {
 import {
   formatSecondsToHHMM,
   formatTimeInZone,
-  sleepEntryZone,
+  mainSleepZone,
 } from '@/utils/timeFormatters';
 import {
   HIGH_DEBT_THRESHOLD_HOURS,
@@ -80,7 +80,7 @@ const SleepReport = ({ startDate, endDate }: SleepReportProps) => {
         insight = t('sleepReport.goodSleep', 'Good Sleep');
       }
 
-      const zone = sleepEntryZone(sleepEntry, timezone);
+      const zone = mainSleepZone(sleepAnalyticsData, timezone);
       return [
         formatDateInUserTimezone(sleepEntry.entry_date, dateFormat),
         formatTimeInZone(sleepEntry.bedtime, zone, timeFormat),
@@ -230,6 +230,10 @@ const SleepReport = ({ startDate, endDate }: SleepReportProps) => {
           // session's zone.
           record_timezone: mainEntry.record_timezone,
           record_utc_offset_minutes: mainEntry.record_utc_offset_minutes,
+          // Bed and wake times come from the main sleep, so they read in
+          // its own recording zone.
+          main_record_timezone: mainSleep.record_timezone,
+          main_record_utc_offset_minutes: mainSleep.record_utc_offset_minutes,
         };
 
         const combinedEntry: SleepEntry & { is_aggregated?: boolean } = {

@@ -1,13 +1,12 @@
 /**
  * One night recorded by two sources.
  *
- * `sleep_entries` holds one row per day and source, so a day with several
- * rows always has several sources: the same night recorded twice (a watch
- * and a ring, or Google Health and Health Connect both carrying a Fitbit
- * night), or a nap from a different source than the night. Records of the
- * same day that overlap for most of the shorter one are one sleep: only the
- * most detailed of them should count, while a nap that does not overlap, or
- * only clips the night, still counts.
+ * `sleep_entries` can hold several rows per day, also from one source: the
+ * same night recorded twice (a watch and a ring, or Google Health and Health
+ * Connect both carrying a Fitbit night), or a night and a nap, from the same
+ * source or another. Records of the same day that overlap for most of the
+ * shorter one are one sleep: only the most detailed of them should count,
+ * while a nap that does not overlap, or only clips the night, still counts.
  */
 
 /** Records are one sleep when they overlap for at least this share of the shorter one. */
@@ -158,7 +157,7 @@ export function sleepEntryDetail(entry: SameNightSleepEntry): SleepDetail {
   };
 }
 
-/** The stored sleep records to count: one per night, the most detailed, plus naps from other sources. */
+/** The stored sleep records to count: one per night, the most detailed, plus the day's naps. */
 export function keepMostDetailedSleepEntries<
   A extends readonly SameNightSleepEntry[],
 >(entries: A): A[number][] {
