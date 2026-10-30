@@ -9,11 +9,12 @@ SparkyFitness has a companion app for **Apple Watch** (watchOS) and for **Wear O
 
 ### Installing the Wear OS app
 
-Each [GitHub release](https://github.com/CodeWithCJ/SparkyFitness/releases) after v1.10.0 carries `wearos-release.apk` beside the phone's `app-release.apk`. It only installs on a watch, and watches have no file installer, so use `adb` from a computer:
+Each [GitHub release](https://github.com/CodeWithCJ/SparkyFitness/releases) after v1.10.0 carries `wearos-release.apk` beside the phone's `app-release.apk`. It is for watches, so don't install it on your phone. Watches have no file installer, so use `adb` from a computer:
 
-1. On the watch, turn on Developer options and then **Wireless debugging**, and note the address it shows.
-2. On the computer, connect with `adb pair <address>` (using the pairing code the watch shows) and `adb connect <address>`.
-3. Run `adb install wearos-release.apk`.
+1. On the watch, turn on Developer options and then **Wireless debugging**.
+2. Under **Pair new device**, note the pairing address and code. On the computer, run `adb pair <pairing-address>:<pairing-port>` and enter the code when asked.
+3. Back on the Wireless debugging screen, note the watch's own address and port, which are different, and run `adb connect <address>:<port>`.
+4. Run `adb install wearos-release.apk`.
 
 Install the phone and watch apps from the same place. Only apps signed with the same key can talk to each other, and the GitHub and Google Play builds use different keys, so a GitHub watch app won't connect to a Google Play phone app.
 

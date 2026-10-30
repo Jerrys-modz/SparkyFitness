@@ -61,7 +61,7 @@ The watch app is a separate upload to its own track, and the phone's `production
    ```
 3. Upload the AAB to the Wear OS track. Upload it whenever you ship the phone app, so the two stay in step.
 
-A watch release build's version code is minutes since the epoch, because Play requires a code that is unique across form factors and rises with each upload. Set `SPARKY_WEAR_VERSION_CODE` to override it.
+A watch release build's version code is minutes since the epoch, because Play requires a code that is unique across form factors and rises with each upload. Two builds in the same minute get the same code, so rebuild if Play rejects one. Set `SPARKY_WEAR_VERSION_CODE` to override it, with a number above the one on Play.
 
 ---
 

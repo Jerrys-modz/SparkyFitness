@@ -12,7 +12,7 @@ android {
         applicationId '{{APPLICATION_ID}}'
         minSdkVersion 30
         targetSdkVersion 35
-        versionCode 1
+        versionCode 3007
         versionName "{{VERSION_NAME}}"
     }
 
@@ -39,17 +39,18 @@ android {
         release {
             def releaseStoreFile = findProperty('SPARKY_RELEASE_STORE_FILE') ?: findProperty('MYAPP_RELEASE_STORE_FILE') ?: System.getenv('SPARKY_RELEASE_STORE_FILE')
             // EAS only injects signing into android/app, so read the same
-            // credentials.json its eas-build.gradle reads.
-            def easCredentials = rootProject.file('../credentials.json')
+            // credentials.json its injected Gradle script reads. It sits in the
+            // EAS working directory, which is the repo root in this monorepo.
+            def easWorkingDir = System.getenv('EAS_BUILD_WORKINGDIR')
+            def easCredentials = easWorkingDir ? new File(easWorkingDir, 'credentials.json') : null
             if (releaseStoreFile) {
                 storeFile file(releaseStoreFile)
                 storePassword(findProperty('SPARKY_RELEASE_STORE_PASSWORD') ?: findProperty('MYAPP_RELEASE_STORE_PASSWORD') ?: System.getenv('SPARKY_RELEASE_STORE_PASSWORD'))
                 keyAlias(findProperty('SPARKY_RELEASE_KEY_ALIAS') ?: findProperty('MYAPP_RELEASE_KEY_ALIAS') ?: System.getenv('SPARKY_RELEASE_KEY_ALIAS'))
                 keyPassword(findProperty('SPARKY_RELEASE_KEY_PASSWORD') ?: findProperty('MYAPP_RELEASE_KEY_PASSWORD') ?: System.getenv('SPARKY_RELEASE_KEY_PASSWORD'))
-            } else if (easCredentials.exists()) {
+            } else if (easCredentials?.exists()) {
                 def keystore = new groovy.json.JsonSlurper().parse(easCredentials).android.keystore
-                def keystorePath = java.nio.file.Paths.get(keystore.keystorePath)
-                storeFile(keystorePath.isAbsolute() ? keystorePath.toFile() : rootProject.file('..').toPath().resolve(keystorePath).toFile())
+                storeFile file(keystore.keystorePath)
                 storePassword keystore.keystorePassword
                 keyAlias keystore.keyAlias
                 keyPassword(keystore.containsKey('keyPassword') ? keystore.keyPassword : keystore.keystorePassword)
@@ -80,11 +81,13 @@ androidComponents {
     }
 }
 
-tasks.matching { it.name == 'validateSigningRelease' }.configureEach {
+// Without a keystore the APK path fails on a vague signing error and the bundle
+// path on a bare NullPointerException, so stop before either with a clear one.
+tasks.matching { it.name in ['packageRelease', 'signReleaseBundle'] }.configureEach {
     doFirst {
         if (android.signingConfigs.release.storeFile == null) {
             throw new GradleException(
-                'Wear OS release build requires a release signing keystore (set SPARKY_RELEASE_STORE_FILE or MYAPP_RELEASE_STORE_FILE).'
+                'Wear OS release build requires a release signing keystore (set SPARKY_RELEASE_STORE_FILE or MYAPP_RELEASE_STORE_FILE, or build with EAS).'
             )
         }
     }
