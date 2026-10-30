@@ -1,6 +1,6 @@
 import React from 'react';
 import { Alert } from 'react-native';
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import FoodForm from '../../src/components/FoodForm';
 
 const mockBottomSheetPicker = jest.fn();
@@ -1566,5 +1566,176 @@ describe('FoodForm', () => {
     expect(handleChange).toHaveBeenLastCalledWith([
       expect.objectContaining({ serving_size: 3.5, _sizeText: '3.5' }),
     ]);
+  });
+});
+
+describe('FoodForm sodium entry unit', () => {
+  const baseValues = {
+    name: 'Oatcakes',
+    servingSize: '100',
+    servingUnit: 'g',
+    calories: '450',
+    protein: '10',
+    carbs: '60',
+    fat: '18',
+    sodium: '400',
+  };
+
+  beforeEach(() => {
+    mockBottomSheetPicker.mockClear();
+  });
+
+  const renderForm = (
+    props: Partial<React.ComponentProps<typeof FoodForm>> = {}
+  ) => {
+    const onSubmit = jest.fn();
+    const screen = render(
+      <FoodForm initialValues={baseValues} onSubmit={onSubmit} {...props} />
+    );
+    fireEvent.press(screen.getByText('Show more nutrients ▾'));
+    return { screen, onSubmit };
+  };
+
+  const selectSodiumUnit = (unit: 'sodium_mg' | 'salt_g') => {
+    const call = mockBottomSheetPicker.mock.calls
+      .filter(([props]) => props.title === 'Enter sodium as')
+      .at(-1);
+    expect(call).toBeDefined();
+    act(() => call![0].onSelect(unit));
+  };
+
+  it('shows sodium in mg by default and submits it unchanged', () => {
+    const { screen, onSubmit } = renderForm();
+
+    expect(screen.getByLabelText('Sodium (mg)').props.value).toBe('400');
+    expect(screen.getByText('sodium')).toBeTruthy();
+
+    fireEvent.changeText(screen.getByLabelText('Sodium (mg)'), '250');
+    fireEvent.press(screen.getByText('Add Food'));
+    expect(onSubmit).toHaveBeenLastCalledWith(
+      expect.objectContaining({ sodium: '250' })
+    );
+  });
+
+  it('offers sodium (mg) and salt (g) as the entry units', () => {
+    renderForm();
+
+    const call = mockBottomSheetPicker.mock.calls.find(
+      ([props]) => props.title === 'Enter sodium as'
+    );
+    expect(call![0].value).toBe('sodium_mg');
+    expect(call![0].options).toEqual([
+      { value: 'sodium_mg', label: 'Sodium (mg)' },
+      { value: 'salt_g', label: 'Salt (g)' },
+    ]);
+  });
+
+  it('switching to salt shows the stored sodium as grams of salt', () => {
+    const { screen } = renderForm();
+
+    selectSodiumUnit('salt_g');
+
+    expect(screen.getByLabelText('Salt (g)').props.value).toBe('1');
+    expect(screen.getByText('salt')).toBeTruthy();
+    expect(screen.queryByLabelText('Sodium (mg)')).toBeNull();
+  });
+
+  it('stores a salt entry as sodium at 400 mg per gram', () => {
+    const { screen, onSubmit } = renderForm();
+
+    selectSodiumUnit('salt_g');
+    fireEvent.changeText(screen.getByLabelText('Salt (g)'), '0.9');
+    fireEvent.press(screen.getByText('Add Food'));
+
+    expect(onSubmit).toHaveBeenLastCalledWith(
+      expect.objectContaining({ sodium: '360' })
+    );
+  });
+
+  it('accepts a comma decimal and rounds sodium to 0.1 mg', () => {
+    const { screen, onSubmit } = renderForm();
+
+    selectSodiumUnit('salt_g');
+    fireEvent.changeText(screen.getByLabelText('Salt (g)'), '0,123');
+    fireEvent.press(screen.getByText('Add Food'));
+
+    expect(onSubmit).toHaveBeenLastCalledWith(
+      expect.objectContaining({ sodium: '49.2' })
+    );
+  });
+
+  it('keeps the salt text as typed, trailing decimal included', () => {
+    const { screen } = renderForm();
+
+    selectSodiumUnit('salt_g');
+    fireEvent.changeText(screen.getByLabelText('Salt (g)'), '0.');
+    expect(screen.getByLabelText('Salt (g)').props.value).toBe('0.');
+
+    fireEvent.changeText(screen.getByLabelText('Salt (g)'), '0.50');
+    expect(screen.getByLabelText('Salt (g)').props.value).toBe('0.50');
+  });
+
+  it('focusing and leaving an untouched salt field does not change sodium', () => {
+    const { screen, onSubmit } = renderForm({
+      initialValues: { ...baseValues, sodium: '123' },
+    });
+
+    selectSodiumUnit('salt_g');
+    const input = screen.getByLabelText('Salt (g)');
+    expect(input.props.value).toBe('0.31');
+
+    fireEvent(input, 'focus');
+    fireEvent(input, 'blur');
+    selectSodiumUnit('sodium_mg');
+
+    expect(screen.getByLabelText('Sodium (mg)').props.value).toBe('123');
+    fireEvent.press(screen.getByText('Add Food'));
+    expect(onSubmit).toHaveBeenLastCalledWith(
+      expect.objectContaining({ sodium: '123' })
+    );
+  });
+
+  it('clearing the salt field clears sodium', () => {
+    const { screen, onSubmit } = renderForm();
+
+    selectSodiumUnit('salt_g');
+    fireEvent.changeText(screen.getByLabelText('Salt (g)'), '');
+    fireEvent.press(screen.getByText('Add Food'));
+
+    expect(onSubmit).toHaveBeenLastCalledWith(
+      expect.objectContaining({ sodium: '' })
+    );
+  });
+
+  it('switching back to mg shows the sodium the salt entry produced', () => {
+    const { screen, onSubmit } = renderForm();
+
+    selectSodiumUnit('salt_g');
+    fireEvent.changeText(screen.getByLabelText('Salt (g)'), '0.25');
+    selectSodiumUnit('sodium_mg');
+
+    expect(screen.getByLabelText('Sodium (mg)').props.value).toBe('100');
+    fireEvent.changeText(screen.getByLabelText('Sodium (mg)'), '120');
+    fireEvent.press(screen.getByText('Add Food'));
+    expect(onSubmit).toHaveBeenLastCalledWith(
+      expect.objectContaining({ sodium: '120' })
+    );
+  });
+
+  it('follows auto-scaled sodium while salt is the entry unit', () => {
+    const { screen, onSubmit } = renderForm({
+      showAutoScaleNutrition: true,
+      initialAutoScaleNutritionEnabled: true,
+    });
+
+    selectSodiumUnit('salt_g');
+    fireEvent.changeText(screen.getByLabelText('Salt (g)'), '0.5');
+    fireEvent.changeText(screen.getByDisplayValue('100'), '200');
+
+    expect(screen.getByLabelText('Salt (g)').props.value).toBe('1');
+    fireEvent.press(screen.getByText('Add Food'));
+    expect(onSubmit).toHaveBeenLastCalledWith(
+      expect.objectContaining({ servingSize: '200', sodium: '400' })
+    );
   });
 });
