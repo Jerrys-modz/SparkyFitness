@@ -1,0 +1,10 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["C7WRKGBVR6.com.SparkyApps.SparkyFitnessMobile"],
+        "components": [{ "/": "/t/*" }]
+      }
+    ]
+  }
+}
