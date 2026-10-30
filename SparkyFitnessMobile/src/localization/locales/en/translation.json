@@ -8949,6 +8949,7 @@
       "indoor": "Treadmill",
       "indoorNote": "On a treadmill nothing is tracked by GPS. The test is timed, and when you finish you enter the distance your treadmill shows and its incline. It is saved as an indoor run and marked as a fitness test.",
       "outdoorNote": "Outdoors the test is recorded with your phone’s GPS, as a run, and marked as a fitness test on the activity.",
+      "watchNote": "Your watch records the test with its own GPS and heart rate sensor, and your phone scores it when the run reaches it. It buzzes when you reach the mark, and says so with voice cues on.",
       "sameAsLast": "Suggested because your last test was the same."
     },
     "delete": {
