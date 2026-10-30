@@ -124,6 +124,25 @@ jobs:
           echo "path=$AAB_PATH" >> $GITHUB_OUTPUT
           echo "name=$(basename $AAB_PATH)" >> $GITHUB_OUTPUT
 
+      - name: Test Wear OS app
+        if: github.event_name != 'pull_request'
+        run: |
+          cd SparkyFitnessMobile/android
+          ./gradlew :wearos:testDebugUnitTest --stacktrace
+
+      # Signed with the phone app's key: the Data Layer only connects the two
+      # when package name and signature match.
+      - name: Build Wear OS Release APK
+        if: github.event_name != 'pull_request'
+        run: |
+          cd SparkyFitnessMobile/android
+          ./gradlew :wearos:assembleRelease \
+            -PMYAPP_RELEASE_STORE_FILE=${{ github.workspace }}/SparkyFitnessMobile/android/app/sparky-fitness-release-key.keystore \
+            -PMYAPP_RELEASE_KEY_ALIAS=${{ secrets.RELEASE_KEY_ALIAS }} \
+            -PMYAPP_RELEASE_STORE_PASSWORD=${{ secrets.RELEASE_STORE_PASSWORD }} \
+            -PMYAPP_RELEASE_KEY_PASSWORD=${{ secrets.RELEASE_KEY_PASSWORD }} \
+            --stacktrace
+
       - name: Get version from package.json
         if: github.event_name != 'pull_request'
         id: version
@@ -139,6 +158,7 @@ jobs:
           files: |
             ${{ steps.apk.outputs.path }}
             ${{ steps.aab.outputs.path }}
+            SparkyFitnessMobile/android/wearos/build/outputs/apk/release/wearos-release.apk
           draft: false
           prerelease: false
           generate_release_notes: true

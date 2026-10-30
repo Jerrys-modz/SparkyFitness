@@ -12,8 +12,8 @@ android {
         applicationId '{{APPLICATION_ID}}'
         minSdkVersion 30
         targetSdkVersion 35
-        versionCode 3007
-        versionName "1.9.0"
+        versionCode 1
+        versionName "{{VERSION_NAME}}"
     }
 
     buildFeatures {
@@ -38,11 +38,21 @@ android {
         }
         release {
             def releaseStoreFile = findProperty('SPARKY_RELEASE_STORE_FILE') ?: findProperty('MYAPP_RELEASE_STORE_FILE') ?: System.getenv('SPARKY_RELEASE_STORE_FILE')
+            // EAS only injects signing into android/app, so read the same
+            // credentials.json its eas-build.gradle reads.
+            def easCredentials = rootProject.file('../credentials.json')
             if (releaseStoreFile) {
                 storeFile file(releaseStoreFile)
                 storePassword(findProperty('SPARKY_RELEASE_STORE_PASSWORD') ?: findProperty('MYAPP_RELEASE_STORE_PASSWORD') ?: System.getenv('SPARKY_RELEASE_STORE_PASSWORD'))
                 keyAlias(findProperty('SPARKY_RELEASE_KEY_ALIAS') ?: findProperty('MYAPP_RELEASE_KEY_ALIAS') ?: System.getenv('SPARKY_RELEASE_KEY_ALIAS'))
                 keyPassword(findProperty('SPARKY_RELEASE_KEY_PASSWORD') ?: findProperty('MYAPP_RELEASE_KEY_PASSWORD') ?: System.getenv('SPARKY_RELEASE_KEY_PASSWORD'))
+            } else if (easCredentials.exists()) {
+                def keystore = new groovy.json.JsonSlurper().parse(easCredentials).android.keystore
+                def keystorePath = java.nio.file.Paths.get(keystore.keystorePath)
+                storeFile(keystorePath.isAbsolute() ? keystorePath.toFile() : rootProject.file('..').toPath().resolve(keystorePath).toFile())
+                storePassword keystore.keystorePassword
+                keyAlias keystore.keyAlias
+                keyPassword(keystore.containsKey('keyPassword') ? keystore.keyPassword : keystore.keystorePassword)
             }
         }
     }
@@ -56,6 +66,17 @@ android {
             minifyEnabled false
             shrinkResources false
         }
+    }
+}
+
+// Play needs a version code that is unique across form factors and rises with
+// every upload. The phone's comes from EAS, so the watch keeps its own scheme:
+// minutes since the epoch, well above the phone's and under Play's limit.
+androidComponents {
+    onVariants(selector().withBuildType('release')) { variant ->
+        def versionCodeOverride = findProperty('SPARKY_WEAR_VERSION_CODE') ?: System.getenv('SPARKY_WEAR_VERSION_CODE')
+        def releaseVersionCode = versionCodeOverride ? versionCodeOverride.toString().toInteger() : (int) (System.currentTimeMillis() / 60000L)
+        variant.outputs.each { it.versionCode.set(releaseVersionCode) }
     }
 }
 

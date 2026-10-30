@@ -59,7 +59,8 @@ const withWearOs: ConfigPlugin = (config) => {
         if (base.endsWith(TEMPLATE_SUFFIX)) {
           const substituted = contents
             .toString('utf8')
-            .replace(/\{\{APPLICATION_ID\}\}/g, applicationId);
+            .replace(/\{\{APPLICATION_ID\}\}/g, applicationId)
+            .replace(/\{\{VERSION_NAME\}\}/g, versionName);
           return {
             destName: base.slice(0, -TEMPLATE_SUFFIX.length),
             contents: Buffer.from(substituted, 'utf8'),
