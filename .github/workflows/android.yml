@@ -88,14 +88,14 @@ jobs:
 
       - name: Build Release APK
         if: github.event_name != 'pull_request'
+        env:
+          SPARKY_RELEASE_STORE_FILE: ${{ github.workspace }}/SparkyFitnessMobile/android/app/sparky-fitness-release-key.keystore
+          SPARKY_RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          SPARKY_RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          SPARKY_RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
         run: |
           cd SparkyFitnessMobile/android
-          ./gradlew :app:assembleRelease \
-            -PMYAPP_RELEASE_STORE_FILE=${{ github.workspace }}/SparkyFitnessMobile/android/app/sparky-fitness-release-key.keystore \
-            -PMYAPP_RELEASE_KEY_ALIAS=${{ secrets.RELEASE_KEY_ALIAS }} \
-            -PMYAPP_RELEASE_STORE_PASSWORD=${{ secrets.RELEASE_STORE_PASSWORD }} \
-            -PMYAPP_RELEASE_KEY_PASSWORD=${{ secrets.RELEASE_KEY_PASSWORD }} \
-            --stacktrace
+          ./gradlew :app:assembleRelease --stacktrace
 
       - name: Get APK path
         if: github.event_name != 'pull_request'
@@ -107,14 +107,14 @@ jobs:
 
       - name: Build Release AAB
         if: github.event_name != 'pull_request'
+        env:
+          SPARKY_RELEASE_STORE_FILE: ${{ github.workspace }}/SparkyFitnessMobile/android/app/sparky-fitness-release-key.keystore
+          SPARKY_RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          SPARKY_RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          SPARKY_RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
         run: |
           cd SparkyFitnessMobile/android
-          ./gradlew :app:bundleRelease \
-            -PMYAPP_RELEASE_STORE_FILE=${{ github.workspace }}/SparkyFitnessMobile/android/app/sparky-fitness-release-key.keystore \
-            -PMYAPP_RELEASE_KEY_ALIAS=${{ secrets.RELEASE_KEY_ALIAS }} \
-            -PMYAPP_RELEASE_STORE_PASSWORD=${{ secrets.RELEASE_STORE_PASSWORD }} \
-            -PMYAPP_RELEASE_KEY_PASSWORD=${{ secrets.RELEASE_KEY_PASSWORD }} \
-            --stacktrace
+          ./gradlew :app:bundleRelease --stacktrace
 
       - name: Get AAB path
         if: github.event_name != 'pull_request'
