@@ -171,6 +171,7 @@ export * from './utils/sleepSameNight.ts';
 export * from './utils/calorieRuleDefaults.ts';
 export * from './utils/exerciseCalorieLink.ts';
 export * from './utils/servingSizeConversions.ts';
+export * from './utils/saltSodium.ts';
 export * from './utils/nutrientMatching.ts';
 export * from './utils/search.ts';
 export * from './utils/csvValue.ts';
