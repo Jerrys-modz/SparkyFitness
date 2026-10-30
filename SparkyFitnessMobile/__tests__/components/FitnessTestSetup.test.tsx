@@ -81,3 +81,45 @@ describe('surface', () => {
     expect(screen.getByText(/Suggested because your last test/)).toBeTruthy();
   });
 });
+
+describe('recording a test on the watch', () => {
+  const watchProps = (overrides = {}) =>
+    props({
+      recordWith: 'watch' as const,
+      onRecordWithChange: jest.fn(),
+      inclineText: '1',
+      onInclineTextChange: jest.fn(),
+      ...overrides,
+    });
+
+  it('offers the watch for a treadmill test too', () => {
+    render(
+      <FitnessTestSetup
+        {...watchProps({ indoor: true, recordWith: 'phone' })}
+      />
+    );
+    expect(screen.getByTestId('fitness-test-record-with')).toBeTruthy();
+    expect(screen.queryByTestId('fitness-test-watch-incline')).toBeNull();
+  });
+
+  it('asks for the incline before a treadmill test starts on the watch', () => {
+    const p = watchProps({ indoor: true });
+    render(<FitnessTestSetup {...p} />);
+    expect(screen.getByTestId('fitness-test-watch-incline')).toBeTruthy();
+    expect(
+      screen.getByText(/Your watch records the treadmill test/)
+    ).toBeTruthy();
+    fireEvent.changeText(screen.getByLabelText('Treadmill incline (%)'), '2');
+    expect(p.onInclineTextChange).toHaveBeenCalledWith('2');
+  });
+
+  it('has no incline field outdoors, and blocks Start on a bad incline', () => {
+    const { rerender } = render(<FitnessTestSetup {...watchProps()} />);
+    expect(screen.queryByTestId('fitness-test-watch-incline')).toBeNull();
+    const p = watchProps({ indoor: true, inclineInvalid: true });
+    rerender(<FitnessTestSetup {...p} />);
+    expect(screen.getByText('Enter an incline from 0 to 15.')).toBeTruthy();
+    fireEvent.press(screen.getByTestId('fitness-test-start'));
+    expect(p.onStart).not.toHaveBeenCalled();
+  });
+});

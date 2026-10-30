@@ -11,6 +11,7 @@ import {
   inclineAdjustmentText,
   measureFitnessTest,
   measureIndoorTest,
+  measureWatchIndoorTest,
   parseClockText,
   paceChangeText,
   paceInUnit,
@@ -447,5 +448,102 @@ describe('treadmill words', () => {
       )
     ).toBeNull();
     expect(inclineAdjustmentText(t, fitnessTest(), 'km')).toBeNull();
+  });
+});
+
+describe('measureWatchIndoorTest', () => {
+  // 3 m/s: 1500 m in 500 s, 5000 m in 1666.7 s.
+  const series = (seconds: number) =>
+    Array.from({ length: Math.floor(seconds / 10) }, (_, i) => [
+      (i + 1) * 10,
+      (i + 1) * 30,
+    ]);
+
+  it('reads the 5K time off the curve when the run went past 5 km', () => {
+    const measured = measureWatchIndoorTest(
+      '5k',
+      {
+        distanceMeters: 5400,
+        activeSeconds: 1800,
+        distanceSeries: series(1800),
+      },
+      2
+    );
+    expect(measured).toMatchObject({
+      type: '5k',
+      distanceMeters: 5000,
+      durationSeconds: 1667,
+      inclinePercent: 2,
+    });
+  });
+
+  it('uses the clock when the run ended at the treadmill 5 km', () => {
+    const measured = measureWatchIndoorTest(
+      '5k',
+      {
+        distanceMeters: 4800,
+        activeSeconds: 1600,
+        distanceSeries: series(1600),
+      },
+      null
+    );
+    expect(measured?.durationSeconds).toBe(1600);
+  });
+
+  it('is not a test when the run stopped well short of 5 km', () => {
+    expect(
+      measureWatchIndoorTest(
+        '5k',
+        {
+          distanceMeters: 3000,
+          activeSeconds: 1000,
+          distanceSeries: series(1000),
+        },
+        null
+      )
+    ).toBeNull();
+  });
+
+  it('reads the Cooper distance at exactly 12 minutes', () => {
+    const measured = measureWatchIndoorTest(
+      'cooper',
+      { distanceMeters: 2400, activeSeconds: 800, distanceSeries: series(800) },
+      1
+    );
+    expect(measured).toMatchObject({
+      distanceMeters: 2160,
+      durationSeconds: 720,
+    });
+  });
+
+  it('reads the 30-minute total and its 10-minute split', () => {
+    const measured = measureWatchIndoorTest(
+      '30min',
+      {
+        distanceMeters: 5400,
+        activeSeconds: 1800,
+        distanceSeries: series(1800),
+      },
+      1
+    );
+    expect(measured).toMatchObject({
+      distanceMeters: 5400,
+      splitDistanceMeters: 1800,
+      durationSeconds: 1800,
+    });
+  });
+
+  it('is not a test when the clock had not run out', () => {
+    expect(
+      measureWatchIndoorTest(
+        'cooper',
+        {
+          distanceMeters: 1500,
+          activeSeconds: 500,
+          distanceSeries: series(500),
+        },
+        1
+      )
+    ).toBeNull();
   });
 });

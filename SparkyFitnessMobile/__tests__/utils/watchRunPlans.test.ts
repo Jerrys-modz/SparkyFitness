@@ -6,7 +6,9 @@ import {
 } from '@workspace/shared';
 import {
   buildWatchRunPlans,
+  buildWatchFitnessTestPlan,
   buildWatchStartPlan,
+  fitnessTestFromPlanId,
 } from '../../src/utils/watchRunPlans';
 import { suggestedPaceRangesFromRace } from '../../src/utils/suggestedRanges';
 
@@ -245,4 +247,35 @@ test('a Zone 2 workout has no heart-rate range on the watch when none is known',
   const status = programStatus({ programId: 'zone2Base', next: 0 })!;
   const [plan] = buildWatchRunPlans(t, { status, enabled: true }, names);
   expect(plan.steps.some((s) => s.hrMin !== undefined)).toBe(false);
+});
+
+describe('fitness test plans', () => {
+  it('carries the test type back in the plan id', () => {
+    const plan = buildWatchFitnessTestPlan(t, '5k');
+    expect(plan.id).toBe('fitness-test:5k');
+    expect(plan.steps).toEqual([
+      { label: '5K time trial', seconds: 1500, meters: 5000 },
+    ]);
+    expect(fitnessTestFromPlanId(plan.id)).toEqual({
+      type: '5k',
+      inclinePercent: null,
+    });
+  });
+
+  it('carries a treadmill incline too', () => {
+    const plan = buildWatchFitnessTestPlan(t, 'cooper', 2.5);
+    expect(plan.id).toBe('fitness-test:cooper:2.5');
+    expect(plan.steps[0]).toMatchObject({ seconds: 720 });
+    expect(plan.steps[0].meters).toBeUndefined();
+    expect(fitnessTestFromPlanId(plan.id)).toEqual({
+      type: 'cooper',
+      inclinePercent: 2.5,
+    });
+  });
+
+  it('ignores any other plan', () => {
+    expect(fitnessTestFromPlanId(null)).toBeNull();
+    expect(fitnessTestFromPlanId('sixBy400m')).toBeNull();
+    expect(fitnessTestFromPlanId('fitness-test:10k')).toBeNull();
+  });
 });

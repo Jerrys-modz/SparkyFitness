@@ -411,3 +411,114 @@ export function inclineAdjustmentText(
     adjusted: fitnessTestResultText(t, test, unit),
   };
 }
+
+/** What a treadmill run recorded on the watch gives the test: its totals and distance series. */
+export interface WatchIndoorRun {
+  /** Distance for the whole run, as the wearer confirmed it on the wrist. */
+  distanceMeters: number;
+  /** Clock time with pauses removed. */
+  activeSeconds: number;
+  /** `[active seconds, cumulative metres]` about every 10 s, scaled to the distance above. */
+  distanceSeries: readonly (readonly number[])[];
+}
+
+/** The run's (seconds, metres) curve, from the start to the end, never going backwards. */
+function indoorCurve(run: WatchIndoorRun): [number, number][] {
+  const curve: [number, number][] = [[0, 0]];
+  for (const row of run.distanceSeries) {
+    const [seconds, meters] = row;
+    const last = curve[curve.length - 1];
+    if (
+      Number.isFinite(seconds) &&
+      Number.isFinite(meters) &&
+      seconds > last[0] &&
+      meters >= last[1] &&
+      seconds < run.activeSeconds
+    ) {
+      curve.push([seconds, meters]);
+    }
+  }
+  curve.push([
+    run.activeSeconds,
+    Math.max(run.distanceMeters, curve[curve.length - 1][1]),
+  ]);
+  return curve;
+}
+
+/** Metres covered after `seconds` of active time, read off the curve. */
+function indoorDistanceAt(curve: [number, number][], seconds: number): number {
+  for (let i = 1; i < curve.length; i++) {
+    if (curve[i][0] < seconds) continue;
+    const [t0, d0] = curve[i - 1];
+    const [t1, d1] = curve[i];
+    return t1 > t0 ? d0 + ((seconds - t0) / (t1 - t0)) * (d1 - d0) : d1;
+  }
+  return curve[curve.length - 1][1];
+}
+
+/** Active seconds when `meters` were reached, or null when the run never got that far. */
+function indoorSecondsAt(
+  curve: [number, number][],
+  meters: number
+): number | null {
+  for (let i = 1; i < curve.length; i++) {
+    if (curve[i][1] < meters) continue;
+    const [t0, d0] = curve[i - 1];
+    const [t1, d1] = curve[i];
+    return d1 > d0 ? t0 + ((meters - d0) / (d1 - d0)) * (t1 - t0) : t1;
+  }
+  return null;
+}
+
+/**
+ * Turns a treadmill run recorded on the watch into the test's measurement, so
+ * nothing has to be typed in afterwards: the distance and time at the test's
+ * own marks are read from the run's distance curve, the way a GPS recording
+ * is read from its route. The 5K counts when the run reached about 5 km
+ * (4.5 km or more, since the wearer ends it when the treadmill shows 5 km), the
+ * Cooper and 30-minute tests when the clock ran out. Null otherwise, which
+ * leaves the run an ordinary run.
+ */
+export function measureWatchIndoorTest(
+  type: FitnessTestType,
+  run: WatchIndoorRun,
+  inclinePercent: number | null
+): FitnessTestMeasurement | null {
+  if (!(run.activeSeconds > 0) || !(run.distanceMeters > 0)) return null;
+  const curve = indoorCurve(run);
+  const extras = { inclinePercent, adjustForIncline: true };
+  if (type === '5k') {
+    if (run.distanceMeters < FIVE_K_METERS * 0.9) return null;
+    const seconds =
+      run.distanceMeters >= FIVE_K_METERS
+        ? indoorSecondsAt(curve, FIVE_K_METERS)
+        : run.activeSeconds;
+    if (seconds === null || !(seconds > 0)) return null;
+    return {
+      type,
+      distanceMeters: FIVE_K_METERS,
+      durationSeconds: Math.round(seconds),
+      ...extras,
+    };
+  }
+  if (type === 'cooper') {
+    if (run.activeSeconds < COOPER_SECONDS) return null;
+    return {
+      type,
+      distanceMeters: Math.round(indoorDistanceAt(curve, COOPER_SECONDS)),
+      durationSeconds: COOPER_SECONDS,
+      ...extras,
+    };
+  }
+  if (run.activeSeconds < THIRTY_MINUTE_SECONDS) return null;
+  const total = indoorDistanceAt(curve, THIRTY_MINUTE_SECONDS);
+  const split = indoorDistanceAt(curve, THIRTY_MINUTE_SPLIT_SECONDS);
+  if (!(split > 0) || split >= total) return null;
+  return {
+    type,
+    distanceMeters: Math.round(total),
+    splitDistanceMeters: Math.round(split),
+    durationSeconds: THIRTY_MINUTE_SECONDS,
+    ...extras,
+  };
+}
