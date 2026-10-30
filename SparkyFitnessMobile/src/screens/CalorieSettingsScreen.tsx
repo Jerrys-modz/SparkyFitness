@@ -1073,7 +1073,7 @@ const CalorieSettingsScreen: React.FC<CalorieSettingsScreenProps> = () => {
             <Text className="text-text-secondary text-sm mt-3">
               {t('calorieSettings.useMoveRingActiveCaloriesHint', {
                 defaultValue:
-                  'Off by default, active calories come from the Apple Health Active Energy total. When on, they come from your Move ring, as the Fitness app shows them. The ring counts only your Apple Watch and iPhone, so calories other apps and devices write to Apple Health are left out. Applies to days synced after the change.',
+                  'Off by default, active calories come from the Apple Health Active Energy total. When on, they come from your Move ring, so they match the Fitness app. The ring counts what your Apple Watch and iPhone measure, and workouts other apps save to Apple Health can add to it too. A day with no ring, such as when Activity access is off, uses the Active Energy total. Applies to days synced after the change.',
               })}
             </Text>
           </View>
