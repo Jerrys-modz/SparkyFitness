@@ -1,5 +1,9 @@
 import type { TFunction } from 'i18next';
 import {
+  COOPER_SECONDS,
+  FIVE_K_METERS,
+  THIRTY_MINUTE_SECONDS,
+  type FitnessTestType,
   applyHeartRateTargets,
   applyPaceTargets,
   buildIntervalPlan,
@@ -10,6 +14,7 @@ import {
 } from '@workspace/shared';
 import { programSpokenCues } from './programCues';
 import { intervalStepName } from './recordingCues';
+import { fitnessTestName } from './fitnessTest';
 import type { RacePaceRanges } from './suggestedRanges';
 
 /**
@@ -161,5 +166,63 @@ export function buildWatchStartPlan(
         }
       : {}),
     steps: toSteps(t, plan),
+  };
+}
+
+/** Prefix of the plan id that marks a watch run as a fitness test. */
+const FITNESS_TEST_PLAN_PREFIX = 'fitness-test:';
+
+/** The fitness test a watch run's plan id names, and the treadmill incline it was started with. */
+export interface WatchFitnessTestRef {
+  type: FitnessTestType;
+  /** Percent; null outdoors or when none was given. */
+  inclinePercent: number | null;
+}
+
+/**
+ * Reads `fitness-test:<type>` or `fitness-test:<type>:<incline>` back from a
+ * plan id. Null for any other plan, so an ordinary run is never scored.
+ */
+export function fitnessTestFromPlanId(
+  planId: string | null
+): WatchFitnessTestRef | null {
+  if (!planId?.startsWith(FITNESS_TEST_PLAN_PREFIX)) return null;
+  const [type, incline] = planId
+    .slice(FITNESS_TEST_PLAN_PREFIX.length)
+    .split(':');
+  if (type !== '5k' && type !== '30min' && type !== 'cooper') return null;
+  const inclinePercent = incline === undefined ? null : Number(incline);
+  return {
+    type,
+    inclinePercent:
+      inclinePercent !== null && Number.isFinite(inclinePercent)
+        ? inclinePercent
+        : null,
+  };
+}
+
+/**
+ * The plan the watch is given for a fitness test: one step that is the test
+ * itself, a distance step for the 5K and a timed one for the others. The plan
+ * id carries the test type, and for a treadmill test its incline, back with
+ * the finished run, so the phone can score it with nothing typed in after.
+ */
+export function buildWatchFitnessTestPlan(
+  t: TFunction,
+  type: FitnessTestType,
+  inclinePercent: number | null = null
+): WatchRunPlanPayload {
+  const name = fitnessTestName(t, type);
+  const step =
+    type === '5k'
+      ? { seconds: 1500, meters: FIVE_K_METERS }
+      : { seconds: type === 'cooper' ? COOPER_SECONDS : THIRTY_MINUTE_SECONDS };
+  return {
+    id:
+      inclinePercent === null
+        ? `${FITNESS_TEST_PLAN_PREFIX}${type}`
+        : `${FITNESS_TEST_PLAN_PREFIX}${type}:${inclinePercent}`,
+    name,
+    steps: [{ label: name, ...step }],
   };
 }

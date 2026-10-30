@@ -59,7 +59,10 @@ import { usePreferences } from '../hooks/usePreferences';
 import { useSuggestedRanges } from '../hooks/useSuggestedRanges';
 import { useWatchConnectivity } from '../hooks/useWatchConnectivity';
 import { startRunOnWatch } from '../services/watchRunControl';
-import { buildWatchStartPlan } from '../utils/watchRunPlans';
+import {
+  buildWatchFitnessTestPlan,
+  buildWatchStartPlan,
+} from '../utils/watchRunPlans';
 import { useZone2HeartRateBand } from '../hooks/useZone2HeartRateBand';
 import { useRecordingHeartRate } from '../stores/liveHeartRateStore';
 import { notificationText } from '../utils/recordingNotification';
@@ -123,6 +126,8 @@ import {
   type RunSummaryParams,
 } from '../utils/runSummary';
 import { toLocalDateString } from '../utils/dateUtils';
+import { useRecordingCaloriesPerHour } from '../hooks/useRecordingCaloriesPerHour';
+import { estimateRecordingKcal } from '../utils/recordingCalories';
 import { saveRecordedActivity } from '../services/gpsRecordingSave';
 import { useShoeMutations } from '../hooks/useShoes';
 import { promptToRetireShoe } from '../utils/retireShoePrompt';
@@ -279,6 +284,10 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
       : t('recordActivity.unitKm', { defaultValue: 'km' });
 
   const { session, points } = useGpsRecording();
+  const caloriesPerHour = useRecordingCaloriesPerHour(
+    session?.activity ?? 'run',
+    !!session
+  );
   const heartRate = useRecordingHeartRate(session?.id ?? null);
   const [activity, setActivity] = useState<RecordingActivity>('run');
   const [busy, setBusy] = useState(false);
@@ -296,6 +305,20 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
   const watchAvailable =
     !fitnessTestParam && watchSupported && watchPaired && activity !== 'ride';
   const onWatch = watchAvailable && recordWith === 'watch';
+  // A treadmill test's incline: asked after Finish for a phone run, and before
+  // Start for a watch run, which has no step afterwards to ask in.
+  const [inclineText, setInclineText] = useState('1');
+  const inclineValue =
+    inclineText.trim() === '' ? null : parseDecimalInput(inclineText);
+  const inclineInvalid =
+    inclineValue !== null && inclineSpeedFactor(inclineValue) === null;
+  // A test can be recorded by the watch, outdoors or on a treadmill; the phone
+  // scores the run when it arrives.
+  const testOnWatch =
+    !!fitnessTestParam &&
+    watchSupported &&
+    watchPaired &&
+    recordWith === 'watch';
   // A saved route for the watch to follow, for an outdoor walk or run (optional).
   const [routeId, setRouteId] = useState('');
   const { routes: savedRoutes } = useRoutes();
@@ -726,6 +749,23 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
       run(
         async () => {
           setPermissionProblem(null);
+          if (fitnessTestParam && testOnWatch) {
+            await startRunOnWatch({
+              kind: 'run',
+              place: indoor ? 'indoor' : 'outdoor',
+              // The test is timed on the run's active time; auto-pause would
+              // take time out of it.
+              autoPause: false,
+              voiceCues: audioCues,
+              plan: buildWatchFitnessTestPlan(
+                t,
+                fitnessTestParam,
+                indoor && !inclineInvalid ? inclineValue : null
+              ),
+            });
+            navigation.navigate('WatchRunLive');
+            return;
+          }
           if (fitnessTestParam) {
             setStartedHere(true);
             await startRecording({
@@ -826,6 +866,9 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
       audioCues,
       checkInMinutes,
       fitnessTestParam,
+      testOnWatch,
+      inclineValue,
+      inclineInvalid,
       autoPause,
       paceAlert,
       currentPaceBand,
@@ -961,12 +1004,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
   // A treadmill test's extra answers, asked after Finish.
   const [testTimeText, setTestTimeText] = useState<string | null>(null);
   const [testSplitText, setTestSplitText] = useState('');
-  const [inclineText, setInclineText] = useState('1');
   const [adjustForIncline, setAdjustForIncline] = useState(true);
-  const inclineValue =
-    inclineText.trim() === '' ? null : parseDecimalInput(inclineText);
-  const inclineInvalid =
-    inclineValue !== null && inclineSpeedFactor(inclineValue) === null;
   const testIndoor = session?.indoor === true;
   const testEnded = session?.status === 'finished';
   const indoorTestResult = useMemo(() => {
@@ -1231,6 +1269,11 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
           suggestedFromLast={
             route.params?.indoor !== undefined && route.params.indoor === indoor
           }
+          recordWith={watchSupported && watchPaired ? recordWith : undefined}
+          onRecordWithChange={setRecordWith}
+          inclineText={inclineText}
+          onInclineTextChange={setInclineText}
+          inclineInvalid={testOnWatch && indoor && inclineInvalid}
           audioCues={audioCues}
           onAudioCuesChange={(value) => {
             preferenceEdits.current.audioCues = true;
@@ -1764,6 +1807,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
         })
       : null;
     const indoorSession = session.indoor === true;
+    const kcal = estimateRecordingKcal(caloriesPerHour, active);
     // Still running from before this visit (or from earlier in it): say when it
     // began so a leftover recording is never mistaken for a new one.
     const carriedOver = !startedHere && !finished;
@@ -1936,15 +1980,26 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
             </View>
           </>
         )}
-        {heartRate != null && !finished ? (
+        {kcal != null || (heartRate != null && !finished) ? (
           <View className="flex-row mb-4">
-            <Stat
-              label={t('recordActivity.heartRate', {
-                defaultValue: 'Heart rate',
-              })}
-              value={number(heartRate, 0)}
-              unit={t('recordActivity.unitBpm', { defaultValue: 'bpm' })}
-            />
+            {kcal != null ? (
+              <Stat
+                label={t('recordActivity.calories', {
+                  defaultValue: 'Calories (est.)',
+                })}
+                value={number(kcal, 0)}
+                unit={t('recordActivity.unitKcal', { defaultValue: 'kcal' })}
+              />
+            ) : null}
+            {heartRate != null && !finished ? (
+              <Stat
+                label={t('recordActivity.heartRate', {
+                  defaultValue: 'Heart rate',
+                })}
+                value={number(heartRate, 0)}
+                unit={t('recordActivity.unitBpm', { defaultValue: 'bpm' })}
+              />
+            ) : null}
           </View>
         ) : null}
         {finished && laps.length > 0 ? (

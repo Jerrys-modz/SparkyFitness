@@ -1,8 +1,8 @@
 # Fitness Tests
 
-A fitness test is one hard, measured run. Run it in the mobile app, either outdoors with your phone's GPS or indoors on a treadmill (no GPS needed), and SparkyFitness works out your threshold pace and a full set of training paces from it. Those paces then set your [pace zones](/features/exercises/gps-activity-recording#pace-zones), the suggested ranges on the Record screen, and the plans you start from the training programs screen.
+A fitness test is one hard, measured run. Start it in the mobile app and run it outdoors, recorded by your phone's GPS or by a paired Apple Watch, or indoors on a treadmill (no GPS needed), and SparkyFitness works out your threshold pace and a full set of training paces from it. Those paces then set your [pace zones](/features/exercises/gps-activity-recording#pace-zones), the suggested ranges on the Record screen, and the plans you start from the training programs screen.
 
-Tests work outdoors with your phone's GPS and indoors on a treadmill. They are recorded as an ordinary run (an outdoor run, or an indoor run), saved to your diary, and marked as a fitness test on the activity.
+Tests work outdoors with your phone's GPS or your Apple Watch's, and indoors on a treadmill. They are recorded as an ordinary run (an outdoor run, or an indoor run), saved to your diary, and marked as a fitness test on the activity.
 
 ## The three tests
 
@@ -17,11 +17,29 @@ Warm up with 10 to 15 minutes of easy running first, pick a flat, open route (or
 ## Running a test
 
 1. Open **Library → Training programs → Take a fitness test** (or **Tests and paces** once you have a test), and tap **Start this test** on the one you want.
-2. Read the short guide, choose **Outdoor (GPS)** or **Treadmill**, and tap **Start the test**. The phone records the run as it does for any run. Auto-pause is off for a test, because pauses would take time out of a timed test, and a test is always recorded on the phone, not the watch.
+2. Read the short guide, choose **Outdoor (GPS)** or **Treadmill**, and tap **Start the test**. With a paired Apple Watch an outdoor test also asks **Phone GPS** or **Watch GPS** (see [With an Apple Watch](#with-an-apple-watch)). Auto-pause is off for a test, because pauses would take time out of a timed test. A treadmill test can be recorded on the phone or the watch.
 3. While you run, a card shows what is left (the distance to 5 km, or the time to go) and what to do now. In the 30-minute run it tells you when the last 20 minutes begin. When you reach the mark the phone buzzes, and says so with voice cues on.
 4. Tap **Finish** and then **Save activity**. A result screen shows your result and your new training paces.
 
 The rest of this section is for outdoor tests; [treadmill tests](#on-a-treadmill) are below. The result is read at the test's own mark whatever you did afterwards: the time you reached 5 km, the distance at exactly 12 minutes, or the distance at 10 and 30 minutes. Jogging on to cool down does not change it. If you stop before the mark, the run is saved as an ordinary run, the screen says so, and your paces stay as they were. Pauses do not count towards a test's time.
+
+## With an Apple Watch
+
+Choose **Watch GPS** (outdoors) or **Watch** (treadmill) to record a test on your wrist. Tapping **Start the test** opens the watch app and starts a run there, with the test as its one step, so your phone can stay behind.
+
+- Outdoors the watch uses its own GPS and heart rate sensor, and shows the run as it does for any plan. For the 5K the step ends at 5 km; for the Cooper test and the 30-minute run it ends on the clock.
+- When you reach the mark the watch taps your wrist, and with **Voice cues** on it says "Test complete. Slow down and finish." Keep going to cool down, then finish the run on the watch.
+- The watch does not mark the 10-minute point of the 30-minute run. The result is still read from the run, so nothing is lost.
+- When the run reaches your phone it is saved to your diary as a run and scored exactly like a phone-recorded test, with the result and new paces. A run that stopped before the mark stays an ordinary run. If the phone is out of reach the run is held and filed when it connects again.
+
+**On a treadmill with the watch.** Nothing is typed in afterwards, so the setup asks for the treadmill's **incline** first (1% by default; 1% counts the same as flat ground outdoors, and you can clear it if you do not know it). Then:
+
+1. Start the treadmill and the watch together. The watch estimates the distance from your arm movement.
+2. For the 5K, end the run when the treadmill shows 5 km. For the Cooper test and the 30-minute run the watch buzzes when the clock runs out.
+3. When you end the run, the watch asks for the distance the treadmill showed. Enter it; the result is read from that figure, spread over the run by the watch's own distance curve.
+4. The phone scores the run when it arrives: the 5K from the time you reached 5 km, the Cooper test from the distance at exactly 12 minutes, and the 30-minute run from the distance at 10 and 30 minutes. The incline correction is applied as for any treadmill test.
+
+A treadmill run that stops well short of the mark (under 4.5 km for the 5K, or before the clock ran out) is saved as an ordinary indoor run.
 
 ## On a treadmill
 

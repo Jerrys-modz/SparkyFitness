@@ -156,9 +156,10 @@ const FitnessTestResultScreen: React.FC<Props> = ({ navigation, route }) => {
               <Text className="text-text-secondary text-sm mt-2">
                 {t('fitnessTest.result.derived', {
                   pace: paceText(t, test.paces.thresholdSecondsPerKm, unit),
+                  race: paceText(t, test.paces.equivalent5kSeconds / 5, unit),
                   time: formatClock(test.paces.equivalent5kSeconds),
                   defaultValue:
-                    'Threshold pace {{pace}}. As a 5K that is about {{time}}.',
+                    '5K pace {{race}} ({{time}}). Threshold pace {{pace}} is the slower pace you could hold for about an hour.',
                 })}
               </Text>
             </View>

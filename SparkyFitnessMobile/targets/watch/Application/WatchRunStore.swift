@@ -709,7 +709,12 @@ final class WatchRunStore: ObservableObject {
         }
         guard settings.voiceCues else { return }
         if position.finished {
-            WatchRunCues.shared.speak(String(localized: "watch.run.cue.planComplete", defaultValue: "Plan complete."), interrupt: true)
+            // A fitness test's only step is the test, so reaching its mark is
+            // the test being done: say what to do next, not just "Plan complete".
+            let text = plan.id.hasPrefix("fitness-test:")
+                ? String(localized: "watch.run.cue.fitnessTestComplete", defaultValue: "Test complete. Slow down and finish.")
+                : String(localized: "watch.run.cue.planComplete", defaultValue: "Plan complete.")
+            WatchRunCues.shared.speak(text, interrupt: true)
         } else {
             // The first step of a program workout comes with its place in the
             // program, in one cue: a second would cut the first off.
