@@ -63,7 +63,7 @@ While recording, tap **Lap** to mark a lap, for example at the end of a hard int
 
 When you finish, the summary lists your laps and your splits per kilometer or mile. Each row has a bar, longer for a faster one, and the fastest is labelled, so a fading last kilometer or a strong negative split is easy to see. A short final stretch is shown but never counted as your fastest.
 
-**While you record**, the screen shows a **Calories (est.)** tile next to distance and pace. It is a rough guide worked out from your latest weight check-in (about 1 kcal per kg per km for a run, half that for a walk, and your active time for indoor sessions and rides), so it needs a weight in your measurements. The saved activity gets its calories from the server, which can differ.
+**While you record**, the screen shows a **Calories (est.)** tile next to distance and pace. It uses the same figure the saved activity will get: the calories per hour of your Walking, Running or Cycling exercise in the library, over your active time. Change that exercise's calories per hour and both change. The tile is hidden if that exercise is not a cardio exercise, because the server then works the calories out from your weight, age and sex. A run recorded on an Apple Watch uses the watch's own measured calories instead.
 
 **After you save**, a summary screen shows what the activity came to: distance, time, average pace, elevation gain and average heart rate (when you have them), the route on a map, and each split (or your laps) with its bar. For a training-program workout it also shows how far through the program you are and when the next workout falls, with a link to the program. Tap **Done** to close it.
 

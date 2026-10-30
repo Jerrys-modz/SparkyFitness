@@ -15,6 +15,7 @@ import {
   markRecordingSaved,
 } from '../../src/services/gpsRecordingService';
 import {
+  recordingCaloriesPerHour,
   resolveRecordingExercise,
   saveRecordedActivity,
 } from '../../src/services/gpsRecordingSave';
@@ -142,6 +143,39 @@ describe('resolveRecordingExercise', () => {
         modality: 'duration_distance',
       })
     );
+  });
+});
+
+describe('recordingCaloriesPerHour', () => {
+  it('is the library cardio exercise rate, the one the server applies', async () => {
+    mockedSearch.mockResolvedValue([
+      exercise({
+        id: 'c',
+        name: 'Running',
+        category: 'cardio',
+        calories_per_hour: 720,
+      }),
+    ]);
+    expect(await recordingCaloriesPerHour('run')).toBe(720);
+    expect(mockedCreateExercise).not.toHaveBeenCalled();
+  });
+
+  it('is the fallback rate when the library has none, without creating one', async () => {
+    mockedSearch.mockResolvedValue([]);
+    expect(await recordingCaloriesPerHour('walk')).toBe(250);
+    expect(mockedCreateExercise).not.toHaveBeenCalled();
+  });
+
+  it('is null for a non-cardio exercise, which the server values another way', async () => {
+    mockedSearch.mockResolvedValue([
+      exercise({
+        id: 'c',
+        name: 'Running',
+        category: 'strength',
+        calories_per_hour: 720,
+      }),
+    ]);
+    expect(await recordingCaloriesPerHour('run')).toBeNull();
   });
 });
 

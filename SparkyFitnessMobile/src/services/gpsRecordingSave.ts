@@ -57,13 +57,10 @@ const FALLBACK_CALORIES_PER_HOUR: Record<DiaryActivity, number> = {
   jumpRope: 700,
 };
 
-/**
- * Finds the library exercise a recording is logged against, creating a cardio
- * one when the library has none of that name.
- */
-export async function resolveRecordingExercise(
+/** The library exercise a recording of `activity` is logged against, if there is one. */
+async function findRecordingExercise(
   activity: DiaryActivity
-): Promise<Exercise> {
+): Promise<Exercise | undefined> {
   const name = EXERCISE_NAMES[activity];
   // Jump rope covers no distance - it is duration-only.
   const modality = activity === 'jumpRope' ? 'duration' : 'duration_distance';
@@ -73,17 +70,47 @@ export async function resolveRecordingExercise(
   // A jump rope must be duration-only. Falling back to any other "Jump Rope"
   // would snapshot its modality onto the entry, and a duration_distance one
   // gives a distance-less workout a route card and distance fields.
-  const best =
+  return (
     matches.find((exercise) => exercise.modality === modality) ??
-    (activity === 'jumpRope' ? undefined : matches[0]);
+    (activity === 'jumpRope' ? undefined : matches[0])
+  );
+}
+
+/**
+ * Finds the library exercise a recording is logged against, creating a cardio
+ * one when the library has none of that name.
+ */
+export async function resolveRecordingExercise(
+  activity: DiaryActivity
+): Promise<Exercise> {
+  const best = await findRecordingExercise(activity);
   if (best) return best;
   return createExercise({
-    name,
+    name: EXERCISE_NAMES[activity],
     category: 'cardio',
-    modality,
+    modality: activity === 'jumpRope' ? 'duration' : 'duration_distance',
     calories_per_hour: FALLBACK_CALORIES_PER_HOUR[activity],
     description: null,
   });
+}
+
+/**
+ * Calories per hour the server will apply to a recording of `activity`: a
+ * saved entry with no calories of its own is worth the logged exercise's
+ * `calories_per_hour` times its minutes. That holds for a cardio exercise
+ * with a rate; for any other the server works from body weight, age and
+ * sex, which the phone does not have, so this returns null. With no
+ * exercise yet, the one created at save carries the fallback rate.
+ */
+export async function recordingCaloriesPerHour(
+  activity: DiaryActivity
+): Promise<number | null> {
+  const exercise = await findRecordingExercise(activity);
+  if (!exercise) return FALLBACK_CALORIES_PER_HOUR[activity];
+  const cardio = exercise.category?.toLowerCase() === 'cardio';
+  return cardio && exercise.calories_per_hour > 0
+    ? exercise.calories_per_hour
+    : null;
 }
 
 /**

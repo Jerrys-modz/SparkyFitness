@@ -129,7 +129,7 @@ import {
   type RunSummaryParams,
 } from '../utils/runSummary';
 import { toLocalDateString } from '../utils/dateUtils';
-import { useBodyWeightKg } from '../hooks/useBodyWeightKg';
+import { useRecordingCaloriesPerHour } from '../hooks/useRecordingCaloriesPerHour';
 import { estimateRecordingKcal } from '../utils/recordingCalories';
 import { saveRecordedActivity } from '../services/gpsRecordingSave';
 import { useShoeMutations } from '../hooks/useShoes';
@@ -287,8 +287,8 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
       : t('recordActivity.unitKm', { defaultValue: 'km' });
 
   const { session, points } = useGpsRecording();
-  const weightKg = useBodyWeightKg(
-    session ? toLocalDateString(new Date(session.startedAt)) : null,
+  const caloriesPerHour = useRecordingCaloriesPerHour(
+    session?.activity ?? 'run',
     !!session
   );
   const heartRate = useRecordingHeartRate(session?.id ?? null);
@@ -1825,13 +1825,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
         })
       : null;
     const indoorSession = session.indoor === true;
-    const kcal = estimateRecordingKcal(
-      session.activity,
-      weightKg,
-      distance,
-      active,
-      indoorSession
-    );
+    const kcal = estimateRecordingKcal(caloriesPerHour, active);
     // Still running from before this visit (or from earlier in it): say when it
     // began so a leftover recording is never mistaken for a new one.
     const carriedOver = !startedHere && !finished;
