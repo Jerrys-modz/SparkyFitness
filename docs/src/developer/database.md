@@ -224,6 +224,7 @@ These tables are managed by Better Auth and are not exposed through family shari
 | `openfoodfacts_sync_queue` | Dormant revision-aware automatic upload state and retained history; unused by manual contributions |
 | `rate_limit` | Sign-in rate limit counters shared across server instances |
 | `system.rate_limit_windows` | Per-address limits of the server's own routes (`middleware/ipRateLimit.ts`) shared across server instances |
+| `system.rls_policy_state` | The last `rls_policies.sql` apply (`utils/applyRlsPolicies.ts`), so startup skips an unchanged one |
 | `medication_types` | Medication categories lookup |
 | `medication_route_types` | Medication administration routes lookup |
 | `medication_schedule_types` | Medication scheduling frequencies lookup |
