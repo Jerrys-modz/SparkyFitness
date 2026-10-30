@@ -44,7 +44,8 @@ android {
             def easWorkingDir = System.getenv('EAS_BUILD_WORKINGDIR')
             def easCredentials = easWorkingDir ? new File(easWorkingDir, 'credentials.json') : null
             if (releaseStoreFile) {
-                storeFile file(releaseStoreFile)
+                // Resolved like the phone's, so a relative path means android/app for both.
+                storeFile project(':app').file(releaseStoreFile)
                 storePassword(findProperty('SPARKY_RELEASE_STORE_PASSWORD') ?: findProperty('MYAPP_RELEASE_STORE_PASSWORD') ?: System.getenv('SPARKY_RELEASE_STORE_PASSWORD'))
                 keyAlias(findProperty('SPARKY_RELEASE_KEY_ALIAS') ?: findProperty('MYAPP_RELEASE_KEY_ALIAS') ?: System.getenv('SPARKY_RELEASE_KEY_ALIAS'))
                 keyPassword(findProperty('SPARKY_RELEASE_KEY_PASSWORD') ?: findProperty('MYAPP_RELEASE_KEY_PASSWORD') ?: System.getenv('SPARKY_RELEASE_KEY_PASSWORD'))
