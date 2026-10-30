@@ -16,7 +16,7 @@ Each [GitHub release](https://github.com/CodeWithCJ/SparkyFitness/releases) afte
 3. Back on the Wireless debugging screen, note the watch's own address and port, which are different, and run `adb connect <address>:<port>`.
 4. Run `adb install wearos-release.apk`.
 
-Install the phone and watch apps from the same place. Only apps signed with the same key can talk to each other, and the GitHub and Google Play builds use different keys, so a GitHub watch app won't connect to a Google Play phone app.
+Install the phone and watch apps from the same place. Only apps signed with the same key can talk to each other, and the GitHub and Google Play builds use different keys, so a GitHub watch app won't connect to a Google Play phone app. Use a phone APK from the same or a later release, because GitHub APKs up to v1.10.0 used a different key.
 
 If you use Obtainium, a release now has two APKs. Choose `app-release.apk` for your phone, or filter on it in the app's settings.
 
