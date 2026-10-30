@@ -156,9 +156,8 @@ export function useWorkoutPresetForm({
       const duplicate: WorkoutPresetExercise = {
         ...exerciseToDuplicate,
         id: generateClientId(),
-        // The web editor has no superset UI, so silently carrying the
-        // original's superset_group forward would join the copy to the same
-        // superset with no way for the user to see or intend that (mobile
+        // Carrying the original's superset_group forward would silently join
+        // the copy to the same superset without the user intending it (mobile
         // clears it for the same reason, inserting the copy after the whole
         // run instead).
         superset_group: null,
