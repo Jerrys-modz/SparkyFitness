@@ -20,7 +20,10 @@ import {
   type WatchRunPayload,
 } from '../utils/watchRun';
 import { fitnessTestFromPlanId } from '../utils/watchRunPlans';
-import { measureFitnessTest } from '../utils/fitnessTest';
+import {
+  measureFitnessTest,
+  measureWatchIndoorTest,
+} from '../utils/fitnessTest';
 import { saveFitnessTest } from './fitnessTestService';
 
 /**
@@ -341,16 +344,20 @@ async function tickOffProgram(
 /**
  * A run that followed the watch's fitness test plan is scored like a phone
  * recording of the test: the time to 5 km, or the distance at the test's own
- * mark, read from the route. A run that never reached the mark is left an
- * ordinary run. The server replaces the test of an entry, so a retry is safe.
+ * mark, read from the route (outdoors) or from the run's distance curve
+ * (a treadmill, with the incline the test was started with). A run that never
+ * reached the mark is left an ordinary run. The server replaces the test of an entry, so a retry is safe.
  */
 async function fileFitnessTest(
   payload: WatchRunPayload,
   entryId: string
 ): Promise<void> {
-  const type = fitnessTestFromPlanId(payload.planId);
-  if (!type || payload.place !== 'outdoor') return;
-  const measurement = measureFitnessTest(type, watchRunPoints(payload));
+  const test = fitnessTestFromPlanId(payload.planId);
+  if (!test) return;
+  const indoor = payload.place === 'indoor';
+  const measurement = indoor
+    ? measureWatchIndoorTest(test.type, payload, test.inclinePercent)
+    : measureFitnessTest(test.type, watchRunPoints(payload));
   if (!measurement) return;
   try {
     await saveFitnessTest({
@@ -360,9 +367,9 @@ async function fileFitnessTest(
       duration_seconds: measurement.durationSeconds,
       split_distance_meters: measurement.splitDistanceMeters ?? null,
       exercise_entry_id: entryId,
-      surface: 'outdoor',
-      incline_percent: null,
-      incline_adjusted: false,
+      surface: indoor ? 'indoor' : 'outdoor',
+      incline_percent: indoor ? (measurement.inclinePercent ?? null) : null,
+      incline_adjusted: indoor && measurement.inclinePercent != null,
     });
   } catch (error) {
     if (isRetryable(error)) throw error;

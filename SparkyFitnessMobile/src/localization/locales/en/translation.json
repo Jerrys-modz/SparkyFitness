@@ -8950,6 +8950,10 @@
       "indoorNote": "On a treadmill nothing is tracked by GPS. The test is timed, and when you finish you enter the distance your treadmill shows and its incline. It is saved as an indoor run and marked as a fitness test.",
       "outdoorNote": "Outdoors the test is recorded with your phone’s GPS, as a run, and marked as a fitness test on the activity.",
       "watchNote": "Your watch records the test with its own GPS and heart rate sensor, and your phone scores it when the run reaches it. It buzzes when you reach the mark, and says so with voice cues on.",
+      "inclineTitle": "Treadmill incline (%)",
+      "inclineInvalid": "Enter an incline from 0 to 15.",
+      "inclineHint": "The watch run is scored with this incline. 1% counts the same as flat ground outdoors. Leave it empty if you do not know it.",
+      "indoorWatchNote": "Your watch records the treadmill test and your phone scores it when the run reaches it. Start the treadmill and the watch together. For the 5K, finish the run when the treadmill shows 5 km. When you end the run, enter the distance the treadmill showed on the watch so the result is read from it.",
       "sameAsLast": "Suggested because your last test was the same."
     },
     "delete": {

@@ -305,11 +305,17 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
   const watchAvailable =
     !fitnessTestParam && watchSupported && watchPaired && activity !== 'ride';
   const onWatch = watchAvailable && recordWith === 'watch';
-  // An outdoor test can be recorded by the watch; the phone scores the run
-  // when it arrives. A treadmill test needs the phone's distance entry.
+  // A treadmill test's incline: asked after Finish for a phone run, and before
+  // Start for a watch run, which has no step afterwards to ask in.
+  const [inclineText, setInclineText] = useState('1');
+  const inclineValue =
+    inclineText.trim() === '' ? null : parseDecimalInput(inclineText);
+  const inclineInvalid =
+    inclineValue !== null && inclineSpeedFactor(inclineValue) === null;
+  // A test can be recorded by the watch, outdoors or on a treadmill; the phone
+  // scores the run when it arrives.
   const testOnWatch =
     !!fitnessTestParam &&
-    !indoor &&
     watchSupported &&
     watchPaired &&
     recordWith === 'watch';
@@ -746,12 +752,16 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
           if (fitnessTestParam && testOnWatch) {
             await startRunOnWatch({
               kind: 'run',
-              place: 'outdoor',
+              place: indoor ? 'indoor' : 'outdoor',
               // The test is timed on the run's active time; auto-pause would
               // take time out of it.
               autoPause: false,
               voiceCues: audioCues,
-              plan: buildWatchFitnessTestPlan(t, fitnessTestParam),
+              plan: buildWatchFitnessTestPlan(
+                t,
+                fitnessTestParam,
+                indoor && !inclineInvalid ? inclineValue : null
+              ),
             });
             navigation.navigate('WatchRunLive');
             return;
@@ -857,6 +867,8 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
       checkInMinutes,
       fitnessTestParam,
       testOnWatch,
+      inclineValue,
+      inclineInvalid,
       autoPause,
       paceAlert,
       currentPaceBand,
@@ -992,12 +1004,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
   // A treadmill test's extra answers, asked after Finish.
   const [testTimeText, setTestTimeText] = useState<string | null>(null);
   const [testSplitText, setTestSplitText] = useState('');
-  const [inclineText, setInclineText] = useState('1');
   const [adjustForIncline, setAdjustForIncline] = useState(true);
-  const inclineValue =
-    inclineText.trim() === '' ? null : parseDecimalInput(inclineText);
-  const inclineInvalid =
-    inclineValue !== null && inclineSpeedFactor(inclineValue) === null;
   const testIndoor = session?.indoor === true;
   const testEnded = session?.status === 'finished';
   const indoorTestResult = useMemo(() => {
@@ -1264,6 +1271,9 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
           }
           recordWith={watchSupported && watchPaired ? recordWith : undefined}
           onRecordWithChange={setRecordWith}
+          inclineText={inclineText}
+          onInclineTextChange={setInclineText}
+          inclineInvalid={testOnWatch && indoor && inclineInvalid}
           audioCues={audioCues}
           onAudioCuesChange={(value) => {
             preferenceEdits.current.audioCues = true;

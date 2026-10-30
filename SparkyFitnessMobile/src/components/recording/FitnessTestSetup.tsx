@@ -5,6 +5,7 @@ import type { FitnessTestType } from '@workspace/shared';
 import Button from '../ui/Button';
 import RecordingSwitchRow from './RecordingSwitchRow';
 import SegmentedControl from '../SegmentedControl';
+import FormInput from '../FormInput';
 import { fitnessTestName } from '../../utils/fitnessTest';
 
 /** What the test is and how to run it, as a short list. */
@@ -61,6 +62,13 @@ export interface FitnessTestSetupProps {
   /** With a paired watch, which device records an outdoor test; absent hides the choice. */
   recordWith?: 'phone' | 'watch';
   onRecordWithChange?: (value: 'phone' | 'watch') => void;
+  /**
+   * A treadmill test recorded by the watch needs its incline now, since there
+   * is no step afterwards to ask for it. Typed as the person writes it.
+   */
+  inclineText?: string;
+  onInclineTextChange?: (value: string) => void;
+  inclineInvalid?: boolean;
   audioCues: boolean;
   onAudioCuesChange: (value: boolean) => void;
   busy: boolean;
@@ -78,6 +86,9 @@ const FitnessTestSetup: React.FC<FitnessTestSetupProps> = ({
   suggestedFromLast = false,
   recordWith,
   onRecordWithChange,
+  inclineText,
+  onInclineTextChange,
+  inclineInvalid = false,
   audioCues,
   onAudioCuesChange,
   busy,
@@ -117,21 +128,29 @@ const FitnessTestSetup: React.FC<FitnessTestSetupProps> = ({
             onSelect={(key) => onIndoorChange(key === 'indoor')}
           />
         </View>
-        {recordWith && onRecordWithChange && !indoor ? (
+        {recordWith && onRecordWithChange ? (
           <View className="mt-3" testID="fitness-test-record-with">
             <SegmentedControl<'phone' | 'watch'>
               segments={[
                 {
                   key: 'phone',
-                  label: t('recordActivity.watch.phone', {
-                    defaultValue: 'Phone GPS',
-                  }),
+                  label: indoor
+                    ? t('recordActivity.watch.phoneIndoor', {
+                        defaultValue: 'Phone',
+                      })
+                    : t('recordActivity.watch.phone', {
+                        defaultValue: 'Phone GPS',
+                      }),
                 },
                 {
                   key: 'watch',
-                  label: t('recordActivity.watch.outdoor', {
-                    defaultValue: 'Watch GPS',
-                  }),
+                  label: indoor
+                    ? t('recordActivity.watch.watchIndoor', {
+                        defaultValue: 'Watch',
+                      })
+                    : t('recordActivity.watch.outdoor', {
+                        defaultValue: 'Watch GPS',
+                      }),
                 },
               ]}
               activeKey={recordWith}
@@ -139,21 +158,56 @@ const FitnessTestSetup: React.FC<FitnessTestSetupProps> = ({
             />
           </View>
         ) : null}
+        {indoor && recordWith === 'watch' && onInclineTextChange ? (
+          <View className="mt-3" testID="fitness-test-watch-incline">
+            <Text className="text-text-primary text-sm font-semibold mb-1">
+              {t('fitnessTest.setup.inclineTitle', {
+                defaultValue: 'Treadmill incline (%)',
+              })}
+            </Text>
+            <FormInput
+              keyboardType="decimal-pad"
+              value={inclineText ?? ''}
+              placeholder="1"
+              accessibilityLabel={t('fitnessTest.setup.inclineTitle', {
+                defaultValue: 'Treadmill incline (%)',
+              })}
+              onChangeText={onInclineTextChange}
+            />
+            <Text
+              className={`text-xs mt-1 ${inclineInvalid ? 'text-red-500' : 'text-text-muted'}`}
+            >
+              {inclineInvalid
+                ? t('fitnessTest.setup.inclineInvalid', {
+                    defaultValue: 'Enter an incline from 0 to 15.',
+                  })
+                : t('fitnessTest.setup.inclineHint', {
+                    defaultValue:
+                      'The watch run is scored with this incline. 1% counts the same as flat ground outdoors. Leave it empty if you do not know it.',
+                  })}
+            </Text>
+          </View>
+        ) : null}
         <Text className="text-text-muted text-xs mt-3">
-          {indoor
-            ? t('fitnessTest.setup.indoorNote', {
+          {indoor && recordWith === 'watch'
+            ? t('fitnessTest.setup.indoorWatchNote', {
                 defaultValue:
-                  'On a treadmill nothing is tracked by GPS. The test is timed, and when you finish you enter the distance your treadmill shows and its incline. It is saved as an indoor run and marked as a fitness test.',
+                  'Your watch records the treadmill test and your phone scores it when the run reaches it. Start the treadmill and the watch together. For the 5K, finish the run when the treadmill shows 5 km. When you end the run, enter the distance the treadmill showed on the watch so the result is read from it.',
               })
-            : recordWith === 'watch'
-              ? t('fitnessTest.setup.watchNote', {
+            : indoor
+              ? t('fitnessTest.setup.indoorNote', {
                   defaultValue:
-                    'Your watch records the test with its own GPS and heart rate sensor, and your phone scores it when the run reaches it. It buzzes when you reach the mark, and says so with voice cues on.',
+                    'On a treadmill nothing is tracked by GPS. The test is timed, and when you finish you enter the distance your treadmill shows and its incline. It is saved as an indoor run and marked as a fitness test.',
                 })
-              : t('fitnessTest.setup.outdoorNote', {
-                  defaultValue:
-                    'Outdoors the test is recorded with your phone’s GPS, as a run, and marked as a fitness test on the activity.',
-                })}
+              : recordWith === 'watch'
+                ? t('fitnessTest.setup.watchNote', {
+                    defaultValue:
+                      'Your watch records the test with its own GPS and heart rate sensor, and your phone scores it when the run reaches it. It buzzes when you reach the mark, and says so with voice cues on.',
+                  })
+                : t('fitnessTest.setup.outdoorNote', {
+                    defaultValue:
+                      'Outdoors the test is recorded with your phone’s GPS, as a run, and marked as a fitness test on the activity.',
+                  })}
         </Text>
         {suggestedFromLast ? (
           <Text className="text-text-muted text-xs mt-1">
@@ -198,6 +252,7 @@ const FitnessTestSetup: React.FC<FitnessTestSetupProps> = ({
         className="mt-6"
         loading={busy}
         onPress={onStart}
+        disabled={inclineInvalid}
         testID="fitness-test-start"
       >
         {t('fitnessTest.setup.start', { defaultValue: 'Start the test' })}
