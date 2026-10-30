@@ -2509,7 +2509,9 @@ CREATE TABLE public.external_data_providers (
     oauth_state text,
     sort_order integer,
     is_public boolean DEFAULT false NOT NULL,
-    sync_started_at timestamp with time zone
+    sync_started_at timestamp with time zone,
+    fit_downloads_day date,
+    fit_downloads_used integer DEFAULT 0 NOT NULL
 );
 
 
