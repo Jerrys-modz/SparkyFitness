@@ -8,5 +8,6 @@
   "src/symptoms/bodyRegions.ts": 11,
   "src/symptoms/builtIns.ts": 1,
   "src/utils/parseCsv.ts": 1,
-  "src/utils/progressionEngine.ts": 2
+  "src/utils/progressionEngine.ts": 2,
+  "src/utils/stretchRoutines.ts": 3
 }
