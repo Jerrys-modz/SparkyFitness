@@ -646,4 +646,54 @@ describe('NotificationSettingsScreen', () => {
       expect(useAppPreferencesStore.getState().mealReminders).toEqual([]);
     });
   });
+
+  describe('macro alerts', () => {
+    function macroSwitch(
+      getAllByRole: ReturnType<typeof renderScreen>['getAllByRole']
+    ) {
+      const match = getAllByRole('switch').find(
+        (element) => element.props.accessibilityLabel === 'Macro alerts'
+      );
+      if (!match) throw new Error('Macro alerts switch not rendered');
+      return match;
+    }
+
+    it('turns on with a default protein rule once permission is granted', async () => {
+      useAppPreferencesStore.setState({ notificationsEnabled: true });
+      const { getAllByRole } = renderScreen();
+      fireEvent(macroSwitch(getAllByRole), 'valueChange', true);
+      await waitFor(() => {
+        expect(useAppPreferencesStore.getState().macroAlertsEnabled).toBe(true);
+      });
+      expect(useAppPreferencesStore.getState().macroAlertRules).toEqual([
+        { macro: 'protein', percent: 70, time: '18:00' },
+      ]);
+    });
+
+    it('stays off when permission is denied', async () => {
+      mockRequestPermission.mockResolvedValue('denied');
+      useAppPreferencesStore.setState({ notificationsEnabled: true });
+      const { getAllByRole } = renderScreen();
+      fireEvent(macroSwitch(getAllByRole), 'valueChange', true);
+      await act(async () => {});
+      expect(useAppPreferencesStore.getState().macroAlertsEnabled).toBe(false);
+    });
+
+    it('adds the next macro, changes its share and removes it', () => {
+      useAppPreferencesStore.setState({
+        notificationsEnabled: true,
+        macroAlertsEnabled: true,
+        macroAlertRules: [{ macro: 'protein', percent: 70, time: '18:00' }],
+      });
+      const { getByText, getByLabelText } = renderScreen();
+      fireEvent.press(getByText('Add macro alert'));
+      expect(
+        useAppPreferencesStore.getState().macroAlertRules.map((r) => r.macro)
+      ).toEqual(['protein', 'carbs']);
+      fireEvent.press(getByLabelText('Remove Carbs alert'));
+      expect(
+        useAppPreferencesStore.getState().macroAlertRules.map((r) => r.macro)
+      ).toEqual(['protein']);
+    });
+  });
 });

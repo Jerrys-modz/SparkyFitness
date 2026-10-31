@@ -301,7 +301,8 @@
       "fasting": "Fasting",
       "hydration": "Hydration reminders",
       "moodCheckin": "Mood check-ins",
-      "mealReminders": "Meal reminders"
+      "mealReminders": "Meal reminders",
+      "macroAlerts": "Macro alerts"
     },
     "moodCheckin": {
       "title": "How are you feeling?",
@@ -348,6 +349,11 @@
     "mealReminder": {
       "title": "Time to log {{meal}}",
       "body": "Tap to add what you ate."
+    },
+    "macroAlert": {
+      "title": "{{macro}} is at {{percent}}% of your target",
+      "bodyGrams": "{{remaining}} g to go today.",
+      "bodyCalories": "{{remaining}} kcal to go today."
     }
   },
   "activeWorkout": {
@@ -1317,7 +1323,14 @@
     "mealReminderUnknownMeal": "Meal",
     "mealReminderRemove": "Remove {{meal}} reminder",
     "mealReminderTimeAccessibility": "{{meal}} reminder, {{time}}",
-    "mealReminderAdd": "Add meal reminder"
+    "mealReminderAdd": "Add meal reminder",
+    "macroAlerts": "Macro alerts",
+    "macroAlertToggle": "Macro alerts",
+    "macroAlertToggleSubtitle": "A heads-up when you are behind on a target at the time you choose. It only fires if you are still behind, based on what you have logged when you last opened the app.",
+    "macroAlertRuleTitle": "{{macro}} under target by {{time}}",
+    "macroAlertRuleAccessibility": "{{macro}} alert, under {{percent}} percent by {{time}}",
+    "macroAlertRemove": "Remove {{macro}} alert",
+    "macroAlertAdd": "Add macro alert"
   },
   "workoutSettings": {
     "title": "Workout Settings",

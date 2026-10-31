@@ -40,6 +40,14 @@ import { markCheckinReminderOfferShown } from '../services/checkinReminderOffer'
 import { MAX_CHECKIN_REMINDERS } from '../utils/checkinReminderTimes';
 import { MAX_MEAL_REMINDERS } from '../utils/mealReminders';
 import { useMealTypes } from '../hooks/useMealTypes';
+import {
+  DEFAULT_MACRO_ALERT_PERCENT,
+  DEFAULT_MACRO_ALERT_TIME,
+  MACRO_ALERT_KEYS,
+  MACRO_ALERT_PERCENTS,
+  type MacroAlertKey,
+  type MacroAlertPercent,
+} from '../utils/macroAlerts';
 import { formatTimeLabel } from '../utils/entryTimeDisplay';
 import { isValidReminderWindow } from '../utils/hydrationReminder';
 import type { RootStackScreenProps } from '../types/navigation';
@@ -140,6 +148,21 @@ const NotificationSettingsScreen: React.FC<
   const mealReminders = useAppPreferencesStore((s) => s.mealReminders);
   const setMealReminders = useAppPreferencesStore((s) => s.setMealReminders);
   const { mealTypes } = useMealTypes({ enabled: mealRemindersEnabled });
+  const macroAlertsEnabled = useAppPreferencesStore(
+    (s) => s.macroAlertsEnabled
+  );
+  const setMacroAlertsEnabled = useAppPreferencesStore(
+    (s) => s.setMacroAlertsEnabled
+  );
+  const macroAlertRules = useAppPreferencesStore((s) => s.macroAlertRules);
+  const setMacroAlertRules = useAppPreferencesStore(
+    (s) => s.setMacroAlertRules
+  );
+  const macroTimeSheetRef = useRef<TimeSheetRef>(null);
+  const [editingMacro, setEditingMacro] = useState<{
+    macro: MacroAlertKey;
+    nonce: number;
+  } | null>(null);
   const mealTimeSheetRef = useRef<TimeSheetRef>(null);
   const [editingMealTypeId, setEditingMealTypeId] = useState<{
     mealTypeId: string;
@@ -226,6 +249,101 @@ const NotificationSettingsScreen: React.FC<
     },
     [setCheckinRemindersEnabled]
   );
+
+  const macroLabels = useMemo<Record<MacroAlertKey, string>>(
+    () => ({
+      protein: t('nutrients.protein', { defaultValue: 'Protein' }),
+      carbs: t('nutrients.carbs', { defaultValue: 'Carbs' }),
+      fat: t('nutrients.fat', { defaultValue: 'Fat' }),
+      fiber: t('nutrients.fiber', { defaultValue: 'Fiber' }),
+      calories: t('nutrients.calories', { defaultValue: 'Calories' }),
+    }),
+    [t]
+  );
+  const macroPercentSegments = useMemo(
+    () =>
+      MACRO_ALERT_PERCENTS.map((percent) => ({
+        key: String(percent),
+        label: `${percent}%`,
+      })),
+    []
+  );
+
+  const handleMacroAlertsToggle = useCallback(
+    async (value: boolean) => {
+      if (!value) {
+        setMacroAlertsEnabled(false);
+        return;
+      }
+      const status = await requestNotificationPermission();
+      bannerRef.current?.refresh();
+      if (status === 'granted') {
+        setMacroAlertsEnabled(true);
+        if (macroAlertRules.length === 0) {
+          setMacroAlertRules([
+            {
+              macro: 'protein',
+              percent: DEFAULT_MACRO_ALERT_PERCENT,
+              time: DEFAULT_MACRO_ALERT_TIME,
+            },
+          ]);
+        }
+      }
+    },
+    [macroAlertRules.length, setMacroAlertRules, setMacroAlertsEnabled]
+  );
+
+  useEffect(() => {
+    if (editingMacro) macroTimeSheetRef.current?.present();
+  }, [editingMacro]);
+
+  const openMacroTimeSheet = useCallback((macro: MacroAlertKey) => {
+    setEditingMacro((prev) => ({ macro, nonce: (prev?.nonce ?? 0) + 1 }));
+  }, []);
+
+  const handleMacroTimeSelect = useCallback(
+    (time: string) => {
+      if (!editingMacro) return;
+      setMacroAlertRules(
+        macroAlertRules.map((r) =>
+          r.macro === editingMacro.macro ? { ...r, time } : r
+        )
+      );
+    },
+    [editingMacro, macroAlertRules, setMacroAlertRules]
+  );
+
+  const handleMacroPercentSelect = useCallback(
+    (macro: MacroAlertKey, percent: MacroAlertPercent) => {
+      setMacroAlertRules(
+        macroAlertRules.map((r) => (r.macro === macro ? { ...r, percent } : r))
+      );
+    },
+    [macroAlertRules, setMacroAlertRules]
+  );
+
+  const handleRemoveMacroAlert = useCallback(
+    (macro: MacroAlertKey) => {
+      setMacroAlertRules(macroAlertRules.filter((r) => r.macro !== macro));
+    },
+    [macroAlertRules, setMacroAlertRules]
+  );
+
+  const nextUnruledMacro = MACRO_ALERT_KEYS.find(
+    (macro) => !macroAlertRules.some((r) => r.macro === macro)
+  );
+
+  const handleAddMacroAlert = useCallback(() => {
+    if (!nextUnruledMacro) return;
+    setMacroAlertRules([
+      ...macroAlertRules,
+      {
+        macro: nextUnruledMacro,
+        percent: DEFAULT_MACRO_ALERT_PERCENT,
+        time: DEFAULT_MACRO_ALERT_TIME,
+      },
+    ]);
+  }, [nextUnruledMacro, macroAlertRules, setMacroAlertRules]);
 
   const handleMealRemindersToggle = useCallback(
     async (value: boolean) => {
@@ -895,8 +1013,122 @@ const NotificationSettingsScreen: React.FC<
               )}
           </SettingsRowGroup>
         )}
+
+        {notificationsEnabled && (
+          <SettingsRowGroup
+            title={t('notificationSettings.macroAlerts', {
+              defaultValue: 'Macro alerts',
+            })}
+          >
+            <SettingsRow
+              title={t('notificationSettings.macroAlertToggle', {
+                defaultValue: 'Macro alerts',
+              })}
+              subtitle={t('notificationSettings.macroAlertToggleSubtitle', {
+                defaultValue:
+                  'A heads-up when you are behind on a target at the time you choose. It only fires if you are still behind, based on what you have logged when you last opened the app.',
+              })}
+              subtitleNumberOfLines={0}
+              rightAccessory={
+                <Switch
+                  accessibilityLabel={t(
+                    'notificationSettings.macroAlertToggle',
+                    { defaultValue: 'Macro alerts' }
+                  )}
+                  value={macroAlertsEnabled}
+                  onValueChange={handleMacroAlertsToggle}
+                />
+              }
+            />
+            {macroAlertsEnabled &&
+              macroAlertRules.map((rule) => {
+                const macroName = macroLabels[rule.macro];
+                const timeLabel = formatTimeLabel(
+                  rule.time,
+                  preferences?.time_format
+                );
+                const removeLabel = t('notificationSettings.macroAlertRemove', {
+                  defaultValue: 'Remove {{macro}} alert',
+                  macro: macroName,
+                });
+                return (
+                  <SettingsRow
+                    key={rule.macro}
+                    title={t('notificationSettings.macroAlertRuleTitle', {
+                      defaultValue: '{{macro}} under target by {{time}}',
+                      macro: macroName,
+                      time: timeLabel,
+                    })}
+                    accessibilityLabel={t(
+                      'notificationSettings.macroAlertRuleAccessibility',
+                      {
+                        defaultValue:
+                          '{{macro}} alert, under {{percent}} percent by {{time}}',
+                        macro: macroName,
+                        percent: rule.percent,
+                        time: timeLabel,
+                      }
+                    )}
+                    accessibilityActions={[
+                      { name: 'remove', label: removeLabel },
+                    ]}
+                    onAccessibilityAction={(event) => {
+                      if (event.nativeEvent.actionName === 'remove') {
+                        handleRemoveMacroAlert(rule.macro);
+                      }
+                    }}
+                    onPress={() => openMacroTimeSheet(rule.macro)}
+                    subtitle={
+                      <View className="mt-2">
+                        <SegmentedControl
+                          segments={macroPercentSegments}
+                          activeKey={String(rule.percent)}
+                          onSelect={(key) =>
+                            handleMacroPercentSelect(
+                              rule.macro,
+                              Number(key) as MacroAlertPercent
+                            )
+                          }
+                        />
+                      </View>
+                    }
+                    rightAccessory={
+                      <Pressable
+                        onPress={() => handleRemoveMacroAlert(rule.macro)}
+                        accessibilityRole="button"
+                        accessibilityLabel={removeLabel}
+                        hitSlop={14}
+                        className="ml-3"
+                      >
+                        <Icon name="close" size={18} color={secondaryColor} />
+                      </Pressable>
+                    }
+                  />
+                );
+              })}
+            {macroAlertsEnabled && nextUnruledMacro && (
+              <SettingsRow
+                icon="add"
+                title={t('notificationSettings.macroAlertAdd', {
+                  defaultValue: 'Add macro alert',
+                })}
+                onPress={handleAddMacroAlert}
+                rightAccessory={null}
+              />
+            )}
+          </SettingsRowGroup>
+        )}
       </ScrollView>
 
+      <TimeSheet
+        ref={macroTimeSheetRef}
+        value={
+          macroAlertRules.find((r) => r.macro === editingMacro?.macro)?.time ??
+          ''
+        }
+        onSelectTime={handleMacroTimeSelect}
+        commitOn="done"
+      />
       <TimeSheet
         ref={mealTimeSheetRef}
         value={
