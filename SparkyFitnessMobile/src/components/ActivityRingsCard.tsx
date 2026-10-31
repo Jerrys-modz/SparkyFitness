@@ -12,6 +12,9 @@ import Icon from './Icon';
 import ProgressRing from './ProgressRing';
 
 const OUTER_SIZE = 132;
+/** With four or more rings the stack grows and the legend tightens, so the two stay level. */
+const LARGE_OUTER_SIZE = 168;
+const MANY_RINGS = 4;
 const STROKE_WIDTH = 12;
 const RING_GAP = 3;
 const RING_STEP = (STROKE_WIDTH + RING_GAP) * 2;
@@ -27,6 +30,8 @@ const ActivityRingsCard: React.FC<ActivityRingsCardProps> = ({
   onPressSettings,
 }) => {
   const { t } = useTranslation();
+  const hasMany = rings.length >= MANY_RINGS;
+  const outerSize = hasMany ? LARGE_OUTER_SIZE : OUTER_SIZE;
   // Metric tokens (DESIGN.md section 2): watch-measured active energy for Move, Exercise
   // Mint for exercise minutes, and Sparky Blue for steps like the steps trend.
   // Active points are derived from heart rate zones, so they take Heart-Rate Red.
@@ -76,13 +81,13 @@ const ActivityRingsCard: React.FC<ActivityRingsCardProps> = ({
       </Pressable>
       <View className="flex-row items-center">
         <View
-          style={{ width: OUTER_SIZE, height: OUTER_SIZE }}
+          style={{ width: outerSize, height: outerSize }}
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
         >
           {rings.map((ring, index) => {
-            const size = OUTER_SIZE - index * RING_STEP;
-            const inset = (OUTER_SIZE - size) / 2;
+            const size = outerSize - index * RING_STEP;
+            const inset = (outerSize - size) / 2;
             return (
               <View
                 key={ring.key}
@@ -109,7 +114,7 @@ const ActivityRingsCard: React.FC<ActivityRingsCardProps> = ({
             return (
               <View
                 key={ring.key}
-                className="mb-2"
+                className={hasMany ? 'mb-1.5' : 'mb-2'}
                 accessible
                 accessibilityLabel={`${label}: ${value} ${units[ring.key]}`}
               >
@@ -123,7 +128,9 @@ const ActivityRingsCard: React.FC<ActivityRingsCardProps> = ({
                   </Text>
                 </View>
                 <Text
-                  className="text-text-primary text-xl font-semibold"
+                  className={`text-text-primary font-semibold ${
+                    hasMany ? 'text-lg' : 'text-xl'
+                  }`}
                   numberOfLines={1}
                 >
                   {value}
