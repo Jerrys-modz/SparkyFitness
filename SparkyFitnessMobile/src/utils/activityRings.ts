@@ -1,6 +1,7 @@
 import {
   ACTIVITY_RING_KEYS,
   APPLE_STYLE_RINGS,
+  GOOGLE_STYLE_RINGS,
   type ActivityRingKey,
   type ActivityRingStyle,
 } from '../constants/activityRings';
@@ -23,6 +24,7 @@ export function resolveActivityRingKeys(
   customKeys: readonly string[]
 ): ActivityRingKey[] {
   if (style === 'apple') return [...APPLE_STYLE_RINGS];
+  if (style === 'google') return [...GOOGLE_STYLE_RINGS];
   const picked = ACTIVITY_RING_KEYS.filter((key) => customKeys.includes(key));
   return picked.length > 0 ? picked : [...APPLE_STYLE_RINGS];
 }
@@ -36,4 +38,26 @@ export function buildActivityRings(
     const { current, goal } = values[key];
     return { key, current, goal, progress: goal > 0 ? current / goal : 0 };
   });
+}
+
+/** 150 moderate-equivalent minutes a week, spread over seven days and rounded. */
+export const ACTIVE_POINTS_DAILY_GOAL = 22;
+
+/**
+ * Active points from a day's time in heart rate zones: a minute in zones 2-3 (moderate)
+ * is one point and a minute in zones 4-5 (vigorous) is two, the way weekly activity
+ * guidance counts vigorous minutes double. An approximation of other apps' scores, and
+ * zero for a day with no recorded heart rate, so the card labels it as active points.
+ */
+export function activePointsFromZones(
+  rows: readonly { zone: number; seconds: number }[] | null
+): number {
+  if (!rows) return 0;
+  let points = 0;
+  for (const row of rows) {
+    const minutes = Math.max(0, row.seconds) / 60;
+    if (row.zone === 2 || row.zone === 3) points += minutes;
+    else if (row.zone === 4 || row.zone === 5) points += minutes * 2;
+  }
+  return Math.round(points);
 }

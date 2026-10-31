@@ -29,22 +29,27 @@ const ActivityRingsCard: React.FC<ActivityRingsCardProps> = ({
   const { t } = useTranslation();
   // Metric tokens (DESIGN.md section 2): watch-measured active energy for Move, Exercise
   // Mint for exercise minutes, and Sparky Blue for steps like the steps trend.
-  const [moveColor, exerciseColor, stepsColor, trackColor] = useCSSVariable([
-    '--color-active-energy',
-    '--color-exercise',
-    '--color-accent-primary',
-    '--color-progress-track',
-  ]) as [string, string, string, string];
+  // Active points are derived from heart rate zones, so they take Heart-Rate Red.
+  const [moveColor, exerciseColor, stepsColor, trackColor, pointsColor] =
+    useCSSVariable([
+      '--color-active-energy',
+      '--color-exercise',
+      '--color-accent-primary',
+      '--color-progress-track',
+      '--color-heart-rate',
+    ]) as [string, string, string, string, string];
   const accentColor = stepsColor;
   const colors: Record<ActivityRingKey, string> = {
     move: moveColor,
     exercise: exerciseColor,
     steps: stepsColor,
+    points: pointsColor,
   };
   const units: Record<ActivityRingKey, string> = {
     move: t('nutrition.caloriesUnit', { defaultValue: 'Cal' }),
     exercise: t('activityRings.minutesUnit', { defaultValue: 'min' }),
     steps: t('activityRings.stepsUnit', { defaultValue: 'steps' }),
+    points: t('activityRings.pointsUnit', { defaultValue: 'pts' }),
   };
 
   return (
