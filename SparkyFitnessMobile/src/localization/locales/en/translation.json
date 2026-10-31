@@ -742,7 +742,8 @@
     "labResults": "Lab results",
     "labResultDetail": "Lab result",
     "labResultAdd": "Add lab result",
-    "labReportImport": "Import report"
+    "labReportImport": "Import report",
+    "activityRingsSettings": "Activity Rings"
   },
   "activityShare": {
     "title": "Share Activity",
@@ -990,7 +991,8 @@
     "perPress": "{{value}} {{unit}}",
     "logDrinkFailed": "Could not log that drink",
     "exerciseStatistics": "Statistics",
-    "reportsLink": "Reports"
+    "reportsLink": "Reports",
+    "activityRings": "Activity Rings"
   },
   "syncScreen": {
     "healthConnectSettings": "Health Connect settings",
@@ -1262,7 +1264,9 @@
     "trainingLoad": "Training Load",
     "trainingLoadSubtitle": "Show this week against your usual training, with a nudge to rest",
     "labResults": "Lab Results",
-    "labResultsSubtitle": "Show your latest lab results and which are out of range"
+    "labResultsSubtitle": "Show your latest lab results and which are out of range",
+    "activityRings": "Activity Rings",
+    "activityRingsSubtitle": "Show Move, Exercise and Steps rings for the day"
   },
   "diarySettings": {
     "updateFailed": "Failed to update setting.",
@@ -10354,5 +10358,17 @@
     "deleteMarkerTitle": "Delete marker",
     "deleteMarkerMessage": "Delete {{name}} and all of its results? This cannot be undone.",
     "deleteMarkerFailed": "Could not delete the marker"
+  },
+  "activityRings": {
+    "move": "Move",
+    "exercise": "Exercise",
+    "steps": "Steps",
+    "minutesUnit": "min",
+    "stepsUnit": "steps",
+    "style": "Style",
+    "styleApple": "Move & Exercise",
+    "styleCustom": "Custom",
+    "customDescription": "Choose which rings to show.",
+    "settingsDescription": "Rings fill toward your daily goals. Move and Exercise use your exercise goals; Steps uses your steps goal."
   }
 }
