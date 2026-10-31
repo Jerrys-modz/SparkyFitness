@@ -5362,6 +5362,14 @@
     },
     "allTrendsHidden": "All graphs are hidden. Choose which to show in Dashboard Settings.",
     "noTrendData": "No data to graph yet.",
+    "noTiles": "No tiles chosen. Pick up to 4 graphs in Dashboard Settings.",
+    "tiles": {
+      "stepsUnit": "steps/day",
+      "hoursUnit": "h/night",
+      "caloriesUnit": "kcal/day",
+      "bpmUnit": "bpm",
+      "vo2Unit": "ml/kg/min"
+    },
     "heartRate": {
       "title": "Resting Heart Rate",
       "avgLabel": "AVG",
@@ -6638,6 +6646,11 @@
     "photoUnavailable": "Photo unavailable"
   },
   "healthTrendsSettings": {
+    "layout": "Layout",
+    "layoutPager": "Swipe",
+    "layoutTiles": "Tiles",
+    "tilesDescription": "Choose up to {{max}} graphs to show as tiles.",
+    "graphs": "Graphs",
     "description": "Drag a graph by its handle to reorder it. Toggle off to hide it from your Dashboard.",
     "reorder": "Reorder {{name}}",
     "reorderHint": "Reorder this graph in your Dashboard health trends",
