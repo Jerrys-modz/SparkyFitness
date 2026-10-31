@@ -35,6 +35,7 @@ import FastingCard from '../components/FastingCard';
 import FastingGoalReconciler from '../components/FastingGoalReconciler';
 import HydrationReminderReconciler from '../components/HydrationReminderReconciler';
 import MealReminderReconciler from '../components/MealReminderReconciler';
+import MacroAlertReconciler from '../components/MacroAlertReconciler';
 import HealthTrendsPager from '../components/HealthTrendsPager';
 import HydrationGauge from '../components/HydrationGauge';
 import CaffeineCard from '../components/CaffeineCard';
@@ -937,6 +938,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
             own queries, so it needs nothing from the rendered state. */}
         <HydrationReminderReconciler />
         <MealReminderReconciler />
+        <MacroAlertReconciler />
         {renderedContent}
         <CalendarSheet
           ref={calendarRef}
@@ -952,6 +954,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
     <View className="flex-1 bg-background">
       <HydrationReminderReconciler />
       <MealReminderReconciler />
+      <MacroAlertReconciler />
       {!isConnectionLoading && isConnected ? (
         <DateNavigator
           title={t('navigation.dashboard', { defaultValue: 'Dashboard' })}

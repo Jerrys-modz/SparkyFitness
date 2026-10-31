@@ -5,6 +5,7 @@ import Toast from 'react-native-toast-message';
 import { addLog } from './LogService';
 import { MOOD_CHECKIN_KIND } from '../utils/checkinReminderTimes';
 import { MEAL_REMINDER_KIND } from '../utils/mealReminders';
+import { MACRO_ALERT_KIND, type MacroAlert } from '../utils/macroAlerts';
 import i18n from '../localization/i18n';
 import { fireSuccessHaptic } from './haptics';
 import {
@@ -24,6 +25,7 @@ const HYDRATION_CHANNEL_ID = 'hydration';
 export const MOOD_CHECKIN_CHANNEL_ID = 'mood-checkin';
 export const MEDICATION_REMINDER_CHANNEL_ID = 'medication-reminders';
 export const MEAL_REMINDER_CHANNEL_ID = 'meal-reminders';
+export const MACRO_ALERT_CHANNEL_ID = 'macro-alerts';
 const EXACT_ALARM_PROMPT_KEY = '@SparkyFitness/exactAlarmPromptShown';
 
 export function notificationCopy(
@@ -190,6 +192,18 @@ export async function ensureMealReminderChannel(): Promise<void> {
     name: notificationCopy(
       'notifications.channels.mealReminders',
       'Meal reminders'
+    ),
+    importance: Notifications.AndroidImportance.HIGH,
+    enableVibrate: true,
+  });
+}
+
+export async function ensureMacroAlertChannel(): Promise<void> {
+  if (Platform.OS !== 'android') return;
+  await Notifications.setNotificationChannelAsync(MACRO_ALERT_CHANNEL_ID, {
+    name: notificationCopy(
+      'notifications.channels.macroAlerts',
+      'Macro alerts'
     ),
     importance: Notifications.AndroidImportance.HIGH,
     enableVibrate: true,
@@ -734,6 +748,65 @@ export async function scheduleMealReminderNotifications(
   } catch (err) {
     addLog(
       `scheduleMealReminderNotifications failed: ${(err as Error).message}`,
+      'ERROR'
+    );
+    await Promise.all(ids.map((id) => cancelScheduledNotification(id)));
+    return [];
+  }
+}
+
+/**
+ * Schedules one macro alert per entry and returns the ids that were
+ * scheduled. `macroName` is the display name resolved by the caller. Never
+ * prompts for permission; all or nothing.
+ */
+export async function scheduleMacroAlertNotifications(
+  alerts: (MacroAlert & { macroName: string })[]
+): Promise<string[]> {
+  const prefs = useAppPreferencesStore.getState();
+  if (!prefs.notificationsEnabled || !prefs.macroAlertsEnabled) return [];
+  if (!(await hasNotificationPermission())) return [];
+
+  const nowMs = Date.now();
+  const ids: string[] = [];
+  try {
+    await ensureMacroAlertChannel();
+    for (const alert of alerts) {
+      if (alert.date.getTime() <= nowMs) continue;
+      const isCalories = alert.macro === 'calories';
+      const id = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: notificationCopy(
+            'notifications.macroAlert.title',
+            '{{macro}} is at {{percent}}% of your target',
+            { macro: alert.macroName, percent: alert.progressPercent }
+          ),
+          body: isCalories
+            ? notificationCopy(
+                'notifications.macroAlert.bodyCalories',
+                '{{remaining}} kcal to go today.',
+                { remaining: alert.remaining }
+              )
+            : notificationCopy(
+                'notifications.macroAlert.bodyGrams',
+                '{{remaining}} g to go today.',
+                { remaining: alert.remaining }
+              ),
+          sound: true,
+          data: { kind: MACRO_ALERT_KIND, macro: alert.macro },
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
+          date: alert.date,
+          channelId: MACRO_ALERT_CHANNEL_ID,
+        },
+      });
+      ids.push(id);
+    }
+    return ids;
+  } catch (err) {
+    addLog(
+      `scheduleMacroAlertNotifications failed: ${(err as Error).message}`,
       'ERROR'
     );
     await Promise.all(ids.map((id) => cancelScheduledNotification(id)));

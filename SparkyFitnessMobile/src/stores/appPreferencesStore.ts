@@ -8,6 +8,10 @@ import {
   type MealReminder,
 } from '../utils/mealReminders';
 import {
+  normalizeMacroAlertRules,
+  type MacroAlertRule,
+} from '../utils/macroAlerts';
+import {
   clampGuidedCountdownSec,
   clampGuidedSpeechRate,
   type CompareQuestion,
@@ -133,6 +137,8 @@ export const PREFERENCE_DEFAULTS = {
   checkinReminderTimes: [DEFAULT_CHECKIN_REMINDER_TIME] as string[],
   mealRemindersEnabled: false,
   mealReminders: [] as MealReminder[],
+  macroAlertsEnabled: false,
+  macroAlertRules: [] as MacroAlertRule[],
   liquidGlassTabBarEnabled: false,
   activeWorkoutMetricColumn: 'rpe' as ActiveWorkoutMetricColumn,
   diarySummaryVisible: false,
@@ -223,6 +229,8 @@ export type AppPreferencesData = {
   checkinReminderTimes: string[];
   mealRemindersEnabled: boolean;
   mealReminders: MealReminder[];
+  macroAlertsEnabled: boolean;
+  macroAlertRules: MacroAlertRule[];
   liquidGlassTabBarEnabled: boolean;
   activeWorkoutMetricColumn: ActiveWorkoutMetricColumn;
   diarySummaryVisible: boolean;
@@ -364,6 +372,8 @@ export interface AppPreferencesState extends AppPreferencesData {
   setCheckinReminderTimes: (times: string[]) => void;
   setMealRemindersEnabled: (enabled: boolean) => void;
   setMealReminders: (reminders: MealReminder[]) => void;
+  setMacroAlertsEnabled: (enabled: boolean) => void;
+  setMacroAlertRules: (rules: MacroAlertRule[]) => void;
   setLiquidGlassTabBarEnabled: (value: boolean) => void;
   setActiveWorkoutMetricColumn: (value: ActiveWorkoutMetricColumn) => void;
   setDiarySummaryVisible: (value: boolean) => void;
@@ -528,6 +538,9 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         set({ mealRemindersEnabled: enabled }),
       setMealReminders: (reminders) =>
         set({ mealReminders: normalizeMealReminders(reminders) }),
+      setMacroAlertsEnabled: (enabled) => set({ macroAlertsEnabled: enabled }),
+      setMacroAlertRules: (rules) =>
+        set({ macroAlertRules: normalizeMacroAlertRules(rules) }),
       setLiquidGlassTabBarEnabled: (value) =>
         set({ liquidGlassTabBarEnabled: value }),
       setActiveWorkoutMetricColumn: (value) =>
@@ -734,6 +747,8 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         checkinReminderTimes: state.checkinReminderTimes,
         mealRemindersEnabled: state.mealRemindersEnabled,
         mealReminders: state.mealReminders,
+        macroAlertsEnabled: state.macroAlertsEnabled,
+        macroAlertRules: state.macroAlertRules,
         liquidGlassTabBarEnabled: state.liquidGlassTabBarEnabled,
         // Older persisted blobs without these keys backfill via the default
         // shallow merge — no version bump needed.
