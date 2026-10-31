@@ -33,6 +33,9 @@ describe('refeed days and diet breaks in the daily calorie target', () => {
     vi.mocked(
       weeklyGoalPlanRepository.getActiveWeeklyGoalPlan
     ).mockResolvedValue(null);
+    vi.mocked(
+      weeklyGoalPlanRepository.getActiveWeeklyGoalPlansInRange
+    ).mockResolvedValue([]);
     vi.mocked(goalRepository.getGoalsInRange).mockResolvedValue([]);
     vi.mocked(goalRepository.getMostRecentGoalBeforeDate).mockResolvedValue({
       calories: 2400,
