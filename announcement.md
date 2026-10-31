@@ -1,6 +1,6 @@
 ---
 id: 20261024-sparkyfitness-github-apk
-active: false
+active: true
 title: Android App - Github APK! 🌟
 ---
 
