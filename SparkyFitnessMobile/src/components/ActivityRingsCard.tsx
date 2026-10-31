@@ -27,13 +27,16 @@ const ActivityRingsCard: React.FC<ActivityRingsCardProps> = ({
   onPressSettings,
 }) => {
   const { t } = useTranslation();
-  const [moveColor, exerciseColor, stepsColor, trackColor] = useCSSVariable([
-    '--color-calories',
-    '--color-exercise',
-    '--color-accent-primary',
-    '--color-progress-track',
-  ]) as [string, string, string, string];
-  const accentColor = stepsColor;
+  // Steps takes the cyan macro hue, not the accent blue: next to Move's blue-violet the
+  // two read as one colour on the nested rings.
+  const [moveColor, exerciseColor, stepsColor, trackColor, accentColor] =
+    useCSSVariable([
+      '--color-calories',
+      '--color-exercise',
+      '--color-macro-fat',
+      '--color-progress-track',
+      '--color-accent-primary',
+    ]) as [string, string, string, string, string];
   const colors: Record<ActivityRingKey, string> = {
     move: moveColor,
     exercise: exerciseColor,
