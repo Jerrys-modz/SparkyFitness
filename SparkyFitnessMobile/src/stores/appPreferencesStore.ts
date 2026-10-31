@@ -143,7 +143,8 @@ export const PREFERENCE_DEFAULTS = {
   waterReminderWindowEnd: '22:00' as string,
   checkinRemindersEnabled: false,
   checkinReminderTimes: [DEFAULT_CHECKIN_REMINDER_TIME] as string[],
-  liquidGlassTabBarEnabled: false,
+  // On for the iOS CI screenshot build, which has nobody to turn it on.
+  liquidGlassTabBarEnabled: process.env.EXPO_PUBLIC_CI_SCREENSHOT === '1',
   activeWorkoutMetricColumn: 'rpe' as ActiveWorkoutMetricColumn,
   diarySummaryVisible: false,
   diarySummaryExpanded: false,

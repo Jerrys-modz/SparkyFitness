@@ -38,7 +38,12 @@ export function useAppBootstrap(): AppBootstrapResult {
         const config = await getActiveServerConfig();
         if (cancelled) return;
 
-        const route: BootstrapRoute = config ? 'Tabs' : 'Onboarding';
+        // The iOS CI workflow sets this at bundle time to reach the tab bar on
+        // a simulator with no server configured. Unset in every other build.
+        const route: BootstrapRoute =
+          config || process.env.EXPO_PUBLIC_CI_SCREENSHOT === '1'
+            ? 'Tabs'
+            : 'Onboarding';
         setInitialRoute(route);
         setLinkingEnabled(route === 'Tabs');
       } catch (error) {
