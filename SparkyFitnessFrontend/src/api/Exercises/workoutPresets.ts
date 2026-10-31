@@ -64,3 +64,23 @@ export const searchWorkoutPresets = async (
     params: params,
   });
 };
+
+export interface StarterRoutine {
+  id: string;
+  name: string;
+  description: string;
+  move_count: number;
+}
+
+export const getStarterRoutines = async (): Promise<StarterRoutine[]> => {
+  return apiCall('/workout-presets/starter-routines', { method: 'GET' });
+};
+
+export const addStarterRoutine = async (
+  routineId: string
+): Promise<WorkoutPreset> => {
+  return apiCall(
+    `/workout-presets/starter-routines/${encodeURIComponent(routineId)}`,
+    { method: 'POST' }
+  );
+};

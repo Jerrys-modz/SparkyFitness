@@ -15,6 +15,12 @@ jest.mock('../../src/hooks', () => ({
   useServerConnection: jest.fn(),
   useWorkoutPresetsLibrary: jest.fn(),
   useProfile: jest.fn(() => ({ profile: undefined, isLoading: false })),
+  useStarterRoutines: jest.fn(() => ({ data: [], isLoading: false })),
+  useAddStarterRoutine: jest.fn(() => ({
+    addRoutine: jest.fn(),
+    isPending: false,
+    pendingRoutineId: undefined,
+  })),
 }));
 
 jest.mock('../../src/components/ActiveWorkoutBar', () => ({
