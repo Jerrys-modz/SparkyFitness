@@ -146,17 +146,21 @@ const HealthTrendTiles: React.FC<HealthTrendTilesProps> = ({
               key={key}
               testID={`health-trend-tile-${key}`}
               accessibilityRole="button"
-              accessibilityLabel={label}
+              accessibilityLabel={`${label}: ${headline}${unit ? ` ${unit}` : ''}`}
               accessibilityState={{ expanded: isExpanded }}
               onPress={() => setExpandedKey(isExpanded ? null : key)}
-              className={`bg-surface rounded-xl p-3 mb-2 shadow-sm ${
+              className={`w-[48%] bg-surface rounded-xl p-3 mb-2 shadow-sm ${
                 isExpanded ? 'border border-accent-primary' : ''
               }`}
-              style={{ width: '48.5%' }}
             >
-              <Text className="text-text-muted text-xs">{label}</Text>
+              <Text className="text-text-muted text-xs" numberOfLines={1}>
+                {label}
+              </Text>
               <View className="flex-row items-baseline mt-1">
-                <Text className="text-text-primary text-xl font-bold">
+                <Text
+                  className="text-text-primary text-xl font-bold"
+                  numberOfLines={1}
+                >
                   {headline}
                 </Text>
                 {unit ? (
@@ -164,7 +168,7 @@ const HealthTrendTiles: React.FC<HealthTrendTilesProps> = ({
                 ) : null}
               </View>
               {showDelta ? (
-                <Text className="text-text-secondary text-xs">
+                <Text className="text-text-secondary text-xs" numberOfLines={1}>
                   {`${(summary.delta ?? 0) > 0 ? '+' : ''}${formatLocalizedNumber(
                     summary.delta ?? 0,
                     { maximumFractionDigits: 1 }

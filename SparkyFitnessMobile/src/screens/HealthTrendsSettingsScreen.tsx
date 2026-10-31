@@ -80,7 +80,7 @@ const HealthTrendsSettingsScreen: React.FC<
           })}
         </Text>
 
-        <Text className="text-text-primary font-semibold mb-2">
+        <Text className="text-text-primary text-lg font-semibold mb-2">
           {t('healthTrendsSettings.layout', { defaultValue: 'Layout' })}
         </Text>
         <SegmentedControl
@@ -126,13 +126,13 @@ const HealthTrendsSettingsScreen: React.FC<
                     className={`px-3 py-2 mr-2 mb-2 rounded-full border ${
                       isTile
                         ? 'bg-accent-primary border-accent-primary'
-                        : 'border-border'
+                        : 'bg-raised border-border-subtle'
                     } ${isFull ? 'opacity-40' : ''}`}
                   >
                     <Text
-                      className={
-                        isTile ? 'text-white font-medium' : 'text-text-primary'
-                      }
+                      className={`text-sm font-medium ${
+                        isTile ? 'text-white' : 'text-text-primary'
+                      }`}
                     >
                       {label}
                     </Text>
@@ -143,7 +143,7 @@ const HealthTrendsSettingsScreen: React.FC<
           </View>
         )}
 
-        <Text className="text-text-primary font-semibold mt-4 mb-2">
+        <Text className="text-text-primary text-lg font-semibold mt-4 mb-2">
           {t('healthTrendsSettings.graphs', { defaultValue: 'Graphs' })}
         </Text>
         <ReorderSwitchList
