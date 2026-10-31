@@ -9579,11 +9579,17 @@
     "standDescription": "Stand hours are read from Apple Health on this device and are not uploaded."
   },
   "pinnedMetrics": {
-    "settingsDescription": "Pick up to {{max}} metrics to keep at the top of your Dashboard. Rings show today against your goal; trends show the latest reading or average.",
+    "settingsDescription": "Pick up to {{max}} metrics to keep at the top of your Dashboard. Rings and goals show today against your target; trends show the latest reading or average.",
     "rings": "Rings",
     "trends": "Trends",
     "empty": "No metrics pinned. Choose some in Pinned Metrics settings.",
     "ofGoal": "of {{goal}} {{unit}}",
-    "limitReached": "You have pinned {{max}} metrics. Unpin one to choose another."
+    "limitReached": "You have pinned {{max}} metrics. Unpin one to choose another.",
+    "calories": "Calories",
+    "protein": "Protein",
+    "carbs": "Carbs",
+    "fat": "Fat",
+    "water": "Water",
+    "goals": "Nutrition & hydration"
   }
 }
