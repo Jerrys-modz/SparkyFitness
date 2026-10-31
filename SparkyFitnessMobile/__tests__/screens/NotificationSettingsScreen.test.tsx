@@ -49,6 +49,15 @@ jest.mock('../../src/hooks/usePreferences', () => ({
   usePreferences: () => ({ preferences: { time_format: 'HH:mm' } }),
 }));
 
+jest.mock('../../src/hooks/useMealTypes', () => ({
+  useMealTypes: () => ({
+    mealTypes: [
+      { id: 'breakfast', name: 'Breakfast' },
+      { id: 'lunch', name: 'Lunch' },
+    ],
+  }),
+}));
+
 type MockTimeSheetProps = {
   value: string;
   onSelectTime: (time: string) => void;
@@ -586,6 +595,55 @@ describe('NotificationSettingsScreen', () => {
         '20:30',
         '21:15',
       ]);
+    });
+  });
+
+  describe('meal reminders', () => {
+    function mealSwitch(
+      getAllByRole: ReturnType<typeof renderScreen>['getAllByRole']
+    ) {
+      const match = getAllByRole('switch').find(
+        (element) =>
+          element.props.accessibilityLabel === 'Meal logging reminders'
+      );
+      if (!match) throw new Error('Meal logging reminders switch not rendered');
+      return match;
+    }
+
+    it('turns on after permission is granted', async () => {
+      useAppPreferencesStore.setState({ notificationsEnabled: true });
+      const { getAllByRole } = renderScreen();
+      fireEvent(mealSwitch(getAllByRole), 'valueChange', true);
+      await waitFor(() => {
+        expect(useAppPreferencesStore.getState().mealRemindersEnabled).toBe(
+          true
+        );
+      });
+    });
+
+    it('stays off when permission is denied', async () => {
+      mockRequestPermission.mockResolvedValue('denied');
+      useAppPreferencesStore.setState({ notificationsEnabled: true });
+      const { getAllByRole } = renderScreen();
+      fireEvent(mealSwitch(getAllByRole), 'valueChange', true);
+      await act(async () => {});
+      expect(useAppPreferencesStore.getState().mealRemindersEnabled).toBe(
+        false
+      );
+    });
+
+    it('adds the first meal without a reminder and removes it again', () => {
+      useAppPreferencesStore.setState({
+        notificationsEnabled: true,
+        mealRemindersEnabled: true,
+      });
+      const { getByText, getByLabelText } = renderScreen();
+      fireEvent.press(getByText('Add meal reminder'));
+      expect(useAppPreferencesStore.getState().mealReminders).toEqual([
+        { mealTypeId: 'breakfast', time: '12:00' },
+      ]);
+      fireEvent.press(getByLabelText('Remove Breakfast reminder'));
+      expect(useAppPreferencesStore.getState().mealReminders).toEqual([]);
     });
   });
 });
