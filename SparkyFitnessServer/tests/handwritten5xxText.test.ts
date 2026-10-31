@@ -27,6 +27,11 @@ const ALLOWED: Record<string, { count: number; reason: string }> = {
     count: 2,
     reason: 'admin only; a rejected OIDC provider has to say why',
   },
+  'routes/v2/workoutSplitRoutes.ts': {
+    count: 1,
+    reason:
+      'the 502 is a typed domain error naming the library exercises that could not be loaded, never database text',
+  },
 };
 
 const LITERAL_VALUES = new Set(['true', 'false', 'null', 'undefined']);
