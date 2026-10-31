@@ -743,7 +743,8 @@
     "labResultDetail": "Lab result",
     "labResultAdd": "Add lab result",
     "labReportImport": "Import report",
-    "activityRingsSettings": "Activity Rings"
+    "activityRingsSettings": "Activity Rings",
+    "pinnedMetricsSettings": "Pinned Metrics"
   },
   "activityShare": {
     "title": "Share Activity",
@@ -993,7 +994,9 @@
     "exerciseStatistics": "Statistics",
     "reportsLink": "Reports",
     "activityRings": "Activity Rings",
-    "activityRingsSettings": "Settings"
+    "activityRingsSettings": "Settings",
+    "pinnedMetrics": "Pinned Metrics",
+    "pinnedMetricsSettings": "Settings"
   },
   "syncScreen": {
     "healthConnectSettings": "Health Connect settings",
@@ -1267,7 +1270,9 @@
     "labResults": "Lab Results",
     "labResultsSubtitle": "Show your latest lab results and which are out of range",
     "activityRings": "Activity Rings",
-    "activityRingsSubtitle": "Show Move, Exercise and Steps rings for the day"
+    "activityRingsSubtitle": "Show Move, Exercise and Steps rings for the day",
+    "pinnedMetrics": "Pinned Metrics",
+    "pinnedMetricsSubtitle": "Show up to four metrics you choose as small tiles"
   },
   "diarySettings": {
     "updateFailed": "Failed to update setting.",
@@ -10375,5 +10380,12 @@
     "pointsUnit": "pts",
     "styleGoogle": "Minutes & Points",
     "styleAppleDescription": "Move (calories) and Exercise (minutes) rings."
+  },
+  "pinnedMetrics": {
+    "settingsDescription": "Pick up to {{max}} metrics to keep at the top of your Dashboard. Rings show today against your goal; trends show the latest reading or average.",
+    "rings": "Rings",
+    "trends": "Trends",
+    "empty": "No metrics pinned. Choose some in Pinned Metrics settings.",
+    "ofGoal": "of {{goal}} {{unit}}"
   }
 }
