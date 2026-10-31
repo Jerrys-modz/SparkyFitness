@@ -27,23 +27,18 @@ const ActivityRingsCard: React.FC<ActivityRingsCardProps> = ({
   onPressSettings,
 }) => {
   const { t } = useTranslation();
-  // Steps takes the cyan macro hue, not the accent blue: next to Move's blue-violet the
-  // two read as one colour on the nested rings.
-  const [
-    moveColor,
-    exerciseColor,
-    stepsColor,
-    trackColor,
-    accentColor,
-    pointsColor,
-  ] = useCSSVariable([
-    '--color-calories',
-    '--color-exercise',
-    '--color-macro-fat',
-    '--color-progress-track',
-    '--color-accent-primary',
-    '--color-macro-protein',
-  ]) as [string, string, string, string, string, string];
+  // Metric tokens (DESIGN.md section 2): watch-measured active energy for Move, Exercise
+  // Mint for exercise minutes, and Sparky Blue for steps like the steps trend.
+  // Active points are derived from heart rate zones, so they take Heart-Rate Red.
+  const [moveColor, exerciseColor, stepsColor, trackColor, pointsColor] =
+    useCSSVariable([
+      '--color-active-energy',
+      '--color-exercise',
+      '--color-accent-primary',
+      '--color-progress-track',
+      '--color-heart-rate',
+    ]) as [string, string, string, string, string];
+  const accentColor = stepsColor;
   const colors: Record<ActivityRingKey, string> = {
     move: moveColor,
     exercise: exerciseColor,
@@ -65,15 +60,26 @@ const ActivityRingsCard: React.FC<ActivityRingsCardProps> = ({
         accessibilityRole={onPressSettings ? 'button' : undefined}
         className="flex-row justify-between items-center mb-4"
       >
-        <Text className="text-md font-bold text-text-secondary">
+        <Text className="text-sm font-bold text-text-secondary">
           {t('dashboard.activityRings', { defaultValue: 'Activity Rings' })}
         </Text>
         {onPressSettings ? (
-          <Icon name="chevron-forward" size={14} color={accentColor} />
+          <View className="flex-row items-center">
+            <Text className="text-xs font-semibold text-accent-primary mr-1">
+              {t('dashboard.activityRingsSettings', {
+                defaultValue: 'Settings',
+              })}
+            </Text>
+            <Icon name="chevron-forward" size={14} color={accentColor} />
+          </View>
         ) : null}
       </Pressable>
       <View className="flex-row items-center">
-        <View style={{ width: OUTER_SIZE, height: OUTER_SIZE }}>
+        <View
+          style={{ width: OUTER_SIZE, height: OUTER_SIZE }}
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+        >
           {rings.map((ring, index) => {
             const size = OUTER_SIZE - index * RING_STEP;
             const inset = (OUTER_SIZE - size) / 2;
@@ -95,24 +101,39 @@ const ActivityRingsCard: React.FC<ActivityRingsCardProps> = ({
           })}
         </View>
         <View className="flex-1 ml-4">
-          {rings.map((ring) => (
-            <View key={ring.key} className="mb-2">
-              <Text
-                className="text-xs font-semibold"
-                style={{ color: colors[ring.key] }}
+          {rings.map((ring) => {
+            const label = ACTIVITY_RING_LABELS[ring.key](t);
+            const current = formatLocalizedNumber(Math.round(ring.current));
+            const goal = formatLocalizedNumber(Math.round(ring.goal));
+            const value = ring.goal > 0 ? `${current} / ${goal}` : current;
+            return (
+              <View
+                key={ring.key}
+                className="mb-2"
+                accessible
+                accessibilityLabel={`${label}: ${value} ${units[ring.key]}`}
               >
-                {ACTIVITY_RING_LABELS[ring.key](t)}
-              </Text>
-              <Text className="text-text-primary text-base font-bold">
-                {ring.goal > 0
-                  ? `${formatLocalizedNumber(Math.round(ring.current))} / ${formatLocalizedNumber(Math.round(ring.goal))}`
-                  : formatLocalizedNumber(Math.round(ring.current))}
-                <Text className="text-text-muted text-xs font-normal">
-                  {` ${units[ring.key]}`}
+                <View className="flex-row items-center">
+                  <View
+                    className="w-2 h-2 rounded-full mr-1.5"
+                    style={{ backgroundColor: colors[ring.key] }}
+                  />
+                  <Text className="text-xs text-text-muted" numberOfLines={1}>
+                    {label}
+                  </Text>
+                </View>
+                <Text
+                  className="text-text-primary text-xl font-semibold"
+                  numberOfLines={1}
+                >
+                  {value}
+                  <Text className="text-text-muted text-xs font-normal">
+                    {` ${units[ring.key]}`}
+                  </Text>
                 </Text>
-              </Text>
-            </View>
-          ))}
+              </View>
+            );
+          })}
         </View>
       </View>
     </View>
