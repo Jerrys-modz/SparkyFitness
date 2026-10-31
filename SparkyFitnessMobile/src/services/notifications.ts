@@ -4,6 +4,7 @@ import * as Notifications from 'expo-notifications';
 import Toast from 'react-native-toast-message';
 import { addLog } from './LogService';
 import { MOOD_CHECKIN_KIND } from '../utils/checkinReminderTimes';
+import { MEAL_REMINDER_KIND } from '../utils/mealReminders';
 import i18n from '../localization/i18n';
 import { fireSuccessHaptic } from './haptics';
 import {
@@ -22,6 +23,7 @@ const FASTING_CHANNEL_ID = 'fasting';
 const HYDRATION_CHANNEL_ID = 'hydration';
 export const MOOD_CHECKIN_CHANNEL_ID = 'mood-checkin';
 export const MEDICATION_REMINDER_CHANNEL_ID = 'medication-reminders';
+export const MEAL_REMINDER_CHANNEL_ID = 'meal-reminders';
 const EXACT_ALARM_PROMPT_KEY = '@SparkyFitness/exactAlarmPromptShown';
 
 export function notificationCopy(
@@ -176,6 +178,18 @@ export async function ensureMoodCheckinChannel(): Promise<void> {
     name: notificationCopy(
       'notifications.channels.moodCheckin',
       'Mood check-ins'
+    ),
+    importance: Notifications.AndroidImportance.HIGH,
+    enableVibrate: true,
+  });
+}
+
+export async function ensureMealReminderChannel(): Promise<void> {
+  if (Platform.OS !== 'android') return;
+  await Notifications.setNotificationChannelAsync(MEAL_REMINDER_CHANNEL_ID, {
+    name: notificationCopy(
+      'notifications.channels.mealReminders',
+      'Meal reminders'
     ),
     importance: Notifications.AndroidImportance.HIGH,
     enableVibrate: true,
@@ -673,6 +687,58 @@ export async function scheduleWaterReminderNotifications(
     }
   }
   return ids;
+}
+
+/**
+ * Schedules one meal reminder per entry and returns the ids that were
+ * scheduled. `mealName` is the display name resolved by the caller. Never
+ * prompts for permission (this runs from a reconcile); all or nothing, so a
+ * half-scheduled chain is never persisted as reconciled.
+ */
+export async function scheduleMealReminderNotifications(
+  entries: { mealTypeId: string; mealName: string; date: Date }[]
+): Promise<string[]> {
+  const prefs = useAppPreferencesStore.getState();
+  if (!prefs.notificationsEnabled || !prefs.mealRemindersEnabled) return [];
+  if (!(await hasNotificationPermission())) return [];
+
+  const nowMs = Date.now();
+  const ids: string[] = [];
+  try {
+    await ensureMealReminderChannel();
+    for (const { mealTypeId, mealName, date } of entries) {
+      if (Number.isNaN(date.getTime()) || date.getTime() <= nowMs) continue;
+      const id = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: notificationCopy(
+            'notifications.mealReminder.title',
+            'Time to log {{meal}}',
+            { meal: mealName }
+          ),
+          body: notificationCopy(
+            'notifications.mealReminder.body',
+            'Tap to add what you ate.'
+          ),
+          sound: true,
+          data: { kind: MEAL_REMINDER_KIND, mealTypeId },
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
+          date,
+          channelId: MEAL_REMINDER_CHANNEL_ID,
+        },
+      });
+      ids.push(id);
+    }
+    return ids;
+  } catch (err) {
+    addLog(
+      `scheduleMealReminderNotifications failed: ${(err as Error).message}`,
+      'ERROR'
+    );
+    await Promise.all(ids.map((id) => cancelScheduledNotification(id)));
+    return [];
+  }
 }
 
 export async function cancelScheduledNotification(

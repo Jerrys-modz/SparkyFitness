@@ -38,6 +38,8 @@ import { useScreenHeader } from '../hooks/useScreenHeader';
 import { usePreferences } from '../hooks/usePreferences';
 import { markCheckinReminderOfferShown } from '../services/checkinReminderOffer';
 import { MAX_CHECKIN_REMINDERS } from '../utils/checkinReminderTimes';
+import { MAX_MEAL_REMINDERS } from '../utils/mealReminders';
+import { useMealTypes } from '../hooks/useMealTypes';
 import { formatTimeLabel } from '../utils/entryTimeDisplay';
 import { isValidReminderWindow } from '../utils/hydrationReminder';
 import type { RootStackScreenProps } from '../types/navigation';
@@ -129,6 +131,20 @@ const NotificationSettingsScreen: React.FC<
   const setCheckinReminderTimes = useAppPreferencesStore(
     (s) => s.setCheckinReminderTimes
   );
+  const mealRemindersEnabled = useAppPreferencesStore(
+    (s) => s.mealRemindersEnabled
+  );
+  const setMealRemindersEnabled = useAppPreferencesStore(
+    (s) => s.setMealRemindersEnabled
+  );
+  const mealReminders = useAppPreferencesStore((s) => s.mealReminders);
+  const setMealReminders = useAppPreferencesStore((s) => s.setMealReminders);
+  const { mealTypes } = useMealTypes({ enabled: mealRemindersEnabled });
+  const mealTimeSheetRef = useRef<TimeSheetRef>(null);
+  const [editingMealTypeId, setEditingMealTypeId] = useState<{
+    mealTypeId: string;
+    nonce: number;
+  } | null>(null);
   const { preferences } = usePreferences();
   const checkinTimeSheetRef = useRef<TimeSheetRef>(null);
   // `nonce` makes reopening the same row a fresh request; the sheet reads its
@@ -210,6 +226,66 @@ const NotificationSettingsScreen: React.FC<
     },
     [setCheckinRemindersEnabled]
   );
+
+  const handleMealRemindersToggle = useCallback(
+    async (value: boolean) => {
+      if (!value) {
+        setMealRemindersEnabled(false);
+        return;
+      }
+      const status = await requestNotificationPermission();
+      bannerRef.current?.refresh();
+      // Same rule as the other reminders: never show "on" while the OS would
+      // silently drop every reminder.
+      if (status === 'granted') setMealRemindersEnabled(true);
+    },
+    [setMealRemindersEnabled]
+  );
+
+  useEffect(() => {
+    if (editingMealTypeId) mealTimeSheetRef.current?.present();
+  }, [editingMealTypeId]);
+
+  const openMealTimeSheet = useCallback((mealTypeId: string) => {
+    setEditingMealTypeId((prev) => ({
+      mealTypeId,
+      nonce: (prev?.nonce ?? 0) + 1,
+    }));
+  }, []);
+
+  const handleMealTimeSelect = useCallback(
+    (time: string) => {
+      if (!editingMealTypeId) return;
+      setMealReminders(
+        mealReminders.map((r) =>
+          r.mealTypeId === editingMealTypeId.mealTypeId ? { ...r, time } : r
+        )
+      );
+    },
+    [editingMealTypeId, mealReminders, setMealReminders]
+  );
+
+  const handleRemoveMealReminder = useCallback(
+    (mealTypeId: string) => {
+      setMealReminders(
+        mealReminders.filter((r) => r.mealTypeId !== mealTypeId)
+      );
+    },
+    [mealReminders, setMealReminders]
+  );
+
+  const nextUnremindedMeal = mealTypes.find(
+    (m) => !mealReminders.some((r) => r.mealTypeId === m.id)
+  );
+
+  const handleAddMealReminder = useCallback(() => {
+    if (!nextUnremindedMeal) return;
+    setMealReminders([
+      ...mealReminders,
+      { mealTypeId: nextUnremindedMeal.id, time: '12:00' },
+    ]);
+    openMealTimeSheet(nextUnremindedMeal.id);
+  }, [nextUnremindedMeal, mealReminders, setMealReminders, openMealTimeSheet]);
 
   useEffect(() => {
     if (editingCheckin) checkinTimeSheetRef.current?.present();
@@ -718,8 +794,119 @@ const NotificationSettingsScreen: React.FC<
               )}
           </SettingsRowGroup>
         )}
+
+        {notificationsEnabled && (
+          <SettingsRowGroup
+            title={t('notificationSettings.mealReminders', {
+              defaultValue: 'Meal reminders',
+            })}
+          >
+            <SettingsRow
+              title={t('notificationSettings.mealReminderToggle', {
+                defaultValue: 'Meal logging reminders',
+              })}
+              subtitle={t('notificationSettings.mealReminderToggleSubtitle', {
+                defaultValue:
+                  'A nudge to log each meal. Skipped when that meal is already logged.',
+              })}
+              subtitleNumberOfLines={0}
+              rightAccessory={
+                <Switch
+                  accessibilityLabel={t(
+                    'notificationSettings.mealReminderToggle',
+                    { defaultValue: 'Meal logging reminders' }
+                  )}
+                  value={mealRemindersEnabled}
+                  onValueChange={handleMealRemindersToggle}
+                />
+              }
+            />
+            {mealRemindersEnabled &&
+              mealReminders.map((reminder) => {
+                const mealName =
+                  mealTypes.find((m) => m.id === reminder.mealTypeId)?.name ??
+                  t('notificationSettings.mealReminderUnknownMeal', {
+                    defaultValue: 'Meal',
+                  });
+                const timeLabel = formatTimeLabel(
+                  reminder.time,
+                  preferences?.time_format
+                );
+                const removeLabel = t(
+                  'notificationSettings.mealReminderRemove',
+                  {
+                    defaultValue: 'Remove {{meal}} reminder',
+                    meal: mealName,
+                  }
+                );
+                return (
+                  <SettingsRow
+                    key={reminder.mealTypeId}
+                    title={mealName}
+                    accessibilityLabel={t(
+                      'notificationSettings.mealReminderTimeAccessibility',
+                      {
+                        defaultValue: '{{meal}} reminder, {{time}}',
+                        meal: mealName,
+                        time: timeLabel,
+                      }
+                    )}
+                    accessibilityActions={[
+                      { name: 'remove', label: removeLabel },
+                    ]}
+                    onAccessibilityAction={(event) => {
+                      if (event.nativeEvent.actionName === 'remove') {
+                        handleRemoveMealReminder(reminder.mealTypeId);
+                      }
+                    }}
+                    onPress={() => openMealTimeSheet(reminder.mealTypeId)}
+                    rightAccessory={
+                      <View className="flex-row items-center">
+                        <Text className="text-sm text-text-secondary">
+                          {timeLabel}
+                        </Text>
+                        <Pressable
+                          onPress={() =>
+                            handleRemoveMealReminder(reminder.mealTypeId)
+                          }
+                          accessibilityRole="button"
+                          accessibilityLabel={removeLabel}
+                          hitSlop={14}
+                          className="ml-3"
+                        >
+                          <Icon name="close" size={18} color={secondaryColor} />
+                        </Pressable>
+                      </View>
+                    }
+                  />
+                );
+              })}
+            {mealRemindersEnabled &&
+              nextUnremindedMeal &&
+              mealReminders.length < MAX_MEAL_REMINDERS && (
+                <SettingsRow
+                  icon="add"
+                  title={t('notificationSettings.mealReminderAdd', {
+                    defaultValue: 'Add meal reminder',
+                  })}
+                  onPress={handleAddMealReminder}
+                  rightAccessory={null}
+                />
+              )}
+          </SettingsRowGroup>
+        )}
       </ScrollView>
 
+      <TimeSheet
+        ref={mealTimeSheetRef}
+        value={
+          mealReminders.find(
+            (r) => r.mealTypeId === editingMealTypeId?.mealTypeId
+          )?.time ?? ''
+        }
+        onSelectTime={handleMealTimeSelect}
+        commitOn="done"
+      />
       <TimeSheet
         ref={checkinTimeSheetRef}
         value={
