@@ -168,7 +168,7 @@ const HealthTrendTiles: React.FC<HealthTrendTilesProps> = ({
                   {`${(summary.delta ?? 0) > 0 ? '+' : ''}${formatLocalizedNumber(
                     summary.delta ?? 0,
                     { maximumFractionDigits: 1 }
-                  )}`}
+                  )}${key === 'vo2max' || !unit ? '' : ` ${unit}`} · ${rangeForTrend(data, key)}`}
                 </Text>
               ) : (
                 <Text className="text-text-muted text-xs">
