@@ -27,6 +27,7 @@ import { useActiveWorkoutBarPadding } from '../components/ActiveWorkoutBar';
 import CalendarSheet, {
   type CalendarSheetRef,
 } from '../components/CalendarSheet';
+import ActivityRingsCard from '../components/ActivityRingsCard';
 import CalorieRingCard from '../components/CalorieRingCard';
 import CycleCard from '../components/CycleCard';
 import DateNavigator from '../components/DateNavigator';
@@ -83,6 +84,10 @@ import {
   resolveHealthTrendOrder,
   selectVisibleHealthTrends,
 } from '../utils/healthTrendPreferences';
+import {
+  buildActivityRings,
+  resolveActivityRingKeys,
+} from '../utils/activityRings';
 import { resolveDashboardCardOrder } from '../utils/dashboardCardPreferences';
 import type { RootStackParamList, TabParamList } from '../types/navigation';
 import { formatDateLabel, getDateRelationToToday } from '../utils/dateUtils';
@@ -221,6 +226,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
     enabled: isConnected,
   });
   const {
+    measurements,
     isLoading: isMeasurementsLoading,
     isError: isMeasurementsError,
     refetch: refetchMeasurements,
@@ -387,6 +393,13 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
   );
   const mindfulnessCardVisible = useAppPreferencesStore(
     (s) => s.mindfulnessCardVisible
+  );
+  const activityRingsCardVisible = useAppPreferencesStore(
+    (s) => s.activityRingsCardVisible
+  );
+  const activityRingStyle = useAppPreferencesStore((s) => s.activityRingStyle);
+  const activityRingCustom = useAppPreferencesStore(
+    (s) => s.activityRingCustom
   );
   const trainingLoadCardVisible = useAppPreferencesStore(
     (s) => s.trainingLoadCardVisible
@@ -762,6 +775,36 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                   exerciseCaloriesGoal={summary.exerciseCaloriesGoal}
                   onPressDetails={() =>
                     navigation.navigate('ExerciseStatistics')
+                  }
+                />
+              ) : null;
+            case 'activityRings':
+              return activityRingsCardVisible ? (
+                <ActivityRingsCard
+                  key="activityRings"
+                  rings={buildActivityRings(
+                    resolveActivityRingKeys(
+                      activityRingStyle,
+                      activityRingCustom
+                    ),
+                    {
+                      // The same figures the Exercise card shows, so the two agree.
+                      move: {
+                        current: summary.otherExerciseCalories,
+                        goal: summary.exerciseCaloriesGoal,
+                      },
+                      exercise: {
+                        current: summary.exerciseMinutes,
+                        goal: summary.exerciseMinutesGoal,
+                      },
+                      steps: {
+                        current: measurements?.steps ?? 0,
+                        goal: summary.stepsGoal,
+                      },
+                    }
+                  )}
+                  onPressSettings={() =>
+                    navigation.navigate('ActivityRingsSettings')
                   }
                 />
               ) : null;

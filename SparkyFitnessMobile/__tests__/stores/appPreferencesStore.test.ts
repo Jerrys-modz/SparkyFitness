@@ -98,6 +98,33 @@ describe('appPreferencesStore', () => {
     });
   });
 
+  describe('activity ring preferences', () => {
+    it('defaults to the card hidden, apple style and every ring chosen', () => {
+      const state = useAppPreferencesStore.getState();
+
+      expect(state.activityRingsCardVisible).toBe(false);
+      expect(state.activityRingStyle).toBe('apple');
+      expect(state.activityRingCustom).toEqual(['move', 'exercise', 'steps']);
+    });
+
+    it('adds and removes custom rings without duplicating', () => {
+      const store = useAppPreferencesStore.getState();
+      store.setActivityRingCustom('steps', false);
+      expect(useAppPreferencesStore.getState().activityRingCustom).toEqual([
+        'move',
+        'exercise',
+      ]);
+
+      store.setActivityRingCustom('steps', true);
+      store.setActivityRingCustom('steps', true);
+      expect(
+        useAppPreferencesStore
+          .getState()
+          .activityRingCustom.filter((key) => key === 'steps')
+      ).toHaveLength(1);
+    });
+  });
+
   describe('health trend preferences', () => {
     it('defaults to the full registry order with nothing hidden', () => {
       const state = useAppPreferencesStore.getState();
@@ -266,6 +293,7 @@ describe('appPreferencesStore', () => {
         'askSparky',
         'macros',
         'exercise',
+        'activityRings',
         'trainingLoad',
         'hydration',
         'caffeine',

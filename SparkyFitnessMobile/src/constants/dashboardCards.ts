@@ -5,6 +5,7 @@ export const DASHBOARD_CARD_KEYS = [
   'askSparky',
   'macros',
   'exercise',
+  'activityRings',
   'trainingLoad',
   'hydration',
   'caffeine',
@@ -31,6 +32,8 @@ export const DASHBOARD_CARD_TITLES: Record<
   macros: (t) => t('dashboardSettings.macros', { defaultValue: 'Nutrients' }),
   exercise: (t) =>
     t('dashboardSettings.exercise', { defaultValue: 'Exercise Progress' }),
+  activityRings: (t) =>
+    t('dashboardSettings.activityRings', { defaultValue: 'Activity Rings' }),
   trainingLoad: (t) =>
     t('dashboardSettings.trainingLoad', { defaultValue: 'Training Load' }),
   hydration: (t) =>
@@ -76,6 +79,10 @@ export const DASHBOARD_CARD_SUBTITLES: Record<
   exercise: (t) =>
     t('dashboardSettings.exerciseSubtitle', {
       defaultValue: 'Show exercise minutes and calorie burn targets',
+    }),
+  activityRings: (t) =>
+    t('dashboardSettings.activityRingsSubtitle', {
+      defaultValue: 'Show Move, Exercise and Steps rings for the day',
     }),
   trainingLoad: (t) =>
     t('dashboardSettings.trainingLoadSubtitle', {
