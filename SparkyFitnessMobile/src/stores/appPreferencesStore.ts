@@ -35,6 +35,11 @@ import {
   type DashboardCardKey,
 } from '../constants/dashboardCards';
 import {
+  ACTIVITY_RING_KEYS,
+  type ActivityRingKey,
+  type ActivityRingStyle,
+} from '../constants/activityRings';
+import {
   HEALTH_TREND_KEYS,
   type HealthTrendKey,
 } from '../constants/healthTrends';
@@ -102,6 +107,10 @@ export const PREFERENCE_DEFAULTS = {
   calorieRingCardVisible: true,
   macrosCardVisible: true,
   exerciseCardVisible: true,
+  // Opt-in: the rings card is new, so existing dashboards look the same until it is turned on.
+  activityRingsCardVisible: false,
+  activityRingStyle: 'apple' as ActivityRingStyle,
+  activityRingCustom: [...ACTIVITY_RING_KEYS] as ActivityRingKey[],
   hydrationCardVisible: true,
   caffeineCardVisible: true,
   fastingCardVisible: true,
@@ -191,6 +200,10 @@ export type AppPreferencesData = {
   calorieRingCardVisible: boolean;
   macrosCardVisible: boolean;
   exerciseCardVisible: boolean;
+  activityRingsCardVisible: boolean;
+  activityRingStyle: ActivityRingStyle;
+  /** The rings drawn in the custom style; an empty list falls back to the Apple pair. */
+  activityRingCustom: ActivityRingKey[];
   hydrationCardVisible: boolean;
   caffeineCardVisible: boolean;
   fastingCardVisible: boolean;
@@ -331,6 +344,9 @@ export interface AppPreferencesState extends AppPreferencesData {
   setCalorieRingCardVisible: (value: boolean) => void;
   setMacrosCardVisible: (value: boolean) => void;
   setExerciseCardVisible: (value: boolean) => void;
+  setActivityRingsCardVisible: (value: boolean) => void;
+  setActivityRingStyle: (style: ActivityRingStyle) => void;
+  setActivityRingCustom: (key: ActivityRingKey, isShown: boolean) => void;
   setHydrationCardVisible: (value: boolean) => void;
   setCaffeineCardVisible: (value: boolean) => void;
   setFastingCardVisible: (value: boolean) => void;
@@ -479,6 +495,17 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         set({ calorieRingCardVisible: value }),
       setMacrosCardVisible: (value) => set({ macrosCardVisible: value }),
       setExerciseCardVisible: (value) => set({ exerciseCardVisible: value }),
+      setActivityRingsCardVisible: (value) =>
+        set({ activityRingsCardVisible: value }),
+      setActivityRingStyle: (style) => set({ activityRingStyle: style }),
+      setActivityRingCustom: (key, isShown) =>
+        set((state) => ({
+          activityRingCustom: withMembership(
+            state.activityRingCustom,
+            key,
+            isShown
+          ),
+        })),
       setHydrationCardVisible: (value) => set({ hydrationCardVisible: value }),
       setCaffeineCardVisible: (value) => set({ caffeineCardVisible: value }),
       setFastingCardVisible: (value) => set({ fastingCardVisible: value }),
@@ -698,6 +725,9 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         calorieRingCardVisible: state.calorieRingCardVisible,
         macrosCardVisible: state.macrosCardVisible,
         exerciseCardVisible: state.exerciseCardVisible,
+        activityRingsCardVisible: state.activityRingsCardVisible,
+        activityRingStyle: state.activityRingStyle,
+        activityRingCustom: state.activityRingCustom,
         hydrationCardVisible: state.hydrationCardVisible,
         caffeineCardVisible: state.caffeineCardVisible,
         fastingCardVisible: state.fastingCardVisible,
