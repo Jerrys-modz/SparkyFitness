@@ -79,6 +79,15 @@ const PinnedMetricsSettingsScreen: React.FC<
             max: MAX_PINNED_METRICS,
           })}
         </Text>
+        {pinnedKeys.length >= MAX_PINNED_METRICS && (
+          <Text className="text-text-muted text-xs mb-4">
+            {t('pinnedMetrics.limitReached', {
+              defaultValue:
+                'You have pinned {{max}} metrics. Unpin one to choose another.',
+              max: MAX_PINNED_METRICS,
+            })}
+          </Text>
+        )}
         {groups.map((group) => (
           <View key={group.title} className="mb-2">
             <Text className="text-text-primary text-lg font-semibold mb-2">
@@ -101,7 +110,7 @@ const PinnedMetricsSettingsScreen: React.FC<
                       isPinned
                         ? 'bg-accent-primary border-accent-primary'
                         : 'bg-raised border-border-subtle'
-                    } ${isFull ? 'opacity-40' : ''}`}
+                    } ${isFull ? 'opacity-60' : ''}`}
                   >
                     <Text
                       className={`text-sm font-medium ${
