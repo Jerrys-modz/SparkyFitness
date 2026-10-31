@@ -74,6 +74,12 @@ const ActivityRingsSettingsScreen: React.FC<
               }),
             },
             {
+              key: 'google',
+              label: t('activityRings.styleGoogle', {
+                defaultValue: 'Minutes & Points',
+              }),
+            },
+            {
               key: 'custom',
               label: t('activityRings.styleCustom', { defaultValue: 'Custom' }),
             },
