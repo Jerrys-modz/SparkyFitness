@@ -268,6 +268,9 @@
 "watch.water.deleteHint" = "Opens a prompt to delete this entry";
 "watch.trend.emptyWeight" = "Log a few days to see your weight trend.";
 "watch.trend.emptyBodyFat" = "Log body fat a few times to see its trend.";
+"watch.trend.summary" = "Trend %@";
+"watch.trend.perWeek" = "· %@/wk";
+"watch.trend.goal" = "Goal";
 "watch.workout.setOptions" = "Set options";
 "watch.workout.exerciseOptions" = "Exercise options";
 "watch.workout.title" = "Workout";
