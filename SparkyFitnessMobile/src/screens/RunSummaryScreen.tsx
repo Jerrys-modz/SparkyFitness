@@ -47,6 +47,7 @@ import {
 } from '../utils/gpsRecording';
 import type { RootStackScreenProps } from '../types/navigation';
 import { learnWatchIndoorScale } from '../services/watchIndoorScale';
+import { learnFromWatchRun } from '../services/stepDistance';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import { correctTreadmillDistance } from '../utils/treadmillCorrection';
 import { formatTreadmillPercent } from '../utils/treadmillCorrectionFormat';

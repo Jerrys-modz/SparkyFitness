@@ -521,9 +521,6 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
         )
       : []
   );
-  const trainingLoadCardVisible = useAppPreferencesStore(
-    (s) => s.trainingLoadCardVisible
-  );
 
   const { sessions: mindfulSessions, totalMindfulMinutes } =
     useMindfulnessDay(selectedDate);
