@@ -1239,7 +1239,7 @@
     "trainingLoad": "Training Load",
     "trainingLoadSubtitle": "Show this week against your usual training, with a nudge to rest",
     "activityRings": "Activity Rings",
-    "activityRingsSubtitle": "Show Move, Exercise and Steps rings for the day",
+    "activityRingsSubtitle": "Show Move, Exercise, Stand and Steps rings for the day",
     "pinnedMetrics": "Pinned Metrics",
     "pinnedMetricsSubtitle": "Show up to four metrics you choose as small tiles"
   },
@@ -9565,11 +9565,18 @@
     "styleCustom": "Custom",
     "customDescription": "Choose which rings to show.",
     "settingsDescription": "Rings fill toward your daily goals. Move and Exercise use your exercise goals; Steps uses your steps goal.",
-    "styleAppleDescription": "Move (calories) and Exercise (minutes) rings.",
+    "styleAppleDescription": "Move (calories), Exercise (minutes) and Stand (hours) rings. Stand shows on iPhone only.",
     "points": "Active points",
     "pointsUnit": "pts",
     "styleGoogle": "Points",
-    "styleGoogleDescription": "Exercise minutes and Active points rings."
+    "styleGoogleDescription": "Exercise minutes and Active points rings.",
+    "stand": "Stand",
+    "standUnit": "hr",
+    "standGoal": "Stand goal",
+    "standGoalUnit": "hours a day",
+    "standGoalDecrease": "Decrease stand goal",
+    "standGoalIncrease": "Increase stand goal",
+    "standDescription": "Stand hours are read from Apple Health on this device and are not uploaded."
   },
   "pinnedMetrics": {
     "settingsDescription": "Pick up to {{max}} metrics to keep at the top of your Dashboard. Rings show today against your goal; trends show the latest reading or average.",

@@ -5,9 +5,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useActiveWorkoutBarPadding } from '../components/ActiveWorkoutBar';
 import SegmentedControl from '../components/SegmentedControl';
+import StepperInput, { useStepperDraft } from '../components/StepperInput';
 import {
   ACTIVITY_RING_KEYS,
   ACTIVITY_RING_LABELS,
+  STAND_HOURS_SUPPORTED,
 } from '../constants/activityRings';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
@@ -32,6 +34,14 @@ const ActivityRingsSettingsScreen: React.FC<
   const setCustom = useAppPreferencesStore((s) => s.setActivityRingCustom);
 
   const shown = resolveActivityRingKeys('custom', custom);
+  const standGoal = useAppPreferencesStore((s) => s.standGoalHours);
+  const setStandGoal = useAppPreferencesStore((s) => s.setStandGoalHours);
+  const standDraft = useStepperDraft({
+    value: standGoal,
+    min: 1,
+    max: 24,
+    onCommit: setStandGoal,
+  });
 
   const header = useScreenHeader({
     title: t('screens.activityRingsSettings', {
@@ -91,7 +101,8 @@ const ActivityRingsSettingsScreen: React.FC<
         {style === 'apple' && (
           <Text className="text-sm text-text-secondary mt-2">
             {t('activityRings.styleAppleDescription', {
-              defaultValue: 'Move (calories) and Exercise (minutes) rings.',
+              defaultValue:
+                'Move (calories), Exercise (minutes) and Stand (hours) rings. Stand shows on iPhone only.',
             })}
           </Text>
         )}
@@ -112,7 +123,9 @@ const ActivityRingsSettingsScreen: React.FC<
               })}
             </Text>
             <View className="flex-row flex-wrap">
-              {ACTIVITY_RING_KEYS.map((key) => {
+              {ACTIVITY_RING_KEYS.filter(
+                (key) => key !== 'stand' || STAND_HOURS_SUPPORTED
+              ).map((key) => {
                 const isShown = shown.includes(key);
                 // Keep at least one ring: an empty card has nothing to show.
                 const isLast = isShown && shown.length === 1;
@@ -144,6 +157,41 @@ const ActivityRingsSettingsScreen: React.FC<
                 );
               })}
             </View>
+          </View>
+        )}
+        {STAND_HOURS_SUPPORTED && (
+          <View className="mt-4">
+            <Text className="text-text-primary text-lg font-semibold mb-2">
+              {t('activityRings.standGoal', { defaultValue: 'Stand goal' })}
+            </Text>
+            <View className="flex-row items-center">
+              <StepperInput
+                {...standDraft}
+                keyboardType="number-pad"
+                accessibilityLabels={{
+                  decrement: t('activityRings.standGoalDecrease', {
+                    defaultValue: 'Decrease stand goal',
+                  }),
+                  input: t('activityRings.standGoal', {
+                    defaultValue: 'Stand goal',
+                  }),
+                  increment: t('activityRings.standGoalIncrease', {
+                    defaultValue: 'Increase stand goal',
+                  }),
+                }}
+              />
+              <Text className="text-text-secondary text-sm ml-3">
+                {t('activityRings.standGoalUnit', {
+                  defaultValue: 'hours a day',
+                })}
+              </Text>
+            </View>
+            <Text className="text-text-secondary text-sm mt-2">
+              {t('activityRings.standDescription', {
+                defaultValue:
+                  'Stand hours are read from Apple Health on this device and are not uploaded.',
+              })}
+            </Text>
           </View>
         )}
       </ScrollView>
