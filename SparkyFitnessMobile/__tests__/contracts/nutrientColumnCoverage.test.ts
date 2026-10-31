@@ -51,6 +51,12 @@ interface Omission {
 
 const DELIBERATE_OMISSIONS: Omission[] = [
   {
+    file: /^utils\/labMarkerLabels\.ts$/,
+    columns: ['caffeine_mg', 'water_ml', 'alcohol_g'],
+    reason:
+      'Lab marker names, not nutrient columns; `iron` here is the serum iron blood test.',
+  },
+  {
     file: /^types\/goals\.ts$/,
     columns: ['water_ml'],
     reason:

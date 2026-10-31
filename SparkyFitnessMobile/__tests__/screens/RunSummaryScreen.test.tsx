@@ -16,6 +16,7 @@ import {
 } from '../../src/services/api/exerciseApi';
 import { usePersonalRecords } from '../../src/hooks/usePersonalRecords';
 import { learnWatchIndoorScale } from '../../src/services/watchIndoorScale';
+import { learnFromWatchRun } from '../../src/services/stepDistance';
 import { useAppPreferencesStore } from '../../src/stores/appPreferencesStore';
 import type { RunSummaryParams } from '../../src/utils/runSummary';
 
@@ -32,6 +33,9 @@ jest.mock('../../src/services/api/exerciseApi', () => ({
 }));
 jest.mock('../../src/services/watchIndoorScale', () => ({
   learnWatchIndoorScale: jest.fn(() => Promise.resolve()),
+}));
+jest.mock('../../src/services/stepDistance', () => ({
+  learnFromWatchRun: jest.fn(() => Promise.resolve(true)),
 }));
 jest.mock('../../src/hooks/usePersonalRecords', () => ({
   usePersonalRecords: jest.fn(() => ({ records: [] })),

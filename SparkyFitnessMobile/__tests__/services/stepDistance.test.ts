@@ -7,6 +7,7 @@ import {
   estimateIndoorDistance,
   learnFromIndoorEntry,
   learnFromOutdoorRecording,
+  learnFromWatchRun,
   measureOutdoorForm,
   measureWatchRunForm,
   type IndoorDistanceEstimate,
