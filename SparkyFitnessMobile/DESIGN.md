@@ -345,6 +345,7 @@ Radius classes in sections 1–5 use the app's remapped scale, not web Tailwind'
 - Scrubbing: press and hold for 100ms, then drag. The readout is a fixed one-line `text-sm text-text-secondary` caption above the plot ("value · Weekday, Mon d") that clears on release. There is no floating tooltip.
 - Chart headline tiles: an uppercase `text-xs text-text-muted` label over a `text-xl font-semibold` value. The legend uses 8px dots with `text-xs text-text-muted` labels.
 - Health Trends: a `text-xl font-bold` section heading, a 7d/30d/90d segmented control, and a 350pt horizontal pager of chart cards with 8px page dots (Sparky Blue active, Standard Border inactive).
+- Health Trend tiles (`HealthTrendTiles`, the Tiles layout of Health Trends): a wrapping two-column grid of grid-card tiles (`w-[48%] bg-surface rounded-xl p-3 mb-2 shadow-sm`). Each tile is a `text-xs text-text-muted` name, a `text-xl font-bold` headline with its `text-xs text-text-muted` unit, a `text-xs` line with the change and the window ("-1.2 kg · 7d"; daily totals show only the window), and a bare 2px Sparky Blue `TrendSparkline` with no axes. The headline is the window average for daily totals (steps, water, calories, sleep) and the newest reading for measurements (weight, resting heart rate, VO2 max). A tapped tile gets a Sparky Blue border and opens its full chart card underneath; names and values stay on one line. Up to four tiles are chosen with the canonical selectable chip in Health Trends settings.
 
 ## 5. Layout Principles
 
