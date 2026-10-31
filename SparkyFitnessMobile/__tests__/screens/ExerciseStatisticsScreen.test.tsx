@@ -484,11 +484,6 @@ describe('ExerciseStatisticsScreen', () => {
     const screen = render(<ExerciseStatisticsScreen {...props} />);
     fireEvent.press(screen.getByText('Cardio'));
     expect(screen.queryByText('Pace by Heart Rate Zone')).toBeNull();
-      isLoading: false,
-      isError: false,
-    });
-    const screen = render(<ExerciseStatisticsScreen {...props} />);
-    fireEvent.press(screen.getByText('Cardio'));
   });
 
   it('leaves the trends out when there are no runs', () => {

@@ -144,7 +144,8 @@ export function useAddFoodEntry(options?: UseAddFoodEntryOptions) {
       if (input.saveFoodPayload) {
         // Saving a food comes first and the entry needs the id it returns, so
         // this path cannot wait in the offline queue.
-        if (!input.savedFood && isKnownOffline()) throw new NeedsConnectionError();
+        if (!input.savedFood && isKnownOffline())
+          throw new NeedsConnectionError();
         const saved =
           input.savedFood ??
           (await saveFood(input.saveFoodPayload, input.saveFoodImages));
