@@ -35,8 +35,10 @@ import {
   type DashboardCardKey,
 } from '../constants/dashboardCards';
 import {
+  MAX_HEALTH_TREND_TILES,
   HEALTH_TREND_KEYS,
   type HealthTrendKey,
+  type HealthTrendsLayout,
 } from '../constants/healthTrends';
 import {
   DEFAULT_WATCH_NUTRIENTS,
@@ -53,6 +55,7 @@ import {
 } from '../constants/reports';
 import type { LanguagePreference } from '../localization';
 import type { TrendRange } from '../utils/trendRange';
+import type { HealthTrendDateRange } from '../types/healthTrends';
 import type { OwnershipFilter } from '../utils/shareStatus';
 
 const STORE_KEY = '@SparkyFitness/app-preferences';
@@ -77,6 +80,10 @@ const LEGACY_KEYS = {
 type LegacyKey = keyof typeof LEGACY_KEYS;
 
 /** Which stat the active-workout log shows in its per-set metric column. */
+export type HealthTrendRanges = Partial<
+  Record<HealthTrendKey, HealthTrendDateRange>
+>;
+
 export type ActiveWorkoutMetricColumn =
   'rpe' | 'rir' | 'volume' | 'e1rm' | 'tenrm';
 
@@ -150,6 +157,9 @@ export const PREFERENCE_DEFAULTS = {
   languagePreference: 'system' as LanguagePreference,
   healthTrendOrder: [...HEALTH_TREND_KEYS] as HealthTrendKey[],
   hiddenHealthTrends: [] as HealthTrendKey[],
+  healthTrendRanges: {} as HealthTrendRanges,
+  healthTrendsLayout: 'pager' as HealthTrendsLayout,
+  healthTrendTiles: [] as HealthTrendKey[],
   addMenuCards: [...DEFAULT_ADD_MENU_CARDS] as AddMenuItemKey[],
   addMenuOrder: [...ADD_MENU_ITEM_KEYS] as AddMenuItemKey[],
   hiddenAddMenuItems: [] as AddMenuItemKey[],
@@ -260,6 +270,11 @@ export type AppPreferencesData = {
   languagePreference: LanguagePreference;
   healthTrendOrder: HealthTrendKey[];
   hiddenHealthTrends: HealthTrendKey[];
+  /** Each graph's own window; a graph with no entry uses the default. */
+  healthTrendRanges: HealthTrendRanges;
+  healthTrendsLayout: HealthTrendsLayout;
+  /** The graphs shown as tiles in the tiles layout, at most `MAX_HEALTH_TREND_TILES`. */
+  healthTrendTiles: HealthTrendKey[];
   /** The four items in the + sheet's big card slots, in order. */
   addMenuCards: AddMenuItemKey[];
   /** Order of the rows under the cards in the + sheet. */
@@ -380,6 +395,12 @@ export interface AppPreferencesState extends AppPreferencesData {
   setLanguagePreference: (value: LanguagePreference) => void;
   setHealthTrendOrder: (order: HealthTrendKey[]) => void;
   setHealthTrendHidden: (key: HealthTrendKey, isHidden: boolean) => void;
+  setHealthTrendRange: (
+    key: HealthTrendKey,
+    range: HealthTrendDateRange
+  ) => void;
+  setHealthTrendsLayout: (layout: HealthTrendsLayout) => void;
+  setHealthTrendTile: (key: HealthTrendKey, isTile: boolean) => void;
   setAddMenuCards: (cards: AddMenuItemKey[]) => void;
   setAddMenuOrder: (order: AddMenuItemKey[]) => void;
   setAddMenuItemHidden: (key: AddMenuItemKey, isHidden: boolean) => void;
@@ -566,6 +587,19 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
             isHidden
           ),
         })),
+      setHealthTrendRange: (key, range) =>
+        set((state) => ({
+          healthTrendRanges: { ...state.healthTrendRanges, [key]: range },
+        })),
+      setHealthTrendsLayout: (layout) => set({ healthTrendsLayout: layout }),
+      setHealthTrendTile: (key, isTile) =>
+        set((state) => {
+          const withoutKey = state.healthTrendTiles.filter((k) => k !== key);
+          if (!isTile) return { healthTrendTiles: withoutKey };
+          if (state.healthTrendTiles.includes(key)) return {};
+          if (withoutKey.length >= MAX_HEALTH_TREND_TILES) return {};
+          return { healthTrendTiles: [...withoutKey, key] };
+        }),
       setAddMenuCards: (cards) =>
         set((state) => {
           const resolved = resolveAddMenuCards(cards);
@@ -748,6 +782,9 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         languagePreference: state.languagePreference,
         healthTrendOrder: state.healthTrendOrder,
         hiddenHealthTrends: state.hiddenHealthTrends,
+        healthTrendRanges: state.healthTrendRanges,
+        healthTrendsLayout: state.healthTrendsLayout,
+        healthTrendTiles: state.healthTrendTiles,
         addMenuCards: state.addMenuCards,
         addMenuOrder: state.addMenuOrder,
         hiddenAddMenuItems: state.hiddenAddMenuItems,
