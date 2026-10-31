@@ -700,6 +700,19 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
       },
     };
     // Built only when something is pinned, so the series are read only when needed.
+    const goalValues = {
+      calories: {
+        current: summary.caloriesConsumed,
+        goal: summary.calorieGoal,
+      },
+      protein: {
+        current: summary.protein.consumed,
+        goal: summary.protein.goal,
+      },
+      carbs: { current: summary.carbs.consumed, goal: summary.carbs.goal },
+      fat: { current: summary.fat.consumed, goal: summary.fat.goal },
+      water: { current: summary.waterConsumed, goal: summary.waterGoal },
+    };
     const pinnedTrendInput =
       pinnedTrendKeys(pinnedMetrics).length > 0
         ? {
@@ -960,6 +973,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                   key="pinnedMetrics"
                   metrics={pinnedMetrics}
                   ringValues={ringValues}
+                  goalValues={goalValues}
                   trendSummaries={pinnedTrendSummaries}
                   rangeFor={rangeOf}
                   weightUnit={weightUnit}

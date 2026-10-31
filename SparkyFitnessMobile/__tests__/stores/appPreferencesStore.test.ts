@@ -110,18 +110,24 @@ describe('appPreferencesStore', () => {
       ]);
     });
 
-    it('refuses a fifth metric until one is removed', () => {
+    it('refuses a seventh metric until one is removed', () => {
       const store = useAppPreferencesStore.getState();
       store.setPinnedMetric('ring:steps', true);
-      expect(useAppPreferencesStore.getState().pinnedMetrics).toHaveLength(4);
+      store.setPinnedMetric('goal:water', true);
+      expect(useAppPreferencesStore.getState().pinnedMetrics).toHaveLength(6);
+
+      store.setPinnedMetric('goal:calories', true);
+      expect(useAppPreferencesStore.getState().pinnedMetrics).toHaveLength(6);
 
       store.setPinnedMetric('trend:sleep', false);
-      store.setPinnedMetric('ring:steps', true);
+      store.setPinnedMetric('goal:calories', true);
       expect(useAppPreferencesStore.getState().pinnedMetrics).toEqual([
         'ring:move',
         'ring:exercise',
         'trend:weight',
         'ring:steps',
+        'goal:water',
+        'goal:calories',
       ]);
     });
   });

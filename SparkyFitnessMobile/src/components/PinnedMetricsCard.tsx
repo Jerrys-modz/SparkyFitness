@@ -6,6 +6,12 @@ import { ACTIVITY_RING_LABELS } from '../constants/activityRings';
 import type { ActivityRingKey } from '../constants/activityRings';
 import type { HealthTrendKey } from '../constants/healthTrends';
 import { useActivityRingLook } from '../hooks/useActivityRingLook';
+import { useGoalMetricLook } from '../hooks/useGoalMetricLook';
+import {
+  GOAL_METRIC_LABELS,
+  type GoalMetricKey,
+} from '../constants/pinnedMetrics';
+import { formatVolumeForUnit, volumeFromMl } from '../utils/unitConversions';
 import { formatLocalizedNumber } from '../localization/i18n';
 import type { ActivityRingValue } from '../utils/activityRings';
 import type { HealthTrendTileSummary } from '../utils/healthTrendTiles';
@@ -20,6 +26,8 @@ const RING_STROKE = 6;
 type PinnedMetricsCardProps = {
   metrics: readonly ResolvedPinnedMetric[];
   ringValues: Record<ActivityRingKey, ActivityRingValue>;
+  /** Today against the goal for each nutrition and hydration metric; water in millilitres. */
+  goalValues: Record<GoalMetricKey, ActivityRingValue>;
   trendSummaries: Partial<Record<HealthTrendKey, HealthTrendTileSummary>>;
   /** The window each pinned trend covers, e.g. `7d`. */
   rangeFor: (key: HealthTrendKey) => string;
@@ -28,21 +36,23 @@ type PinnedMetricsCardProps = {
   onPressSettings?: () => void;
 };
 
-const RingTile: React.FC<{
-  ringKey: ActivityRingKey;
-  value: ActivityRingValue;
-}> = ({ ringKey, value }) => {
+/** A value against a daily goal: the figure, "of goal unit", and a small ring. */
+const GoalTile: React.FC<{
+  testID: string;
+  label: string;
+  current: string;
+  goal: string | null;
+  unit: string;
+  progress: number;
+  color: string;
+  trackColor: string;
+}> = ({ testID, label, current, goal, unit, progress, color, trackColor }) => {
   const { t } = useTranslation();
-  const { colors, units, trackColor } = useActivityRingLook();
-  const label = ACTIVITY_RING_LABELS[ringKey](t);
-  const current = formatLocalizedNumber(Math.round(value.current));
-  const goal = formatLocalizedNumber(Math.round(value.goal));
-  const progress = value.goal > 0 ? value.current / value.goal : 0;
   return (
     <View
-      testID={`pinned-ring-${ringKey}`}
+      testID={testID}
       accessible
-      accessibilityLabel={`${label}: ${current}${value.goal > 0 ? ` / ${goal}` : ''} ${units[ringKey]}`}
+      accessibilityLabel={`${label}: ${current}${goal ? ` / ${goal}` : ''} ${unit}`}
       className="w-[48%] bg-surface rounded-xl p-3 mb-2 shadow-sm flex-row items-center justify-between"
     >
       <View className="flex-1 mr-2">
@@ -56,33 +66,82 @@ const RingTile: React.FC<{
           {current}
         </Text>
         <Text className="text-text-muted text-xs" numberOfLines={1}>
-          {value.goal > 0
+          {goal
             ? t('pinnedMetrics.ofGoal', {
                 defaultValue: 'of {{goal}} {{unit}}',
                 goal,
-                unit: units[ringKey],
+                unit,
               })
-            : units[ringKey]}
+            : unit}
         </Text>
       </View>
       <ProgressRing
         progress={progress}
         size={RING_SIZE}
         strokeWidth={RING_STROKE}
-        color={colors[ringKey]}
+        color={color}
         backgroundColor={trackColor}
       />
     </View>
   );
 };
 
+const RingTile: React.FC<{
+  ringKey: ActivityRingKey;
+  value: ActivityRingValue;
+}> = ({ ringKey, value }) => {
+  const { t } = useTranslation();
+  const { colors, units, trackColor } = useActivityRingLook();
+  return (
+    <GoalTile
+      testID={`pinned-ring-${ringKey}`}
+      label={ACTIVITY_RING_LABELS[ringKey](t)}
+      current={formatLocalizedNumber(Math.round(value.current))}
+      goal={
+        value.goal > 0 ? formatLocalizedNumber(Math.round(value.goal)) : null
+      }
+      unit={units[ringKey]}
+      progress={value.goal > 0 ? value.current / value.goal : 0}
+      color={colors[ringKey]}
+      trackColor={trackColor}
+    />
+  );
+};
+
+const NutritionGoalTile: React.FC<{
+  goalKey: GoalMetricKey;
+  value: ActivityRingValue;
+  waterUnit: string;
+}> = ({ goalKey, value, waterUnit }) => {
+  const { t } = useTranslation();
+  const { colors, units, trackColor } = useGoalMetricLook(waterUnit);
+  // Water arrives in millilitres and reads in the account's unit; the rest are whole numbers.
+  const format = (amount: number): string =>
+    goalKey === 'water'
+      ? formatVolumeForUnit(volumeFromMl(amount, waterUnit), waterUnit)
+      : formatLocalizedNumber(Math.round(amount));
+  return (
+    <GoalTile
+      testID={`pinned-goal-${goalKey}`}
+      label={GOAL_METRIC_LABELS[goalKey](t)}
+      current={format(value.current)}
+      goal={value.goal > 0 ? format(value.goal) : null}
+      unit={units[goalKey]}
+      progress={value.goal > 0 ? value.current / value.goal : 0}
+      color={colors[goalKey]}
+      trackColor={trackColor}
+    />
+  );
+};
+
 /**
- * Up to four metrics the user chose, as small tiles at the top of the Dashboard: an
- * activity ring against its goal, or a health trend's headline and sparkline.
+ * Up to six metrics the user chose, as small tiles at the top of the Dashboard: an
+ * activity ring or a nutrition or hydration goal against its target, or a health trend's headline and sparkline.
  */
 const PinnedMetricsCard: React.FC<PinnedMetricsCardProps> = ({
   metrics,
   ringValues,
+  goalValues,
   trendSummaries,
   rangeFor,
   weightUnit,
@@ -131,6 +190,16 @@ const PinnedMetricsCard: React.FC<PinnedMetricsCardProps> = ({
                   key={metric.pinned}
                   ringKey={metric.key}
                   value={ringValues[metric.key]}
+                />
+              );
+            }
+            if (metric.kind === 'goal') {
+              return (
+                <NutritionGoalTile
+                  key={metric.pinned}
+                  goalKey={metric.key}
+                  value={goalValues[metric.key]}
+                  waterUnit={waterUnit}
                 />
               );
             }

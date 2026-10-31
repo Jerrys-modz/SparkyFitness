@@ -5,11 +5,13 @@ import {
 import type { HealthTrendKey } from '../constants/healthTrends';
 import {
   PINNED_METRIC_KEYS,
+  type GoalMetricKey,
   type PinnedMetricKey,
 } from '../constants/pinnedMetrics';
 
 export type ResolvedPinnedMetric =
   | { kind: 'ring'; key: ActivityRingKey; pinned: PinnedMetricKey }
+  | { kind: 'goal'; key: GoalMetricKey; pinned: PinnedMetricKey }
   | { kind: 'trend'; key: HealthTrendKey; pinned: PinnedMetricKey };
 
 /**
@@ -25,9 +27,9 @@ export function resolvePinnedMetrics(
       saved.includes(key) && (key !== 'ring:stand' || STAND_HOURS_SUPPORTED)
   ).map((pinned) => {
     const [kind, key] = pinned.split(':');
-    return kind === 'ring'
-      ? { kind: 'ring', key: key as ActivityRingKey, pinned }
-      : { kind: 'trend', key: key as HealthTrendKey, pinned };
+    if (kind === 'ring') return { kind, key: key as ActivityRingKey, pinned };
+    if (kind === 'goal') return { kind, key: key as GoalMetricKey, pinned };
+    return { kind: 'trend', key: key as HealthTrendKey, pinned };
   });
 }
 

@@ -15,6 +15,16 @@ describe('resolvePinnedMetrics', () => {
     ]);
   });
 
+  it('resolves nutrition and hydration goals and the extra trends', () => {
+    expect(
+      resolvePinnedMetrics(['trend:hydration', 'goal:water', 'goal:protein'])
+    ).toEqual([
+      { kind: 'goal', key: 'protein', pinned: 'goal:protein' },
+      { kind: 'goal', key: 'water', pinned: 'goal:water' },
+      { kind: 'trend', key: 'hydration', pinned: 'trend:hydration' },
+    ]);
+  });
+
   it('drops keys the registry does not know', () => {
     expect(resolvePinnedMetrics(['ring:bogus', 'trend:gone'])).toEqual([]);
   });

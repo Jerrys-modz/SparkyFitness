@@ -10,6 +10,7 @@ import {
 } from '../constants/activityRings';
 import { HEALTH_TREND_LABELS } from '../constants/healthTrends';
 import {
+  GOAL_METRIC_LABELS,
   MAX_PINNED_METRICS,
   PINNED_METRIC_KEYS,
   type PinnedMetricKey,
@@ -44,9 +45,13 @@ const PinnedMetricsSettingsScreen: React.FC<
 
   const labelFor = (key: PinnedMetricKey): string => {
     const [kind, name] = key.split(':');
-    return kind === 'ring'
-      ? ACTIVITY_RING_LABELS[name as keyof typeof ACTIVITY_RING_LABELS](t)
-      : HEALTH_TREND_LABELS[name as keyof typeof HEALTH_TREND_LABELS](t);
+    if (kind === 'ring') {
+      return ACTIVITY_RING_LABELS[name as keyof typeof ACTIVITY_RING_LABELS](t);
+    }
+    if (kind === 'goal') {
+      return GOAL_METRIC_LABELS[name as keyof typeof GOAL_METRIC_LABELS](t);
+    }
+    return HEALTH_TREND_LABELS[name as keyof typeof HEALTH_TREND_LABELS](t);
   };
 
   const groups = [
@@ -56,6 +61,12 @@ const PinnedMetricsSettingsScreen: React.FC<
         (k) =>
           k.startsWith('ring:') && (k !== 'ring:stand' || STAND_HOURS_SUPPORTED)
       ),
+    },
+    {
+      title: t('pinnedMetrics.goals', {
+        defaultValue: 'Nutrition & hydration',
+      }),
+      keys: PINNED_METRIC_KEYS.filter((k) => k.startsWith('goal:')),
     },
     {
       title: t('pinnedMetrics.trends', { defaultValue: 'Trends' }),
@@ -81,7 +92,7 @@ const PinnedMetricsSettingsScreen: React.FC<
         <Text className="text-text-secondary text-sm mb-4">
           {t('pinnedMetrics.settingsDescription', {
             defaultValue:
-              'Pick up to {{max}} metrics to keep at the top of your Dashboard. Rings show today against your goal; trends show the latest reading or average.',
+              'Pick up to {{max}} metrics to keep at the top of your Dashboard. Rings and goals show today against your target; trends show the latest reading or average.',
             max: MAX_PINNED_METRICS,
           })}
         </Text>
