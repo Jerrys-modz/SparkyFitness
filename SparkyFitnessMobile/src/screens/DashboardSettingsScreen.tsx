@@ -140,7 +140,6 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
   const setMindfulnessCardVisible = useAppPreferencesStore(
     (s) => s.setMindfulnessCardVisible
   );
-<<<<<<< HEAD
   const labResultsCardVisible = useAppPreferencesStore(
     (s) => s.labResultsCardVisible
   );
@@ -154,14 +153,12 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
     (s) => s.setTrainingLoadCardVisible
   );
 
-=======
   const pinnedMetricsCardVisible = useAppPreferencesStore(
     (s) => s.pinnedMetricsCardVisible
   );
   const setPinnedMetricsCardVisible = useAppPreferencesStore(
     (s) => s.setPinnedMetricsCardVisible
   );
->>>>>>> e7e68b0c9 (feat(mobile): pinned metrics card on the dashboard)
   const activityRingsCardVisible = useAppPreferencesStore(
     (s) => s.activityRingsCardVisible
   );

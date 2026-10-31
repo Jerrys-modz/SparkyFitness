@@ -91,7 +91,6 @@ import {
   resolveHealthTrendOrder,
   selectVisibleHealthTrends,
 } from '../utils/healthTrendPreferences';
-import { selectTileTrends } from '../utils/healthTrendTiles';
 
 import {
   ACTIVE_POINTS_DAILY_GOAL,
@@ -99,8 +98,6 @@ import {
   buildActivityRings,
   resolveActivityRingKeys,
 } from '../utils/activityRings';
-<<<<<<< HEAD
-=======
 import {
   selectTileTrends,
   summarizeHealthTrend,
@@ -111,7 +108,6 @@ import {
   resolvePinnedMetrics,
 } from '../utils/pinnedMetrics';
 import PinnedMetricsCard from '../components/PinnedMetricsCard';
->>>>>>> e7e68b0c9 (feat(mobile): pinned metrics card on the dashboard)
 import { resolveDashboardCardOrder } from '../utils/dashboardCardPreferences';
 import type { RootStackParamList, TabParamList } from '../types/navigation';
 import { formatDateLabel, getDateRelationToToday } from '../utils/dateUtils';
