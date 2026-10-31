@@ -36,6 +36,8 @@ import FastingCard from '../components/FastingCard';
 import FastingGoalReconciler from '../components/FastingGoalReconciler';
 import HydrationReminderReconciler from '../components/HydrationReminderReconciler';
 import HealthTrendsPager from '../components/HealthTrendsPager';
+import HealthTrendTiles from '../components/HealthTrendTiles';
+import type { HealthTrendKey } from '../constants/healthTrends';
 import HydrationGauge from '../components/HydrationGauge';
 import CaffeineCard from '../components/CaffeineCard';
 import { useWorkoutHeartRateZones } from '../hooks/useWorkoutHeartRateZones';
@@ -91,6 +93,16 @@ import {
   buildActivityRings,
   resolveActivityRingKeys,
 } from '../utils/activityRings';
+import {
+  selectTileTrends,
+  summarizeHealthTrend,
+} from '../utils/healthTrendTiles';
+import {
+  pinnedTrendKeys,
+  pinsActivePoints,
+  resolvePinnedMetrics,
+} from '../utils/pinnedMetrics';
+import PinnedMetricsCard from '../components/PinnedMetricsCard';
 import { resolveDashboardCardOrder } from '../utils/dashboardCardPreferences';
 import type { RootStackParamList, TabParamList } from '../types/navigation';
 import { formatDateLabel, getDateRelationToToday } from '../utils/dateUtils';
@@ -101,6 +113,8 @@ import {
 import { getNetCarbsValue } from '../utils/nutrientUtils';
 import { weightFromKg } from '../utils/unitConversions';
 import { resolveWeightGoal } from '../utils/healthTrendGoals';
+
+const DEFAULT_TREND_RANGE: HealthTrendDateRange = '7d';
 
 const RANGE_SEGMENTS = (
   t: (key: string, options: { defaultValue: string }) => string
@@ -127,7 +141,9 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
   const goToNextDay = useDiaryDateStore((s) => s.goToNextDay);
   const goToToday = useDiaryDateStore((s) => s.goToToday);
   const syncTodayRollover = useDiaryDateStore((s) => s.syncTodayRollover);
-  const [trendsRange, setTrendsRange] = useState<HealthTrendDateRange>('7d');
+  const [activeTrendKey, setActiveTrendKey] = useState<HealthTrendKey | null>(
+    null
+  );
   const scrollViewRef = useRef<ScrollView>(null);
   const calendarRef = useRef<CalendarSheetRef>(null);
 
@@ -298,11 +314,77 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
     [healthTrendOrder, hiddenHealthTrends]
   );
 
-  const { refetch: refetchTrends, ...trends } = useHealthTrends({
-    range: trendsRange,
+  const healthTrendRanges = useAppPreferencesStore((s) => s.healthTrendRanges);
+  const setHealthTrendRange = useAppPreferencesStore(
+    (s) => s.setHealthTrendRange
+  );
+  const healthTrendsLayout = useAppPreferencesStore(
+    (s) => s.healthTrendsLayout
+  );
+  const healthTrendTiles = useAppPreferencesStore((s) => s.healthTrendTiles);
+  const tileTrends = useMemo(
+    () => selectTileTrends(visibleTrends, healthTrendTiles),
+    [visibleTrends, healthTrendTiles]
+  );
+  // The trends that need loading depend on the layout: tiles loads only the chosen ones.
+  const pinnedMetricsCardVisible = useAppPreferencesStore(
+    (s) => s.pinnedMetricsCardVisible
+  );
+  const savedPinnedMetrics = useAppPreferencesStore((s) => s.pinnedMetrics);
+  const pinnedMetrics = useMemo(
+    () =>
+      pinnedMetricsCardVisible ? resolvePinnedMetrics(savedPinnedMetrics) : [],
+    [pinnedMetricsCardVisible, savedPinnedMetrics]
+  );
+  // Pinned trends load even when the Health Trends card is not showing them.
+  const loadedTrends = useMemo(() => {
+    const base = healthTrendsLayout === 'tiles' ? tileTrends : visibleTrends;
+    return [...new Set([...base, ...pinnedTrendKeys(pinnedMetrics)])];
+  }, [healthTrendsLayout, tileTrends, visibleTrends, pinnedMetrics]);
+  const rangeOf = useCallback(
+    (key: HealthTrendKey): HealthTrendDateRange =>
+      healthTrendRanges[key] ?? DEFAULT_TREND_RANGE,
+    [healthTrendRanges]
+  );
+
+  // Each graph has its own window, but a fetch covers one window. One hook per window,
+  // each loading only the graphs set to it; a window nobody uses fetches nothing.
+  const trends7d = useHealthTrends({
+    range: '7d',
     enabled: isConnected,
-    activeTrends: visibleTrends,
+    activeTrends: loadedTrends.filter((key) => rangeOf(key) === '7d'),
   });
+  const trends30d = useHealthTrends({
+    range: '30d',
+    enabled: isConnected,
+    activeTrends: loadedTrends.filter((key) => rangeOf(key) === '30d'),
+  });
+  const trends90d = useHealthTrends({
+    range: '90d',
+    enabled: isConnected,
+    activeTrends: loadedTrends.filter((key) => rangeOf(key) === '90d'),
+  });
+  const trendsByRange = {
+    '7d': trends7d,
+    '30d': trends30d,
+    '90d': trends90d,
+  } satisfies Record<HealthTrendDateRange, typeof trends7d>;
+  const trends = {
+    steps: trendsByRange[rangeOf('steps')].steps,
+    weight: trendsByRange[rangeOf('weight')].weight,
+    sleep: trendsByRange[rangeOf('sleep')].sleep,
+    hydration: trendsByRange[rangeOf('hydration')].hydration,
+    calories: trendsByRange[rangeOf('calories')].calories,
+    heartRate: trendsByRange[rangeOf('heartRate')].heartRate,
+    vo2max: trendsByRange[rangeOf('vo2max')].vo2max,
+  };
+  const refetchTrends = useCallback(async () => {
+    await Promise.all([
+      trends7d.refetch(),
+      trends30d.refetch(),
+      trends90d.refetch(),
+    ]);
+  }, [trends7d, trends30d, trends90d]);
 
   const { customNutrients, refetch: refetchCustomNutrients } =
     useCustomNutrients({ enabled: isConnected });
@@ -407,10 +489,11 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
   // Active points come from each workout's stored time in heart rate zones, one request
   // per workout with a heart rate, so nothing is fetched unless the ring is on screen.
   const showsActivePoints =
-    activityRingsCardVisible &&
-    resolveActivityRingKeys(activityRingStyle, activityRingCustom).includes(
-      'points'
-    );
+    (activityRingsCardVisible &&
+      resolveActivityRingKeys(activityRingStyle, activityRingCustom).includes(
+        'points'
+      )) ||
+    pinsActivePoints(pinnedMetrics);
   const dayHeartRateZones = useWorkoutHeartRateZones(
     showsActivePoints
       ? (summary?.exerciseEntries ?? []).flatMap((session) =>
@@ -561,6 +644,47 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
     }
 
     const { eaten, burned, remaining, goal, progress } = summary.calorieBalance;
+
+    // The same figures the Exercise card shows, so the cards agree.
+    const ringValues = {
+      move: {
+        current: summary.otherExerciseCalories,
+        goal: summary.exerciseCaloriesGoal,
+      },
+      exercise: {
+        current: summary.exerciseMinutes,
+        goal: summary.exerciseMinutesGoal,
+      },
+      steps: {
+        current: measurements?.steps ?? 0,
+        goal: summary.stepsGoal,
+      },
+      points: {
+        current: activePointsFromZones(dayHeartRateZones),
+        goal: ACTIVE_POINTS_DAILY_GOAL,
+      },
+    };
+    // Built only when something is pinned, so the series are read only when needed.
+    const pinnedTrendInput =
+      pinnedTrendKeys(pinnedMetrics).length > 0
+        ? {
+            steps: trends.steps.data,
+            weight: weightSeries.data,
+            sleep: trends.sleep.data,
+            hydration: trends.hydration.data,
+            calories: trends.calories.data,
+            heartRate: trends.heartRate.data,
+            vo2max: trends.vo2max.data,
+          }
+        : null;
+    const pinnedTrendSummaries = pinnedTrendInput
+      ? Object.fromEntries(
+          pinnedTrendKeys(pinnedMetrics).map((key) => [
+            key,
+            summarizeHealthTrend(key, pinnedTrendInput),
+          ])
+        )
+      : {};
     const showNetCarbs = preferences.show_net_carbs === true;
 
     return (
@@ -795,6 +919,21 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                   }
                 />
               ) : null;
+            case 'pinnedMetrics':
+              return pinnedMetricsCardVisible ? (
+                <PinnedMetricsCard
+                  key="pinnedMetrics"
+                  metrics={pinnedMetrics}
+                  ringValues={ringValues}
+                  trendSummaries={pinnedTrendSummaries}
+                  rangeFor={rangeOf}
+                  weightUnit={weightUnit}
+                  waterUnit={waterDisplayUnit}
+                  onPressSettings={() =>
+                    navigation.navigate('PinnedMetricsSettings')
+                  }
+                />
+              ) : null;
             case 'activityRings':
               return activityRingsCardVisible ? (
                 <ActivityRingsCard
@@ -804,25 +943,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                       activityRingStyle,
                       activityRingCustom
                     ),
-                    {
-                      // The same figures the Exercise card shows, so the two agree.
-                      move: {
-                        current: summary.otherExerciseCalories,
-                        goal: summary.exerciseCaloriesGoal,
-                      },
-                      exercise: {
-                        current: summary.exerciseMinutes,
-                        goal: summary.exerciseMinutesGoal,
-                      },
-                      steps: {
-                        current: measurements?.steps ?? 0,
-                        goal: summary.stepsGoal,
-                      },
-                      points: {
-                        current: activePointsFromZones(dayHeartRateZones),
-                        goal: ACTIVE_POINTS_DAILY_GOAL,
-                      },
-                    }
+                    ringValues
                   )}
                   onPressSettings={() =>
                     navigation.navigate('ActivityRingsSettings')
@@ -933,31 +1054,57 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                       style={{ marginLeft: 2 }}
                     />
                   </Pressable>
-                  {visibleTrends.length > 0 && (
-                    <SegmentedControl
-                      segments={RANGE_SEGMENTS(t)}
-                      activeKey={trendsRange}
-                      onSelect={setTrendsRange}
+                  {healthTrendsLayout === 'tiles' ? (
+                    <HealthTrendTiles
+                      steps={trends.steps}
+                      weight={weightSeries}
+                      sleep={trends.sleep}
+                      hydration={trends.hydration}
+                      calories={trends.calories}
+                      heartRate={trends.heartRate}
+                      vo2max={trends.vo2max}
+                      range={DEFAULT_TREND_RANGE}
+                      ranges={healthTrendRanges}
+                      weightUnit={weightUnit}
+                      waterUnit={waterDisplayUnit}
+                      hydrationGoals={trends.hydration.hydrationGoals}
+                      weightGoal={weightGoal}
+                      calorieGoals={trends.calories.calorieGoals}
+                      tileTrends={tileTrends}
                     />
+                  ) : (
+                    <>
+                      {visibleTrends.length > 0 && activeTrendKey && (
+                        <SegmentedControl
+                          segments={RANGE_SEGMENTS(t)}
+                          activeKey={rangeOf(activeTrendKey)}
+                          onSelect={(range) =>
+                            setHealthTrendRange(activeTrendKey, range)
+                          }
+                        />
+                      )}
+                      <HealthTrendsPager
+                        steps={trends.steps}
+                        weight={weightSeries}
+                        sleep={trends.sleep}
+                        hydration={trends.hydration}
+                        calories={trends.calories}
+                        heartRate={trends.heartRate}
+                        vo2max={trends.vo2max}
+                        range={DEFAULT_TREND_RANGE}
+                        ranges={healthTrendRanges}
+                        weightUnit={weightUnit}
+                        waterUnit={waterDisplayUnit}
+                        hydrationGoals={trends.hydration.hydrationGoals}
+                        weightGoal={weightGoal}
+                        calorieGoals={trends.calories.calorieGoals}
+                        visibleTrends={visibleTrends}
+                        activePage={chartPage}
+                        onPageSelected={setChartPage}
+                        onActiveTrendChange={setActiveTrendKey}
+                      />
+                    </>
                   )}
-                  <HealthTrendsPager
-                    steps={trends.steps}
-                    weight={weightSeries}
-                    sleep={trends.sleep}
-                    hydration={trends.hydration}
-                    calories={trends.calories}
-                    heartRate={trends.heartRate}
-                    vo2max={trends.vo2max}
-                    range={trendsRange}
-                    weightUnit={weightUnit}
-                    waterUnit={waterDisplayUnit}
-                    hydrationGoals={trends.hydration.hydrationGoals}
-                    weightGoal={weightGoal}
-                    calorieGoals={trends.calories.calorieGoals}
-                    visibleTrends={visibleTrends}
-                    activePage={chartPage}
-                    onPageSelected={setChartPage}
-                  />
                 </View>
               ) : null;
             case 'trainingLoad':

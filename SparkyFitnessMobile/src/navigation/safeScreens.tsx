@@ -71,6 +71,7 @@ import AllergenSettingsScreen from '../screens/AllergenSettingsScreen';
 import DashboardSettingsScreen from '../screens/DashboardSettingsScreen';
 import HealthTrendsSettingsScreen from '../screens/HealthTrendsSettingsScreen';
 import ActivityRingsSettingsScreen from '../screens/ActivityRingsSettingsScreen';
+import PinnedMetricsSettingsScreen from '../screens/PinnedMetricsSettingsScreen';
 import WatchSettingsScreen from '../screens/WatchSettingsScreen';
 import AddMenuSettingsScreen from '../screens/AddMenuSettingsScreen';
 import CustomCategoriesScreen from '../screens/CustomCategoriesScreen';
@@ -226,6 +227,7 @@ export const SafeCustomNutrientForm = withErrorBoundary(CustomNutrientFormScreen
 export const SafeNutrientDisplaySettings = withErrorBoundary(NutrientDisplaySettingsScreen, 'NutrientDisplaySettings', { canGoBack: true });
 export const SafeAllergenSettings = withErrorBoundary(AllergenSettingsScreen, 'AllergenSettings', { canGoBack: true });
 export const SafeDashboardSettings = withErrorBoundary(DashboardSettingsScreen, 'DashboardSettings', { canGoBack: true });
+export const SafePinnedMetricsSettings = withErrorBoundary(PinnedMetricsSettingsScreen, 'PinnedMetricsSettings', { canGoBack: true });
 export const SafeActivityRingsSettings = withErrorBoundary(ActivityRingsSettingsScreen, 'ActivityRingsSettings', { canGoBack: true });
 export const SafeHealthTrendsSettings = withErrorBoundary(HealthTrendsSettingsScreen, 'HealthTrendsSettings', { canGoBack: true });
 export const SafeWatchSettings = withErrorBoundary(WatchSettingsScreen, 'WatchSettings', { canGoBack: true });

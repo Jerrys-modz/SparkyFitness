@@ -35,13 +35,20 @@ import {
   type DashboardCardKey,
 } from '../constants/dashboardCards';
 import {
+  DEFAULT_PINNED_METRICS,
+  MAX_PINNED_METRICS,
+  type PinnedMetricKey,
+} from '../constants/pinnedMetrics';
+import {
   ACTIVITY_RING_KEYS,
   type ActivityRingKey,
   type ActivityRingStyle,
 } from '../constants/activityRings';
 import {
+  MAX_HEALTH_TREND_TILES,
   HEALTH_TREND_KEYS,
   type HealthTrendKey,
+  type HealthTrendsLayout,
 } from '../constants/healthTrends';
 import {
   DEFAULT_WATCH_NUTRIENTS,
@@ -58,6 +65,7 @@ import {
 } from '../constants/reports';
 import type { LanguagePreference } from '../localization';
 import type { TrendRange } from '../utils/trendRange';
+import type { HealthTrendDateRange } from '../types/healthTrends';
 import type { OwnershipFilter } from '../utils/shareStatus';
 
 const STORE_KEY = '@SparkyFitness/app-preferences';
@@ -82,6 +90,10 @@ const LEGACY_KEYS = {
 type LegacyKey = keyof typeof LEGACY_KEYS;
 
 /** Which stat the active-workout log shows in its per-set metric column. */
+export type HealthTrendRanges = Partial<
+  Record<HealthTrendKey, HealthTrendDateRange>
+>;
+
 export type ActiveWorkoutMetricColumn =
   'rpe' | 'rir' | 'volume' | 'e1rm' | 'tenrm';
 
@@ -109,6 +121,9 @@ export const PREFERENCE_DEFAULTS = {
   exerciseCardVisible: true,
   // Opt-in: the rings card is new, so existing dashboards look the same until it is turned on.
   activityRingsCardVisible: false,
+  // Opt-in, like the rings card.
+  pinnedMetricsCardVisible: false,
+  pinnedMetrics: [...DEFAULT_PINNED_METRICS] as PinnedMetricKey[],
   activityRingStyle: 'apple' as ActivityRingStyle,
   activityRingCustom: [...ACTIVITY_RING_KEYS] as ActivityRingKey[],
   hydrationCardVisible: true,
@@ -159,6 +174,9 @@ export const PREFERENCE_DEFAULTS = {
   languagePreference: 'system' as LanguagePreference,
   healthTrendOrder: [...HEALTH_TREND_KEYS] as HealthTrendKey[],
   hiddenHealthTrends: [] as HealthTrendKey[],
+  healthTrendRanges: {} as HealthTrendRanges,
+  healthTrendsLayout: 'pager' as HealthTrendsLayout,
+  healthTrendTiles: [] as HealthTrendKey[],
   addMenuCards: [...DEFAULT_ADD_MENU_CARDS] as AddMenuItemKey[],
   addMenuOrder: [...ADD_MENU_ITEM_KEYS] as AddMenuItemKey[],
   hiddenAddMenuItems: [] as AddMenuItemKey[],
@@ -201,6 +219,9 @@ export type AppPreferencesData = {
   macrosCardVisible: boolean;
   exerciseCardVisible: boolean;
   activityRingsCardVisible: boolean;
+  pinnedMetricsCardVisible: boolean;
+  /** The metrics on the Pinned Metrics card, at most `MAX_PINNED_METRICS`. */
+  pinnedMetrics: PinnedMetricKey[];
   activityRingStyle: ActivityRingStyle;
   /** The rings drawn in the custom style; an empty list falls back to the Apple pair. */
   activityRingCustom: ActivityRingKey[];
@@ -273,6 +294,11 @@ export type AppPreferencesData = {
   languagePreference: LanguagePreference;
   healthTrendOrder: HealthTrendKey[];
   hiddenHealthTrends: HealthTrendKey[];
+  /** Each graph's own window; a graph with no entry uses the default. */
+  healthTrendRanges: HealthTrendRanges;
+  healthTrendsLayout: HealthTrendsLayout;
+  /** The graphs shown as tiles in the tiles layout, at most `MAX_HEALTH_TREND_TILES`. */
+  healthTrendTiles: HealthTrendKey[];
   /** The four items in the + sheet's big card slots, in order. */
   addMenuCards: AddMenuItemKey[];
   /** Order of the rows under the cards in the + sheet. */
@@ -345,6 +371,8 @@ export interface AppPreferencesState extends AppPreferencesData {
   setMacrosCardVisible: (value: boolean) => void;
   setExerciseCardVisible: (value: boolean) => void;
   setActivityRingsCardVisible: (value: boolean) => void;
+  setPinnedMetricsCardVisible: (value: boolean) => void;
+  setPinnedMetric: (key: PinnedMetricKey, isPinned: boolean) => void;
   setActivityRingStyle: (style: ActivityRingStyle) => void;
   setActivityRingCustom: (key: ActivityRingKey, isShown: boolean) => void;
   setHydrationCardVisible: (value: boolean) => void;
@@ -396,6 +424,12 @@ export interface AppPreferencesState extends AppPreferencesData {
   setLanguagePreference: (value: LanguagePreference) => void;
   setHealthTrendOrder: (order: HealthTrendKey[]) => void;
   setHealthTrendHidden: (key: HealthTrendKey, isHidden: boolean) => void;
+  setHealthTrendRange: (
+    key: HealthTrendKey,
+    range: HealthTrendDateRange
+  ) => void;
+  setHealthTrendsLayout: (layout: HealthTrendsLayout) => void;
+  setHealthTrendTile: (key: HealthTrendKey, isTile: boolean) => void;
   setAddMenuCards: (cards: AddMenuItemKey[]) => void;
   setAddMenuOrder: (order: AddMenuItemKey[]) => void;
   setAddMenuItemHidden: (key: AddMenuItemKey, isHidden: boolean) => void;
@@ -497,6 +531,16 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
       setExerciseCardVisible: (value) => set({ exerciseCardVisible: value }),
       setActivityRingsCardVisible: (value) =>
         set({ activityRingsCardVisible: value }),
+      setPinnedMetricsCardVisible: (value) =>
+        set({ pinnedMetricsCardVisible: value }),
+      setPinnedMetric: (key, isPinned) =>
+        set((state) => {
+          const without = state.pinnedMetrics.filter((k) => k !== key);
+          if (!isPinned) return { pinnedMetrics: without };
+          if (state.pinnedMetrics.includes(key)) return {};
+          if (without.length >= MAX_PINNED_METRICS) return {};
+          return { pinnedMetrics: [...without, key] };
+        }),
       setActivityRingStyle: (style) => set({ activityRingStyle: style }),
       setActivityRingCustom: (key, isShown) =>
         set((state) => ({
@@ -593,6 +637,19 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
             isHidden
           ),
         })),
+      setHealthTrendRange: (key, range) =>
+        set((state) => ({
+          healthTrendRanges: { ...state.healthTrendRanges, [key]: range },
+        })),
+      setHealthTrendsLayout: (layout) => set({ healthTrendsLayout: layout }),
+      setHealthTrendTile: (key, isTile) =>
+        set((state) => {
+          const withoutKey = state.healthTrendTiles.filter((k) => k !== key);
+          if (!isTile) return { healthTrendTiles: withoutKey };
+          if (state.healthTrendTiles.includes(key)) return {};
+          if (withoutKey.length >= MAX_HEALTH_TREND_TILES) return {};
+          return { healthTrendTiles: [...withoutKey, key] };
+        }),
       setAddMenuCards: (cards) =>
         set((state) => {
           const resolved = resolveAddMenuCards(cards);
@@ -726,6 +783,8 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         macrosCardVisible: state.macrosCardVisible,
         exerciseCardVisible: state.exerciseCardVisible,
         activityRingsCardVisible: state.activityRingsCardVisible,
+        pinnedMetricsCardVisible: state.pinnedMetricsCardVisible,
+        pinnedMetrics: state.pinnedMetrics,
         activityRingStyle: state.activityRingStyle,
         activityRingCustom: state.activityRingCustom,
         hydrationCardVisible: state.hydrationCardVisible,
@@ -778,6 +837,9 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         languagePreference: state.languagePreference,
         healthTrendOrder: state.healthTrendOrder,
         hiddenHealthTrends: state.hiddenHealthTrends,
+        healthTrendRanges: state.healthTrendRanges,
+        healthTrendsLayout: state.healthTrendsLayout,
+        healthTrendTiles: state.healthTrendTiles,
         addMenuCards: state.addMenuCards,
         addMenuOrder: state.addMenuOrder,
         hiddenAddMenuItems: state.hiddenAddMenuItems,

@@ -140,6 +140,12 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
   const setMindfulnessCardVisible = useAppPreferencesStore(
     (s) => s.setMindfulnessCardVisible
   );
+  const pinnedMetricsCardVisible = useAppPreferencesStore(
+    (s) => s.pinnedMetricsCardVisible
+  );
+  const setPinnedMetricsCardVisible = useAppPreferencesStore(
+    (s) => s.setPinnedMetricsCardVisible
+  );
   const activityRingsCardVisible = useAppPreferencesStore(
     (s) => s.activityRingsCardVisible
   );
@@ -171,6 +177,7 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
     macros: macrosCardVisible,
     exercise: exerciseCardVisible,
     activityRings: activityRingsCardVisible,
+    pinnedMetrics: pinnedMetricsCardVisible,
     hydration: hydrationCardVisible,
     caffeine: caffeineCardVisible,
     fasting: fastingCardVisible,
@@ -232,6 +239,9 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
         case 'activityRings':
           setActivityRingsCardVisible(isVisible);
           break;
+        case 'pinnedMetrics':
+          setPinnedMetricsCardVisible(isVisible);
+          break;
         case 'trainingLoad':
           setTrainingLoadCardVisible(isVisible);
           break;
@@ -243,6 +253,7 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
       setMacrosCardVisible,
       setExerciseCardVisible,
       setActivityRingsCardVisible,
+      setPinnedMetricsCardVisible,
       setHydrationCardVisible,
       setCaffeineCardVisible,
       setFastingCardVisible,
@@ -477,7 +488,9 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
                     ? () => navigation.navigate('HealthTrendsSettings')
                     : cardKey === 'activityRings'
                       ? () => navigation.navigate('ActivityRingsSettings')
-                      : undefined
+                      : cardKey === 'pinnedMetrics'
+                        ? () => navigation.navigate('PinnedMetricsSettings')
+                        : undefined
                 }
                 configureTestID={`dashboard-card-configure-${cardKey}`}
                 configureA11yLabel={t('dashboardSettings.configureCard', {

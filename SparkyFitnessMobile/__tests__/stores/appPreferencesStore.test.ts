@@ -98,6 +98,34 @@ describe('appPreferencesStore', () => {
     });
   });
 
+  describe('pinned metric preferences', () => {
+    it('defaults to the card hidden with four metrics chosen', () => {
+      const state = useAppPreferencesStore.getState();
+      expect(state.pinnedMetricsCardVisible).toBe(false);
+      expect(state.pinnedMetrics).toEqual([
+        'ring:move',
+        'ring:exercise',
+        'trend:weight',
+        'trend:sleep',
+      ]);
+    });
+
+    it('refuses a fifth metric until one is removed', () => {
+      const store = useAppPreferencesStore.getState();
+      store.setPinnedMetric('ring:steps', true);
+      expect(useAppPreferencesStore.getState().pinnedMetrics).toHaveLength(4);
+
+      store.setPinnedMetric('trend:sleep', false);
+      store.setPinnedMetric('ring:steps', true);
+      expect(useAppPreferencesStore.getState().pinnedMetrics).toEqual([
+        'ring:move',
+        'ring:exercise',
+        'trend:weight',
+        'ring:steps',
+      ]);
+    });
+  });
+
   describe('activity ring preferences', () => {
     it('defaults to the card hidden, apple style and every ring chosen', () => {
       const state = useAppPreferencesStore.getState();
@@ -132,6 +160,49 @@ describe('appPreferencesStore', () => {
   });
 
   describe('health trend preferences', () => {
+    it('defaults to the swipe layout with no tiles and no custom ranges', () => {
+      const state = useAppPreferencesStore.getState();
+
+      expect(state.healthTrendsLayout).toBe('pager');
+      expect(state.healthTrendTiles).toEqual([]);
+      expect(state.healthTrendRanges).toEqual({});
+    });
+
+    it('stores a range per graph without touching the others', () => {
+      const store = useAppPreferencesStore.getState();
+      store.setHealthTrendRange('weight', '90d');
+      store.setHealthTrendRange('steps', '30d');
+
+      expect(useAppPreferencesStore.getState().healthTrendRanges).toEqual({
+        weight: '90d',
+        steps: '30d',
+      });
+    });
+
+    it('caps tiles at the maximum and lets one be removed to make room', () => {
+      const store = useAppPreferencesStore.getState();
+      (['steps', 'weight', 'sleep', 'hydration'] as const).forEach((key) =>
+        store.setHealthTrendTile(key, true)
+      );
+      store.setHealthTrendTile('calories', true);
+
+      expect(useAppPreferencesStore.getState().healthTrendTiles).toEqual([
+        'steps',
+        'weight',
+        'sleep',
+        'hydration',
+      ]);
+
+      store.setHealthTrendTile('weight', false);
+      store.setHealthTrendTile('calories', true);
+      expect(useAppPreferencesStore.getState().healthTrendTiles).toEqual([
+        'steps',
+        'sleep',
+        'hydration',
+        'calories',
+      ]);
+    });
+
     it('defaults to the full registry order with nothing hidden', () => {
       const state = useAppPreferencesStore.getState();
 
@@ -296,6 +367,7 @@ describe('appPreferencesStore', () => {
       const state = useAppPreferencesStore.getState();
       expect(state.dashboardCardOrder).toEqual([
         'calorieRing',
+        'pinnedMetrics',
         'askSparky',
         'macros',
         'exercise',
