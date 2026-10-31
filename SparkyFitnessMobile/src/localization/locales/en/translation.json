@@ -10481,6 +10481,7 @@
     "rings": "Rings",
     "trends": "Trends",
     "empty": "No metrics pinned. Choose some in Pinned Metrics settings.",
-    "ofGoal": "of {{goal}} {{unit}}"
+    "ofGoal": "of {{goal}} {{unit}}",
+    "limitReached": "You have pinned {{max}} metrics. Unpin one to choose another."
   }
 }
