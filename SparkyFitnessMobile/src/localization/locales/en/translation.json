@@ -301,7 +301,8 @@
       "fasting": "Fasting",
       "hydration": "Hydration reminders",
       "fueling": "Fueling reminders",
-      "moodCheckin": "Mood check-ins"
+      "moodCheckin": "Mood check-ins",
+      "mealReminders": "Meal reminders"
     },
     "moodCheckin": {
       "title": "How are you feeling?",
@@ -353,6 +354,10 @@
     "fuelingDrink": {
       "title": "Time to drink 💧",
       "body": "Have a drink, about {{ml}} ml."
+    },
+    "mealReminder": {
+      "title": "Time to log {{meal}}",
+      "body": "Tap to add what you ate."
     }
   },
   "activeWorkout": {
@@ -1344,7 +1349,14 @@
     "openSettings": "Open Settings",
     "permissionTitle": "Grant permissions",
     "permissionBody": "SparkyFitness alerts (rest timers, fasting goals, medication and hydration reminders) won't fire.",
-    "permissionWarningAccessibility": "{{title}}. {{body}} {{action}}."
+    "permissionWarningAccessibility": "{{title}}. {{body}} {{action}}.",
+    "mealReminders": "Meal reminders",
+    "mealReminderToggle": "Meal logging reminders",
+    "mealReminderToggleSubtitle": "A nudge to log each meal. Skipped when that meal is already logged.",
+    "mealReminderUnknownMeal": "Meal",
+    "mealReminderRemove": "Remove {{meal}} reminder",
+    "mealReminderTimeAccessibility": "{{meal}} reminder, {{time}}",
+    "mealReminderAdd": "Add meal reminder"
   },
   "workoutSettings": {
     "title": "Workout Settings",

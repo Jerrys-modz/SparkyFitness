@@ -35,6 +35,7 @@ import ExerciseProgressCard from '../components/ExerciseProgressCard';
 import FastingCard from '../components/FastingCard';
 import FastingGoalReconciler from '../components/FastingGoalReconciler';
 import HydrationReminderReconciler from '../components/HydrationReminderReconciler';
+import MealReminderReconciler from '../components/MealReminderReconciler';
 import HealthTrendsPager from '../components/HealthTrendsPager';
 import HealthTrendTiles from '../components/HealthTrendTiles';
 import type { HealthTrendKey } from '../constants/healthTrends';
@@ -1184,7 +1185,8 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
             cannot cancel a chain when reminders are switched off. It owns its
             own queries, so it needs nothing from the rendered state. */}
         <HydrationReminderReconciler />
-        {renderedContent}
+      <MealReminderReconciler />
+          {renderedContent}
         <CalendarSheet
           ref={calendarRef}
           selectedDate={selectedDate}

@@ -4,6 +4,10 @@ import {
   normalizeCheckinReminderTimes,
 } from '../utils/checkinReminderTimes';
 import {
+  normalizeMealReminders,
+  type MealReminder,
+} from '../utils/mealReminders';
+import {
   clampGuidedCountdownSec,
   clampGuidedSpeechRate,
   type CompareQuestion,
@@ -158,6 +162,8 @@ export const PREFERENCE_DEFAULTS = {
   waterReminderWindowEnd: '22:00' as string,
   checkinRemindersEnabled: false,
   checkinReminderTimes: [DEFAULT_CHECKIN_REMINDER_TIME] as string[],
+  mealRemindersEnabled: false,
+  mealReminders: [] as MealReminder[],
   liquidGlassTabBarEnabled: false,
   activeWorkoutMetricColumn: 'rpe' as ActiveWorkoutMetricColumn,
   diarySummaryVisible: false,
@@ -262,6 +268,8 @@ export type AppPreferencesData = {
   waterReminderWindowEnd: string;
   checkinRemindersEnabled: boolean;
   checkinReminderTimes: string[];
+  mealRemindersEnabled: boolean;
+  mealReminders: MealReminder[];
   liquidGlassTabBarEnabled: boolean;
   activeWorkoutMetricColumn: ActiveWorkoutMetricColumn;
   diarySummaryVisible: boolean;
@@ -421,6 +429,8 @@ export interface AppPreferencesState extends AppPreferencesData {
   setWaterReminderWindow: (start: string, end: string) => void;
   setCheckinRemindersEnabled: (enabled: boolean) => void;
   setCheckinReminderTimes: (times: string[]) => void;
+  setMealRemindersEnabled: (enabled: boolean) => void;
+  setMealReminders: (reminders: MealReminder[]) => void;
   setLiquidGlassTabBarEnabled: (value: boolean) => void;
   setActiveWorkoutMetricColumn: (value: ActiveWorkoutMetricColumn) => void;
   setDiarySummaryVisible: (value: boolean) => void;
@@ -632,6 +642,10 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         set({ checkinRemindersEnabled: enabled }),
       setCheckinReminderTimes: (times) =>
         set({ checkinReminderTimes: normalizeCheckinReminderTimes(times) }),
+      setMealRemindersEnabled: (enabled) =>
+        set({ mealRemindersEnabled: enabled }),
+      setMealReminders: (reminders) =>
+        set({ mealReminders: normalizeMealReminders(reminders) }),
       setLiquidGlassTabBarEnabled: (value) =>
         set({ liquidGlassTabBarEnabled: value }),
       setActiveWorkoutMetricColumn: (value) =>
@@ -867,6 +881,8 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         waterReminderWindowEnd: state.waterReminderWindowEnd,
         checkinRemindersEnabled: state.checkinRemindersEnabled,
         checkinReminderTimes: state.checkinReminderTimes,
+        mealRemindersEnabled: state.mealRemindersEnabled,
+        mealReminders: state.mealReminders,
         liquidGlassTabBarEnabled: state.liquidGlassTabBarEnabled,
         // Older persisted blobs without these keys backfill via the default
         // shallow merge — no version bump needed.
