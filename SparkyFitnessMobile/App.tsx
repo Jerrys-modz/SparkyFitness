@@ -132,6 +132,7 @@ import {
   SafeDashboardSettings,
   SafeHealthTrendsSettings,
   SafeActivityRingsSettings,
+  SafePinnedMetricsSettings,
   SafeWatchSettings,
   SafeAddMenuSettings,
   SafeDiarySettings,
@@ -1259,6 +1260,11 @@ function AppContent() {
             name="HealthTrendsSettings"
             component={SafeHealthTrendsSettings}
             options={createStackScreenOptions(t('screens.healthTrendsSettings', { defaultValue: 'Health Trends' }), { headerBackTitle: t('screens.dashboardSettings', { defaultValue: 'Dashboard Settings' }) })}
+          />
+          <Stack.Screen
+            name="PinnedMetricsSettings"
+            component={SafePinnedMetricsSettings}
+            options={createStackScreenOptions(t('screens.pinnedMetricsSettings', { defaultValue: 'Pinned Metrics' }), { headerBackTitle: t('screens.dashboardSettings', { defaultValue: 'Dashboard Settings' }) })}
           />
           <Stack.Screen
             name="ActivityRingsSettings"
