@@ -40,6 +40,7 @@ import HealthTrendTiles from '../components/HealthTrendTiles';
 import type { HealthTrendKey } from '../constants/healthTrends';
 import HydrationGauge from '../components/HydrationGauge';
 import CaffeineCard from '../components/CaffeineCard';
+import { useWorkoutHeartRateZones } from '../hooks/useWorkoutHeartRateZones';
 import { useBackgroundWaterSync } from '../hooks/useBackgroundWaterSync';
 import Icon from '../components/Icon';
 import MacroCard from '../components/MacroCard';
@@ -92,6 +93,8 @@ import {
 import { selectTileTrends } from '../utils/healthTrendTiles';
 
 import {
+  ACTIVE_POINTS_DAILY_GOAL,
+  activePointsFromZones,
   buildActivityRings,
   resolveActivityRingKeys,
 } from '../utils/activityRings';
@@ -472,6 +475,20 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
   const activityRingStyle = useAppPreferencesStore((s) => s.activityRingStyle);
   const activityRingCustom = useAppPreferencesStore(
     (s) => s.activityRingCustom
+  );
+  // Active points come from each workout's stored time in heart rate zones, one request
+  // per workout with a heart rate, so nothing is fetched unless the ring is on screen.
+  const showsActivePoints =
+    activityRingsCardVisible &&
+    resolveActivityRingKeys(activityRingStyle, activityRingCustom).includes(
+      'points'
+    );
+  const dayHeartRateZones = useWorkoutHeartRateZones(
+    showsActivePoints
+      ? (summary?.exerciseEntries ?? []).flatMap((session) =>
+          session.type === 'preset' ? session.exercises : [session]
+        )
+      : []
   );
   const trainingLoadCardVisible = useAppPreferencesStore(
     (s) => s.trainingLoadCardVisible
@@ -885,6 +902,10 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                       steps: {
                         current: measurements?.steps ?? 0,
                         goal: summary.stepsGoal,
+                      },
+                      points: {
+                        current: activePointsFromZones(dayHeartRateZones),
+                        goal: ACTIVE_POINTS_DAILY_GOAL,
                       },
                     }
                   )}

@@ -27,22 +27,26 @@ const ActivityRingsCard: React.FC<ActivityRingsCardProps> = ({
   onPressSettings,
 }) => {
   const { t } = useTranslation();
-  const [moveColor, exerciseColor, stepsColor, trackColor] = useCSSVariable([
-    '--color-calories',
-    '--color-exercise',
-    '--color-accent-primary',
-    '--color-progress-track',
-  ]) as [string, string, string, string];
+  const [moveColor, exerciseColor, stepsColor, trackColor, pointsColor] =
+    useCSSVariable([
+      '--color-calories',
+      '--color-exercise',
+      '--color-accent-primary',
+      '--color-progress-track',
+      '--color-macro-protein',
+    ]) as [string, string, string, string, string];
   const accentColor = stepsColor;
   const colors: Record<ActivityRingKey, string> = {
     move: moveColor,
     exercise: exerciseColor,
     steps: stepsColor,
+    points: pointsColor,
   };
   const units: Record<ActivityRingKey, string> = {
     move: t('nutrition.caloriesUnit', { defaultValue: 'Cal' }),
     exercise: t('activityRings.minutesUnit', { defaultValue: 'min' }),
     steps: t('activityRings.stepsUnit', { defaultValue: 'steps' }),
+    points: t('activityRings.pointsUnit', { defaultValue: 'pts' }),
   };
 
   return (

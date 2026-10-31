@@ -104,7 +104,12 @@ describe('appPreferencesStore', () => {
 
       expect(state.activityRingsCardVisible).toBe(false);
       expect(state.activityRingStyle).toBe('apple');
-      expect(state.activityRingCustom).toEqual(['move', 'exercise', 'steps']);
+      expect(state.activityRingCustom).toEqual([
+        'move',
+        'exercise',
+        'steps',
+        'points',
+      ]);
     });
 
     it('adds and removes custom rings without duplicating', () => {
@@ -113,6 +118,7 @@ describe('appPreferencesStore', () => {
       expect(useAppPreferencesStore.getState().activityRingCustom).toEqual([
         'move',
         'exercise',
+        'points',
       ]);
 
       store.setActivityRingCustom('steps', true);
