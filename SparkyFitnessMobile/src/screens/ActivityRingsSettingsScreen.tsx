@@ -74,6 +74,12 @@ const ActivityRingsSettingsScreen: React.FC<
               }),
             },
             {
+              key: 'google',
+              label: t('activityRings.styleGoogle', {
+                defaultValue: 'Points',
+              }),
+            },
+            {
               key: 'custom',
               label: t('activityRings.styleCustom', { defaultValue: 'Custom' }),
             },
@@ -86,6 +92,14 @@ const ActivityRingsSettingsScreen: React.FC<
           <Text className="text-sm text-text-secondary mt-2">
             {t('activityRings.styleAppleDescription', {
               defaultValue: 'Move (calories) and Exercise (minutes) rings.',
+            })}
+          </Text>
+        )}
+
+        {style === 'google' && (
+          <Text className="text-sm text-text-secondary mt-2">
+            {t('activityRings.styleGoogleDescription', {
+              defaultValue: 'Exercise minutes and Active points rings.',
             })}
           </Text>
         )}

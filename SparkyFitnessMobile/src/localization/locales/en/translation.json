@@ -9547,6 +9547,10 @@
     "styleCustom": "Custom",
     "customDescription": "Choose which rings to show.",
     "settingsDescription": "Rings fill toward your daily goals. Move and Exercise use your exercise goals; Steps uses your steps goal.",
-    "styleAppleDescription": "Move (calories) and Exercise (minutes) rings."
+    "styleAppleDescription": "Move (calories) and Exercise (minutes) rings.",
+    "points": "Active points",
+    "pointsUnit": "pts",
+    "styleGoogle": "Points",
+    "styleGoogleDescription": "Exercise minutes and Active points rings."
   }
 }
