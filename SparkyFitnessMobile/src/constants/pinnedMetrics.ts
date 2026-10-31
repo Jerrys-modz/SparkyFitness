@@ -7,6 +7,7 @@
 export const PINNED_METRIC_KEYS = [
   'ring:move',
   'ring:exercise',
+  'ring:stand',
   'ring:steps',
   'ring:points',
   'trend:weight',

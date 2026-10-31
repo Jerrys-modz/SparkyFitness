@@ -6,7 +6,8 @@ import type { ActivityRingKey } from '../constants/activityRings';
  * How each activity ring looks, in one place for the Activity Rings card and the Pinned
  * Metrics card. Colors are the metric tokens (DESIGN.md section 2): watch-measured active
  * energy for Move, Exercise Mint, Sparky Blue for steps, and Heart-Rate Red for Active
- * points, which are derived from heart rate zones.
+ * points, which are derived from heart rate zones, and Category Teal for Stand, which has
+ * no metric token of its own.
  */
 export function useActivityRingLook(): {
   colors: Record<ActivityRingKey, string>;
@@ -14,18 +15,20 @@ export function useActivityRingLook(): {
   trackColor: string;
 } {
   const { t } = useTranslation();
-  const [move, exercise, steps, points, trackColor] = useCSSVariable([
+  const [move, exercise, steps, points, trackColor, stand] = useCSSVariable([
     '--color-active-energy',
     '--color-exercise',
     '--color-accent-primary',
     '--color-heart-rate',
     '--color-progress-track',
-  ]) as [string, string, string, string, string];
+    '--color-cat-teal',
+  ]) as [string, string, string, string, string, string];
   return {
-    colors: { move, exercise, steps, points },
+    colors: { move, exercise, stand, steps, points },
     units: {
       move: t('nutrition.caloriesUnit', { defaultValue: 'Cal' }),
       exercise: t('activityRings.minutesUnit', { defaultValue: 'min' }),
+      stand: t('activityRings.standUnit', { defaultValue: 'hr' }),
       steps: t('activityRings.stepsUnit', { defaultValue: 'steps' }),
       points: t('activityRings.pointsUnit', { defaultValue: 'pts' }),
     },

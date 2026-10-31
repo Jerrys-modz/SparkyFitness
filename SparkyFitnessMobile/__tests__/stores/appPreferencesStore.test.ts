@@ -135,9 +135,19 @@ describe('appPreferencesStore', () => {
       expect(state.activityRingCustom).toEqual([
         'move',
         'exercise',
+        'stand',
         'steps',
         'points',
       ]);
+    });
+
+    it('clamps the stand goal to 1 to 24 hours', () => {
+      const store = useAppPreferencesStore.getState();
+      expect(useAppPreferencesStore.getState().standGoalHours).toBe(12);
+      store.setStandGoalHours(30);
+      expect(useAppPreferencesStore.getState().standGoalHours).toBe(24);
+      store.setStandGoalHours(0);
+      expect(useAppPreferencesStore.getState().standGoalHours).toBe(1);
     });
 
     it('adds and removes custom rings without duplicating', () => {
@@ -146,6 +156,7 @@ describe('appPreferencesStore', () => {
       expect(useAppPreferencesStore.getState().activityRingCustom).toEqual([
         'move',
         'exercise',
+        'stand',
         'points',
       ]);
 

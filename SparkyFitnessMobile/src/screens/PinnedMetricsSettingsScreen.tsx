@@ -4,7 +4,10 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useActiveWorkoutBarPadding } from '../components/ActiveWorkoutBar';
-import { ACTIVITY_RING_LABELS } from '../constants/activityRings';
+import {
+  ACTIVITY_RING_LABELS,
+  STAND_HOURS_SUPPORTED,
+} from '../constants/activityRings';
 import { HEALTH_TREND_LABELS } from '../constants/healthTrends';
 import {
   MAX_PINNED_METRICS,
@@ -49,7 +52,10 @@ const PinnedMetricsSettingsScreen: React.FC<
   const groups = [
     {
       title: t('pinnedMetrics.rings', { defaultValue: 'Rings' }),
-      keys: PINNED_METRIC_KEYS.filter((k) => k.startsWith('ring:')),
+      keys: PINNED_METRIC_KEYS.filter(
+        (k) =>
+          k.startsWith('ring:') && (k !== 'ring:stand' || STAND_HOURS_SUPPORTED)
+      ),
     },
     {
       title: t('pinnedMetrics.trends', { defaultValue: 'Trends' }),

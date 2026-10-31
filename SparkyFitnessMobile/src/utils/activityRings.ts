@@ -2,6 +2,7 @@ import {
   ACTIVITY_RING_KEYS,
   APPLE_STYLE_RINGS,
   GOOGLE_STYLE_RINGS,
+  STAND_HOURS_SUPPORTED,
   type ActivityRingKey,
   type ActivityRingStyle,
 } from '../constants/activityRings';
@@ -16,17 +17,22 @@ export type ActivityRingData = ActivityRingValue & {
 
 /**
  * The rings a style draws. A custom pick is reconciled against the registry (unknown keys
- * dropped, registry order kept) and an empty one falls back to the Apple pair, so the
- * card never renders with nothing in it.
+ * dropped, registry order kept, Stand dropped off iOS) and an empty one falls back to the
+ * Apple set, so the card never renders with nothing in it.
  */
 export function resolveActivityRingKeys(
   style: ActivityRingStyle,
   customKeys: readonly string[]
 ): ActivityRingKey[] {
-  if (style === 'apple') return [...APPLE_STYLE_RINGS];
+  const available = (key: ActivityRingKey): boolean =>
+    key !== 'stand' || STAND_HOURS_SUPPORTED;
+  const apple = APPLE_STYLE_RINGS.filter(available);
+  if (style === 'apple') return [...apple];
   if (style === 'google') return [...GOOGLE_STYLE_RINGS];
-  const picked = ACTIVITY_RING_KEYS.filter((key) => customKeys.includes(key));
-  return picked.length > 0 ? picked : [...APPLE_STYLE_RINGS];
+  const picked = ACTIVITY_RING_KEYS.filter(
+    (key) => customKeys.includes(key) && available(key)
+  );
+  return picked.length > 0 ? picked : [...apple];
 }
 
 /** A ring with no goal reads as empty rather than full: there is nothing to close. */
