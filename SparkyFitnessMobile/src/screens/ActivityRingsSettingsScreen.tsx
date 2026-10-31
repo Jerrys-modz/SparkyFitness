@@ -68,7 +68,7 @@ const ActivityRingsSettingsScreen: React.FC<
         <Text className="text-text-secondary text-sm mb-4">
           {t('activityRings.settingsDescription', {
             defaultValue:
-              'Rings fill toward your daily goals. Move and Exercise use your exercise goals; Steps uses your steps goal.',
+              'Rings fill toward your daily goals. Move and Exercise use your exercise goals, Stand and Active points have their own goals, and Steps uses your steps goal.',
           })}
         </Text>
 

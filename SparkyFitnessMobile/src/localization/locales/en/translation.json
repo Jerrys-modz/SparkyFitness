@@ -9564,7 +9564,7 @@
     "styleApple": "Move",
     "styleCustom": "Custom",
     "customDescription": "Choose which rings to show.",
-    "settingsDescription": "Rings fill toward your daily goals. Move and Exercise use your exercise goals; Steps uses your steps goal.",
+    "settingsDescription": "Rings fill toward your daily goals. Move and Exercise use your exercise goals, Stand and Active points have their own goals, and Steps uses your steps goal.",
     "styleAppleDescription": "Move (calories), Exercise (minutes) and Stand (hours) rings. Stand shows on iPhone only.",
     "points": "Active points",
     "pointsUnit": "pts",
@@ -9583,6 +9583,7 @@
     "rings": "Rings",
     "trends": "Trends",
     "empty": "No metrics pinned. Choose some in Pinned Metrics settings.",
-    "ofGoal": "of {{goal}} {{unit}}"
+    "ofGoal": "of {{goal}} {{unit}}",
+    "limitReached": "You have pinned {{max}} metrics. Unpin one to choose another."
   }
 }
