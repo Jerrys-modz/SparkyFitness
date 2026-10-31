@@ -40,6 +40,7 @@ import HealthTrendTiles from '../components/HealthTrendTiles';
 import type { HealthTrendKey } from '../constants/healthTrends';
 import HydrationGauge from '../components/HydrationGauge';
 import CaffeineCard from '../components/CaffeineCard';
+import { useStandHours } from '../hooks/useStandHours';
 import { useWorkoutHeartRateZones } from '../hooks/useWorkoutHeartRateZones';
 import { useBackgroundWaterSync } from '../hooks/useBackgroundWaterSync';
 import Icon from '../components/Icon';
@@ -509,6 +510,14 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
         'points'
       )) ||
     pinsActivePoints(pinnedMetrics);
+  const showsStand =
+    (activityRingsCardVisible &&
+      resolveActivityRingKeys(activityRingStyle, activityRingCustom).includes(
+        'stand'
+      )) ||
+    pinnedMetrics.some((m) => m.kind === 'ring' && m.key === 'stand');
+  const standGoalHours = useAppPreferencesStore((s) => s.standGoalHours);
+  const standHours = useStandHours(selectedDate, showsStand);
   const dayHeartRateZones = useWorkoutHeartRateZones(
     showsActivePoints
       ? (summary?.exerciseEntries ?? []).flatMap((session) =>
@@ -682,6 +691,10 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
       exercise: {
         current: summary.exerciseMinutes,
         goal: summary.exerciseMinutesGoal,
+      },
+      stand: {
+        current: standHours ?? 0,
+        goal: standGoalHours,
       },
       steps: {
         current: measurements?.steps ?? 0,

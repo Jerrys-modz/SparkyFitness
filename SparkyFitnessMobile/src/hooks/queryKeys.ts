@@ -534,3 +534,6 @@ export const compareQueryKey = (p: CompareParams) =>
 /** One since-a-habit-started answer: the habit, the outcome, the start and the line (null = the server's pick). */
 export const compareSinceQueryKey = (p: CompareSinceParams) =>
   ['compare', 'since', p.a, p.b, p.habitStart, p.line] as const;
+
+/** Hours stood in on a day, read from Apple Health on the device. */
+export const standHoursQueryKey = (day: string) => ['standHours', day] as const;

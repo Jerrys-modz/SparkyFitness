@@ -129,6 +129,7 @@ export const PREFERENCE_DEFAULTS = {
   pinnedMetricsCardVisible: false,
   pinnedMetrics: [...DEFAULT_PINNED_METRICS] as PinnedMetricKey[],
   activityRingStyle: 'apple' as ActivityRingStyle,
+  standGoalHours: 12,
   activityRingCustom: [...ACTIVITY_RING_KEYS] as ActivityRingKey[],
   hydrationCardVisible: true,
   caffeineCardVisible: true,
@@ -230,6 +231,8 @@ export type AppPreferencesData = {
   /** The metrics on the Pinned Metrics card, at most `MAX_PINNED_METRICS`. */
   pinnedMetrics: PinnedMetricKey[];
   activityRingStyle: ActivityRingStyle;
+  /** Hours stood in per day the Stand ring fills toward, 1 to 24. */
+  standGoalHours: number;
   /** The rings drawn in the custom style; an empty list falls back to the Apple pair. */
   activityRingCustom: ActivityRingKey[];
   hydrationCardVisible: boolean;
@@ -388,6 +391,7 @@ export interface AppPreferencesState extends AppPreferencesData {
   setPinnedMetricsCardVisible: (value: boolean) => void;
   setPinnedMetric: (key: PinnedMetricKey, isPinned: boolean) => void;
   setActivityRingStyle: (style: ActivityRingStyle) => void;
+  setStandGoalHours: (hours: number) => void;
   setActivityRingCustom: (key: ActivityRingKey, isShown: boolean) => void;
   setHydrationCardVisible: (value: boolean) => void;
   setCaffeineCardVisible: (value: boolean) => void;
@@ -575,6 +579,8 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
           return { pinnedMetrics: [...without, key] };
         }),
       setActivityRingStyle: (style) => set({ activityRingStyle: style }),
+      setStandGoalHours: (hours) =>
+        set({ standGoalHours: Math.min(24, Math.max(1, Math.round(hours))) }),
       setActivityRingCustom: (key, isShown) =>
         set((state) => ({
           activityRingCustom: withMembership(
@@ -832,6 +838,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         pinnedMetricsCardVisible: state.pinnedMetricsCardVisible,
         pinnedMetrics: state.pinnedMetrics,
         activityRingStyle: state.activityRingStyle,
+        standGoalHours: state.standGoalHours,
         activityRingCustom: state.activityRingCustom,
         hydrationCardVisible: state.hydrationCardVisible,
         caffeineCardVisible: state.caffeineCardVisible,

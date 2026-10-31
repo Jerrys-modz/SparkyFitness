@@ -1,4 +1,7 @@
-import type { ActivityRingKey } from '../constants/activityRings';
+import {
+  STAND_HOURS_SUPPORTED,
+  type ActivityRingKey,
+} from '../constants/activityRings';
 import type { HealthTrendKey } from '../constants/healthTrends';
 import {
   PINNED_METRIC_KEYS,
@@ -11,19 +14,21 @@ export type ResolvedPinnedMetric =
 
 /**
  * The saved pick as drawable metrics, in registry order. Keys the registry no longer
- * knows are dropped, so removing a metric in a later build never breaks the card.
+ * knows are dropped, so removing a metric in a later build never breaks the card, and
+ * Stand is dropped where Apple Health is not available.
  */
 export function resolvePinnedMetrics(
   saved: readonly string[]
 ): ResolvedPinnedMetric[] {
-  return PINNED_METRIC_KEYS.filter((key) => saved.includes(key)).map(
-    (pinned) => {
-      const [kind, key] = pinned.split(':');
-      return kind === 'ring'
-        ? { kind: 'ring', key: key as ActivityRingKey, pinned }
-        : { kind: 'trend', key: key as HealthTrendKey, pinned };
-    }
-  );
+  return PINNED_METRIC_KEYS.filter(
+    (key) =>
+      saved.includes(key) && (key !== 'ring:stand' || STAND_HOURS_SUPPORTED)
+  ).map((pinned) => {
+    const [kind, key] = pinned.split(':');
+    return kind === 'ring'
+      ? { kind: 'ring', key: key as ActivityRingKey, pinned }
+      : { kind: 'trend', key: key as HealthTrendKey, pinned };
+  });
 }
 
 /** The trend graphs the pinned metrics need loaded. */
