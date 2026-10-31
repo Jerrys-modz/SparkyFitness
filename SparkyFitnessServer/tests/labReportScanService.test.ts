@@ -1,0 +1,227 @@
+import { describe, expect, it, vi, beforeEach } from 'vitest';
+
+vi.mock('../models/chatRepository.js', () => ({
+  default: {
+    getActiveAiServiceSetting: vi.fn(),
+    getActiveVisionAiServiceSetting: vi.fn(),
+    getAiServiceSettingForBackend: vi.fn(),
+  },
+}));
+vi.mock('../ai/providerDispatch.js', () => ({ dispatchAiRequest: vi.fn() }));
+vi.mock('../utils/outboundUrlPolicy.js', () => ({
+  resolveAiNetworkPolicy: vi.fn(async () => ({})),
+}));
+vi.mock('../config/logging.js', () => ({ log: vi.fn() }));
+vi.mock('unpdf', () => ({
+  getDocumentProxy: vi.fn(async () => ({})),
+  extractText: vi.fn(),
+}));
+
+import { extractText, getDocumentProxy } from 'unpdf';
+import chatRepository from '../models/chatRepository.js';
+import { dispatchAiRequest } from '../ai/providerDispatch.js';
+import {
+  extractLabReport,
+  matchLabReportResults,
+  normalizeLabReport,
+} from '../services/labReportScanService.js';
+
+const REPORT_TEXT =
+  'Quest Diagnostics. Collected 2026-09-20. Hemoglobin A1c 5.4 % (4.0 - 5.6). LDL Cholesterol 130 mg/dL (<100).';
+
+describe('normalizeLabReport', () => {
+  it('reads loose values and drops lines without a name or a number', () => {
+    const report = normalizeLabReport({
+      lab_name: ' Quest ',
+      collected_on: '2026-09-20',
+      results: [
+        {
+          name: 'Hemoglobin A1c',
+          value: '5.4',
+          unit: '%',
+          ref_low: '4.0',
+          ref_high: 5.6,
+        },
+        { name: 'LDL', value: '1,130', unit: 'mg/dL', ref_high: 100 },
+        { name: 'Glucose', value: 'Negative', unit: null },
+        { value: 3 },
+        { name: 'Blank', value: '   ' },
+      ],
+    });
+
+    expect(report).toEqual({
+      lab_name: 'Quest',
+      collected_on: '2026-09-20',
+      results: [
+        {
+          name: 'Hemoglobin A1c',
+          value: 5.4,
+          unit: '%',
+          ref_low: 4,
+          ref_high: 5.6,
+        },
+        {
+          name: 'LDL',
+          value: 1130,
+          unit: 'mg/dL',
+          ref_low: null,
+          ref_high: 100,
+        },
+      ],
+    });
+  });
+
+  it('discards a reversed range and an invalid date', () => {
+    const report = normalizeLabReport({
+      collected_on: '20/09/2026',
+      results: [
+        { name: 'HDL', value: 55, unit: 'mg/dL', ref_low: 60, ref_high: 40 },
+      ],
+    });
+    expect(report?.collected_on).toBeNull();
+    expect(report?.results[0]).toMatchObject({ ref_low: null, ref_high: null });
+  });
+
+  it('is null when nothing usable was read', () => {
+    expect(normalizeLabReport(null)).toBeNull();
+    expect(normalizeLabReport({ results: [] })).toBeNull();
+  });
+});
+
+describe('matchLabReportResults', () => {
+  it('attaches the preset key for known names and null otherwise', () => {
+    const matched = matchLabReportResults({
+      lab_name: null,
+      collected_on: null,
+      results: [
+        {
+          name: 'Hemoglobin A1c',
+          value: 5.4,
+          unit: '%',
+          ref_low: null,
+          ref_high: null,
+        },
+        {
+          name: 'Mystery Test',
+          value: 1,
+          unit: null,
+          ref_low: null,
+          ref_high: null,
+        },
+      ],
+    });
+    expect(matched.map((r) => r.marker_key)).toEqual(['hba1c', null]);
+  });
+});
+
+describe('extractLabReport', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(chatRepository.getActiveAiServiceSetting).mockResolvedValue({
+      id: 'text-1',
+    } as never);
+    vi.mocked(chatRepository.getActiveVisionAiServiceSetting).mockResolvedValue(
+      {
+        id: 'vision-1',
+      } as never
+    );
+    vi.mocked(chatRepository.getAiServiceSettingForBackend).mockResolvedValue({
+      service_type: 'openai',
+      api_key: 'k',
+    } as never);
+    vi.mocked(dispatchAiRequest).mockResolvedValue({
+      ok: true,
+      json: {
+        results: [{ name: 'HbA1c', value: 5.4, unit: '%' }],
+      },
+    } as never);
+  });
+
+  it('sends a photo to the vision provider as an image', async () => {
+    const result = await extractLabReport('abc', 'image/jpeg', 'u1');
+
+    expect(result).toMatchObject({ success: true });
+    expect(chatRepository.getActiveVisionAiServiceSetting).toHaveBeenCalled();
+    expect(vi.mocked(dispatchAiRequest).mock.calls[0][0].images).toEqual([
+      { base64: 'abc', mimeType: 'image/jpeg' },
+    ]);
+  });
+
+  it('reads a PDF text layer and sends it as text, with no image', async () => {
+    vi.mocked(extractText).mockResolvedValue({
+      totalPages: 1,
+      text: REPORT_TEXT,
+    } as never);
+
+    const result = await extractLabReport('JVBERi0=', 'application/pdf', 'u1');
+
+    expect(result).toMatchObject({ success: true });
+    expect(chatRepository.getActiveAiServiceSetting).toHaveBeenCalled();
+    expect(
+      chatRepository.getActiveVisionAiServiceSetting
+    ).not.toHaveBeenCalled();
+    const request = vi.mocked(dispatchAiRequest).mock.calls[0][0];
+    expect(request.images).toBeUndefined();
+    expect(request.prompt).toContain('Hemoglobin A1c 5.4 %');
+  });
+
+  it('rejects a scanned PDF with no text layer', async () => {
+    vi.mocked(extractText).mockResolvedValue({
+      totalPages: 2,
+      text: '  ',
+    } as never);
+
+    const result = await extractLabReport('JVBERi0=', 'application/pdf', 'u1');
+
+    expect(result).toMatchObject({
+      success: false,
+      category: 'unreadable_pdf',
+    });
+    expect(dispatchAiRequest).not.toHaveBeenCalled();
+  });
+
+  it('rejects a PDF that cannot be opened', async () => {
+    vi.mocked(getDocumentProxy).mockRejectedValueOnce(new Error('bad pdf'));
+
+    const result = await extractLabReport('xxxx', 'application/pdf', 'u1');
+
+    expect(result).toMatchObject({
+      success: false,
+      category: 'unreadable_pdf',
+    });
+  });
+
+  it('rejects an oversized PDF before reading it', async () => {
+    const result = await extractLabReport(
+      'a'.repeat(20_000_001),
+      'application/pdf',
+      'u1'
+    );
+
+    expect(result).toMatchObject({
+      success: false,
+      category: 'document_too_large',
+    });
+    expect(getDocumentProxy).not.toHaveBeenCalled();
+  });
+
+  it('reports no AI configured', async () => {
+    vi.mocked(chatRepository.getActiveVisionAiServiceSetting).mockResolvedValue(
+      null as never
+    );
+    const result = await extractLabReport('abc', 'image/png', 'u1');
+    expect(result).toMatchObject({
+      success: false,
+      category: 'no_ai_configured',
+    });
+  });
+
+  it('turns an unreadable answer into a parse error', async () => {
+    vi.mocked(dispatchAiRequest).mockResolvedValue({
+      ok: true,
+      json: { results: [] },
+    } as never);
+    const result = await extractLabReport('abc', 'image/jpeg', 'u1');
+    expect(result).toMatchObject({ success: false, category: 'parse_error' });
+  });
+});
