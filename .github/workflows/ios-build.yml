@@ -288,6 +288,8 @@ jobs:
       contents: read
     env:
       EXPO_PUBLIC_CI_SCREENSHOT: "1"
+      # Render sample-data scenes of the new Dashboard cards (no server to load from).
+      EXPO_PUBLIC_CI_FIXTURES: "1"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -375,16 +377,17 @@ jobs:
           xcrun simctl spawn "$UDID" log show --last 2m --style compact \
             --predicate 'process == "SparkyFitness" OR eventMessage CONTAINS "SparkyFitness"' \
             > screenshots/app-log.txt 2>&1 || true
-          xcrun simctl io "$UDID" screenshot screenshots/tab-bar-dashboard.png
-          # A second look after the app has settled.
-          sleep 15
-          xcrun simctl io "$UDID" screenshot screenshots/tab-bar-dashboard-settled.png
+          # The fixture screen advances one scene every 15 s; shoot each scene mid-way.
+          for i in 1 2 3 4 5 6 7 8; do
+            xcrun simctl io "$UDID" screenshot "screenshots/scene-$i.png"
+            sleep 15
+          done
           ls -la screenshots
 
       - name: Upload tab bar screenshots
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
-          name: app-tab-bar-screenshots
+          name: app-screenshots
           path: SparkyFitnessMobile/screenshots/*
           if-no-files-found: warn

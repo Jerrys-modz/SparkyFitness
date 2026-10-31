@@ -1,3 +1,4 @@
+import CiFixtureScreens from './src/components/CiFixtureScreens';
 import './global.css'
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { StatusBar, Platform } from 'react-native';
@@ -490,6 +491,9 @@ function AppContent() {
   }), []);
 
   if (!initialRoute) return null;
+
+  // CI screenshot build only: render sample-data scenes instead of the app.
+  if (process.env.EXPO_PUBLIC_CI_FIXTURES === '1') return <CiFixtureScreens />;
 
   return (
     <NavigationContainer
