@@ -783,7 +783,11 @@ const activeEnergyByDay = async (
     );
   }
   for (const [date, kcal] of ring) {
-    byDay.set(date, kcal);
+    // iPhone keeps a summary for every day, so a day spent with only another
+    // brand's tracker has a 0 ring while Health has its calories.
+    if (kcal > 0) {
+      byDay.set(date, kcal);
+    }
   }
   return byDay;
 };

@@ -487,6 +487,23 @@ describe('getAggregatedActiveCaloriesByDate (Move ring)', () => {
     ]);
   });
 
+  test('keeps the statistics sum for a day whose ring is 0', async () => {
+    await initHealthConnect();
+
+    mockQueryStatisticsCollection.mockResolvedValue([
+      sumBucket(localDate(2024, 1, 15), localDate(2024, 1, 16), 500, 'kcal'),
+    ]);
+    mockQueryActivitySummary.mockResolvedValue([ringDay(2024, 1, 15, 0)]);
+
+    const result = await getAggregatedActiveCaloriesByDate(
+      localDate(2024, 1, 15),
+      localDate(2024, 1, 15, 23, 59),
+      true
+    );
+
+    expect(result.map((r) => [r.date, r.value])).toEqual([['2024-01-15', 500]]);
+  });
+
   test('asks for the rings of the same window, never past now', async () => {
     await initHealthConnect();
 
