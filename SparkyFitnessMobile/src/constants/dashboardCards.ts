@@ -2,6 +2,7 @@ import type { TFunction } from 'i18next';
 
 export const DASHBOARD_CARD_KEYS = [
   'calorieRing',
+  'pinnedMetrics',
   'askSparky',
   'macros',
   'exercise',
@@ -27,6 +28,8 @@ export const DASHBOARD_CARD_TITLES: Record<
 > = {
   calorieRing: (t) =>
     t('dashboardSettings.calorieRing', { defaultValue: 'Calorie Summary' }),
+  pinnedMetrics: (t) =>
+    t('dashboardSettings.pinnedMetrics', { defaultValue: 'Pinned Metrics' }),
   askSparky: (t) =>
     t('dashboardSettings.askSparky', { defaultValue: 'Ask Sparky' }),
   macros: (t) => t('dashboardSettings.macros', { defaultValue: 'Nutrients' }),
@@ -67,6 +70,10 @@ export const DASHBOARD_CARD_SUBTITLES: Record<
   calorieRing: (t) =>
     t('dashboardSettings.calorieRingSubtitle', {
       defaultValue: 'Show daily calorie balance and progress ring',
+    }),
+  pinnedMetrics: (t) =>
+    t('dashboardSettings.pinnedMetricsSubtitle', {
+      defaultValue: 'Show up to four metrics you choose as small tiles',
     }),
   askSparky: (t) =>
     t('dashboardSettings.askSparkySubtitle', {

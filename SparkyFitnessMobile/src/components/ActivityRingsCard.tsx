@@ -1,11 +1,8 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, Text, View } from 'react-native';
-import { useCSSVariable } from 'uniwind';
-import {
-  ACTIVITY_RING_LABELS,
-  type ActivityRingKey,
-} from '../constants/activityRings';
+import { ACTIVITY_RING_LABELS } from '../constants/activityRings';
+import { useActivityRingLook } from '../hooks/useActivityRingLook';
 import { formatLocalizedNumber } from '../localization/i18n';
 import type { ActivityRingData } from '../utils/activityRings';
 import Icon from './Icon';
@@ -27,30 +24,8 @@ const ActivityRingsCard: React.FC<ActivityRingsCardProps> = ({
   onPressSettings,
 }) => {
   const { t } = useTranslation();
-  // Metric tokens (DESIGN.md section 2): watch-measured active energy for Move, Exercise
-  // Mint for exercise minutes, and Sparky Blue for steps like the steps trend.
-  // Active points are derived from heart rate zones, so they take Heart-Rate Red.
-  const [moveColor, exerciseColor, stepsColor, trackColor, pointsColor] =
-    useCSSVariable([
-      '--color-active-energy',
-      '--color-exercise',
-      '--color-accent-primary',
-      '--color-progress-track',
-      '--color-heart-rate',
-    ]) as [string, string, string, string, string];
-  const accentColor = stepsColor;
-  const colors: Record<ActivityRingKey, string> = {
-    move: moveColor,
-    exercise: exerciseColor,
-    steps: stepsColor,
-    points: pointsColor,
-  };
-  const units: Record<ActivityRingKey, string> = {
-    move: t('nutrition.caloriesUnit', { defaultValue: 'Cal' }),
-    exercise: t('activityRings.minutesUnit', { defaultValue: 'min' }),
-    steps: t('activityRings.stepsUnit', { defaultValue: 'steps' }),
-    points: t('activityRings.pointsUnit', { defaultValue: 'pts' }),
-  };
+  const { colors, units, trackColor } = useActivityRingLook();
+  const accentColor = colors.steps;
 
   return (
     <View className="bg-surface rounded-xl p-4 mb-3 shadow-sm">

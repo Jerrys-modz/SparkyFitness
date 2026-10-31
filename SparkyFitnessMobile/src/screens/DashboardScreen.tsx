@@ -93,7 +93,16 @@ import {
   buildActivityRings,
   resolveActivityRingKeys,
 } from '../utils/activityRings';
-import { selectTileTrends } from '../utils/healthTrendTiles';
+import {
+  selectTileTrends,
+  summarizeHealthTrend,
+} from '../utils/healthTrendTiles';
+import {
+  pinnedTrendKeys,
+  pinsActivePoints,
+  resolvePinnedMetrics,
+} from '../utils/pinnedMetrics';
+import PinnedMetricsCard from '../components/PinnedMetricsCard';
 import { resolveDashboardCardOrder } from '../utils/dashboardCardPreferences';
 import type { RootStackParamList, TabParamList } from '../types/navigation';
 import { formatDateLabel, getDateRelationToToday } from '../utils/dateUtils';
@@ -318,8 +327,20 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
     [visibleTrends, healthTrendTiles]
   );
   // The trends that need loading depend on the layout: tiles loads only the chosen ones.
-  const loadedTrends =
-    healthTrendsLayout === 'tiles' ? tileTrends : visibleTrends;
+  const pinnedMetricsCardVisible = useAppPreferencesStore(
+    (s) => s.pinnedMetricsCardVisible
+  );
+  const savedPinnedMetrics = useAppPreferencesStore((s) => s.pinnedMetrics);
+  const pinnedMetrics = useMemo(
+    () =>
+      pinnedMetricsCardVisible ? resolvePinnedMetrics(savedPinnedMetrics) : [],
+    [pinnedMetricsCardVisible, savedPinnedMetrics]
+  );
+  // Pinned trends load even when the Health Trends card is not showing them.
+  const loadedTrends = useMemo(() => {
+    const base = healthTrendsLayout === 'tiles' ? tileTrends : visibleTrends;
+    return [...new Set([...base, ...pinnedTrendKeys(pinnedMetrics)])];
+  }, [healthTrendsLayout, tileTrends, visibleTrends, pinnedMetrics]);
   const rangeOf = useCallback(
     (key: HealthTrendKey): HealthTrendDateRange =>
       healthTrendRanges[key] ?? DEFAULT_TREND_RANGE,
@@ -468,10 +489,11 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
   // Active points come from each workout's stored time in heart rate zones, one request
   // per workout with a heart rate, so nothing is fetched unless the ring is on screen.
   const showsActivePoints =
-    activityRingsCardVisible &&
-    resolveActivityRingKeys(activityRingStyle, activityRingCustom).includes(
-      'points'
-    );
+    (activityRingsCardVisible &&
+      resolveActivityRingKeys(activityRingStyle, activityRingCustom).includes(
+        'points'
+      )) ||
+    pinsActivePoints(pinnedMetrics);
   const dayHeartRateZones = useWorkoutHeartRateZones(
     showsActivePoints
       ? (summary?.exerciseEntries ?? []).flatMap((session) =>
@@ -622,6 +644,47 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
     }
 
     const { eaten, burned, remaining, goal, progress } = summary.calorieBalance;
+
+    // The same figures the Exercise card shows, so the cards agree.
+    const ringValues = {
+      move: {
+        current: summary.otherExerciseCalories,
+        goal: summary.exerciseCaloriesGoal,
+      },
+      exercise: {
+        current: summary.exerciseMinutes,
+        goal: summary.exerciseMinutesGoal,
+      },
+      steps: {
+        current: measurements?.steps ?? 0,
+        goal: summary.stepsGoal,
+      },
+      points: {
+        current: activePointsFromZones(dayHeartRateZones),
+        goal: ACTIVE_POINTS_DAILY_GOAL,
+      },
+    };
+    // Built only when something is pinned, so the series are read only when needed.
+    const pinnedTrendInput =
+      pinnedTrendKeys(pinnedMetrics).length > 0
+        ? {
+            steps: trends.steps.data,
+            weight: weightSeries.data,
+            sleep: trends.sleep.data,
+            hydration: trends.hydration.data,
+            calories: trends.calories.data,
+            heartRate: trends.heartRate.data,
+            vo2max: trends.vo2max.data,
+          }
+        : null;
+    const pinnedTrendSummaries = pinnedTrendInput
+      ? Object.fromEntries(
+          pinnedTrendKeys(pinnedMetrics).map((key) => [
+            key,
+            summarizeHealthTrend(key, pinnedTrendInput),
+          ])
+        )
+      : {};
     const showNetCarbs = preferences.show_net_carbs === true;
 
     return (
@@ -856,6 +919,21 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                   }
                 />
               ) : null;
+            case 'pinnedMetrics':
+              return pinnedMetricsCardVisible ? (
+                <PinnedMetricsCard
+                  key="pinnedMetrics"
+                  metrics={pinnedMetrics}
+                  ringValues={ringValues}
+                  trendSummaries={pinnedTrendSummaries}
+                  rangeFor={rangeOf}
+                  weightUnit={weightUnit}
+                  waterUnit={waterDisplayUnit}
+                  onPressSettings={() =>
+                    navigation.navigate('PinnedMetricsSettings')
+                  }
+                />
+              ) : null;
             case 'activityRings':
               return activityRingsCardVisible ? (
                 <ActivityRingsCard
@@ -865,25 +943,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                       activityRingStyle,
                       activityRingCustom
                     ),
-                    {
-                      // The same figures the Exercise card shows, so the two agree.
-                      move: {
-                        current: summary.otherExerciseCalories,
-                        goal: summary.exerciseCaloriesGoal,
-                      },
-                      exercise: {
-                        current: summary.exerciseMinutes,
-                        goal: summary.exerciseMinutesGoal,
-                      },
-                      steps: {
-                        current: measurements?.steps ?? 0,
-                        goal: summary.stepsGoal,
-                      },
-                      points: {
-                        current: activePointsFromZones(dayHeartRateZones),
-                        goal: ACTIVE_POINTS_DAILY_GOAL,
-                      },
-                    }
+                    ringValues
                   )}
                   onPressSettings={() =>
                     navigation.navigate('ActivityRingsSettings')

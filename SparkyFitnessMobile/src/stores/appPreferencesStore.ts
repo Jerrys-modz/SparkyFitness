@@ -35,6 +35,11 @@ import {
   type DashboardCardKey,
 } from '../constants/dashboardCards';
 import {
+  DEFAULT_PINNED_METRICS,
+  MAX_PINNED_METRICS,
+  type PinnedMetricKey,
+} from '../constants/pinnedMetrics';
+import {
   ACTIVITY_RING_KEYS,
   type ActivityRingKey,
   type ActivityRingStyle,
@@ -116,6 +121,9 @@ export const PREFERENCE_DEFAULTS = {
   exerciseCardVisible: true,
   // Opt-in: the rings card is new, so existing dashboards look the same until it is turned on.
   activityRingsCardVisible: false,
+  // Opt-in, like the rings card.
+  pinnedMetricsCardVisible: false,
+  pinnedMetrics: [...DEFAULT_PINNED_METRICS] as PinnedMetricKey[],
   activityRingStyle: 'apple' as ActivityRingStyle,
   activityRingCustom: [...ACTIVITY_RING_KEYS] as ActivityRingKey[],
   hydrationCardVisible: true,
@@ -211,6 +219,9 @@ export type AppPreferencesData = {
   macrosCardVisible: boolean;
   exerciseCardVisible: boolean;
   activityRingsCardVisible: boolean;
+  pinnedMetricsCardVisible: boolean;
+  /** The metrics on the Pinned Metrics card, at most `MAX_PINNED_METRICS`. */
+  pinnedMetrics: PinnedMetricKey[];
   activityRingStyle: ActivityRingStyle;
   /** The rings drawn in the custom style; an empty list falls back to the Apple pair. */
   activityRingCustom: ActivityRingKey[];
@@ -360,6 +371,8 @@ export interface AppPreferencesState extends AppPreferencesData {
   setMacrosCardVisible: (value: boolean) => void;
   setExerciseCardVisible: (value: boolean) => void;
   setActivityRingsCardVisible: (value: boolean) => void;
+  setPinnedMetricsCardVisible: (value: boolean) => void;
+  setPinnedMetric: (key: PinnedMetricKey, isPinned: boolean) => void;
   setActivityRingStyle: (style: ActivityRingStyle) => void;
   setActivityRingCustom: (key: ActivityRingKey, isShown: boolean) => void;
   setHydrationCardVisible: (value: boolean) => void;
@@ -518,6 +531,16 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
       setExerciseCardVisible: (value) => set({ exerciseCardVisible: value }),
       setActivityRingsCardVisible: (value) =>
         set({ activityRingsCardVisible: value }),
+      setPinnedMetricsCardVisible: (value) =>
+        set({ pinnedMetricsCardVisible: value }),
+      setPinnedMetric: (key, isPinned) =>
+        set((state) => {
+          const without = state.pinnedMetrics.filter((k) => k !== key);
+          if (!isPinned) return { pinnedMetrics: without };
+          if (state.pinnedMetrics.includes(key)) return {};
+          if (without.length >= MAX_PINNED_METRICS) return {};
+          return { pinnedMetrics: [...without, key] };
+        }),
       setActivityRingStyle: (style) => set({ activityRingStyle: style }),
       setActivityRingCustom: (key, isShown) =>
         set((state) => ({
@@ -760,6 +783,8 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         macrosCardVisible: state.macrosCardVisible,
         exerciseCardVisible: state.exerciseCardVisible,
         activityRingsCardVisible: state.activityRingsCardVisible,
+        pinnedMetricsCardVisible: state.pinnedMetricsCardVisible,
+        pinnedMetrics: state.pinnedMetrics,
         activityRingStyle: state.activityRingStyle,
         activityRingCustom: state.activityRingCustom,
         hydrationCardVisible: state.hydrationCardVisible,
