@@ -153,6 +153,17 @@ reported separately. This also applies while Adaptive uses its fallback estimate
 If BMR cannot be calculated, the stored manual target and its earn-back behavior
 remain in use.
 
+### Refeed Days and Diet Breaks
+
+A **refeed day** (one day) or a **diet break** (up to 28 days) works out your calorie target with Goal Mode set to **Maintain**: no weekly rate and no percentage deficit is applied, and nothing you saved is changed. When the period ends the deficit resumes by itself. Past days keep the target they were logged against.
+
+How much the target rises depends on where your deficit comes from:
+
+- With the **Adaptive Method**, the break target is your Calculated Adaptive TDEE.
+- With the **Manual Method**, the break target is your saved calorie goal, because the Manual Method applies the deficit on top of it. If you typed in a goal that already has the deficit built in, a break leaves it unchanged. Use a [weekly goal plan](/features/goals) with a higher-calorie preset for those days instead.
+
+Add one with `POST /api/v2/calorie-maintenance-periods` (`kind` is `refeed_day` or `diet_break`, with `start_date` and, for a break, `end_date`); `GET` lists them and `DELETE /:id` removes one. The Device Projection mode does not yet follow them.
+
 ### Count activity calories separately
 
 **Dynamic Goal + Adaptive Method** offers an optional **Count activity calories
