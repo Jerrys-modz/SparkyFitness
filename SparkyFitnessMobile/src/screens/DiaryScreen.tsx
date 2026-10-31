@@ -78,11 +78,7 @@ import type {
   WorkoutPlanTemplate,
 } from '../types/workoutPlans';
 import { isManualSource } from '../utils/customMeasurementsForm';
-import {
-  formatDateLabel,
-  getDateRelationToToday,
-  toLocalDateString,
-} from '../utils/dateUtils';
+import { formatDateLabel, getDateRelationToToday, toLocalDateString } from '../utils/dateUtils';
 import { cardioSessionFromDiaryEntry } from '../utils/cardioSession';
 import {
   getHistoricalMealTypeLabel,
