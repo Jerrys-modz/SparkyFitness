@@ -296,3 +296,5 @@
 "watch.run.cue.checkInMiles" = "%@. %@ miles. Average pace %@ per mile.";
 "watch.run.cue.checkInKmOne" = "%@. %@ kilometer. Average pace %@ per kilometer.";
 "watch.run.cue.checkInKm" = "%@. %@ kilometers. Average pace %@ per kilometer.";
+"watch.checkin.tapToAdjust" = "Tap number to adjust";
+"watch.checkin.turnCrown" = "Turn the crown";

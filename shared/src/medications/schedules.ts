@@ -1,4 +1,4 @@
-import { dayOfWeek, instantToDay } from "../utils/timezone.ts";
+import { dayOfWeek, instantToDay } from '../utils/timezone.ts';
 
 export interface SharedScheduleRule {
   schedule_type_id: string;
@@ -31,7 +31,7 @@ export function isScheduleDueOnDate(
 
   const type = schedule.schedule_type_id;
 
-  if (type === "daily") {
+  if (type === 'daily') {
     return true;
   }
 
@@ -42,19 +42,19 @@ export function isScheduleDueOnDate(
     return schedule.days_of_week.includes(dow);
   }
 
-  if (type === "every_n_days") {
+  if (type === 'every_n_days') {
     if (!schedule.interval_days || schedule.interval_days <= 0) return false;
-    const anchorStr = schedule.start_date || "2020-01-01"; // Fallback anchor if not set
-    const anchorMs = new Date(anchorStr + "T00:00:00Z").getTime();
-    const currentMs = new Date(dateString + "T00:00:00Z").getTime();
+    const anchorStr = schedule.start_date || '2020-01-01'; // Fallback anchor if not set
+    const anchorMs = new Date(anchorStr + 'T00:00:00Z').getTime();
+    const currentMs = new Date(dateString + 'T00:00:00Z').getTime();
     const diffDays = Math.round((currentMs - anchorMs) / (24 * 60 * 60 * 1000));
     if (diffDays < 0) return false;
     return diffDays % schedule.interval_days === 0;
   }
 
-  if (type === "monthly") {
+  if (type === 'monthly') {
     if (!schedule.day_of_month) return false;
-    const parts = dateString.split("-");
+    const parts = dateString.split('-');
     const year = Number(parts[0]);
     const month = Number(parts[1]);
     const day = Number(parts[2]);
@@ -71,14 +71,14 @@ export function isScheduleDueOnDate(
     return false;
   }
 
-  if (type === "cyclic") {
+  if (type === 'cyclic') {
     const onDays = schedule.cycle_on_days || 0;
     const offDays = schedule.cycle_off_days || 0;
     if (onDays <= 0) return false;
     const cyclePeriod = onDays + offDays;
-    const anchorStr = schedule.start_date || "2020-01-01";
-    const anchorMs = new Date(anchorStr + "T00:00:00Z").getTime();
-    const currentMs = new Date(dateString + "T00:00:00Z").getTime();
+    const anchorStr = schedule.start_date || '2020-01-01';
+    const anchorMs = new Date(anchorStr + 'T00:00:00Z').getTime();
+    const currentMs = new Date(dateString + 'T00:00:00Z').getTime();
     const diffDays = Math.round((currentMs - anchorMs) / (24 * 60 * 60 * 1000));
     if (diffDays < 0) return false;
     const positionInCycle = diffDays % cyclePeriod;
@@ -86,12 +86,12 @@ export function isScheduleDueOnDate(
   }
 
   // PRN (as-needed) is handled on-demand, not on a due checklist
-  if (type === "prn") {
+  if (type === 'prn') {
     return false;
   }
 
   // Tapers default to daily behavior unless customized
-  if (type === "taper") {
+  if (type === 'taper') {
     return true;
   }
 
@@ -114,7 +114,7 @@ export interface SharedMedication {
 export function getDueDosesForDate<M extends SharedMedication>(
   medications: M[],
   dateString: string,
-  tz: string,
+  tz: string
 ): Array<{
   medication: M;
   schedule: SharedScheduleRule & { id: string };
@@ -127,7 +127,7 @@ export function getDueDosesForDate<M extends SharedMedication>(
     if (!med.is_active) continue;
     if (!med.schedules || med.schedules.length === 0) continue;
     for (const sched of med.schedules) {
-      if (sched.schedule_type_id === "prn") {
+      if (sched.schedule_type_id === 'prn') {
         // PRN is logged on demand, not scheduled on due list
         continue;
       }
@@ -179,7 +179,7 @@ export interface ExtraDoseInput {
  */
 export function areExtraDosesValid(extras: ExtraDoseInput[]): boolean {
   return extras.every((extra) => {
-    if (extra.dose.trim() === "") return true;
+    if (extra.dose.trim() === '') return true;
     const dose = Number(extra.dose);
     return Number.isFinite(dose) && dose > 0;
   });
@@ -198,21 +198,21 @@ export function buildExtraDoseSchedules<
   return extras.map((extra) => ({
     ...base,
     time_of_day: extra.time || null,
-    dose_amount: extra.dose.trim() === "" ? null : Number(extra.dose),
+    dose_amount: extra.dose.trim() === '' ? null : Number(extra.dose),
   }));
 }
 
 /** Common prescription frequencies and the clock times they usually map to. */
 export const DOSE_FREQUENCY_PRESETS = [
-  { id: "qd", times: ["09:00"] },
-  { id: "qhs", times: ["21:00"] },
-  { id: "bid", times: ["09:00", "21:00"] },
-  { id: "tid", times: ["09:00", "15:00", "21:00"] },
-  { id: "qid", times: ["09:00", "13:00", "17:00", "21:00"] },
+  { id: 'qd', times: ['09:00'] },
+  { id: 'qhs', times: ['21:00'] },
+  { id: 'bid', times: ['09:00', '21:00'] },
+  { id: 'tid', times: ['09:00', '15:00', '21:00'] },
+  { id: 'qid', times: ['09:00', '13:00', '17:00', '21:00'] },
 ] as const;
 
 export type DoseFrequencyPresetId =
-  (typeof DOSE_FREQUENCY_PRESETS)[number]["id"];
+  (typeof DOSE_FREQUENCY_PRESETS)[number]['id'];
 
 /** Splits a preset into the first dose's time and the extra doses that follow it. */
 export function applyDoseFrequencyPreset(id: DoseFrequencyPresetId): {
@@ -220,9 +220,9 @@ export function applyDoseFrequencyPreset(id: DoseFrequencyPresetId): {
   extras: ExtraDoseInput[];
 } {
   const preset = DOSE_FREQUENCY_PRESETS.find((p) => p.id === id);
-  const [first = "09:00", ...rest] = preset?.times ?? [];
+  const [first = '09:00', ...rest] = preset?.times ?? [];
   return {
     time: first,
-    extras: rest.map((time) => ({ time, dose: "" })),
+    extras: rest.map((time) => ({ time, dose: '' })),
   };
 }

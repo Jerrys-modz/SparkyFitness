@@ -440,6 +440,12 @@ export interface WatchContextPayload {
   sleep?: WatchSleepSnapshotPayload | null;
   /** Today's exercise summary for the watch's Exercise tile. */
   exerciseSummary?: WatchExerciseSummaryPayload | null;
+  /**
+   * The profile's target weight in kg, drawn as a goal line on the weight trend.
+   * 0 means none: a null is stripped before the transfer, so "cleared" could not
+   * be told from "not sent" and the watch would keep a goal the user removed.
+   */
+  goalWeightKg?: number;
 }
 
 /** One target set the watch shows for a planned exercise. */
