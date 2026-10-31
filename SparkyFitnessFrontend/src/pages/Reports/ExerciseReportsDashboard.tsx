@@ -8,27 +8,12 @@ import {
   useTrainingConsistency,
   useFitnessFatigue,
   useRunEstimates,
+  useStrengthVolume,
   useWorkoutDays,
 } from '@/hooks/Reports/useReports';
 import TrainingConsistencyCard from './TrainingConsistencyCard';
 import FitnessFatigueCard from './FitnessFatigueCard';
 import RunEstimatesCard from './RunEstimatesCard';
-import MuscleGroupRecoveryTracker from './MuscleGroupRecoveryTracker';
-import { PrProgressionChart } from './PrProgressionChart';
-import ExerciseVarietyScore from './ExerciseVarietyScore';
-import SetPerformanceAnalysisChart from './SetPerformanceAnalysisChart';
-import { usePreferences } from '@/contexts/PreferencesContext';
-import { useActiveUser } from '@/contexts/ActiveUserContext';
-import { parseISO } from 'date-fns';
-import { useExerciseProgressQueries } from '@/hooks/Exercises/useExercises';
-import {
-  useAvailableEquipment,
-  useAvailableExercises,
-  useAvailableMuscleGroups,
-  useStrengthVolume,
-  useWorkoutDays,
-} from '@/hooks/Reports/useReports';
-import TrainingConsistencyCard from './TrainingConsistencyCard';
 import StrengthVolumeCard from './StrengthVolumeCard';
 import MuscleGroupRecoveryTracker from './MuscleGroupRecoveryTracker';
 import { PrProgressionChart } from './PrProgressionChart';

@@ -37,6 +37,9 @@ jest.mock('../../src/services/stepDistance', () => ({
 jest.mock('../../src/services/watchIndoorScale', () => ({
   learnWatchIndoorScale: jest.fn(() => Promise.resolve()),
 }));
+jest.mock('../../src/services/stepDistance', () => ({
+  learnFromWatchRun: jest.fn(() => Promise.resolve(true)),
+}));
 jest.mock('../../src/hooks/usePersonalRecords', () => ({
   usePersonalRecords: jest.fn(() => ({ records: [] })),
 }));
