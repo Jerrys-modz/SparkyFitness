@@ -3,56 +3,17 @@ import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, View } from 'react-native';
 import PagerView from 'react-native-pager-view';
 import type { HealthTrendKey } from '../constants/healthTrends';
-import type {
-  CaloriesTrendSeries,
-  HeartRateTrendSeries,
-  SleepTrendSeries,
-} from '../hooks/useHealthTrends';
-import type {
-  StepsDataPoint,
-  WeightDataPoint,
-} from '../hooks/useMeasurementsRange';
-import type {
-  HealthTrendDateRange,
-  HealthTrendSeries,
-  HydrationDataPoint,
-  Vo2MaxDataPoint,
-} from '../types/healthTrends';
-import CaloriesBarChart from './CaloriesBarChart';
-import HydrationBarChart from './HydrationBarChart';
-import SleepTimelineChart from './SleepTimelineChart';
-import StepsBarChart from './StepsBarChart';
-import Vo2MaxLineChart from './Vo2MaxLineChart';
-import WeightLineChart from './WeightLineChart';
-import HeartRateLineChart from './HeartRateLineChart';
+import HealthTrendChart, {
+  trendHasData,
+  type HealthTrendsData,
+} from './HealthTrendChart';
 
-type HealthTrendsPagerProps = {
-  steps: HealthTrendSeries<StepsDataPoint> & {
-    stepsGoals?: (number | null)[];
-  };
-  weight: HealthTrendSeries<WeightDataPoint>;
-  sleep: SleepTrendSeries;
-  hydration: HealthTrendSeries<HydrationDataPoint>;
-  calories: CaloriesTrendSeries;
-  heartRate?: HeartRateTrendSeries;
-  /** Optional so a caller that predates the trend still renders; absent reads as no data. */
-  vo2max?: HealthTrendSeries<Vo2MaxDataPoint>;
-  range: HealthTrendDateRange;
-  weightUnit: string;
-  waterUnit: string;
-  /** The live target weight. `target_weight` has no per-day history anywhere in the
-   * schema (a single scalar profile field), so this stays a flat line across the whole
-   * window by necessity -- there is nothing to step between. */
-  weightGoal?: number | null;
-  /** The resolved hydration goal for each day in the window, same order as
-   * `hydration.data`, stepping to a new value on the day it actually changed. */
-  hydrationGoals?: (number | null)[];
-  /** The resolved calorie goal for each day in the window, same order as
-   * `calories.data`, stepping to a new value on the day it actually changed. */
-  calorieGoals?: (number | null)[];
+type HealthTrendsPagerProps = HealthTrendsData & {
   visibleTrends: readonly HealthTrendKey[];
   activePage: number;
   onPageSelected: (page: number) => void;
+  /** Called with the trend now on screen, so the Dashboard can show that trend's range. */
+  onActiveTrendChange?: (key: HealthTrendKey | null) => void;
 };
 
 type HealthTrendPage = {
@@ -67,95 +28,17 @@ type HealthTrendPage = {
  */
 const PAGER_HEIGHT = 350;
 
-const shouldShowTrend = <TPoint,>(series: HealthTrendSeries<TPoint>): boolean =>
-  series.isLoading || series.isError || series.data.length > 0;
-
-const NO_VO2MAX: HealthTrendSeries<Vo2MaxDataPoint> = {
-  data: [],
-  isLoading: false,
-  isError: false,
-};
-
-const NO_HEART_RATE: HeartRateTrendSeries = {
-  data: [],
-  isLoading: false,
-  isError: false,
-  averageRestingHr: null,
-  minRestingHr: null,
-  maxRestingHr: null,
-};
-
 const HealthTrendsPager: React.FC<HealthTrendsPagerProps> = ({
-  steps,
-  weight,
-  sleep,
-  hydration,
-  calories,
-  heartRate = NO_HEART_RATE,
-  vo2max = NO_VO2MAX,
-  range,
-  weightUnit,
-  waterUnit,
-  weightGoal,
-  hydrationGoals,
-  calorieGoals,
   visibleTrends,
   activePage,
   onPageSelected,
+  onActiveTrendChange,
+  ...data
 }) => {
   const { t } = useTranslation();
 
-  const renderTrend: Record<HealthTrendKey, () => React.ReactElement> = {
-    steps: () => <StepsBarChart {...steps} range={range} />,
-    weight: () => (
-      <WeightLineChart
-        {...weight}
-        range={range}
-        unit={weightUnit}
-        goal={weightGoal}
-      />
-    ),
-    sleep: () => <SleepTimelineChart {...sleep} range={range} />,
-    hydration: () => (
-      <HydrationBarChart
-        {...hydration}
-        range={range}
-        unit={waterUnit}
-        goals={hydrationGoals}
-      />
-    ),
-    calories: () => (
-      <CaloriesBarChart {...calories} range={range} goals={calorieGoals} />
-    ),
-    heartRate: () => <HeartRateLineChart {...heartRate} range={range} />,
-    vo2max: () => <Vo2MaxLineChart {...vo2max} range={range} />,
-  };
-
-  const hasTrendData: Record<HealthTrendKey, () => boolean> = {
-    steps: () => shouldShowTrend(steps),
-    weight: () => shouldShowTrend(weight),
-    // Sleep cannot use `shouldShowTrend`: its `data` is padded to one entry per day in the
-    // window, so it is never empty and the page would show for users with no sleep at all.
-    sleep: () => sleep.isLoading || sleep.isError || sleep.nightsWithData > 0,
-    // Hydration cannot use `shouldShowTrend` either: `useHydrationRange` zero-fills every
-    // day in the window, so `data` is never empty and the page would show for users who
-    // have never logged water. A day of zero is real data; a window of them is not.
-    hydration: () =>
-      hydration.isLoading ||
-      hydration.isError ||
-      hydration.data.some((point) => point.milliliters > 0),
-    // Same reasoning as hydration: `useCaloriesRange` zero-fills every day too.
-    calories: () =>
-      calories.isLoading ||
-      calories.isError ||
-      calories.data.some((point) => point.calories > 0),
-    // Wearable-synced metrics wait for readings so users without them see no empty error card
-    heartRate: () => heartRate.isLoading || heartRate.data.length > 0,
-    vo2max: () => vo2max.data.length > 0,
-  };
-
   // A trend the user configured to show but that has no data for in this window still hides itself
-  const keysWithData = visibleTrends.filter((key) => hasTrendData[key]());
+  const keysWithData = visibleTrends.filter((key) => trendHasData(key, data));
   // VO2 max and heart rate wait for readings, so an empty one is never the fallback page.
   const keysToRender =
     keysWithData.length > 0
@@ -166,7 +49,7 @@ const HealthTrendsPager: React.FC<HealthTrendsPagerProps> = ({
 
   const pages: HealthTrendPage[] = keysToRender.map((key) => ({
     key,
-    content: renderTrend[key](),
+    content: <HealthTrendChart {...data} trendKey={key} />,
   }));
 
   const pagerRef = useRef<PagerView>(null);
@@ -180,6 +63,10 @@ const HealthTrendsPager: React.FC<HealthTrendsPagerProps> = ({
 
   // Clamp so the active dot stays in range when a page disappears
   const clampedPage = Math.min(activePage, pages.length - 1);
+  const activeTrendKey = pages[clampedPage]?.key ?? null;
+  useEffect(() => {
+    onActiveTrendChange?.(activeTrendKey);
+  }, [activeTrendKey, onActiveTrendChange]);
 
   const pageKeySignature = pages.map((page) => page.key).join('|');
   const pageKeySignatureRef = useRef(pageKeySignature);

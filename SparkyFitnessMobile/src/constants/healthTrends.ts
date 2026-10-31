@@ -20,6 +20,11 @@ export const HEALTH_TREND_KEYS = [
 
 export type HealthTrendKey = (typeof HEALTH_TREND_KEYS)[number];
 
+/** How many graphs the tiles layout can show at once. */
+export const MAX_HEALTH_TREND_TILES = 4;
+
+export type HealthTrendsLayout = 'pager' | 'tiles';
+
 type Translator = (key: string, options: { defaultValue: string }) => string;
 
 /**
