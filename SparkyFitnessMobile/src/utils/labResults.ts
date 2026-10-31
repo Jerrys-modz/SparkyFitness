@@ -1,0 +1,235 @@
+import {
+  LAB_MARKER_PRESETS,
+  labPresetRange,
+  labRangeStatus,
+  type LabMarkerPreset,
+  type LabMarkerResponse,
+  type LabRangeStatus,
+  type LabResultResponse,
+  type LabSex,
+} from '@workspace/shared';
+
+/** Localized names of the built-in markers, keyed by preset key. */
+export type LabMarkerLabels = Record<string, string>;
+
+/**
+ * A marker as the screens show it: a built-in preset that has results, or one
+ * of the user's own markers. `id` is `builtin:<key>` or `custom:<uuid>`; it
+ * keys the query caches and list rows.
+ */
+export interface LabMarker {
+  id: string;
+  markerKey: string | null;
+  markerId: string | null;
+  name: string;
+  unit: string;
+  /** The range to judge a result by when it was saved without its own. */
+  ref_range_low: number | null;
+  ref_range_high: number | null;
+  latest: LabResultResponse | null;
+}
+
+export const builtinMarkerId = (key: string) => `builtin:${key}`;
+export const customMarkerId = (id: string) => `custom:${id}`;
+
+/** The query for a marker id (`builtin:<key>` or `custom:<uuid>`), or null if it is neither. */
+export const labMarkerQueryFromId = (
+  id: string
+): { markerKey: string } | { markerId: string } | null => {
+  if (id.startsWith('builtin:')) return { markerKey: id.slice(8) };
+  if (id.startsWith('custom:')) return { markerId: id.slice(7) };
+  return null;
+};
+
+const presetByKey = (key: string): LabMarkerPreset | undefined =>
+  LAB_MARKER_PRESETS.find((p) => p.key === key);
+
+/** The localized name of a built-in preset. */
+export const labPresetName = (
+  preset: LabMarkerPreset,
+  labels: LabMarkerLabels = {}
+): string => labels[preset.key] ?? preset.displayName;
+
+/** Parses a typed lab value; accepts a decimal comma. Null when not a number. */
+export const parseLabValue = (text: string): number | null => {
+  const trimmed = text.trim().replace(',', '.');
+  if (trimmed === '') return null;
+  const value = Number(trimmed);
+  return Number.isFinite(value) && value >= 0 ? value : null;
+};
+
+/** Parses an optional range bound: empty is "no bound", junk is invalid. */
+export const parseRangeBound = (
+  text: string
+): { ok: true; value: number | null } | { ok: false } => {
+  if (text.trim() === '') return { ok: true, value: null };
+  const value = parseLabValue(text);
+  return value === null ? { ok: false } : { ok: true, value };
+};
+
+type Range = {
+  ref_range_low: number | null;
+  ref_range_high: number | null;
+};
+
+/**
+ * A result is judged by the range printed with it. A result saved without
+ * either bound falls back to the marker's range, so it still gets a status.
+ */
+export const labResultStatus = (
+  result: Pick<LabResultResponse, 'value_numeric'> & Range,
+  fallback: Range
+): LabRangeStatus => {
+  if (result.value_numeric === null) return 'unknown';
+  const own = result.ref_range_low !== null || result.ref_range_high !== null;
+  const range = own ? result : fallback;
+  return labRangeStatus(
+    result.value_numeric,
+    range.ref_range_low,
+    range.ref_range_high
+  );
+};
+
+/** "4 - 5.6 %", "< 200 mg/dL", "> 40 mg/dL", or null with no range. */
+export const formatLabRange = (
+  low: number | null | undefined,
+  high: number | null | undefined,
+  unit: string
+): string | null => {
+  const suffix = unit ? ` ${unit}` : '';
+  if (low != null && high != null) return `${low} - ${high}${suffix}`;
+  if (high != null) return `< ${high}${suffix}`;
+  if (low != null) return `> ${low}${suffix}`;
+  return null;
+};
+
+export const formatLabValue = (value: number, unit: string): string =>
+  unit ? `${value} ${unit}` : String(value);
+
+/** The value to show for a result: the number with its unit, else the text. */
+export const labResultText = (result: LabResultResponse): string =>
+  result.value_numeric !== null
+    ? formatLabValue(result.value_numeric, result.unit)
+    : (result.value_text ?? '');
+
+export type LabHistoryPoint = {
+  day: string;
+  value: number;
+};
+
+/** Numeric results as chart points, oldest first; text-only results are dropped. */
+export const labHistoryPoints = (
+  results: LabResultResponse[]
+): LabHistoryPoint[] =>
+  results
+    .filter((r) => r.value_numeric !== null)
+    .map((r) => ({ day: r.entry_date, value: r.value_numeric as number }))
+    .sort((a, b) => a.day.localeCompare(b.day));
+
+/** Profile gender as a lab sex; anything else (unset, other) is unknown. */
+export const labSexFromGender = (
+  gender: string | null | undefined
+): LabSex | null => (gender === 'male' || gender === 'female' ? gender : null);
+
+/**
+ * The markers to list: one per built-in preset that has a result, and every
+ * custom marker (with or without results), newest result first.
+ */
+export const buildLabMarkers = (
+  customMarkers: LabMarkerResponse[],
+  latestResults: LabResultResponse[],
+  labels: LabMarkerLabels = {},
+  sex: LabSex | null = null
+): LabMarker[] => {
+  const markers: LabMarker[] = [];
+
+  for (const result of latestResults) {
+    if (result.marker_key === null) continue;
+    const preset = presetByKey(result.marker_key);
+    if (!preset) continue;
+    const range = labPresetRange(preset, sex);
+    markers.push({
+      id: builtinMarkerId(preset.key),
+      markerKey: preset.key,
+      markerId: null,
+      name: labPresetName(preset, labels),
+      unit: result.unit || preset.unit,
+      ref_range_low: range.low,
+      ref_range_high: range.high,
+      latest: result,
+    });
+  }
+
+  for (const custom of customMarkers) {
+    const latest =
+      latestResults.find((r) => r.custom_marker_id === custom.id) ?? null;
+    markers.push({
+      id: customMarkerId(custom.id),
+      markerKey: null,
+      markerId: custom.id,
+      name: custom.name,
+      unit: latest?.unit || custom.unit,
+      ref_range_low: custom.ref_range_low,
+      ref_range_high: custom.ref_range_high,
+      latest,
+    });
+  }
+
+  return markers.sort((a, b) => {
+    const byDate = (b.latest?.entry_date ?? '').localeCompare(
+      a.latest?.entry_date ?? ''
+    );
+    return byDate !== 0 ? byDate : a.name.localeCompare(b.name);
+  });
+};
+
+/** One row of the marker picker: a built-in preset or one of the user's own. */
+export type LabPickerOption =
+  | { kind: 'preset'; preset: LabMarkerPreset }
+  | { kind: 'custom'; marker: LabMarker };
+
+/**
+ * Picker contents for a search string: the user's own markers first, then the
+ * built-in presets. Presets match on their localized name, English name and
+ * aliases.
+ */
+export const buildLabPickerOptions = (
+  markers: LabMarker[],
+  query: string,
+  labels: LabMarkerLabels = {}
+): LabPickerOption[] => {
+  const needle = query.trim().toLowerCase();
+  const matches = (text: string) =>
+    needle === '' || text.toLowerCase().includes(needle);
+
+  const custom = markers
+    .filter((m) => m.markerId !== null && matches(m.name))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  const presets = LAB_MARKER_PRESETS.filter(
+    (p) =>
+      matches(labPresetName(p, labels)) ||
+      matches(p.displayName) ||
+      p.aliases.some((alias) => matches(alias))
+  ).sort((a, b) =>
+    labPresetName(a, labels).localeCompare(labPresetName(b, labels))
+  );
+
+  return [
+    ...custom.map((marker) => ({ kind: 'custom' as const, marker })),
+    ...presets.map((preset) => ({ kind: 'preset' as const, preset })),
+  ];
+};
+
+/** The unit and range a new result for a preset starts from. */
+export const labPresetDefaults = (
+  preset: LabMarkerPreset,
+  sex: LabSex | null = null
+) => {
+  const range = labPresetRange(preset, sex);
+  return {
+    unit: preset.unit,
+    ref_range_low: range.low,
+    ref_range_high: range.high,
+  };
+};
