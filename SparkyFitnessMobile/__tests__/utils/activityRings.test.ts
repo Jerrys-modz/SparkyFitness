@@ -5,10 +5,11 @@ import {
 } from '../../src/utils/activityRings';
 
 describe('resolveActivityRingKeys', () => {
-  it('draws Move and Exercise for the apple style whatever was picked', () => {
+  it('draws Move, Exercise and Stand for the apple style whatever was picked', () => {
     expect(resolveActivityRingKeys('apple', ['steps'])).toEqual([
       'move',
       'exercise',
+      'stand',
     ]);
   });
 
@@ -19,7 +20,11 @@ describe('resolveActivityRingKeys', () => {
   });
 
   it('falls back to the apple pair when a custom pick is empty', () => {
-    expect(resolveActivityRingKeys('custom', [])).toEqual(['move', 'exercise']);
+    expect(resolveActivityRingKeys('custom', [])).toEqual([
+      'move',
+      'exercise',
+      'stand',
+    ]);
   });
 });
 
@@ -27,6 +32,7 @@ describe('buildActivityRings', () => {
   const values = {
     move: { current: 250, goal: 500 },
     exercise: { current: 45, goal: 30 },
+    stand: { current: 7, goal: 12 },
     steps: { current: 3000, goal: 0 },
     points: { current: 0, goal: 22 },
   };

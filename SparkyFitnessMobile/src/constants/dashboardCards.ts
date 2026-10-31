@@ -89,7 +89,7 @@ export const DASHBOARD_CARD_SUBTITLES: Record<
     }),
   activityRings: (t) =>
     t('dashboardSettings.activityRingsSubtitle', {
-      defaultValue: 'Show Move, Exercise and Steps rings for the day',
+      defaultValue: 'Show Move, Exercise, Stand and Steps rings for the day',
     }),
   trainingLoad: (t) =>
     t('dashboardSettings.trainingLoadSubtitle', {
