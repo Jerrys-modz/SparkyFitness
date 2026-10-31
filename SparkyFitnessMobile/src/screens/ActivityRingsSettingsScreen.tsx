@@ -62,7 +62,7 @@ const ActivityRingsSettingsScreen: React.FC<
           })}
         </Text>
 
-        <Text className="text-text-primary font-semibold mb-2">
+        <Text className="text-text-primary text-lg font-semibold mb-2">
           {t('activityRings.style', { defaultValue: 'Style' })}
         </Text>
         <SegmentedControl
@@ -70,7 +70,7 @@ const ActivityRingsSettingsScreen: React.FC<
             {
               key: 'apple',
               label: t('activityRings.styleApple', {
-                defaultValue: 'Move & Exercise',
+                defaultValue: 'Move',
               }),
             },
             {
@@ -87,6 +87,14 @@ const ActivityRingsSettingsScreen: React.FC<
           activeKey={style}
           onSelect={setStyle}
         />
+
+        {style === 'apple' && (
+          <Text className="text-sm text-text-secondary mt-2">
+            {t('activityRings.styleAppleDescription', {
+              defaultValue: 'Move (calories) and Exercise (minutes) rings.',
+            })}
+          </Text>
+        )}
 
         {style === 'custom' && (
           <View className="mt-4">
@@ -114,13 +122,13 @@ const ActivityRingsSettingsScreen: React.FC<
                     className={`px-3 py-2 mr-2 mb-2 rounded-full border ${
                       isShown
                         ? 'bg-accent-primary border-accent-primary'
-                        : 'border-border'
+                        : 'bg-raised border-border-subtle'
                     } ${isLast ? 'opacity-70' : ''}`}
                   >
                     <Text
-                      className={
-                        isShown ? 'text-white font-medium' : 'text-text-primary'
-                      }
+                      className={`text-sm font-medium ${
+                        isShown ? 'text-white' : 'text-text-primary'
+                      }`}
                     >
                       {ACTIVITY_RING_LABELS[key](t)}
                     </Text>

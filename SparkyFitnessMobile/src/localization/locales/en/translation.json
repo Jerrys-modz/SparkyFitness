@@ -992,7 +992,8 @@
     "logDrinkFailed": "Could not log that drink",
     "exerciseStatistics": "Statistics",
     "reportsLink": "Reports",
-    "activityRings": "Activity Rings"
+    "activityRings": "Activity Rings",
+    "activityRingsSettings": "Settings"
   },
   "syncScreen": {
     "healthConnectSettings": "Health Connect settings",
@@ -10366,12 +10367,13 @@
     "minutesUnit": "min",
     "stepsUnit": "steps",
     "style": "Style",
-    "styleApple": "Move & Exercise",
+    "styleApple": "Move",
     "styleCustom": "Custom",
     "customDescription": "Choose which rings to show.",
     "settingsDescription": "Rings fill toward your daily goals. Move and Exercise use your exercise goals; Steps uses your steps goal.",
     "points": "Active points",
     "pointsUnit": "pts",
-    "styleGoogle": "Minutes & Points"
+    "styleGoogle": "Minutes & Points",
+    "styleAppleDescription": "Move (calories) and Exercise (minutes) rings."
   }
 }
