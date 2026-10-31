@@ -43,6 +43,7 @@ import {
   SafeFoodsLibrary,
   SafeMealsLibrary,
   SafeMealPlans,
+  SafeLabReportImport,
   SafeLabResultAdd,
   SafeLabResultDetail,
   SafeLabResults,
@@ -683,6 +684,15 @@ function AppContent() {
             name="LabResultAdd"
             component={SafeLabResultAdd}
             options={createStackScreenOptions(t('screens.labResultAdd', { defaultValue: 'Add lab result' }), {
+              presentation: 'modal',
+              headerBackButtonDisplayMode: 'minimal',
+              ...(Platform.OS === 'android' ? androidModalAnimation : {}),
+            })}
+          />
+          <Stack.Screen
+            name="LabReportImport"
+            component={SafeLabReportImport}
+            options={createStackScreenOptions(t('screens.labReportImport', { defaultValue: 'Import report' }), {
               presentation: 'modal',
               headerBackButtonDisplayMode: 'minimal',
               ...(Platform.OS === 'android' ? androidModalAnimation : {}),
