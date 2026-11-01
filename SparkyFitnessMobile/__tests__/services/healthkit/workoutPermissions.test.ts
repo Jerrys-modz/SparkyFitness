@@ -22,6 +22,12 @@ import {
 } from '../../../src/services/healthkit/index';
 import { requestAuthorization } from '@kingstinct/react-native-healthkit';
 import { HEALTH_METRICS } from '../../../src/HealthMetrics';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// The one-time ask for the workout effort and route is remembered in storage.
+beforeEach(async () => {
+  await AsyncStorage.clear();
+});
 
 // requestHealthPermissions short-circuits until availability has been probed.
 beforeAll(async () => {

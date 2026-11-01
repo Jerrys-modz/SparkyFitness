@@ -31,6 +31,12 @@ import {
 } from '@kingstinct/react-native-healthkit';
 
 const statusMock = getRequestStatusForAuthorization as jest.Mock;
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// The one-time ask for the workout effort and route is remembered in storage.
+beforeEach(async () => {
+  await AsyncStorage.clear();
+});
 const nutrition = [
   { accessType: 'read', recordType: 'Nutrition' },
 ] as Parameters<typeof hasUnrequestedHealthPermissions>[0];
@@ -130,5 +136,27 @@ describe('hasUnrequestedHealthPermissions', () => {
   it('does not check when nothing is enabled', async () => {
     await expect(hasUnrequestedHealthPermissions([])).resolves.toBe(false);
     expect(statusMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('workout effort and route in the sheet', () => {
+  // Health never records these two as asked, so listing them each time dragged
+  // them into the sheet whenever any other type was new.
+  it('asks for them once, then leaves them out of later requests', async () => {
+    const exerciseSessions = [
+      { accessType: 'read', recordType: 'ExerciseSession' },
+    ] as Parameters<typeof requestHealthPermissions>[0];
+    const effort = 'HKQuantityTypeIdentifierWorkoutEffortScore';
+    (requestAuthorization as jest.Mock).mockClear();
+
+    await requestHealthPermissions(exerciseSessions);
+    await requestHealthPermissions(exerciseSessions);
+
+    const [first, second] = (requestAuthorization as jest.Mock).mock.calls;
+    expect(first[0].toRead).toContain(effort);
+    expect(first[0].toRead).toContain('HKWorkoutRouteTypeIdentifier');
+    expect(second[0].toRead).not.toContain(effort);
+    expect(second[0].toRead).not.toContain('HKWorkoutRouteTypeIdentifier');
+    expect(second[0].toRead).toContain('HKWorkoutTypeIdentifier');
   });
 });

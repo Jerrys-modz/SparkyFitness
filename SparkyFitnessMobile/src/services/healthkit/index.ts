@@ -32,6 +32,7 @@ import {
   toLocalDateString,
   mapDayStatisticsToMinMaxAvg,
 } from './dataAggregation';
+import { loadHealthPreference, saveHealthPreference } from './preferences';
 import { overnightBodyTemperatures } from './overnightBodyTemperature';
 import { BLOOD_GLUCOSE_MG_DL_PER_MMOL_L } from '../shared/dataTransformation';
 import {
@@ -446,6 +447,12 @@ const healthKitAuthorizationTypes = (
   return { toRead, toShare };
 };
 
+const WORKOUT_EXTRAS: readonly string[] = [
+  WORKOUT_EFFORT_IDENTIFIER,
+  'HKWorkoutRouteTypeIdentifier',
+];
+const WORKOUT_EXTRAS_ASKED_KEY = 'workoutExtrasAsked';
+
 /**
  * Whether any of these permissions includes a HealthKit type the user has never been
  * asked about, e.g. one added to a metric in an app update. HealthKit only shows the
@@ -465,9 +472,7 @@ export const hasUnrequestedHealthPermissions = async (
   // They are still asked for with the rest whenever something else is
   // genuinely new.
   const toRead = allToRead.filter(
-    (identifier) =>
-      identifier !== WORKOUT_EFFORT_IDENTIFIER &&
-      identifier !== 'HKWorkoutRouteTypeIdentifier'
+    (identifier) => !WORKOUT_EXTRAS.includes(identifier)
   );
   if (toRead.length === 0 && toShare.length === 0) {
     return false;
@@ -525,7 +530,18 @@ export const requestHealthPermissions = async (
     return true;
   }
 
-  const { toRead, toShare } = healthKitAuthorizationTypes(permissionsToRequest);
+  const { toRead: allToRead, toShare } =
+    healthKitAuthorizationTypes(permissionsToRequest);
+  // Health lists the workout effort rating and the workout route in the sheet
+  // every time it is shown, because it never records them as asked. Ask for
+  // them once; after that a new type added in an update brings up only the new
+  // type. The effort write and the route write are asked at the moment they are
+  // needed, from their own status, so this does not touch saving either.
+  const workoutExtrasAsked =
+    (await loadHealthPreference<boolean>(WORKOUT_EXTRAS_ASKED_KEY)) === true;
+  const toRead = workoutExtrasAsked
+    ? allToRead.filter((identifier) => !WORKOUT_EXTRAS.includes(identifier))
+    : allToRead;
 
   if (toRead.length === 0 && toShare.length === 0) {
     // Every requested record type expanded to nothing — an unmapped record type, or one
@@ -555,6 +571,12 @@ export const requestHealthPermissions = async (
       toShare: toShare as Parameters<typeof requestAuthorization>[0]['toShare'],
     });
 
+    if (
+      !workoutExtrasAsked &&
+      toRead.some((id) => WORKOUT_EXTRAS.includes(id))
+    ) {
+      await saveHealthPreference(WORKOUT_EXTRAS_ASKED_KEY, true);
+    }
     return true;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
