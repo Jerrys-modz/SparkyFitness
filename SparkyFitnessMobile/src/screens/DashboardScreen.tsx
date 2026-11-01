@@ -336,6 +336,21 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
     (s) => s.pinnedMetricsCardVisible
   );
   const savedPinnedMetrics = useAppPreferencesStore((s) => s.pinnedMetrics);
+  const pinnedMetricsColumns = useAppPreferencesStore(
+    (s) => s.pinnedMetricsColumns
+  );
+  const pinnedShowSparklines = useAppPreferencesStore(
+    (s) => s.pinnedShowSparklines
+  );
+  const activityRingsCompact = useAppPreferencesStore(
+    (s) => s.activityRingsCompact
+  );
+  const showReportsLink = useAppPreferencesStore(
+    (s) => s.healthTrendsShowReportsLink
+  );
+  const showRangeControl = useAppPreferencesStore(
+    (s) => s.healthTrendsShowRangeControl
+  );
   const pinnedMetrics = useMemo(
     () =>
       pinnedMetricsCardVisible ? resolvePinnedMetrics(savedPinnedMetrics) : [],
@@ -974,6 +989,8 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                   metrics={pinnedMetrics}
                   ringValues={ringValues}
                   goalValues={goalValues}
+                  columns={pinnedMetricsColumns}
+                  showSparklines={pinnedShowSparklines}
                   trendSummaries={pinnedTrendSummaries}
                   rangeFor={rangeOf}
                   weightUnit={weightUnit}
@@ -987,6 +1004,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
               return activityRingsCardVisible ? (
                 <ActivityRingsCard
                   key="activityRings"
+                  compact={activityRingsCompact}
                   rings={buildActivityRings(
                     resolveActivityRingKeys(
                       activityRingStyle,
@@ -1083,26 +1101,28 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                   </Text>
                   {/* Beside the heading, not around it: the heading stays a direct
                       child of the card's wrapper, which carries the card margin. */}
-                  <Pressable
-                    testID="dashboard-reports-link"
-                    accessibilityRole="button"
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    onPress={() => navigation.navigate('Reports')}
-                    className="flex-row items-center"
-                    style={{ position: 'absolute', right: 0, top: 6 }}
-                  >
-                    <Text className="text-accent-primary font-medium">
-                      {t('dashboard.reportsLink', {
-                        defaultValue: 'Reports',
-                      })}
-                    </Text>
-                    <Icon
-                      name="chevron-forward"
-                      size={14}
-                      color={accentColor}
-                      style={{ marginLeft: 2 }}
-                    />
-                  </Pressable>
+                  {showReportsLink && (
+                    <Pressable
+                      testID="dashboard-reports-link"
+                      accessibilityRole="button"
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      onPress={() => navigation.navigate('Reports')}
+                      className="flex-row items-center"
+                      style={{ position: 'absolute', right: 0, top: 6 }}
+                    >
+                      <Text className="text-accent-primary font-medium">
+                        {t('dashboard.reportsLink', {
+                          defaultValue: 'Reports',
+                        })}
+                      </Text>
+                      <Icon
+                        name="chevron-forward"
+                        size={14}
+                        color={accentColor}
+                        style={{ marginLeft: 2 }}
+                      />
+                    </Pressable>
+                  )}
                   {healthTrendsLayout === 'tiles' ? (
                     <HealthTrendTiles
                       steps={trends.steps}
@@ -1123,15 +1143,17 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                     />
                   ) : (
                     <>
-                      {visibleTrends.length > 0 && activeTrendKey && (
-                        <SegmentedControl
-                          segments={RANGE_SEGMENTS(t)}
-                          activeKey={rangeOf(activeTrendKey)}
-                          onSelect={(range) =>
-                            setHealthTrendRange(activeTrendKey, range)
-                          }
-                        />
-                      )}
+                      {showRangeControl &&
+                        visibleTrends.length > 0 &&
+                        activeTrendKey && (
+                          <SegmentedControl
+                            segments={RANGE_SEGMENTS(t)}
+                            activeKey={rangeOf(activeTrendKey)}
+                            onSelect={(range) =>
+                              setHealthTrendRange(activeTrendKey, range)
+                            }
+                          />
+                        )}
                       <HealthTrendsPager
                         steps={trends.steps}
                         weight={weightSeries}

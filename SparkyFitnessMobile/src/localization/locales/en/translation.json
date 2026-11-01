@@ -6857,7 +6857,12 @@
     "moveUp": "Move up",
     "moveDown": "Move down",
     "stateShown": "Shown",
-    "stateHidden": "Hidden"
+    "stateHidden": "Hidden",
+    "display": "Display",
+    "showRangeControl": "Range selector",
+    "showRangeControlSubtitle": "Show 7d, 30d and 90d above the graphs",
+    "showReportsLink": "Reports link",
+    "showReportsLinkSubtitle": "Show a Reports link beside the heading"
   },
   "quickActions": {
     "scanFood": "Scan food",
@@ -10474,7 +10479,10 @@
     "standGoalUnit": "hours a day",
     "standGoalDecrease": "Decrease stand goal",
     "standGoalIncrease": "Increase stand goal",
-    "standDescription": "Stand hours are read from Apple Health on this device and are not uploaded."
+    "standDescription": "Stand hours are read from Apple Health on this device and are not uploaded.",
+    "size": "Size",
+    "sizeStandard": "Standard",
+    "sizeCompact": "Compact"
   },
   "pinnedMetrics": {
     "settingsDescription": "Pick up to {{max}} metrics to keep at the top of your Dashboard. Rings and goals show today against your target; trends show the latest reading or average.",
@@ -10488,6 +10496,10 @@
     "carbs": "Carbs",
     "fat": "Fat",
     "water": "Water",
-    "goals": "Nutrition & hydration"
+    "goals": "Nutrition & hydration",
+    "tilesPerRow": "Tiles per row",
+    "sparklines": "Sparklines",
+    "sparklinesSubtitle": "Draw a small line chart on trend tiles",
+    "ofGoalShort": "of {{goal}}"
   }
 }

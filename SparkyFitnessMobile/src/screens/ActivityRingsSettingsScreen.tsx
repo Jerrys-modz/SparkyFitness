@@ -36,6 +36,8 @@ const ActivityRingsSettingsScreen: React.FC<
   const shown = resolveActivityRingKeys('custom', custom);
   const standGoal = useAppPreferencesStore((s) => s.standGoalHours);
   const setStandGoal = useAppPreferencesStore((s) => s.setStandGoalHours);
+  const compact = useAppPreferencesStore((s) => s.activityRingsCompact);
+  const setCompact = useAppPreferencesStore((s) => s.setActivityRingsCompact);
   const standDraft = useStepperDraft({
     value: standGoal,
     min: 1,
@@ -73,6 +75,28 @@ const ActivityRingsSettingsScreen: React.FC<
         </Text>
 
         <Text className="text-text-primary text-lg font-semibold mb-2">
+          {t('activityRings.size', { defaultValue: 'Size' })}
+        </Text>
+        <SegmentedControl
+          segments={[
+            {
+              key: 'standard',
+              label: t('activityRings.sizeStandard', {
+                defaultValue: 'Standard',
+              }),
+            },
+            {
+              key: 'compact',
+              label: t('activityRings.sizeCompact', {
+                defaultValue: 'Compact',
+              }),
+            },
+          ]}
+          activeKey={compact ? 'compact' : 'standard'}
+          onSelect={(key) => setCompact(key === 'compact')}
+        />
+
+        <Text className="text-text-primary text-lg font-semibold mt-4 mb-2">
           {t('activityRings.style', { defaultValue: 'Style' })}
         </Text>
         <SegmentedControl
