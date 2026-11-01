@@ -12,24 +12,36 @@ const OUTER_SIZE = 132;
 /** With four or more rings the stack grows and the legend tightens, so the two stay level. */
 const LARGE_OUTER_SIZE = 168;
 const MANY_RINGS = 4;
+/** Compact draws smaller, thinner rings and puts each legend entry on one line. */
+const COMPACT_OUTER_SIZE = 96;
 const STROKE_WIDTH = 12;
 const RING_GAP = 3;
-const RING_STEP = (STROKE_WIDTH + RING_GAP) * 2;
+const COMPACT_STROKE_WIDTH = 9;
+const COMPACT_RING_GAP = 2;
 
 type ActivityRingsCardProps = {
   rings: readonly ActivityRingData[];
   /** Opens Activity Rings settings from the card's header. */
   onPressSettings?: () => void;
+  /** The smaller layout: thinner rings and one-line legend entries. */
+  compact?: boolean;
 };
 
 const ActivityRingsCard: React.FC<ActivityRingsCardProps> = ({
   rings,
   onPressSettings,
+  compact = false,
 }) => {
   const { t } = useTranslation();
   const { colors, units, trackColor } = useActivityRingLook();
   const hasMany = rings.length >= MANY_RINGS;
-  const outerSize = hasMany ? LARGE_OUTER_SIZE : OUTER_SIZE;
+  const outerSize = compact
+    ? COMPACT_OUTER_SIZE
+    : hasMany
+      ? LARGE_OUTER_SIZE
+      : OUTER_SIZE;
+  const strokeWidth = compact ? COMPACT_STROKE_WIDTH : STROKE_WIDTH;
+  const ringStep = (strokeWidth + (compact ? COMPACT_RING_GAP : RING_GAP)) * 2;
   const accentColor = colors.steps;
 
   return (
@@ -61,7 +73,7 @@ const ActivityRingsCard: React.FC<ActivityRingsCardProps> = ({
           importantForAccessibility="no-hide-descendants"
         >
           {rings.map((ring, index) => {
-            const size = outerSize - index * RING_STEP;
+            const size = outerSize - index * ringStep;
             const inset = (outerSize - size) / 2;
             return (
               <View
@@ -72,7 +84,7 @@ const ActivityRingsCard: React.FC<ActivityRingsCardProps> = ({
                 <ProgressRing
                   progress={ring.progress}
                   size={size}
-                  strokeWidth={STROKE_WIDTH}
+                  strokeWidth={strokeWidth}
                   color={colors[ring.key]}
                   backgroundColor={trackColor}
                 />
@@ -86,6 +98,36 @@ const ActivityRingsCard: React.FC<ActivityRingsCardProps> = ({
             const current = formatLocalizedNumber(Math.round(ring.current));
             const goal = formatLocalizedNumber(Math.round(ring.goal));
             const value = ring.goal > 0 ? `${current} / ${goal}` : current;
+            if (compact) {
+              return (
+                <View
+                  key={ring.key}
+                  className="flex-row items-center mb-1"
+                  accessible
+                  accessibilityLabel={`${label}: ${value} ${units[ring.key]}`}
+                >
+                  <View
+                    className="w-2 h-2 rounded-full mr-1.5"
+                    style={{ backgroundColor: colors[ring.key] }}
+                  />
+                  <Text
+                    className="text-xs text-text-muted flex-1"
+                    numberOfLines={1}
+                  >
+                    {label}
+                  </Text>
+                  <Text
+                    className="text-text-primary text-sm font-semibold"
+                    numberOfLines={1}
+                  >
+                    {value}
+                    <Text className="text-text-muted text-xs font-normal">
+                      {` ${units[ring.key]}`}
+                    </Text>
+                  </Text>
+                </View>
+              );
+            }
             return (
               <View
                 key={ring.key}

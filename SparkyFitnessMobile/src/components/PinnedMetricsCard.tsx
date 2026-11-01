@@ -10,6 +10,7 @@ import { useGoalMetricLook } from '../hooks/useGoalMetricLook';
 import {
   GOAL_METRIC_LABELS,
   type GoalMetricKey,
+  type PinnedMetricsColumns,
 } from '../constants/pinnedMetrics';
 import { formatVolumeForUnit, volumeFromMl } from '../utils/unitConversions';
 import { formatLocalizedNumber } from '../localization/i18n';
@@ -34,10 +35,15 @@ type PinnedMetricsCardProps = {
   weightUnit: string;
   waterUnit: string;
   onPressSettings?: () => void;
+  /** Tiles per row, 2 by default. */
+  columns?: PinnedMetricsColumns;
+  /** Draw sparklines on trend tiles (default). */
+  showSparklines?: boolean;
 };
 
 /** A value against a daily goal: the figure, "of goal unit", and a small ring. */
 const GoalTile: React.FC<{
+  columns: 2 | 3;
   testID: string;
   label: string;
   current: string;
@@ -46,16 +52,28 @@ const GoalTile: React.FC<{
   progress: number;
   color: string;
   trackColor: string;
-}> = ({ testID, label, current, goal, unit, progress, color, trackColor }) => {
+}> = ({
+  columns,
+  testID,
+  label,
+  current,
+  goal,
+  unit,
+  progress,
+  color,
+  trackColor,
+}) => {
   const { t } = useTranslation();
   return (
     <View
       testID={testID}
       accessible
       accessibilityLabel={`${label}: ${current}${goal ? ` / ${goal}` : ''} ${unit}`}
-      className="w-[48%] bg-surface rounded-xl p-3 mb-2 shadow-sm flex-row items-center justify-between"
+      className={`${columns === 3 ? 'w-[31.5%]' : 'w-[48%]'} bg-surface rounded-xl p-3 mb-2 shadow-sm ${
+        columns === 3 ? '' : 'flex-row items-center justify-between'
+      }`}
     >
-      <View className="flex-1 mr-2">
+      <View className={columns === 3 ? '' : 'flex-1 mr-2'}>
         <Text className="text-text-muted text-xs" numberOfLines={1}>
           {label}
         </Text>
@@ -67,33 +85,42 @@ const GoalTile: React.FC<{
         </Text>
         <Text className="text-text-muted text-xs" numberOfLines={1}>
           {goal
-            ? t('pinnedMetrics.ofGoal', {
-                defaultValue: 'of {{goal}} {{unit}}',
-                goal,
-                unit,
-              })
+            ? columns === 3
+              ? t('pinnedMetrics.ofGoalShort', {
+                  defaultValue: 'of {{goal}}',
+                  goal,
+                })
+              : t('pinnedMetrics.ofGoal', {
+                  defaultValue: 'of {{goal}} {{unit}}',
+                  goal,
+                  unit,
+                })
             : unit}
         </Text>
       </View>
-      <ProgressRing
-        progress={progress}
-        size={RING_SIZE}
-        strokeWidth={RING_STROKE}
-        color={color}
-        backgroundColor={trackColor}
-      />
+      <View className={columns === 3 ? 'mt-2' : ''}>
+        <ProgressRing
+          progress={progress}
+          size={RING_SIZE}
+          strokeWidth={RING_STROKE}
+          color={color}
+          backgroundColor={trackColor}
+        />
+      </View>
     </View>
   );
 };
 
 const RingTile: React.FC<{
+  columns: 2 | 3;
   ringKey: ActivityRingKey;
   value: ActivityRingValue;
-}> = ({ ringKey, value }) => {
+}> = ({ columns, ringKey, value }) => {
   const { t } = useTranslation();
   const { colors, units, trackColor } = useActivityRingLook();
   return (
     <GoalTile
+      columns={columns}
       testID={`pinned-ring-${ringKey}`}
       label={ACTIVITY_RING_LABELS[ringKey](t)}
       current={formatLocalizedNumber(Math.round(value.current))}
@@ -109,10 +136,11 @@ const RingTile: React.FC<{
 };
 
 const NutritionGoalTile: React.FC<{
+  columns: 2 | 3;
   goalKey: GoalMetricKey;
   value: ActivityRingValue;
   waterUnit: string;
-}> = ({ goalKey, value, waterUnit }) => {
+}> = ({ columns, goalKey, value, waterUnit }) => {
   const { t } = useTranslation();
   const { colors, units, trackColor } = useGoalMetricLook(waterUnit);
   // Water arrives in millilitres and reads in the account's unit; the rest are whole numbers.
@@ -122,6 +150,7 @@ const NutritionGoalTile: React.FC<{
       : formatLocalizedNumber(Math.round(amount));
   return (
     <GoalTile
+      columns={columns}
       testID={`pinned-goal-${goalKey}`}
       label={GOAL_METRIC_LABELS[goalKey](t)}
       current={format(value.current)}
@@ -147,6 +176,8 @@ const PinnedMetricsCard: React.FC<PinnedMetricsCardProps> = ({
   weightUnit,
   waterUnit,
   onPressSettings,
+  columns = 2,
+  showSparklines = true,
 }) => {
   const { t } = useTranslation();
   const accentColor = useCSSVariable('--color-accent-primary') as string;
@@ -187,6 +218,7 @@ const PinnedMetricsCard: React.FC<PinnedMetricsCardProps> = ({
             if (metric.kind === 'ring') {
               return (
                 <RingTile
+                  columns={columns}
                   key={metric.pinned}
                   ringKey={metric.key}
                   value={ringValues[metric.key]}
@@ -196,6 +228,7 @@ const PinnedMetricsCard: React.FC<PinnedMetricsCardProps> = ({
             if (metric.kind === 'goal') {
               return (
                 <NutritionGoalTile
+                  columns={columns}
                   key={metric.pinned}
                   goalKey={metric.key}
                   value={goalValues[metric.key]}
@@ -213,6 +246,8 @@ const PinnedMetricsCard: React.FC<PinnedMetricsCardProps> = ({
                 weightUnit={weightUnit}
                 waterUnit={waterUnit}
                 rangeLabel={rangeFor(metric.key)}
+                columns={columns}
+                showSparkline={showSparklines}
               />
             );
           })}

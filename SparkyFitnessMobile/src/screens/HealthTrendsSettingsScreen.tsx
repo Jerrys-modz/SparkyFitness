@@ -10,6 +10,8 @@ import {
   MAX_HEALTH_TREND_TILES,
 } from '../constants/healthTrends';
 import SegmentedControl from '../components/SegmentedControl';
+import SettingsRow, { SettingsRowGroup } from '../components/SettingsRow';
+import Switch from '../components/ui/Switch';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
@@ -42,6 +44,18 @@ const HealthTrendsSettingsScreen: React.FC<
   const setLayout = useAppPreferencesStore((s) => s.setHealthTrendsLayout);
   const tileKeys = useAppPreferencesStore((s) => s.healthTrendTiles);
   const setTile = useAppPreferencesStore((s) => s.setHealthTrendTile);
+  const showReportsLink = useAppPreferencesStore(
+    (s) => s.healthTrendsShowReportsLink
+  );
+  const setShowReportsLink = useAppPreferencesStore(
+    (s) => s.setHealthTrendsShowReportsLink
+  );
+  const showRangeControl = useAppPreferencesStore(
+    (s) => s.healthTrendsShowRangeControl
+  );
+  const setShowRangeControl = useAppPreferencesStore(
+    (s) => s.setHealthTrendsShowRangeControl
+  );
 
   const items = useMemo(
     () =>
@@ -162,6 +176,41 @@ const HealthTrendsSettingsScreen: React.FC<
             defaultValue: 'Reorder this graph in your Dashboard health trends',
           })}
         />
+        <Text className="text-text-primary text-lg font-semibold mt-4 mb-2">
+          {t('healthTrendsSettings.display', { defaultValue: 'Display' })}
+        </Text>
+        <SettingsRowGroup>
+          <SettingsRow
+            title={t('healthTrendsSettings.showRangeControl', {
+              defaultValue: 'Range selector',
+            })}
+            subtitle={t('healthTrendsSettings.showRangeControlSubtitle', {
+              defaultValue: 'Show 7d, 30d and 90d above the graphs',
+            })}
+            rightAccessory={
+              <Switch
+                testID="health-trends-range-switch"
+                value={showRangeControl}
+                onValueChange={setShowRangeControl}
+              />
+            }
+          />
+          <SettingsRow
+            title={t('healthTrendsSettings.showReportsLink', {
+              defaultValue: 'Reports link',
+            })}
+            subtitle={t('healthTrendsSettings.showReportsLinkSubtitle', {
+              defaultValue: 'Show a Reports link beside the heading',
+            })}
+            rightAccessory={
+              <Switch
+                testID="health-trends-reports-switch"
+                value={showReportsLink}
+                onValueChange={setShowReportsLink}
+              />
+            }
+          />
+        </SettingsRowGroup>
       </ScrollView>
     </View>
   );

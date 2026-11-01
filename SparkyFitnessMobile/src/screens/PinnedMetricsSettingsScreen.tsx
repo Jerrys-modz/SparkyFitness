@@ -4,6 +4,9 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useActiveWorkoutBarPadding } from '../components/ActiveWorkoutBar';
+import SegmentedControl from '../components/SegmentedControl';
+import SettingsRow, { SettingsRowGroup } from '../components/SettingsRow';
+import Switch from '../components/ui/Switch';
 import {
   ACTIVITY_RING_LABELS,
   STAND_HOURS_SUPPORTED,
@@ -34,6 +37,12 @@ const PinnedMetricsSettingsScreen: React.FC<
 
   const pinned = useAppPreferencesStore((s) => s.pinnedMetrics);
   const setPinned = useAppPreferencesStore((s) => s.setPinnedMetric);
+  const columns = useAppPreferencesStore((s) => s.pinnedMetricsColumns);
+  const setColumns = useAppPreferencesStore((s) => s.setPinnedMetricsColumns);
+  const showSparklines = useAppPreferencesStore((s) => s.pinnedShowSparklines);
+  const setShowSparklines = useAppPreferencesStore(
+    (s) => s.setPinnedShowSparklines
+  );
   const pinnedKeys = resolvePinnedMetrics(pinned).map((m) => m.pinned);
 
   const header = useScreenHeader({
@@ -142,6 +151,36 @@ const PinnedMetricsSettingsScreen: React.FC<
             </View>
           </View>
         ))}
+        <Text className="text-text-primary text-lg font-semibold mt-2 mb-2">
+          {t('pinnedMetrics.tilesPerRow', { defaultValue: 'Tiles per row' })}
+        </Text>
+        <SegmentedControl
+          segments={[
+            { key: '2', label: '2' },
+            { key: '3', label: '3' },
+          ]}
+          activeKey={String(columns)}
+          onSelect={(key) => setColumns(key === '3' ? 3 : 2)}
+        />
+        <View className="mt-4">
+          <SettingsRowGroup>
+            <SettingsRow
+              title={t('pinnedMetrics.sparklines', {
+                defaultValue: 'Sparklines',
+              })}
+              subtitle={t('pinnedMetrics.sparklinesSubtitle', {
+                defaultValue: 'Draw a small line chart on trend tiles',
+              })}
+              rightAccessory={
+                <Switch
+                  testID="pinned-sparklines-switch"
+                  value={showSparklines}
+                  onValueChange={setShowSparklines}
+                />
+              }
+            />
+          </SettingsRowGroup>
+        </View>
       </ScrollView>
     </View>
   );

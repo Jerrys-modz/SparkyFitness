@@ -132,6 +132,33 @@ describe('appPreferencesStore', () => {
     });
   });
 
+  describe('card appearance preferences', () => {
+    it('defaults every card to its current look', () => {
+      const state = useAppPreferencesStore.getState();
+      expect(state.activityRingsCompact).toBe(false);
+      expect(state.pinnedMetricsColumns).toBe(2);
+      expect(state.pinnedShowSparklines).toBe(true);
+      expect(state.healthTrendsShowReportsLink).toBe(true);
+      expect(state.healthTrendsShowRangeControl).toBe(true);
+    });
+
+    it('writes each appearance setting on its own', () => {
+      const store = useAppPreferencesStore.getState();
+      store.setActivityRingsCompact(true);
+      store.setPinnedMetricsColumns(3);
+      store.setPinnedShowSparklines(false);
+      store.setHealthTrendsShowReportsLink(false);
+      store.setHealthTrendsShowRangeControl(false);
+
+      const state = useAppPreferencesStore.getState();
+      expect(state.activityRingsCompact).toBe(true);
+      expect(state.pinnedMetricsColumns).toBe(3);
+      expect(state.pinnedShowSparklines).toBe(false);
+      expect(state.healthTrendsShowReportsLink).toBe(false);
+      expect(state.healthTrendsShowRangeControl).toBe(false);
+    });
+  });
+
   describe('activity ring preferences', () => {
     it('defaults to the card hidden, apple style and every ring chosen', () => {
       const state = useAppPreferencesStore.getState();

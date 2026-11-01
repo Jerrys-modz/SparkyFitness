@@ -60,3 +60,6 @@ export const DEFAULT_PINNED_METRICS: readonly PinnedMetricKey[] = [
   'trend:weight',
   'trend:sleep',
 ];
+
+/** Tiles per row on the Pinned Metrics card. */
+export type PinnedMetricsColumns = 2 | 3;

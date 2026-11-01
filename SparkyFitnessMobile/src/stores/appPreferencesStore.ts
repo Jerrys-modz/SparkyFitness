@@ -38,6 +38,7 @@ import {
   DEFAULT_PINNED_METRICS,
   MAX_PINNED_METRICS,
   type PinnedMetricKey,
+  type PinnedMetricsColumns,
 } from '../constants/pinnedMetrics';
 import {
   ACTIVITY_RING_KEYS,
@@ -124,8 +125,11 @@ export const PREFERENCE_DEFAULTS = {
   // Opt-in, like the rings card.
   pinnedMetricsCardVisible: false,
   pinnedMetrics: [...DEFAULT_PINNED_METRICS] as PinnedMetricKey[],
+  pinnedMetricsColumns: 2 as PinnedMetricsColumns,
+  pinnedShowSparklines: true,
   activityRingStyle: 'apple' as ActivityRingStyle,
   standGoalHours: 12,
+  activityRingsCompact: false,
   activityRingCustom: [...ACTIVITY_RING_KEYS] as ActivityRingKey[],
   hydrationCardVisible: true,
   caffeineCardVisible: true,
@@ -178,6 +182,8 @@ export const PREFERENCE_DEFAULTS = {
   healthTrendRanges: {} as HealthTrendRanges,
   healthTrendsLayout: 'pager' as HealthTrendsLayout,
   healthTrendTiles: [] as HealthTrendKey[],
+  healthTrendsShowReportsLink: true,
+  healthTrendsShowRangeControl: true,
   addMenuCards: [...DEFAULT_ADD_MENU_CARDS] as AddMenuItemKey[],
   addMenuOrder: [...ADD_MENU_ITEM_KEYS] as AddMenuItemKey[],
   hiddenAddMenuItems: [] as AddMenuItemKey[],
@@ -223,9 +229,15 @@ export type AppPreferencesData = {
   pinnedMetricsCardVisible: boolean;
   /** The metrics on the Pinned Metrics card, at most `MAX_PINNED_METRICS`. */
   pinnedMetrics: PinnedMetricKey[];
+  /** Tiles per row on the Pinned Metrics card. */
+  pinnedMetricsColumns: PinnedMetricsColumns;
+  /** Whether trend tiles on the Pinned Metrics card draw their sparkline. */
+  pinnedShowSparklines: boolean;
   activityRingStyle: ActivityRingStyle;
   /** Hours stood in per day the Stand ring fills toward, 1 to 24. */
   standGoalHours: number;
+  /** Smaller rings with a one-line legend. */
+  activityRingsCompact: boolean;
   /** The rings drawn in the custom style; an empty list falls back to the Apple pair. */
   activityRingCustom: ActivityRingKey[];
   hydrationCardVisible: boolean;
@@ -302,6 +314,8 @@ export type AppPreferencesData = {
   healthTrendsLayout: HealthTrendsLayout;
   /** The graphs shown as tiles in the tiles layout, at most `MAX_HEALTH_TREND_TILES`. */
   healthTrendTiles: HealthTrendKey[];
+  healthTrendsShowReportsLink: boolean;
+  healthTrendsShowRangeControl: boolean;
   /** The four items in the + sheet's big card slots, in order. */
   addMenuCards: AddMenuItemKey[];
   /** Order of the rows under the cards in the + sheet. */
@@ -376,8 +390,11 @@ export interface AppPreferencesState extends AppPreferencesData {
   setActivityRingsCardVisible: (value: boolean) => void;
   setPinnedMetricsCardVisible: (value: boolean) => void;
   setPinnedMetric: (key: PinnedMetricKey, isPinned: boolean) => void;
+  setPinnedMetricsColumns: (columns: PinnedMetricsColumns) => void;
+  setPinnedShowSparklines: (value: boolean) => void;
   setActivityRingStyle: (style: ActivityRingStyle) => void;
   setStandGoalHours: (hours: number) => void;
+  setActivityRingsCompact: (value: boolean) => void;
   setActivityRingCustom: (key: ActivityRingKey, isShown: boolean) => void;
   setHydrationCardVisible: (value: boolean) => void;
   setCaffeineCardVisible: (value: boolean) => void;
@@ -434,6 +451,8 @@ export interface AppPreferencesState extends AppPreferencesData {
   ) => void;
   setHealthTrendsLayout: (layout: HealthTrendsLayout) => void;
   setHealthTrendTile: (key: HealthTrendKey, isTile: boolean) => void;
+  setHealthTrendsShowReportsLink: (value: boolean) => void;
+  setHealthTrendsShowRangeControl: (value: boolean) => void;
   setAddMenuCards: (cards: AddMenuItemKey[]) => void;
   setAddMenuOrder: (order: AddMenuItemKey[]) => void;
   setAddMenuItemHidden: (key: AddMenuItemKey, isHidden: boolean) => void;
@@ -537,6 +556,9 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         set({ activityRingsCardVisible: value }),
       setPinnedMetricsCardVisible: (value) =>
         set({ pinnedMetricsCardVisible: value }),
+      setPinnedMetricsColumns: (columns) =>
+        set({ pinnedMetricsColumns: columns }),
+      setPinnedShowSparklines: (value) => set({ pinnedShowSparklines: value }),
       setPinnedMetric: (key, isPinned) =>
         set((state) => {
           const without = state.pinnedMetrics.filter((k) => k !== key);
@@ -546,6 +568,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
           return { pinnedMetrics: [...without, key] };
         }),
       setActivityRingStyle: (style) => set({ activityRingStyle: style }),
+      setActivityRingsCompact: (value) => set({ activityRingsCompact: value }),
       setStandGoalHours: (hours) =>
         set({ standGoalHours: Math.min(24, Math.max(1, Math.round(hours))) }),
       setActivityRingCustom: (key, isShown) =>
@@ -647,6 +670,10 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         set((state) => ({
           healthTrendRanges: { ...state.healthTrendRanges, [key]: range },
         })),
+      setHealthTrendsShowReportsLink: (value) =>
+        set({ healthTrendsShowReportsLink: value }),
+      setHealthTrendsShowRangeControl: (value) =>
+        set({ healthTrendsShowRangeControl: value }),
       setHealthTrendsLayout: (layout) => set({ healthTrendsLayout: layout }),
       setHealthTrendTile: (key, isTile) =>
         set((state) => {
@@ -791,8 +818,11 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         activityRingsCardVisible: state.activityRingsCardVisible,
         pinnedMetricsCardVisible: state.pinnedMetricsCardVisible,
         pinnedMetrics: state.pinnedMetrics,
+        pinnedMetricsColumns: state.pinnedMetricsColumns,
+        pinnedShowSparklines: state.pinnedShowSparklines,
         activityRingStyle: state.activityRingStyle,
         standGoalHours: state.standGoalHours,
+        activityRingsCompact: state.activityRingsCompact,
         activityRingCustom: state.activityRingCustom,
         hydrationCardVisible: state.hydrationCardVisible,
         caffeineCardVisible: state.caffeineCardVisible,
@@ -847,6 +877,8 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         healthTrendRanges: state.healthTrendRanges,
         healthTrendsLayout: state.healthTrendsLayout,
         healthTrendTiles: state.healthTrendTiles,
+        healthTrendsShowReportsLink: state.healthTrendsShowReportsLink,
+        healthTrendsShowRangeControl: state.healthTrendsShowRangeControl,
         addMenuCards: state.addMenuCards,
         addMenuOrder: state.addMenuOrder,
         hiddenAddMenuItems: state.hiddenAddMenuItems,
