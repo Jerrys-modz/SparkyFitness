@@ -38,13 +38,24 @@ const renderScreen = () =>
 describe('AiSettingsScreen', () => {
   beforeEach(() => {
     mockAvailable = true;
-    useAppPreferencesStore.setState({ onDeviceLabelScanEnabled: false });
+    useAppPreferencesStore.setState({
+      onDeviceLabelScanEnabled: false,
+      onDeviceFoodPhotoEnabled: false,
+    });
   });
 
   it('shows the active server provider', () => {
     const { getByTestId } = renderScreen();
     expect(getByTestId('ai-settings-provider').props.children).toBe(
       'OpenAI · gpt-x'
+    );
+  });
+
+  it('turns on-device food photo estimates on and off', () => {
+    const { getByTestId } = renderScreen();
+    fireEvent(getByTestId('ai-food-photo-switch'), 'valueChange', true);
+    expect(useAppPreferencesStore.getState().onDeviceFoodPhotoEnabled).toBe(
+      true
     );
   });
 
@@ -67,6 +78,7 @@ describe('AiSettingsScreen', () => {
     mockAvailable = false;
     const { queryByTestId, getByText } = renderScreen();
     expect(queryByTestId('ai-label-scan-switch')).toBeNull();
+    expect(queryByTestId('ai-food-photo-switch')).toBeNull();
     expect(getByText(/Not available on this device/)).toBeTruthy();
   });
 });
