@@ -61,5 +61,22 @@ export const DEFAULT_PINNED_METRICS: readonly PinnedMetricKey[] = [
   'trend:sleep',
 ];
 
-/** Tiles per row on the Pinned Metrics card. */
-export type PinnedMetricsColumns = 2 | 3;
+/**
+ * What "choose automatically" draws, best first: the strip takes the first few that no
+ * other visible card already shows and that have data. Stand and Active points are left
+ * out because they cost a HealthKit read and extra requests.
+ */
+export const GLANCE_AUTO_CANDIDATES: readonly PinnedMetricKey[] = [
+  'goal:calories',
+  'ring:steps',
+  'trend:sleep',
+  'trend:weight',
+  'goal:protein',
+  'goal:water',
+  'ring:exercise',
+  'ring:move',
+  'trend:heartRate',
+];
+
+/** How many chips automatic mode shows. */
+export const GLANCE_AUTO_COUNT = 4;

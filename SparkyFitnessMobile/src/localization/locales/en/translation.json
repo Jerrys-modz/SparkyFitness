@@ -719,7 +719,7 @@
     "routeGenerate": "Generate a route",
     "compareReport": "Compare",
     "activityRingsSettings": "Activity Rings",
-    "pinnedMetricsSettings": "Pinned Metrics"
+    "pinnedMetricsSettings": "At a Glance"
   },
   "activityShare": {
     "title": "Share Activity",
@@ -968,7 +968,7 @@
     "reportsLink": "Reports",
     "activityRings": "Activity Rings",
     "activityRingsSettings": "Settings",
-    "pinnedMetrics": "Pinned Metrics",
+    "pinnedMetrics": "At a Glance",
     "pinnedMetricsSettings": "Settings"
   },
   "syncScreen": {
@@ -1240,8 +1240,8 @@
     "trainingLoadSubtitle": "Show this week against your usual training, with a nudge to rest",
     "activityRings": "Activity Rings",
     "activityRingsSubtitle": "Show Move, Exercise, Stand and Steps rings for the day",
-    "pinnedMetrics": "Pinned Metrics",
-    "pinnedMetricsSubtitle": "Show up to four metrics you choose as small tiles"
+    "pinnedMetrics": "At a Glance",
+    "pinnedMetricsSubtitle": "A slim row of the numbers worth seeing first"
   },
   "diarySettings": {
     "updateFailed": "Failed to update setting.",
@@ -9587,7 +9587,7 @@
     "sizeCompact": "Compact"
   },
   "pinnedMetrics": {
-    "settingsDescription": "Pick up to {{max}} metrics to keep at the top of your Dashboard. Rings and goals show today against your target; trends show the latest reading or average.",
+    "settingsDescription": "Pick up to {{max}} metrics to show in the strip at the top of your Dashboard. Rings and goals show today against your target; trends show the latest reading or average.",
     "rings": "Rings",
     "trends": "Trends",
     "empty": "No metrics pinned. Choose some in Pinned Metrics settings.",
@@ -9599,9 +9599,7 @@
     "fat": "Fat",
     "water": "Water",
     "goals": "Nutrition & hydration",
-    "tilesPerRow": "Tiles per row",
-    "sparklines": "Sparklines",
-    "sparklinesSubtitle": "Draw a small line chart on trend tiles",
-    "ofGoalShort": "of {{goal}}"
+    "auto": "Choose for me",
+    "autoSubtitle": "Show a few useful metrics, skipping anything another card already shows"
   }
 }

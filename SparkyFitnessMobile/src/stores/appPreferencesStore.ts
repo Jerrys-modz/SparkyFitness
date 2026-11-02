@@ -38,7 +38,6 @@ import {
   DEFAULT_PINNED_METRICS,
   MAX_PINNED_METRICS,
   type PinnedMetricKey,
-  type PinnedMetricsColumns,
 } from '../constants/pinnedMetrics';
 import {
   ACTIVITY_RING_KEYS,
@@ -125,8 +124,7 @@ export const PREFERENCE_DEFAULTS = {
   // Opt-in, like the rings card.
   pinnedMetricsCardVisible: false,
   pinnedMetrics: [...DEFAULT_PINNED_METRICS] as PinnedMetricKey[],
-  pinnedMetricsColumns: 2 as PinnedMetricsColumns,
-  pinnedShowSparklines: true,
+  pinnedAuto: true,
   activityRingStyle: 'apple' as ActivityRingStyle,
   standGoalHours: 12,
   activityRingsCompact: false,
@@ -229,10 +227,8 @@ export type AppPreferencesData = {
   pinnedMetricsCardVisible: boolean;
   /** The metrics on the Pinned Metrics card, at most `MAX_PINNED_METRICS`. */
   pinnedMetrics: PinnedMetricKey[];
-  /** Tiles per row on the Pinned Metrics card. */
-  pinnedMetricsColumns: PinnedMetricsColumns;
-  /** Whether trend tiles on the Pinned Metrics card draw their sparkline. */
-  pinnedShowSparklines: boolean;
+  /** Let the At a Glance strip choose its metrics; off uses `pinnedMetrics`. */
+  pinnedAuto: boolean;
   activityRingStyle: ActivityRingStyle;
   /** Hours stood in per day the Stand ring fills toward, 1 to 24. */
   standGoalHours: number;
@@ -390,8 +386,7 @@ export interface AppPreferencesState extends AppPreferencesData {
   setActivityRingsCardVisible: (value: boolean) => void;
   setPinnedMetricsCardVisible: (value: boolean) => void;
   setPinnedMetric: (key: PinnedMetricKey, isPinned: boolean) => void;
-  setPinnedMetricsColumns: (columns: PinnedMetricsColumns) => void;
-  setPinnedShowSparklines: (value: boolean) => void;
+  setPinnedAuto: (value: boolean) => void;
   setActivityRingStyle: (style: ActivityRingStyle) => void;
   setStandGoalHours: (hours: number) => void;
   setActivityRingsCompact: (value: boolean) => void;
@@ -556,9 +551,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         set({ activityRingsCardVisible: value }),
       setPinnedMetricsCardVisible: (value) =>
         set({ pinnedMetricsCardVisible: value }),
-      setPinnedMetricsColumns: (columns) =>
-        set({ pinnedMetricsColumns: columns }),
-      setPinnedShowSparklines: (value) => set({ pinnedShowSparklines: value }),
+      setPinnedAuto: (value) => set({ pinnedAuto: value }),
       setPinnedMetric: (key, isPinned) =>
         set((state) => {
           const without = state.pinnedMetrics.filter((k) => k !== key);
@@ -818,8 +811,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         activityRingsCardVisible: state.activityRingsCardVisible,
         pinnedMetricsCardVisible: state.pinnedMetricsCardVisible,
         pinnedMetrics: state.pinnedMetrics,
-        pinnedMetricsColumns: state.pinnedMetricsColumns,
-        pinnedShowSparklines: state.pinnedShowSparklines,
+        pinnedAuto: state.pinnedAuto,
         activityRingStyle: state.activityRingStyle,
         standGoalHours: state.standGoalHours,
         activityRingsCompact: state.activityRingsCompact,

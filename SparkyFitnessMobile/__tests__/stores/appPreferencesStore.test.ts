@@ -110,6 +110,12 @@ describe('appPreferencesStore', () => {
       ]);
     });
 
+    it('chooses its metrics automatically until told otherwise', () => {
+      expect(useAppPreferencesStore.getState().pinnedAuto).toBe(true);
+      useAppPreferencesStore.getState().setPinnedAuto(false);
+      expect(useAppPreferencesStore.getState().pinnedAuto).toBe(false);
+    });
+
     it('refuses a seventh metric until one is removed', () => {
       const store = useAppPreferencesStore.getState();
       store.setPinnedMetric('ring:steps', true);
@@ -136,8 +142,6 @@ describe('appPreferencesStore', () => {
     it('defaults every card to its current look', () => {
       const state = useAppPreferencesStore.getState();
       expect(state.activityRingsCompact).toBe(false);
-      expect(state.pinnedMetricsColumns).toBe(2);
-      expect(state.pinnedShowSparklines).toBe(true);
       expect(state.healthTrendsShowReportsLink).toBe(true);
       expect(state.healthTrendsShowRangeControl).toBe(true);
     });
@@ -145,15 +149,11 @@ describe('appPreferencesStore', () => {
     it('writes each appearance setting on its own', () => {
       const store = useAppPreferencesStore.getState();
       store.setActivityRingsCompact(true);
-      store.setPinnedMetricsColumns(3);
-      store.setPinnedShowSparklines(false);
       store.setHealthTrendsShowReportsLink(false);
       store.setHealthTrendsShowRangeControl(false);
 
       const state = useAppPreferencesStore.getState();
       expect(state.activityRingsCompact).toBe(true);
-      expect(state.pinnedMetricsColumns).toBe(3);
-      expect(state.pinnedShowSparklines).toBe(false);
       expect(state.healthTrendsShowReportsLink).toBe(false);
       expect(state.healthTrendsShowRangeControl).toBe(false);
     });

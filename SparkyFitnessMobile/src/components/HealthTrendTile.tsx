@@ -14,15 +14,12 @@ import TrendSparkline from './TrendSparkline';
 const SPARKLINE_HEIGHT = 36;
 const SPARKLINE_WIDTH = 120;
 
-/** Width classes for the grid: two tiles a row, or three with `columns` 3. */
-const TILE_WIDTH_CLASS = { 2: 'w-[48%]', 3: 'w-[31.5%]' } as const;
-
 type TileValueFormat = {
   headline: string;
   unit: string;
 };
 
-const formatHeadline = (
+export const formatTrendHeadline = (
   key: HealthTrendKey,
   summary: HealthTrendTileSummary,
   weightUnit: string,
@@ -73,6 +70,25 @@ const formatHeadline = (
   }
 };
 
+/**
+ * The change over the window, e.g. "-1.2 kg · 7d", or just the window for daily totals,
+ * which have no single change. VO2 max leaves its long unit off.
+ */
+export const formatTrendChange = (
+  key: HealthTrendKey,
+  summary: HealthTrendTileSummary,
+  unit: string,
+  rangeLabel: string
+): string => {
+  if (summary.kind !== 'latest' || summary.delta == null) return rangeLabel;
+  const sign = summary.delta > 0 ? '+' : '';
+  const amount = formatLocalizedNumber(summary.delta, {
+    maximumFractionDigits: 1,
+  });
+  const withUnit = key === 'vo2max' || !unit ? '' : ` ${unit}`;
+  return `${sign}${amount}${withUnit} · ${rangeLabel}`;
+};
+
 type HealthTrendTileProps = {
   trendKey: HealthTrendKey;
   summary: HealthTrendTileSummary;
@@ -83,10 +99,6 @@ type HealthTrendTileProps = {
   isExpanded?: boolean;
   /** Makes the tile tappable; without it the tile is plain content. */
   onPress?: () => void;
-  /** Tiles per row, 2 by default. */
-  columns?: 2 | 3;
-  /** Draw the sparkline under the figures (default). */
-  showSparkline?: boolean;
 };
 
 /** One trend as a tile: a headline, its change over the window, and a sparkline. */
@@ -98,14 +110,12 @@ const HealthTrendTile: React.FC<HealthTrendTileProps> = ({
   rangeLabel,
   isExpanded = false,
   onPress,
-  columns = 2,
-  showSparkline = true,
 }) => {
   // The line fills the tile, so it follows the tile's width rather than a fixed size.
   const [lineWidth, setLineWidth] = useState(SPARKLINE_WIDTH);
   const { t } = useTranslation();
   const accentColor = useCSSVariable('--color-accent-primary') as string;
-  const { headline, unit } = formatHeadline(
+  const { headline, unit } = formatTrendHeadline(
     trendKey,
     summary,
     weightUnit,
@@ -113,8 +123,7 @@ const HealthTrendTile: React.FC<HealthTrendTileProps> = ({
     t
   );
   const label = HEALTH_TREND_LABELS[trendKey](t);
-  const showDelta = summary.kind === 'latest' && summary.delta != null;
-  const className = `${TILE_WIDTH_CLASS[columns]} bg-surface rounded-xl p-3 mb-2 shadow-sm ${
+  const className = `w-[48%] bg-surface rounded-xl p-3 mb-2 shadow-sm ${
     isExpanded ? 'border border-accent-primary' : ''
   }`;
   const body = (
@@ -130,31 +139,22 @@ const HealthTrendTile: React.FC<HealthTrendTileProps> = ({
           <Text className="text-text-muted text-xs ml-1">{unit}</Text>
         ) : null}
       </View>
-      {showDelta ? (
-        <Text className="text-text-secondary text-xs" numberOfLines={1}>
-          {`${(summary.delta ?? 0) > 0 ? '+' : ''}${formatLocalizedNumber(
-            summary.delta ?? 0,
-            { maximumFractionDigits: 1 }
-          )}${trendKey === 'vo2max' || !unit ? '' : ` ${unit}`} · ${rangeLabel}`}
-        </Text>
-      ) : (
-        <Text className="text-text-muted text-xs">{rangeLabel}</Text>
-      )}
-      {showSparkline ? (
-        <View
-          className="mt-2"
-          onLayout={(event) =>
-            setLineWidth(Math.floor(event.nativeEvent.layout.width))
-          }
-        >
-          <TrendSparkline
-            values={summary.values}
-            width={lineWidth}
-            height={SPARKLINE_HEIGHT}
-            color={accentColor}
-          />
-        </View>
-      ) : null}
+      <Text className="text-text-secondary text-xs" numberOfLines={1}>
+        {formatTrendChange(trendKey, summary, unit, rangeLabel)}
+      </Text>
+      <View
+        className="mt-2"
+        onLayout={(event) =>
+          setLineWidth(Math.floor(event.nativeEvent.layout.width))
+        }
+      >
+        <TrendSparkline
+          values={summary.values}
+          width={lineWidth}
+          height={SPARKLINE_HEIGHT}
+          color={accentColor}
+        />
+      </View>
     </>
   );
   const accessibilityLabel = `${label}: ${headline}${unit ? ` ${unit}` : ''}`;
