@@ -30,7 +30,7 @@ export const DASHBOARD_CARD_TITLES: Record<
   calorieRing: (t) =>
     t('dashboardSettings.calorieRing', { defaultValue: 'Calorie Summary' }),
   pinnedMetrics: (t) =>
-    t('dashboardSettings.pinnedMetrics', { defaultValue: 'Pinned Metrics' }),
+    t('dashboardSettings.pinnedMetrics', { defaultValue: 'At a Glance' }),
   askSparky: (t) =>
     t('dashboardSettings.askSparky', { defaultValue: 'Ask Sparky' }),
   macros: (t) => t('dashboardSettings.macros', { defaultValue: 'Nutrients' }),
@@ -76,7 +76,7 @@ export const DASHBOARD_CARD_SUBTITLES: Record<
     }),
   pinnedMetrics: (t) =>
     t('dashboardSettings.pinnedMetricsSubtitle', {
-      defaultValue: 'Show up to four metrics you choose as small tiles',
+      defaultValue: 'A slim row of the numbers worth seeing first',
     }),
   askSparky: (t) =>
     t('dashboardSettings.askSparkySubtitle', {

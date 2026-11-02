@@ -1264,7 +1264,7 @@ function AppContent() {
           <Stack.Screen
             name="PinnedMetricsSettings"
             component={SafePinnedMetricsSettings}
-            options={createStackScreenOptions(t('screens.pinnedMetricsSettings', { defaultValue: 'Pinned Metrics' }), { headerBackTitle: t('screens.dashboardSettings', { defaultValue: 'Dashboard Settings' }) })}
+            options={createStackScreenOptions(t('screens.pinnedMetricsSettings', { defaultValue: 'At a Glance' }), { headerBackTitle: t('screens.dashboardSettings', { defaultValue: 'Dashboard Settings' }) })}
           />
           <Stack.Screen
             name="ActivityRingsSettings"

@@ -4,7 +4,6 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useActiveWorkoutBarPadding } from '../components/ActiveWorkoutBar';
-import SegmentedControl from '../components/SegmentedControl';
 import SettingsRow, { SettingsRowGroup } from '../components/SettingsRow';
 import Switch from '../components/ui/Switch';
 import {
@@ -37,17 +36,13 @@ const PinnedMetricsSettingsScreen: React.FC<
 
   const pinned = useAppPreferencesStore((s) => s.pinnedMetrics);
   const setPinned = useAppPreferencesStore((s) => s.setPinnedMetric);
-  const columns = useAppPreferencesStore((s) => s.pinnedMetricsColumns);
-  const setColumns = useAppPreferencesStore((s) => s.setPinnedMetricsColumns);
-  const showSparklines = useAppPreferencesStore((s) => s.pinnedShowSparklines);
-  const setShowSparklines = useAppPreferencesStore(
-    (s) => s.setPinnedShowSparklines
-  );
+  const auto = useAppPreferencesStore((s) => s.pinnedAuto);
+  const setAuto = useAppPreferencesStore((s) => s.setPinnedAuto);
   const pinnedKeys = resolvePinnedMetrics(pinned).map((m) => m.pinned);
 
   const header = useScreenHeader({
     title: t('screens.pinnedMetricsSettings', {
-      defaultValue: 'Pinned Metrics',
+      defaultValue: 'At a Glance',
     }),
     left: { kind: 'back' },
   });
@@ -98,14 +93,33 @@ const PinnedMetricsSettingsScreen: React.FC<
           usesNativeHeader ? 'automatic' : 'never'
         }
       >
-        <Text className="text-text-secondary text-sm mb-4">
-          {t('pinnedMetrics.settingsDescription', {
-            defaultValue:
-              'Pick up to {{max}} metrics to keep at the top of your Dashboard. Rings and goals show today against your target; trends show the latest reading or average.',
-            max: MAX_PINNED_METRICS,
-          })}
-        </Text>
-        {pinnedKeys.length >= MAX_PINNED_METRICS && (
+        <SettingsRowGroup>
+          <SettingsRow
+            title={t('pinnedMetrics.auto', { defaultValue: 'Choose for me' })}
+            subtitle={t('pinnedMetrics.autoSubtitle', {
+              defaultValue:
+                'Show a few useful metrics, skipping anything another card already shows',
+            })}
+            subtitleNumberOfLines={0}
+            rightAccessory={
+              <Switch
+                testID="pinned-auto-switch"
+                value={auto}
+                onValueChange={setAuto}
+              />
+            }
+          />
+        </SettingsRowGroup>
+        {!auto && (
+          <Text className="text-text-secondary text-sm mb-4">
+            {t('pinnedMetrics.settingsDescription', {
+              defaultValue:
+                'Pick up to {{max}} metrics to show in the strip at the top of your Dashboard. Rings and goals show today against your target; trends show the latest reading or average.',
+              max: MAX_PINNED_METRICS,
+            })}
+          </Text>
+        )}
+        {!auto && pinnedKeys.length >= MAX_PINNED_METRICS && (
           <Text className="text-text-muted text-xs mb-4">
             {t('pinnedMetrics.limitReached', {
               defaultValue:
@@ -114,73 +128,47 @@ const PinnedMetricsSettingsScreen: React.FC<
             })}
           </Text>
         )}
-        {groups.map((group) => (
-          <View key={group.title} className="mb-2">
-            <Text className="text-text-primary text-lg font-semibold mb-2">
-              {group.title}
-            </Text>
-            <View className="flex-row flex-wrap">
-              {group.keys.map((key) => {
-                const isPinned = pinnedKeys.includes(key);
-                const isFull =
-                  !isPinned && pinnedKeys.length >= MAX_PINNED_METRICS;
-                return (
-                  <Pressable
-                    key={key}
-                    testID={`pinned-metric-toggle-${key}`}
-                    accessibilityRole="checkbox"
-                    accessibilityState={{ checked: isPinned, disabled: isFull }}
-                    disabled={isFull}
-                    onPress={() => setPinned(key, !isPinned)}
-                    className={`px-3 py-2 mr-2 mb-2 rounded-full border ${
-                      isPinned
-                        ? 'bg-accent-primary border-accent-primary'
-                        : 'bg-raised border-border-subtle'
-                    } ${isFull ? 'opacity-60' : ''}`}
-                  >
-                    <Text
-                      className={`text-sm font-medium ${
-                        isPinned ? 'text-white' : 'text-text-primary'
-                      }`}
+        {!auto &&
+          groups.map((group) => (
+            <View key={group.title} className="mb-2">
+              <Text className="text-text-primary text-lg font-semibold mb-2">
+                {group.title}
+              </Text>
+              <View className="flex-row flex-wrap">
+                {group.keys.map((key) => {
+                  const isPinned = pinnedKeys.includes(key);
+                  const isFull =
+                    !isPinned && pinnedKeys.length >= MAX_PINNED_METRICS;
+                  return (
+                    <Pressable
+                      key={key}
+                      testID={`pinned-metric-toggle-${key}`}
+                      accessibilityRole="checkbox"
+                      accessibilityState={{
+                        checked: isPinned,
+                        disabled: isFull,
+                      }}
+                      disabled={isFull}
+                      onPress={() => setPinned(key, !isPinned)}
+                      className={`px-3 py-2 mr-2 mb-2 rounded-full border ${
+                        isPinned
+                          ? 'bg-accent-primary border-accent-primary'
+                          : 'bg-raised border-border-subtle'
+                      } ${isFull ? 'opacity-60' : ''}`}
                     >
-                      {labelFor(key)}
-                    </Text>
-                  </Pressable>
-                );
-              })}
+                      <Text
+                        className={`text-sm font-medium ${
+                          isPinned ? 'text-white' : 'text-text-primary'
+                        }`}
+                      >
+                        {labelFor(key)}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
             </View>
-          </View>
-        ))}
-        <Text className="text-text-primary text-lg font-semibold mt-2 mb-2">
-          {t('pinnedMetrics.tilesPerRow', { defaultValue: 'Tiles per row' })}
-        </Text>
-        <SegmentedControl
-          segments={[
-            { key: '2', label: '2' },
-            { key: '3', label: '3' },
-          ]}
-          activeKey={String(columns)}
-          onSelect={(key) => setColumns(key === '3' ? 3 : 2)}
-        />
-        <View className="mt-4">
-          <SettingsRowGroup>
-            <SettingsRow
-              title={t('pinnedMetrics.sparklines', {
-                defaultValue: 'Sparklines',
-              })}
-              subtitle={t('pinnedMetrics.sparklinesSubtitle', {
-                defaultValue: 'Draw a small line chart on trend tiles',
-              })}
-              rightAccessory={
-                <Switch
-                  testID="pinned-sparklines-switch"
-                  value={showSparklines}
-                  onValueChange={setShowSparklines}
-                />
-              }
-            />
-          </SettingsRowGroup>
-        </View>
+          ))}
       </ScrollView>
     </View>
   );

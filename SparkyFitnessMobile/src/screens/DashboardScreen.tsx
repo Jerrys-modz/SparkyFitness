@@ -103,11 +103,13 @@ import {
   summarizeHealthTrend,
 } from '../utils/healthTrendTiles';
 import {
+  coveredPinnedKeys,
+  pickGlanceMetrics,
   pinnedTrendKeys,
   pinsActivePoints,
-  resolvePinnedMetrics,
+  resolveGlanceCandidates,
 } from '../utils/pinnedMetrics';
-import PinnedMetricsCard from '../components/PinnedMetricsCard';
+import GlanceStrip from '../components/GlanceStrip';
 import { resolveDashboardCardOrder } from '../utils/dashboardCardPreferences';
 import type { RootStackParamList, TabParamList } from '../types/navigation';
 import { formatDateLabel, getDateRelationToToday } from '../utils/dateUtils';
@@ -336,12 +338,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
     (s) => s.pinnedMetricsCardVisible
   );
   const savedPinnedMetrics = useAppPreferencesStore((s) => s.pinnedMetrics);
-  const pinnedMetricsColumns = useAppPreferencesStore(
-    (s) => s.pinnedMetricsColumns
-  );
-  const pinnedShowSparklines = useAppPreferencesStore(
-    (s) => s.pinnedShowSparklines
-  );
+  const pinnedAuto = useAppPreferencesStore((s) => s.pinnedAuto);
   const activityRingsCompact = useAppPreferencesStore(
     (s) => s.activityRingsCompact
   );
@@ -351,12 +348,15 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
   const showRangeControl = useAppPreferencesStore(
     (s) => s.healthTrendsShowRangeControl
   );
+  // What the At a Glance strip may draw, before data and other cards narrow it down.
   const pinnedMetrics = useMemo(
     () =>
-      pinnedMetricsCardVisible ? resolvePinnedMetrics(savedPinnedMetrics) : [],
-    [pinnedMetricsCardVisible, savedPinnedMetrics]
+      pinnedMetricsCardVisible
+        ? resolveGlanceCandidates(pinnedAuto, savedPinnedMetrics)
+        : [],
+    [pinnedMetricsCardVisible, pinnedAuto, savedPinnedMetrics]
   );
-  // Pinned trends load even when the Health Trends card is not showing them.
+  // Trends the strip may show load even when the Health Trends card is not showing them.
   const loadedTrends = useMemo(() => {
     const base = healthTrendsLayout === 'tiles' ? tileTrends : visibleTrends;
     return [...new Set([...base, ...pinnedTrendKeys(pinnedMetrics)])];
@@ -714,7 +714,6 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
         goal: ACTIVE_POINTS_DAILY_GOAL,
       },
     };
-    // Built only when something is pinned, so the series are read only when needed.
     const goalValues = {
       calories: {
         current: summary.caloriesConsumed,
@@ -748,6 +747,24 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
           ])
         )
       : {};
+    // The strip drops metrics with no data and, in automatic mode, those another visible
+    // card already shows.
+    const glanceMetrics = pickGlanceMetrics({
+      auto: pinnedAuto,
+      candidates: pinnedMetrics,
+      covered: coveredPinnedKeys({
+        activityRings: activityRingsCardVisible
+          ? resolveActivityRingKeys(activityRingStyle, activityRingCustom)
+          : null,
+        exercise: exerciseCardVisible,
+        calorieRing: calorieRingCardVisible,
+        macros: macrosCardVisible,
+        hydration: hydrationCardVisible,
+      }),
+      hasData: (metric) =>
+        metric.kind !== 'trend' ||
+        pinnedTrendSummaries[metric.key]?.headline != null,
+    });
     const showNetCarbs = preferences.show_net_carbs === true;
 
     return (
@@ -984,13 +1001,11 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
               ) : null;
             case 'pinnedMetrics':
               return pinnedMetricsCardVisible ? (
-                <PinnedMetricsCard
+                <GlanceStrip
                   key="pinnedMetrics"
-                  metrics={pinnedMetrics}
+                  metrics={glanceMetrics}
                   ringValues={ringValues}
                   goalValues={goalValues}
-                  columns={pinnedMetricsColumns}
-                  showSparklines={pinnedShowSparklines}
                   trendSummaries={pinnedTrendSummaries}
                   rangeFor={rangeOf}
                   weightUnit={weightUnit}
