@@ -5,6 +5,7 @@ import Toast from 'react-native-toast-message';
 import FormInput from '../components/FormInput';
 import FormScreenChrome from '../components/FormScreenChrome';
 import GoalPresetsSection from '../components/GoalPresetsSection';
+import GoalWeightSection from '../components/GoalWeightSection';
 import WeeklyGoalPlansSection from '../components/WeeklyGoalPlansSection';
 import MealDistributionEditor from '../components/MealDistributionEditor';
 import NutrientDirectionGuide from '../components/NutrientDirectionGuide';
@@ -964,6 +965,10 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
       />
       {!isPresetMode && (
         <>
+          {sectionTitle(
+            t('goals.sections.goalWeight', { defaultValue: 'Goal weight' })
+          )}
+          <GoalWeightSection />
           {sectionTitle(
             t('goals.sections.presets', { defaultValue: 'Goal presets' })
           )}
