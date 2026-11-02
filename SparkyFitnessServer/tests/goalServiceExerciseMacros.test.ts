@@ -21,6 +21,9 @@ vi.mock('../models/measurementRepository.js');
 vi.mock('../models/calorieRuleHistoryRepository.js', () => ({
   default: { getCalorieRuleHistory: vi.fn().mockResolvedValue([]) },
 }));
+vi.mock('../models/calorieMaintenancePeriodRepository.js', () => ({
+  default: { getCalorieMaintenancePeriods: vi.fn().mockResolvedValue([]) },
+}));
 vi.mock('../models/exerciseEntry.js');
 vi.mock('../models/genericHealthRepository.js', () => ({
   getDeviceTotalCaloriesByDateRange: vi.fn().mockResolvedValue([]),

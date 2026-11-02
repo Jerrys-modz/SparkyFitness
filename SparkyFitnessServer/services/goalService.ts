@@ -13,7 +13,11 @@ import type { AdaptiveTdeeResult } from './AdaptiveTdeeService.js';
 import { ageOnDay } from '../utils/dateHelpers.js';
 import { log } from '../config/logging.js';
 import { addDays, format, getDay, isAfter, parseISO } from 'date-fns';
-import { localDateToDay, weeklyGoalPlanInForce, maintenancePeriodOnDay } from '@workspace/shared';
+import {
+  localDateToDay,
+  weeklyGoalPlanInForce,
+  maintenancePeriodOnDay,
+} from '@workspace/shared';
 import { loadUserTimezone } from '../utils/timezoneLoader.js';
 import {
   todayInZone,
