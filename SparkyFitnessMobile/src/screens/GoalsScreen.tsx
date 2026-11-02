@@ -452,10 +452,13 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
         });
         return null;
       }
+      // water_goal_ml and target_steps are integer columns on the server.
       next[field] =
         field === 'water_goal_ml'
           ? Math.round(volumeToMl(value, waterUnit))
-          : value;
+          : field === 'target_steps'
+            ? Math.round(value)
+            : value;
     }
     for (const [name, text] of Object.entries(customDrafts)) {
       if (text === (initialCustomDrafts[name] ?? '')) continue;
