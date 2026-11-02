@@ -27,3 +27,18 @@ export const fetchAuthenticatedUserId = async (): Promise<string> => {
   }
   return identity.authenticatedUserId;
 };
+
+/**
+ * Sets the goal weight (kilograms), or clears it with null.
+ */
+export const saveTargetWeight = async (
+  targetWeightKg: number | null
+): Promise<{ targetWeight: number | null }> => {
+  return apiFetch<{ targetWeight: number | null }>({
+    endpoint: '/api/onboarding/target-weight',
+    serviceName: 'Profile API',
+    operation: 'save goal weight',
+    method: 'PUT',
+    body: { targetWeight: targetWeightKg },
+  });
+};
