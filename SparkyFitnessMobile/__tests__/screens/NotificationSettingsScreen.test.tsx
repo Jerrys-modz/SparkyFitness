@@ -645,5 +645,18 @@ describe('NotificationSettingsScreen', () => {
       fireEvent.press(getByLabelText('Remove Breakfast reminder'));
       expect(useAppPreferencesStore.getState().mealReminders).toEqual([]);
     });
+
+    it('lets you pick which meal a reminder is for', () => {
+      useAppPreferencesStore.setState({
+        notificationsEnabled: true,
+        mealRemindersEnabled: true,
+        mealReminders: [{ mealTypeId: 'breakfast', time: '08:00' }],
+      });
+      const { getByRole } = renderScreen();
+      fireEvent.press(getByRole('radio', { name: 'Lunch' }));
+      expect(useAppPreferencesStore.getState().mealReminders).toEqual([
+        { mealTypeId: 'lunch', time: '08:00' },
+      ]);
+    });
   });
 });

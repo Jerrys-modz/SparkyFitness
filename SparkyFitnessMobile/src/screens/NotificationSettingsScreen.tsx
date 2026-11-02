@@ -17,6 +17,7 @@ import { useActiveWorkoutBarPadding } from '../components/ActiveWorkoutBar';
 import NotificationPermissionBanner, {
   type NotificationPermissionBannerHandle,
 } from '../components/NotificationPermissionBanner';
+import ReminderRuleRow from '../components/ReminderRuleRow';
 import SegmentedControl from '../components/SegmentedControl';
 import TimeSheet, { type TimeSheetRef } from '../components/TimeSheet';
 import Switch from '../components/ui/Switch';
@@ -263,6 +264,18 @@ const NotificationSettingsScreen: React.FC<
       );
     },
     [editingMealTypeId, mealReminders, setMealReminders]
+  );
+
+  const handleChangeMealReminderMeal = useCallback(
+    (fromId: string, toId: string) => {
+      if (fromId === toId) return;
+      setMealReminders(
+        mealReminders.map((r) =>
+          r.mealTypeId === fromId ? { ...r, mealTypeId: toId } : r
+        )
+      );
+    },
+    [mealReminders, setMealReminders]
   );
 
   const handleRemoveMealReminder = useCallback(
@@ -828,56 +841,46 @@ const NotificationSettingsScreen: React.FC<
                   t('notificationSettings.mealReminderUnknownMeal', {
                     defaultValue: 'Meal',
                   });
-                const timeLabel = formatTimeLabel(
-                  reminder.time,
-                  preferences?.time_format
-                );
-                const removeLabel = t(
-                  'notificationSettings.mealReminderRemove',
-                  {
-                    defaultValue: 'Remove {{meal}} reminder',
-                    meal: mealName,
-                  }
-                );
+                const options = [
+                  ...(mealTypes.some((m) => m.id === reminder.mealTypeId)
+                    ? []
+                    : [{ label: mealName, value: reminder.mealTypeId }]),
+                  ...mealTypes
+                    .filter(
+                      (m) =>
+                        m.id === reminder.mealTypeId ||
+                        !mealReminders.some((r) => r.mealTypeId === m.id)
+                    )
+                    .map((m) => ({ label: m.name, value: m.id })),
+                ];
                 return (
-                  <SettingsRow
+                  <ReminderRuleRow
                     key={reminder.mealTypeId}
-                    title={mealName}
-                    accessibilityLabel={t(
-                      'notificationSettings.mealReminderTimeAccessibility',
-                      {
-                        defaultValue: '{{meal}} reminder, {{time}}',
-                        meal: mealName,
-                        time: timeLabel,
-                      }
-                    )}
-                    accessibilityActions={[
-                      { name: 'remove', label: removeLabel },
-                    ]}
-                    onAccessibilityAction={(event) => {
-                      if (event.nativeEvent.actionName === 'remove') {
-                        handleRemoveMealReminder(reminder.mealTypeId);
-                      }
-                    }}
-                    onPress={() => openMealTimeSheet(reminder.mealTypeId)}
-                    rightAccessory={
-                      <View className="flex-row items-center">
-                        <Text className="text-sm text-text-secondary">
-                          {timeLabel}
-                        </Text>
-                        <Pressable
-                          onPress={() =>
-                            handleRemoveMealReminder(reminder.mealTypeId)
-                          }
-                          accessibilityRole="button"
-                          accessibilityLabel={removeLabel}
-                          hitSlop={14}
-                          className="ml-3"
-                        >
-                          <Icon name="close" size={18} color={secondaryColor} />
-                        </Pressable>
-                      </View>
+                    value={reminder.mealTypeId}
+                    options={options}
+                    onChangeValue={(mealTypeId) =>
+                      handleChangeMealReminderMeal(
+                        reminder.mealTypeId,
+                        mealTypeId
+                      )
                     }
+                    pickerTitle={t('notificationSettings.mealReminderPicker', {
+                      defaultValue: 'Remind me to log',
+                    })}
+                    timeLabel={
+                      formatTimeLabel(
+                        reminder.time,
+                        preferences?.time_format
+                      ) ?? reminder.time
+                    }
+                    onPressTime={() => openMealTimeSheet(reminder.mealTypeId)}
+                    onRemove={() =>
+                      handleRemoveMealReminder(reminder.mealTypeId)
+                    }
+                    removeLabel={t('notificationSettings.mealReminderRemove', {
+                      defaultValue: 'Remove {{meal}} reminder',
+                      meal: mealName,
+                    })}
                   />
                 );
               })}

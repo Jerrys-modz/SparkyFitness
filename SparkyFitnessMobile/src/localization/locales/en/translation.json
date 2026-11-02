@@ -1359,8 +1359,10 @@
     "mealReminderToggleSubtitle": "A nudge to log each meal. Skipped when that meal is already logged.",
     "mealReminderUnknownMeal": "Meal",
     "mealReminderRemove": "Remove {{meal}} reminder",
-    "mealReminderTimeAccessibility": "{{meal}} reminder, {{time}}",
-    "mealReminderAdd": "Add meal reminder"
+    "mealReminderAdd": "Add meal reminder",
+    "mealReminderPicker": "Remind me to log",
+    "ruleTimeAccessibility": "Time, {{time}}",
+    "ruleTimeHint": "Opens the time picker"
   },
   "workoutSettings": {
     "title": "Workout Settings",
