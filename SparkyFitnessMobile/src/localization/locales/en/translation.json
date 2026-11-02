@@ -1322,15 +1322,17 @@
     "mealReminderToggleSubtitle": "A nudge to log each meal. Skipped when that meal is already logged.",
     "mealReminderUnknownMeal": "Meal",
     "mealReminderRemove": "Remove {{meal}} reminder",
-    "mealReminderTimeAccessibility": "{{meal}} reminder, {{time}}",
     "mealReminderAdd": "Add meal reminder",
     "macroAlerts": "Macro alerts",
     "macroAlertToggle": "Macro alerts",
     "macroAlertToggleSubtitle": "A heads-up when you are behind on a target at the time you choose. It only fires if you are still behind, based on what you have logged when you last opened the app.",
-    "macroAlertRuleTitle": "{{macro}} under target by {{time}}",
-    "macroAlertRuleAccessibility": "{{macro}} alert, under {{percent}} percent by {{time}}",
     "macroAlertRemove": "Remove {{macro}} alert",
-    "macroAlertAdd": "Add macro alert"
+    "macroAlertAdd": "Add macro alert",
+    "mealReminderPicker": "Remind me to log",
+    "macroAlertPicker": "Alert me about",
+    "macroAlertShareLabel": "Alert if under this share of the target",
+    "ruleTimeAccessibility": "Time, {{time}}",
+    "ruleTimeHint": "Opens the time picker"
   },
   "workoutSettings": {
     "title": "Workout Settings",

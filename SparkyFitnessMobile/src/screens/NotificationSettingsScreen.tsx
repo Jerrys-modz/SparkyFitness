@@ -17,6 +17,7 @@ import { useActiveWorkoutBarPadding } from '../components/ActiveWorkoutBar';
 import NotificationPermissionBanner, {
   type NotificationPermissionBannerHandle,
 } from '../components/NotificationPermissionBanner';
+import ReminderRuleRow from '../components/ReminderRuleRow';
 import SegmentedControl from '../components/SegmentedControl';
 import TimeSheet, { type TimeSheetRef } from '../components/TimeSheet';
 import Switch from '../components/ui/Switch';
@@ -322,6 +323,16 @@ const NotificationSettingsScreen: React.FC<
     [macroAlertRules, setMacroAlertRules]
   );
 
+  const handleChangeMacroAlertMacro = useCallback(
+    (from: MacroAlertKey, to: MacroAlertKey) => {
+      if (from === to) return;
+      setMacroAlertRules(
+        macroAlertRules.map((r) => (r.macro === from ? { ...r, macro: to } : r))
+      );
+    },
+    [macroAlertRules, setMacroAlertRules]
+  );
+
   const handleRemoveMacroAlert = useCallback(
     (macro: MacroAlertKey) => {
       setMacroAlertRules(macroAlertRules.filter((r) => r.macro !== macro));
@@ -381,6 +392,18 @@ const NotificationSettingsScreen: React.FC<
       );
     },
     [editingMealTypeId, mealReminders, setMealReminders]
+  );
+
+  const handleChangeMealReminderMeal = useCallback(
+    (fromId: string, toId: string) => {
+      if (fromId === toId) return;
+      setMealReminders(
+        mealReminders.map((r) =>
+          r.mealTypeId === fromId ? { ...r, mealTypeId: toId } : r
+        )
+      );
+    },
+    [mealReminders, setMealReminders]
   );
 
   const handleRemoveMealReminder = useCallback(
@@ -946,56 +969,46 @@ const NotificationSettingsScreen: React.FC<
                   t('notificationSettings.mealReminderUnknownMeal', {
                     defaultValue: 'Meal',
                   });
-                const timeLabel = formatTimeLabel(
-                  reminder.time,
-                  preferences?.time_format
-                );
-                const removeLabel = t(
-                  'notificationSettings.mealReminderRemove',
-                  {
-                    defaultValue: 'Remove {{meal}} reminder',
-                    meal: mealName,
-                  }
-                );
+                const options = [
+                  ...(mealTypes.some((m) => m.id === reminder.mealTypeId)
+                    ? []
+                    : [{ label: mealName, value: reminder.mealTypeId }]),
+                  ...mealTypes
+                    .filter(
+                      (m) =>
+                        m.id === reminder.mealTypeId ||
+                        !mealReminders.some((r) => r.mealTypeId === m.id)
+                    )
+                    .map((m) => ({ label: m.name, value: m.id })),
+                ];
                 return (
-                  <SettingsRow
+                  <ReminderRuleRow
                     key={reminder.mealTypeId}
-                    title={mealName}
-                    accessibilityLabel={t(
-                      'notificationSettings.mealReminderTimeAccessibility',
-                      {
-                        defaultValue: '{{meal}} reminder, {{time}}',
-                        meal: mealName,
-                        time: timeLabel,
-                      }
-                    )}
-                    accessibilityActions={[
-                      { name: 'remove', label: removeLabel },
-                    ]}
-                    onAccessibilityAction={(event) => {
-                      if (event.nativeEvent.actionName === 'remove') {
-                        handleRemoveMealReminder(reminder.mealTypeId);
-                      }
-                    }}
-                    onPress={() => openMealTimeSheet(reminder.mealTypeId)}
-                    rightAccessory={
-                      <View className="flex-row items-center">
-                        <Text className="text-sm text-text-secondary">
-                          {timeLabel}
-                        </Text>
-                        <Pressable
-                          onPress={() =>
-                            handleRemoveMealReminder(reminder.mealTypeId)
-                          }
-                          accessibilityRole="button"
-                          accessibilityLabel={removeLabel}
-                          hitSlop={14}
-                          className="ml-3"
-                        >
-                          <Icon name="close" size={18} color={secondaryColor} />
-                        </Pressable>
-                      </View>
+                    value={reminder.mealTypeId}
+                    options={options}
+                    onChangeValue={(mealTypeId) =>
+                      handleChangeMealReminderMeal(
+                        reminder.mealTypeId,
+                        mealTypeId
+                      )
                     }
+                    pickerTitle={t('notificationSettings.mealReminderPicker', {
+                      defaultValue: 'Remind me to log',
+                    })}
+                    timeLabel={
+                      formatTimeLabel(
+                        reminder.time,
+                        preferences?.time_format
+                      ) ?? reminder.time
+                    }
+                    onPressTime={() => openMealTimeSheet(reminder.mealTypeId)}
+                    onRemove={() =>
+                      handleRemoveMealReminder(reminder.mealTypeId)
+                    }
+                    removeLabel={t('notificationSettings.mealReminderRemove', {
+                      defaultValue: 'Remove {{meal}} reminder',
+                      meal: mealName,
+                    })}
                   />
                 );
               })}
@@ -1043,67 +1056,49 @@ const NotificationSettingsScreen: React.FC<
             {macroAlertsEnabled &&
               macroAlertRules.map((rule) => {
                 const macroName = macroLabels[rule.macro];
-                const timeLabel = formatTimeLabel(
-                  rule.time,
-                  preferences?.time_format
-                );
-                const removeLabel = t('notificationSettings.macroAlertRemove', {
-                  defaultValue: 'Remove {{macro}} alert',
-                  macro: macroName,
-                });
+                const options = MACRO_ALERT_KEYS.filter(
+                  (macro) =>
+                    macro === rule.macro ||
+                    !macroAlertRules.some((r) => r.macro === macro)
+                ).map((macro) => ({ label: macroLabels[macro], value: macro }));
                 return (
-                  <SettingsRow
+                  <ReminderRuleRow
                     key={rule.macro}
-                    title={t('notificationSettings.macroAlertRuleTitle', {
-                      defaultValue: '{{macro}} under target by {{time}}',
-                      macro: macroName,
-                      time: timeLabel,
+                    value={rule.macro}
+                    options={options}
+                    onChangeValue={(macro) =>
+                      handleChangeMacroAlertMacro(rule.macro, macro)
+                    }
+                    pickerTitle={t('notificationSettings.macroAlertPicker', {
+                      defaultValue: 'Alert me about',
                     })}
-                    accessibilityLabel={t(
-                      'notificationSettings.macroAlertRuleAccessibility',
-                      {
-                        defaultValue:
-                          '{{macro}} alert, under {{percent}} percent by {{time}}',
-                        macro: macroName,
-                        percent: rule.percent,
-                        time: timeLabel,
-                      }
-                    )}
-                    accessibilityActions={[
-                      { name: 'remove', label: removeLabel },
-                    ]}
-                    onAccessibilityAction={(event) => {
-                      if (event.nativeEvent.actionName === 'remove') {
-                        handleRemoveMacroAlert(rule.macro);
-                      }
-                    }}
-                    onPress={() => openMacroTimeSheet(rule.macro)}
-                    subtitle={
-                      <View className="mt-2">
-                        <SegmentedControl
-                          segments={macroPercentSegments}
-                          activeKey={String(rule.percent)}
-                          onSelect={(key) =>
-                            handleMacroPercentSelect(
-                              rule.macro,
-                              Number(key) as MacroAlertPercent
-                            )
-                          }
-                        />
-                      </View>
+                    timeLabel={
+                      formatTimeLabel(rule.time, preferences?.time_format) ??
+                      rule.time
                     }
-                    rightAccessory={
-                      <Pressable
-                        onPress={() => handleRemoveMacroAlert(rule.macro)}
-                        accessibilityRole="button"
-                        accessibilityLabel={removeLabel}
-                        hitSlop={14}
-                        className="ml-3"
-                      >
-                        <Icon name="close" size={18} color={secondaryColor} />
-                      </Pressable>
-                    }
-                  />
+                    onPressTime={() => openMacroTimeSheet(rule.macro)}
+                    onRemove={() => handleRemoveMacroAlert(rule.macro)}
+                    removeLabel={t('notificationSettings.macroAlertRemove', {
+                      defaultValue: 'Remove {{macro}} alert',
+                      macro: macroName,
+                    })}
+                  >
+                    <Text className="text-xs text-text-secondary mb-2">
+                      {t('notificationSettings.macroAlertShareLabel', {
+                        defaultValue: 'Alert if under this share of the target',
+                      })}
+                    </Text>
+                    <SegmentedControl
+                      segments={macroPercentSegments}
+                      activeKey={String(rule.percent)}
+                      onSelect={(key) =>
+                        handleMacroPercentSelect(
+                          rule.macro,
+                          Number(key) as MacroAlertPercent
+                        )
+                      }
+                    />
+                  </ReminderRuleRow>
                 );
               })}
             {macroAlertsEnabled && nextUnruledMacro && (
