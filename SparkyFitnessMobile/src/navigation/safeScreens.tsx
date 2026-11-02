@@ -26,7 +26,6 @@ import WorkoutFinderScreen from '../screens/WorkoutFinderScreen';
 import WorkoutSplitImportScreen from '../screens/WorkoutSplitImportScreen';
 import WorkoutSplitsScreen from '../screens/WorkoutSplitsScreen';
 import FuelingPlanScreen from '../screens/FuelingPlanScreen';
-import RunProgramCalendarScreen from '../screens/RunProgramCalendarScreen';
 import RunProgramRaceScreen from '../screens/RunProgramRaceScreen';
 import FitnessTestScreen from '../screens/FitnessTestScreen';
 import FitnessTestResultScreen from '../screens/FitnessTestResultScreen';

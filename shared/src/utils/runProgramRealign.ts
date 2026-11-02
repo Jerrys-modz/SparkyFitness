@@ -55,8 +55,12 @@ export const MIN_WEEKS_LEFT: Record<RaceDistance, number> = {
   '10k': 3,
   half: 5,
   marathon: 8,
+  '50k': 10,
+  '100k': 12,
 };
 const LOWER_DISTANCE: Record<RaceDistance, RaceDistance | null> = {
+  '100k': '50k',
+  '50k': 'marathon',
   marathon: 'half',
   half: '10k',
   '10k': '5k',

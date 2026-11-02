@@ -213,7 +213,17 @@ const RunProgramRaceScreen: React.FC<Props> = ({ navigation, route }) => {
         },
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [distance, planLevel, racePace, raceDay, today, runDays, surface, goalSeconds, t]
+    [
+      distance,
+      planLevel,
+      racePace,
+      raceDay,
+      today,
+      runDays,
+      surface,
+      goalSeconds,
+      t,
+    ]
   );
 
   const tooFewDays = runDays.length < 2;
@@ -534,22 +544,23 @@ const RunProgramRaceScreen: React.FC<Props> = ({ navigation, route }) => {
                 })}
               </Text>
               <Text className="text-text-muted text-xs mt-1">
-                {fromTest
-                  ? t('runPrograms.race.estimateFromTest', {
-                      minutes: formatLocalizedNumber(plan.raceMinutes),
-                      defaultValue:
-                        'Race day is planned at about {{minutes}} minutes, at the pace your fitness test points to; you can change it in the plan afterwards.',
                 {plan.goalUsed
                   ? t('runPrograms.race.estimateGoal', {
                       minutes: formatLocalizedNumber(plan.raceMinutes),
                       defaultValue:
                         'Race day is {{minutes}} minutes, your goal time, and the workouts use the paces that implies.',
                     })
-                  : t('runPrograms.race.estimate', {
-                      minutes: formatLocalizedNumber(plan.raceMinutes),
-                      defaultValue:
-                        'Race day is planned at about {{minutes}} minutes at an easy pace; you can change it in the plan afterwards.',
-                    })}
+                  : fromTest
+                    ? t('runPrograms.race.estimateFromTest', {
+                        minutes: formatLocalizedNumber(plan.raceMinutes),
+                        defaultValue:
+                          'Race day is planned at about {{minutes}} minutes, at the pace your fitness test points to; you can change it in the plan afterwards.',
+                      })
+                    : t('runPrograms.race.estimate', {
+                        minutes: formatLocalizedNumber(plan.raceMinutes),
+                        defaultValue:
+                          'Race day is planned at about {{minutes}} minutes at an easy pace; you can change it in the plan afterwards.',
+                      })}
               </Text>
               {goalSeconds !== undefined && !plan.goalUsed ? (
                 <Text className="text-text-secondary text-xs mt-1">

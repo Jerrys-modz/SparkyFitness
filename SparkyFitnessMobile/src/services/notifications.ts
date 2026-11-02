@@ -846,6 +846,7 @@ export async function scheduleDrinkReminderNotifications(
   return ids;
 }
 
+/**
  * Schedules one meal reminder per entry and returns the ids that were
  * scheduled. `mealName` is the display name resolved by the caller. Never
  * prompts for permission (this runs from a reconcile); all or nothing, so a

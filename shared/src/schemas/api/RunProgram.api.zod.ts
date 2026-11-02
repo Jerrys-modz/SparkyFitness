@@ -240,7 +240,14 @@ export const adjustRunProgramBodySchema = z.object({
 export type AdjustRunProgramBody = z.infer<typeof adjustRunProgramBodySchema>;
 
 /** Race distances a realignment can name; the same ids the race plan builder uses. */
-export const realignDistanceSchema = z.enum(['5k', '10k', 'half', 'marathon']);
+export const realignDistanceSchema = z.enum([
+  '5k',
+  '10k',
+  'half',
+  'marathon',
+  '50k',
+  '100k',
+]);
 
 /** What realigning did to one workout of the plan as it stood before. */
 export const runProgramRealignChangeSchema = z.object({

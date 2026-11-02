@@ -165,12 +165,6 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
   const setActivityRingsCardVisible = useAppPreferencesStore(
     (s) => s.setActivityRingsCardVisible
   );
-  const trainingLoadCardVisible = useAppPreferencesStore(
-    (s) => s.trainingLoadCardVisible
-  );
-  const setTrainingLoadCardVisible = useAppPreferencesStore(
-    (s) => s.setTrainingLoadCardVisible
-  );
 
   const dashboardCardOrder = useAppPreferencesStore(
     (s) => s.dashboardCardOrder
