@@ -70,7 +70,7 @@ const ActivityRingsSettingsScreen: React.FC<
         <Text className="text-text-secondary text-sm mb-4">
           {t('activityRings.settingsDescription', {
             defaultValue:
-              'Rings fill toward your daily goals. Move and Exercise use your exercise goals; Steps uses your steps goal.',
+              'Rings fill toward your daily goals. Move and Exercise use your exercise goals, Stand and Active points have their own goals, and Steps uses your steps goal.',
           })}
         </Text>
 
@@ -110,7 +110,7 @@ const ActivityRingsSettingsScreen: React.FC<
             {
               key: 'google',
               label: t('activityRings.styleGoogle', {
-                defaultValue: 'Minutes & Points',
+                defaultValue: 'Points',
               }),
             },
             {
@@ -127,6 +127,14 @@ const ActivityRingsSettingsScreen: React.FC<
             {t('activityRings.styleAppleDescription', {
               defaultValue:
                 'Move (calories), Exercise (minutes) and Stand (hours) rings. Stand shows on iPhone only.',
+            })}
+          </Text>
+        )}
+
+        {style === 'google' && (
+          <Text className="text-sm text-text-secondary mt-2">
+            {t('activityRings.styleGoogleDescription', {
+              defaultValue: 'Exercise minutes and Active points rings.',
             })}
           </Text>
         )}

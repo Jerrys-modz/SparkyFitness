@@ -324,3 +324,8 @@
 "watch.unit.min" = "min";
 "watch.unit.g" = "g";
 "watch.unit.ml" = "ml";
+"watch.checkin.tapToAdjust" = "Tap number to adjust";
+"watch.checkin.turnCrown" = "Turn the crown";
+"watch.run.cue.drink" = "Time to drink. About %lld milliliters.";
+"watch.run.cue.fuel" = "Time to fuel. Take %lld grams of carbs.";
+"watch.run.cue.fuelAndDrink" = "Time to fuel. Take %1$lld grams of carbs, and have about %2$lld milliliters to drink.";

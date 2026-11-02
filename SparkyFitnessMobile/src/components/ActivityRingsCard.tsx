@@ -33,6 +33,7 @@ const ActivityRingsCard: React.FC<ActivityRingsCardProps> = ({
   compact = false,
 }) => {
   const { t } = useTranslation();
+  const { colors, units, trackColor } = useActivityRingLook();
   const hasMany = rings.length >= MANY_RINGS;
   const outerSize = compact
     ? COMPACT_OUTER_SIZE
@@ -41,7 +42,6 @@ const ActivityRingsCard: React.FC<ActivityRingsCardProps> = ({
       : OUTER_SIZE;
   const strokeWidth = compact ? COMPACT_STROKE_WIDTH : STROKE_WIDTH;
   const ringStep = (strokeWidth + (compact ? COMPACT_RING_GAP : RING_GAP)) * 2;
-  const { colors, units, trackColor } = useActivityRingLook();
   const accentColor = colors.steps;
 
   return (

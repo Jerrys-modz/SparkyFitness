@@ -10,7 +10,6 @@ import {
   learnFromWatchRun,
   measureOutdoorForm,
   measureWatchRunForm,
-  learnFromWatchRun,
   type IndoorDistanceEstimate,
   type StepWindow,
 } from '../../src/services/stepDistance';
