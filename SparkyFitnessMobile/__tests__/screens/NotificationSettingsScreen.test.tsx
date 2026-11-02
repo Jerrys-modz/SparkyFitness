@@ -708,5 +708,18 @@ describe('NotificationSettingsScreen', () => {
         useAppPreferencesStore.getState().macroAlertRules.map((r) => r.macro)
       ).toEqual(['protein']);
     });
+
+    it('lets you pick which macro an alert is for', () => {
+      useAppPreferencesStore.setState({
+        notificationsEnabled: true,
+        macroAlertsEnabled: true,
+        macroAlertRules: [{ macro: 'protein', percent: 70, time: '18:00' }],
+      });
+      const { getByRole } = renderScreen();
+      fireEvent.press(getByRole('radio', { name: 'Fiber' }));
+      expect(useAppPreferencesStore.getState().macroAlertRules).toEqual([
+        { macro: 'fiber', percent: 70, time: '18:00' },
+      ]);
+    });
   });
 });

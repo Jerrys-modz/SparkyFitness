@@ -323,6 +323,16 @@ const NotificationSettingsScreen: React.FC<
     [macroAlertRules, setMacroAlertRules]
   );
 
+  const handleChangeMacroAlertMacro = useCallback(
+    (from: MacroAlertKey, to: MacroAlertKey) => {
+      if (from === to) return;
+      setMacroAlertRules(
+        macroAlertRules.map((r) => (r.macro === from ? { ...r, macro: to } : r))
+      );
+    },
+    [macroAlertRules, setMacroAlertRules]
+  );
+
   const handleRemoveMacroAlert = useCallback(
     (macro: MacroAlertKey) => {
       setMacroAlertRules(macroAlertRules.filter((r) => r.macro !== macro));
@@ -1046,67 +1056,49 @@ const NotificationSettingsScreen: React.FC<
             {macroAlertsEnabled &&
               macroAlertRules.map((rule) => {
                 const macroName = macroLabels[rule.macro];
-                const timeLabel = formatTimeLabel(
-                  rule.time,
-                  preferences?.time_format
-                );
-                const removeLabel = t('notificationSettings.macroAlertRemove', {
-                  defaultValue: 'Remove {{macro}} alert',
-                  macro: macroName,
-                });
+                const options = MACRO_ALERT_KEYS.filter(
+                  (macro) =>
+                    macro === rule.macro ||
+                    !macroAlertRules.some((r) => r.macro === macro)
+                ).map((macro) => ({ label: macroLabels[macro], value: macro }));
                 return (
-                  <SettingsRow
+                  <ReminderRuleRow
                     key={rule.macro}
-                    title={t('notificationSettings.macroAlertRuleTitle', {
-                      defaultValue: '{{macro}} under target by {{time}}',
-                      macro: macroName,
-                      time: timeLabel,
+                    value={rule.macro}
+                    options={options}
+                    onChangeValue={(macro) =>
+                      handleChangeMacroAlertMacro(rule.macro, macro)
+                    }
+                    pickerTitle={t('notificationSettings.macroAlertPicker', {
+                      defaultValue: 'Alert me about',
                     })}
-                    accessibilityLabel={t(
-                      'notificationSettings.macroAlertRuleAccessibility',
-                      {
-                        defaultValue:
-                          '{{macro}} alert, under {{percent}} percent by {{time}}',
-                        macro: macroName,
-                        percent: rule.percent,
-                        time: timeLabel,
-                      }
-                    )}
-                    accessibilityActions={[
-                      { name: 'remove', label: removeLabel },
-                    ]}
-                    onAccessibilityAction={(event) => {
-                      if (event.nativeEvent.actionName === 'remove') {
-                        handleRemoveMacroAlert(rule.macro);
-                      }
-                    }}
-                    onPress={() => openMacroTimeSheet(rule.macro)}
-                    subtitle={
-                      <View className="mt-2">
-                        <SegmentedControl
-                          segments={macroPercentSegments}
-                          activeKey={String(rule.percent)}
-                          onSelect={(key) =>
-                            handleMacroPercentSelect(
-                              rule.macro,
-                              Number(key) as MacroAlertPercent
-                            )
-                          }
-                        />
-                      </View>
+                    timeLabel={
+                      formatTimeLabel(rule.time, preferences?.time_format) ??
+                      rule.time
                     }
-                    rightAccessory={
-                      <Pressable
-                        onPress={() => handleRemoveMacroAlert(rule.macro)}
-                        accessibilityRole="button"
-                        accessibilityLabel={removeLabel}
-                        hitSlop={14}
-                        className="ml-3"
-                      >
-                        <Icon name="close" size={18} color={secondaryColor} />
-                      </Pressable>
-                    }
-                  />
+                    onPressTime={() => openMacroTimeSheet(rule.macro)}
+                    onRemove={() => handleRemoveMacroAlert(rule.macro)}
+                    removeLabel={t('notificationSettings.macroAlertRemove', {
+                      defaultValue: 'Remove {{macro}} alert',
+                      macro: macroName,
+                    })}
+                  >
+                    <Text className="text-xs text-text-secondary mb-2">
+                      {t('notificationSettings.macroAlertShareLabel', {
+                        defaultValue: 'Alert if under this share of the target',
+                      })}
+                    </Text>
+                    <SegmentedControl
+                      segments={macroPercentSegments}
+                      activeKey={String(rule.percent)}
+                      onSelect={(key) =>
+                        handleMacroPercentSelect(
+                          rule.macro,
+                          Number(key) as MacroAlertPercent
+                        )
+                      }
+                    />
+                  </ReminderRuleRow>
                 );
               })}
             {macroAlertsEnabled && nextUnruledMacro && (
