@@ -1040,6 +1040,7 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
         location={session.location}
         startedAt={startedAt}
         progress={progress}
+        progressInSubtitle={focusMode}
         onBack={safeGoBack}
         onDiscard={handleDiscard}
         onEndWorkout={handleConfirmEnd}
