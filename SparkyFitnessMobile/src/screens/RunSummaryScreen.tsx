@@ -144,7 +144,8 @@ const RunSummaryScreen: React.FC<Props> = ({ navigation, route }) => {
           summary.activity,
           summary.watchIndoor.scale,
           summary.watchIndoor.estimatedMeters,
-          km * METERS_PER_KM
+          km * METERS_PER_KM,
+          'phone'
         );
       }
       setDistanceSaved(true);

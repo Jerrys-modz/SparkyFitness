@@ -465,7 +465,8 @@ async function drainOnce(
           item.payload.kind,
           item.payload.distanceScale ?? 1,
           item.payload.estimatedDistanceMeters,
-          item.payload.distanceMeters
+          item.payload.distanceMeters,
+          'watch'
         );
       }
       // Marked done first: a stop between the two steps leaves a queued run

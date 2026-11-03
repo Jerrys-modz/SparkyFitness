@@ -321,7 +321,13 @@ test('learns the indoor factor from a treadmill distance entered on the wrist', 
     estimatedDistanceMeters: 4400,
   });
   await processWatchRunQueue('km');
-  expect(learnWatchIndoorScale).toHaveBeenCalledWith('walk', 1.1, 4400, 5000);
+  expect(learnWatchIndoorScale).toHaveBeenCalledWith(
+    'walk',
+    1.1,
+    4400,
+    5000,
+    'watch'
+  );
 });
 
 test('learns nothing when the watch figure was kept', async () => {
