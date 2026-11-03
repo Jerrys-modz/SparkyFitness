@@ -45,6 +45,12 @@ enum ComplicationPublisher {
         static let kind = "energyGoalComplication"
     }
 
+    /// The calories-only complication reads the Energy snapshot above, so it
+    /// has no key of its own — only a kind to reload.
+    private enum CalorieGoal {
+        static let kind = "calorieGoalComplication"
+    }
+
     private enum Water {
         static let key = "waterGoalSnapshot"
         static let kind = "waterGoalComplication"
@@ -119,7 +125,8 @@ enum ComplicationPublisher {
                 fatGoal: goals.fatGrams?.goal
             ),
             forKey: Energy.key,
-            reloading: Energy.kind
+            reloading: Energy.kind,
+            alsoReloading: [CalorieGoal.kind]
         )
     }
 
@@ -205,7 +212,8 @@ enum ComplicationPublisher {
     private static func write<Snapshot: Codable & Equatable>(
         _ snapshot: Snapshot,
         forKey key: String,
-        reloading kind: String
+        reloading kind: String,
+        alsoReloading extraKinds: [String] = []
     ) {
         guard let defaults = sharedDefaults() else { return }
 
@@ -219,6 +227,9 @@ enum ComplicationPublisher {
         defaults.set(data, forKey: key)
 
         WidgetCenter.shared.reloadTimelines(ofKind: kind)
+        for extra in extraKinds {
+            WidgetCenter.shared.reloadTimelines(ofKind: extra)
+        }
     }
 
     /// The App Group suite both processes share.
