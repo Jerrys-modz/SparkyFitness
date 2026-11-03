@@ -326,7 +326,8 @@ test('learns the indoor factor from a treadmill distance entered on the wrist', 
     1.1,
     4400,
     5000,
-    'watch'
+    'watch',
+    'entry-1'
   );
 });
 
