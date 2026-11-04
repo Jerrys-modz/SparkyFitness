@@ -17,8 +17,11 @@ export interface ReportSummaryRow {
 const ReportSummaryCard: React.FC<{
   title: string;
   rows: ReportSummaryRow[];
-}> = ({ title, rows }) => (
-  <View className="bg-surface rounded-xl p-4 my-2 shadow-sm">
+  /** Shown under the rows, e.g. a note or an action button. */
+  footer?: React.ReactNode;
+  testID?: string;
+}> = ({ title, rows, footer, testID }) => (
+  <View testID={testID} className="bg-surface rounded-xl p-4 my-2 shadow-sm">
     <Text className="text-text-primary text-lg font-semibold mb-2">
       {title}
     </Text>
@@ -63,6 +66,7 @@ const ReportSummaryCard: React.FC<{
         </View>
       );
     })}
+    {footer}
   </View>
 );
 

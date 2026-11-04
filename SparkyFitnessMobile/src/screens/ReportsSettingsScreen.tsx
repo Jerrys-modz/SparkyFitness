@@ -167,6 +167,20 @@ const SECTION_LABELS: Record<
     t('reportsSettings.sections.sleepNeed', {
       defaultValue: 'Sleep need tonight',
     }),
+  'sleep.debt': (t) =>
+    t('reportsSettings.sections.sleepDebt', { defaultValue: 'Sleep debt' }),
+  'sleep.energy': (t) =>
+    t('reportsSettings.sections.sleepEnergy', {
+      defaultValue: 'Energy today',
+    }),
+  'sleep.chronotype': (t) =>
+    t('reportsSettings.sections.sleepChronotype', {
+      defaultValue: 'Chronotype',
+    }),
+  'sleep.baseline': (t) =>
+    t('reportsSettings.sections.sleepBaseline', {
+      defaultValue: 'Baseline sleep need',
+    }),
   'sleep.nights': (t) =>
     t('reportsSettings.sections.sleepNights', { defaultValue: 'Nights' }),
   'nutrition.fats': (t) =>

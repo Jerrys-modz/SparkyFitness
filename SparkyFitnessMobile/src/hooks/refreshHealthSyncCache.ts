@@ -2,7 +2,7 @@ import type { QueryClient } from '@tanstack/react-query';
 import {
   exerciseHistoryResetQueryKey,
   sleepDayQueryKeyRoot,
-  sleepNeedQueryKey,
+  sleepScienceQueryKeyRoot,
   sleepRangeQueryKeyRoot,
   vo2MaxRangeQueryKeyRoot,
 } from './queryKeys';
@@ -23,8 +23,9 @@ export function refreshHealthSyncCache(queryClient: QueryClient) {
   // restart (reload) refetches /api/sleep.
   void queryClient.invalidateQueries({ queryKey: sleepDayQueryKeyRoot });
   void queryClient.invalidateQueries({ queryKey: sleepRangeQueryKeyRoot });
-  // Sleep need reads the same sleep plus the workouts synced alongside it.
-  void queryClient.invalidateQueries({ queryKey: sleepNeedQueryKey });
+  // Sleep science (need, debt, chronotype, energy) reads the same sleep, and
+  // the need also reads the workouts synced alongside it.
+  void queryClient.invalidateQueries({ queryKey: sleepScienceQueryKeyRoot });
   // VO2 max arrives in the same sync as a custom measurement.
   void queryClient.invalidateQueries({ queryKey: vo2MaxRangeQueryKeyRoot });
   void queryClient.invalidateQueries({
