@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { useSleepAnalytics } from '../hooks/useSleepAnalytics';
+import { useSleepNeed } from '../hooks/useSleepNeed';
 import { formatLocalizedNumber, getAppLocale } from '../localization';
 import ReportScreenLayout from '../components/reports/ReportScreenLayout';
 import ReportInsights from '../components/reports/ReportInsights';
@@ -68,6 +69,7 @@ const SleepAnalyticsScreen: React.FC<SleepAnalyticsScreenProps> = () => {
   } = useReportCustomization();
   const { analytics, previousAnalytics, isLoading, isError } =
     useSleepAnalytics({ window: reportWindow });
+  const { data: sleepNeed } = useSleepNeed();
   const days = reportWindow.days;
 
   const header = useScreenHeader({
@@ -515,6 +517,68 @@ const SleepAnalyticsScreen: React.FC<SleepAnalyticsScreenProps> = () => {
           ) : null}
           {isSectionShown('sleep.insights') ? (
             <ReportInsights lines={insightLines} testIDPrefix="sleep" />
+          ) : null}
+          {isSectionShown('sleep.need') && sleepNeed ? (
+            <ReportSummaryCard
+              title={t('sleepAnalytics.needTonight', {
+                defaultValue: 'Sleep need tonight',
+              })}
+              rows={[
+                {
+                  label: t('sleepAnalytics.needTotal', {
+                    defaultValue: 'Total',
+                  }),
+                  value: formatSeconds(sleepNeed.total_need * 3600, t),
+                  testID: 'sleep-need-total',
+                },
+                {
+                  label: t('sleepAnalytics.needBaseline', {
+                    defaultValue: 'Baseline',
+                  }),
+                  value: formatSeconds(sleepNeed.baseline_need * 3600, t),
+                  testID: 'sleep-need-baseline',
+                },
+                {
+                  label: t('sleepAnalytics.needStrain', {
+                    defaultValue: 'Strain',
+                  }),
+                  value: formatSeconds(
+                    (sleepNeed.strain_addition ?? 0) * 3600,
+                    t
+                  ),
+                  hint: t('sleepAnalytics.needStrainHint', {
+                    defaultValue: "From today's workouts",
+                  }),
+                  testID: 'sleep-need-strain',
+                },
+                {
+                  label: t('sleepAnalytics.needDebt', {
+                    defaultValue: 'Debt recovery',
+                  }),
+                  value: formatSeconds(
+                    (sleepNeed.debt_addition ?? 0) * 3600,
+                    t
+                  ),
+                  testID: 'sleep-need-debt',
+                },
+                ...(sleepNeed.training_load_score != null
+                  ? [
+                      {
+                        label: t('sleepAnalytics.trainingLoad', {
+                          defaultValue: 'Training load',
+                        }),
+                        value: formatLocalizedNumber(
+                          Math.round(sleepNeed.training_load_score)
+                        ),
+                        hint: t('sleepAnalytics.trainingLoadHint', {
+                          defaultValue: 'Heart-rate-weighted workout minutes',
+                        }),
+                        testID: 'sleep-need-training-load',
+                      },
+                    ]
+                  : []),
+              ]}
+            />
           ) : null}
           {isSectionShown('sleep.stages') && analytics ? (
             <ReportSummaryCard
