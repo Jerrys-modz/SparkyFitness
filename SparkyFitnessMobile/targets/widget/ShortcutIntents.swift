@@ -4,7 +4,8 @@ import Security
 import WidgetKit
 
 // Siri and Shortcuts actions that log without opening the app, then say what
-// happened on screen: Log water, Log weight, Start fast and End fast. They also
+// happened on screen: Log water, Log weight, Start fast and End fast, plus the
+// read-only Calories left and Macros today. They also
 // show up in Spotlight and can be put on the Action button.
 //
 // They need the login the app keeps in the Keychain item read below (written by
@@ -440,6 +441,74 @@ struct EndFastIntent: AppIntent {
         } catch let failure as ShortcutCall.Failure {
             return .result(dialog: IntentDialog(stringLiteral: failure.message))
         }
+    }
+}
+
+/// Today's figures the app last wrote to the shared app group for the widgets
+/// (`calorieSnapshot`, `macroSnapshot`). Reading them needs no network call and
+/// no login, so a question answers at once, even offline. Nil when the app has
+/// not written one for today yet.
+private func todaysSnapshot(key: String) -> [String: Any]? {
+    guard
+        let group = Bundle.main.object(forInfoDictionaryKey: "APP_GROUP_IDENTIFIER") as? String,
+        !group.isEmpty,
+        let defaults = UserDefaults(suiteName: group),
+        let data = defaults.data(forKey: key),
+        let snapshot = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+        snapshot["date"] as? String == localDateString()
+    else { return nil }
+    return snapshot
+}
+
+private let snapshotMissingMessage = "I do not have today's numbers yet. Open SparkyFitness once to refresh them."
+
+/// Answers "how many calories do I have left?" from the calorie widget's snapshot.
+@available(iOS 16.0, *)
+struct CaloriesLeftIntent: AppIntent {
+    static var title: LocalizedStringResource = "Calories left"
+    static var description = IntentDescription(
+        "Tells you how many calories you have left today, without opening SparkyFitness."
+    )
+    static var openAppWhenRun: Bool = false
+
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        guard
+            let snapshot = todaysSnapshot(key: "calorieSnapshot"),
+            let goal = (snapshot["goal"] as? NSNumber)?.doubleValue,
+            let remaining = (snapshot["remaining"] as? NSNumber)?.doubleValue,
+            goal > 0
+        else {
+            return .result(dialog: IntentDialog(stringLiteral: snapshotMissingMessage))
+        }
+        let eaten = Int(((snapshot["food"] as? NSNumber)?.doubleValue ?? 0).rounded())
+        if remaining < 0 {
+            let over = Int((-remaining).rounded())
+            return .result(dialog: "You are \(over) calories over your goal. You have eaten \(eaten).")
+        }
+        let left = Int(remaining.rounded())
+        return .result(dialog: "You have \(left) calories left. You have eaten \(eaten) of \(Int(goal.rounded())).")
+    }
+}
+
+/// Answers "how much protein have I had?" from the macro widget's snapshot.
+@available(iOS 16.0, *)
+struct MacrosTodayIntent: AppIntent {
+    static var title: LocalizedStringResource = "Macros today"
+    static var description = IntentDescription(
+        "Tells you today's protein, carbs and fat, without opening SparkyFitness."
+    )
+    static var openAppWhenRun: Bool = false
+
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        guard let snapshot = todaysSnapshot(key: "macroSnapshot") else {
+            return .result(dialog: IntentDialog(stringLiteral: snapshotMissingMessage))
+        }
+        func grams(_ key: String) -> Int {
+            Int(((snapshot[key] as? NSNumber)?.doubleValue ?? 0).rounded())
+        }
+        return .result(
+            dialog: "Today you have had \(grams("protein")) grams of protein, \(grams("carbs")) of carbs and \(grams("fat")) of fat."
+        )
     }
 }
 
