@@ -40,12 +40,21 @@ const formatSeconds = (
   t: ReturnType<typeof useTranslation>['t']
 ): string => {
   if (seconds === null) return '-';
-  const totalMinutes = Math.round(seconds / 60);
-  return t('sleepAnalytics.duration', {
+  // Format the magnitude and sign it once: flooring a negative total would
+  // split -7 min into "-1h -7m". Sleep need's debt part goes negative when
+  // there is a sleep surplus.
+  const totalMinutes = Math.round(Math.abs(seconds) / 60);
+  const duration = t('sleepAnalytics.duration', {
     defaultValue: '{{hours}}h {{minutes}}m',
     hours: Math.floor(totalMinutes / 60),
     minutes: totalMinutes % 60,
   });
+  return seconds < 0 && totalMinutes > 0
+    ? t('sleepAnalytics.negativeDuration', {
+        defaultValue: '-{{duration}}',
+        duration,
+      })
+    : duration;
 };
 
 const formatClock = (minutes: number | null): string => {
