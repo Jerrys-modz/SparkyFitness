@@ -8822,8 +8822,7 @@
       "heartRateZones": "Intensity zones",
       "strengthVolume": "Weekly muscle volume",
       "heartRateRangeTimeline": "Average heart rate by day",
-      "heartRateDayTimeline": "Heart rate through the day",
-      "heartRateZones": "Intensity zones"
+      "heartRateDayTimeline": "Heart rate through the day"
     },
     "hydrationSections": "Hydration report",
     "measurementsSections": "Measurements report",
