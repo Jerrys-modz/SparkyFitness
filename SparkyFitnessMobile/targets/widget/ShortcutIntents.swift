@@ -20,7 +20,32 @@ import WidgetKit
 
 private let backgroundWaterService = "com.sparkyapps.sparkyfitness.backgroundWater"
 private let backgroundWaterAccount = "config"
-private let setupMessage = "Open SparkyFitness and sign in to a server first."
+/// Looks a spoken reply up in the app's own bundle, then in the widget
+/// extension embedded in it, then falls back to the English text passed in.
+/// The strings live once, in the widget's `Localizable.strings` (the same files
+/// the Lock Screen controls read), and an app Shortcut finds them through the
+/// extension bundle, so the app target needs no resources of its own. A key with
+/// no translation yet reads in English.
+private func intentText(_ key: String, _ english: String, _ args: [CVarArg] = []) -> String {
+    var bundles: [Bundle] = [Bundle.main]
+    if let plugIns = Bundle.main.builtInPlugInsURL,
+       let urls = try? FileManager.default.contentsOfDirectory(at: plugIns, includingPropertiesForKeys: nil) {
+        bundles += urls.filter { $0.pathExtension == "appex" }.compactMap { Bundle(url: $0) }
+    }
+    var format = english
+    for bundle in bundles {
+        let value = bundle.localizedString(forKey: key, value: nil, table: nil)
+        if value != key, !value.isEmpty {
+            format = value
+            break
+        }
+    }
+    return args.isEmpty ? format : String(format: format, arguments: args)
+}
+
+private func intentDialog(_ key: String, _ english: String, _ args: CVarArg...) -> IntentDialog {
+    IntentDialog(stringLiteral: intentText(key, english, args))
+}
 
 /// The Keychain group the app and the widget extension share, filled in at
 /// build time. Nil means a build without it, where only the app can read it.
@@ -213,10 +238,10 @@ private enum ShortcutCall {
 
         var message: String {
             switch self {
-            case .notSetUp: return setupMessage
-            case .expired: return "Your SparkyFitness login expired. Open the app once to sign in again."
-            case .server(let status): return "SparkyFitness could not do that (error \(status))."
-            case .unreachable: return "SparkyFitness could not reach your server."
+            case .notSetUp: return intentText("intent.setup", "Open SparkyFitness and sign in to a server first.")
+            case .expired: return intentText("intent.expired", "Your SparkyFitness login expired. Open the app once to sign in again.")
+            case .server(let status): return intentText("intent.server_error", "SparkyFitness could not do that (error %lld).", [status])
+            case .unreachable: return intentText("intent.unreachable", "SparkyFitness could not reach your server.")
             }
         }
     }
@@ -337,7 +362,7 @@ struct LogWaterIntent: AppIntent {
                 config.containerName.map { (id: id, name: $0, label: config.volumeLabel) }
             }
             guard let target = chosen ?? fallback else {
-                return .result(dialog: "Pick a water container in SparkyFitness first.")
+                return .result(dialog: intentDialog("intent.water.pick_container", "Pick a water container in SparkyFitness first."))
             }
             let response = try await ShortcutCall.send(
                 config, method: "POST", path: "/api/measurements/water-intake",
@@ -349,7 +374,7 @@ struct LogWaterIntent: AppIntent {
             )
             WaterSnapshotWriter.apply(response: response, fallbackDrinks: drinks)
             let what = target.label.map { "\(target.name) (\($0))" } ?? target.name
-            return .result(dialog: "Logged \(drinks) × \(what).")
+            return .result(dialog: intentDialog("intent.water.logged", "Logged %lld × %@.", drinks, what))
         } catch let failure as ShortcutCall.Failure {
             return .result(dialog: IntentDialog(stringLiteral: failure.message))
         }
@@ -372,7 +397,7 @@ struct RemoveWaterIntent: AppIntent {
         do {
             let config = try ShortcutCall.config()
             guard let containerId = config.containerId, let name = config.containerName else {
-                return .result(dialog: "Pick a water container in SparkyFitness first.")
+                return .result(dialog: intentDialog("intent.water.pick_container", "Pick a water container in SparkyFitness first."))
             }
             let before = WaterSnapshotWriter.currentTotal()
             let response = try await ShortcutCall.send(
@@ -387,9 +412,9 @@ struct RemoveWaterIntent: AppIntent {
             // Only drinks logged with the drink button come off. Water logged
             // another way is left alone, and the widget keeps showing it.
             if let before, let after, after >= before {
-                return .result(dialog: "There was no drink to remove. Water logged another way stays.")
+                return .result(dialog: intentDialog("intent.water.nothing_to_remove", "There was no drink to remove. Water logged another way stays."))
             }
-            return .result(dialog: "Removed 1 × \(name).")
+            return .result(dialog: intentDialog("intent.water.removed", "Removed 1 × %@.", name))
         } catch let failure as ShortcutCall.Failure {
             return .result(dialog: IntentDialog(stringLiteral: failure.message))
         }
@@ -425,7 +450,8 @@ struct LogWeightIntent: AppIntent {
                 body: ["entry_date": localDateString(), "weight": kg]
             )
             let shown = String(format: "%.1f", weight)
-            return .result(dialog: "Logged \(shown) \(usesPounds ? "lb" : "kg").")
+            let unitLabel = usesPounds ? "lb" : "kg"
+            return .result(dialog: intentDialog("intent.weight.logged", "Logged %@ %@.", shown, unitLabel))
         } catch let failure as ShortcutCall.Failure {
             return .result(dialog: IntentDialog(stringLiteral: failure.message))
         }
@@ -468,7 +494,7 @@ struct StartFastIntent: AppIntent {
                     "fasting_type": label,
                 ]
             )
-            return .result(dialog: "Started a \(hours) hour fast.")
+            return .result(dialog: intentDialog("intent.fast.started", "Started a %lld hour fast.", hours))
         } catch let failure as ShortcutCall.Failure {
             return .result(dialog: IntentDialog(stringLiteral: failure.message))
         }
@@ -492,22 +518,22 @@ struct EndFastIntent: AppIntent {
                 let id = fast["id"] as? String,
                 let startedAt = fast["start_time"] as? String
             else {
-                return .result(dialog: "You are not fasting right now.")
+                return .result(dialog: intentDialog("intent.fast.not_fasting", "You are not fasting right now."))
             }
             // With auto-calculation on, /current also answers with a fast worked
             // out from the user's meals. During its eating window that is the
             // opposite of fasting, and a calculated fast has no row to end.
             if fast["is_eating_window"] as? Bool == true {
-                return .result(dialog: "You are not fasting right now.")
+                return .result(dialog: intentDialog("intent.fast.not_fasting", "You are not fasting right now."))
             }
             if fast["is_auto_calculated"] as? Bool == true {
-                return .result(dialog: "Your fast is worked out from your meals, so there is nothing to end. It ends when you log your next meal.")
+                return .result(dialog: intentDialog("intent.fast.auto_calculated", "Your fast is worked out from your meals, so there is nothing to end. It ends when you log your next meal."))
             }
             _ = try await ShortcutCall.send(
                 config, method: "POST", path: "/api/fasting/end",
                 body: ["id": id, "start_time": startedAt, "end_time": isoString(Date())]
             )
-            return .result(dialog: "Ended your fast.")
+            return .result(dialog: intentDialog("intent.fast.ended", "Ended your fast."))
         } catch let failure as ShortcutCall.Failure {
             return .result(dialog: IntentDialog(stringLiteral: failure.message))
         }
@@ -530,7 +556,9 @@ private func todaysSnapshot(key: String) -> [String: Any]? {
     return snapshot
 }
 
-private let snapshotMissingMessage = "I do not have today's numbers yet. Open SparkyFitness once to refresh them."
+private func snapshotMissingDialog() -> IntentDialog {
+    intentDialog("intent.snapshot_missing", "I do not have today's numbers yet. Open SparkyFitness once to refresh them.")
+}
 
 /// Answers "how many calories do I have left?" from the calorie widget's snapshot.
 @available(iOS 16.0, *)
@@ -548,15 +576,15 @@ struct CaloriesLeftIntent: AppIntent {
             let remaining = (snapshot["remaining"] as? NSNumber)?.doubleValue,
             goal > 0
         else {
-            return .result(dialog: IntentDialog(stringLiteral: snapshotMissingMessage))
+            return .result(dialog: snapshotMissingDialog())
         }
         let eaten = Int(((snapshot["food"] as? NSNumber)?.doubleValue ?? 0).rounded())
         if remaining < 0 {
             let over = Int((-remaining).rounded())
-            return .result(dialog: "You are \(over) calories over your goal. You have eaten \(eaten).")
+            return .result(dialog: intentDialog("intent.calories.over", "You are %lld calories over your goal. You have eaten %lld.", over, eaten))
         }
         let left = Int(remaining.rounded())
-        return .result(dialog: "You have \(left) calories left. You have eaten \(eaten) of \(Int(goal.rounded())).")
+        return .result(dialog: intentDialog("intent.calories.left", "You have %lld calories left. You have eaten %lld of %lld.", left, eaten, Int(goal.rounded())))
     }
 }
 
@@ -571,13 +599,13 @@ struct MacrosTodayIntent: AppIntent {
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
         guard let snapshot = todaysSnapshot(key: "macroSnapshot") else {
-            return .result(dialog: IntentDialog(stringLiteral: snapshotMissingMessage))
+            return .result(dialog: snapshotMissingDialog())
         }
         func grams(_ key: String) -> Int {
             Int(((snapshot[key] as? NSNumber)?.doubleValue ?? 0).rounded())
         }
         return .result(
-            dialog: "Today you have had \(grams("protein")) grams of protein, \(grams("carbs")) of carbs and \(grams("fat")) of fat."
+            dialog: intentDialog("intent.macros.today", "Today you have had %lld grams of protein, %lld of carbs and %lld of fat.", grams("protein"), grams("carbs"), grams("fat"))
         )
     }
 }
@@ -734,7 +762,7 @@ struct LogMealIntent: AppIntent {
                 chosen = mealTypeForNow(await fetchMealTypes())
             }
             guard let type = chosen else {
-                return .result(dialog: "I could not find a meal type to log it under. Open SparkyFitness and check your meal types.")
+                return .result(dialog: intentDialog("intent.meal.no_type", "I could not find a meal type to log it under. Open SparkyFitness and check your meal types."))
             }
             _ = try await ShortcutCall.send(
                 config, method: "POST", path: "/api/food-entry-meals",
@@ -747,7 +775,7 @@ struct LogMealIntent: AppIntent {
                     "unit": "serving",
                 ]
             )
-            return .result(dialog: "Logged \(servings.formatted()) × \(meal.name) as \(type.name).")
+            return .result(dialog: intentDialog("intent.meal.logged", "Logged %@ × %@ as %@.", servings.formatted(), meal.name, type.name))
         } catch let failure as ShortcutCall.Failure {
             return .result(dialog: IntentDialog(stringLiteral: failure.message))
         }
