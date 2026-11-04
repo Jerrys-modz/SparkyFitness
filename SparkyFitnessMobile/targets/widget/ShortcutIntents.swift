@@ -598,6 +598,71 @@ private func leaveControlRoute(_ route: String) {
     }
 }
 
+/// One of the person's saved workouts (presets), so a request can name it.
+@available(iOS 16.0, *)
+struct WorkoutPresetEntity: AppEntity {
+    static var typeDisplayRepresentation = TypeDisplayRepresentation(name: "Workout")
+    static var defaultQuery = WorkoutPresetQuery()
+
+    var id: Int
+    var name: String
+
+    var displayRepresentation: DisplayRepresentation {
+        DisplayRepresentation(title: LocalizedStringResource(stringLiteral: name))
+    }
+}
+
+/// Reads the saved workouts from the server each time (the newest 50, the same
+/// page the app's own list loads first). A failed read gives an empty list.
+@available(iOS 16.0, *)
+struct WorkoutPresetQuery: EntityQuery {
+    private func fetchAll() async -> [WorkoutPresetEntity] {
+        guard
+            let config = try? ShortcutCall.config(),
+            let data = try? await ShortcutCall.send(config, method: "GET", path: "/api/workout-presets?limit=50"),
+            let object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+            let rows = object["presets"] as? [[String: Any]]
+        else { return [] }
+        return rows.compactMap { row in
+            guard let id = (row["id"] as? NSNumber)?.intValue,
+                  let name = row["name"] as? String else { return nil }
+            return WorkoutPresetEntity(id: id, name: name)
+        }
+    }
+
+    func entities(for identifiers: [Int]) async throws -> [WorkoutPresetEntity] {
+        await fetchAll().filter { identifiers.contains($0.id) }
+    }
+
+    func suggestedEntities() async throws -> [WorkoutPresetEntity] {
+        await fetchAll()
+    }
+}
+
+/// Opens a saved workout in SparkyFitness, ready to start. It leaves
+/// `preset:<id>` for the app to pick up, the same handoff the food controls use
+/// (`useControlRouteHandoff`), because a workout is started on screen.
+@available(iOS 16.0, *)
+struct OpenWorkoutPresetIntent: AppIntent {
+    static var title: LocalizedStringResource = "Open workout"
+    static var description = IntentDescription(
+        "Opens one of your saved workouts in SparkyFitness, ready to start."
+    )
+    static var openAppWhenRun: Bool = true
+
+    @Parameter(title: "Workout", description: "Which saved workout to open")
+    var workout: WorkoutPresetEntity
+
+    static var parameterSummary: some ParameterSummary {
+        Summary("Open \(\.$workout)")
+    }
+
+    func perform() async throws -> some IntentResult {
+        leaveControlRoute("preset:\(workout.id)")
+        return .result()
+    }
+}
+
 @available(iOS 18.0, *)
 struct ScanFoodControlIntent: AppIntent {
     static var title: LocalizedStringResource = "Scan food"
