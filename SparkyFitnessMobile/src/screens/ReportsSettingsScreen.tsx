@@ -228,6 +228,14 @@ const SECTION_LABELS: Record<
     t('reportsSettings.sections.restingHrChart', {
       defaultValue: 'Resting heart rate chart',
     }),
+  'heartRate.rangeTimeline': (t) =>
+    t('reportsSettings.sections.heartRateRangeTimeline', {
+      defaultValue: 'Average heart rate by day',
+    }),
+  'heartRate.dayTimeline': (t) =>
+    t('reportsSettings.sections.heartRateDayTimeline', {
+      defaultValue: 'Heart rate through the day',
+    }),
   'heartRate.zones': (t) =>
     t('reportsSettings.sections.heartRateZones', {
       defaultValue: 'Intensity zones',

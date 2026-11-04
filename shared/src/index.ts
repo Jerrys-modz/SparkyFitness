@@ -296,6 +296,7 @@ export * from './utils/racePaceZones.ts';
 export * from './utils/heartRateTargets.ts';
 export * from './utils/heartRateZones.ts';
 export * from './utils/restingHeartRateTrend.ts';
+export * from './utils/heartRateTimeline.ts';
 export * from './utils/zone2Guidance.ts';
 export * from './utils/fuelingPlan.ts';
 export * from './utils/fuelingRamp.ts';
