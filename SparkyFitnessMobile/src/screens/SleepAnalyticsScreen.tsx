@@ -57,6 +57,30 @@ const formatSeconds = (
     : duration;
 };
 
+/**
+ * Ties the Debt recovery row to the sleep debt the web report shows: tonight
+ * only pays back part of it (a quarter, capped at 2 h), and a negative debt is
+ * a surplus that lowers tonight's need.
+ */
+const debtHint = (
+  debtHours: number | null | undefined,
+  t: ReturnType<typeof useTranslation>['t']
+): string | undefined => {
+  if (debtHours == null || Math.round(Math.abs(debtHours) * 60) === 0) {
+    return undefined;
+  }
+  const amount = formatSeconds(Math.abs(debtHours) * 3600, t);
+  return debtHours > 0
+    ? t('sleepAnalytics.needDebtHint', {
+        defaultValue: 'Part of your {{amount}} sleep debt',
+        amount,
+      })
+    : t('sleepAnalytics.needSurplusHint', {
+        defaultValue: 'Part of your {{amount}} sleep surplus',
+        amount,
+      });
+};
+
 const formatClock = (minutes: number | null): string => {
   if (minutes === null) return '-';
   const rounded = Math.round(minutes) % 1440;
@@ -568,6 +592,7 @@ const SleepAnalyticsScreen: React.FC<SleepAnalyticsScreenProps> = () => {
                     (sleepNeed.debt_addition ?? 0) * 3600,
                     t
                   ),
+                  hint: debtHint(sleepNeed.current_debt_hours, t),
                   testID: 'sleep-need-debt',
                 },
                 ...(sleepNeed.training_load_score != null
