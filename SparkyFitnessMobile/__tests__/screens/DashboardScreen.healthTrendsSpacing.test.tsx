@@ -187,6 +187,7 @@ jest.mock('@react-navigation/native', () => {
   const actual = jest.requireActual('@react-navigation/native');
   return {
     ...actual,
+    useNavigation: () => ({ navigate: jest.fn() }),
     useFocusEffect: (callback: () => void | (() => void)) => {
       callback();
     },
@@ -284,7 +285,7 @@ describe('DashboardScreen without a connection', () => {
     renderDashboard();
 
     expect(screen.getByText('Health Trends')).toBeTruthy();
-    expect(screen.queryByText('No server configured')).toBeNull();
+    expect(screen.queryByText("Can't reach your server")).toBeNull();
   });
 
   it('shows the no-server state when nothing is cached', () => {
@@ -297,6 +298,6 @@ describe('DashboardScreen without a connection', () => {
 
     renderDashboard();
 
-    expect(screen.getByText('No server configured')).toBeTruthy();
+    expect(screen.getByText("Can't reach your server")).toBeTruthy();
   });
 });

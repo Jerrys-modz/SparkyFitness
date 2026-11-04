@@ -487,7 +487,7 @@ describe('DiaryScreen custom queries', () => {
     const { UNSAFE_queryByType, getByText } = renderScreen();
 
     expect(UNSAFE_queryByType(RefreshControl)).toBeNull();
-    expect(getByText('diary.noServer')).toBeTruthy();
+    expect(getByText('serverStatus.unreachableTitle')).toBeTruthy();
   });
 
   test('offline with a cached day keeps showing the diary instead of an error', () => {
@@ -502,7 +502,7 @@ describe('DiaryScreen custom queries', () => {
     const { queryByText } = renderScreen();
 
     expect(queryByText('diary.loadFailed')).toBeNull();
-    expect(queryByText('diary.noServer')).toBeNull();
+    expect(queryByText('serverStatus.unreachableTitle')).toBeNull();
   });
 
   test('Test E — background query refetches never show the pull-to-refresh spinner', () => {
