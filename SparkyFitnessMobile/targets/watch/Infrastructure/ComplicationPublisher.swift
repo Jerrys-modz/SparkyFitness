@@ -51,19 +51,32 @@ enum ComplicationPublisher {
         static let kind = "calorieGoalComplication"
     }
 
-    /// The user-defined complication. Its definitions live under `key`; its
-    /// values come from the snapshots above, so it is also reloaded whenever
-    /// one of those changes.
+    /// The user-defined complication. The wearer's definitions live under
+    /// `key` (sent by the phone as `complicationConfig`); the numbers they can
+    /// show live under `metricsKey`. `revisionKey` keeps the newest list when
+    /// queued copies arrive out of order.
     private enum Custom {
         static let key = "customComplicationDefinitions"
+        static let metricsKey = "customMetricsSnapshot"
+        static let revisionKey = "customComplicationRevision"
         static let kind = "customComplication"
     }
 
-    /// Field names here are decoded by `CustomComplication`.
+    /// Field names here are decoded by `CustomComplication`; the strings are
+    /// the phone's wire values (`src/utils/watchComplications.ts`).
     struct CustomDefinition: Codable, Equatable {
         let id: String
         let name: String
         let source: String
+        let format: String
+        let gauge: Bool
+        let color: String
+        let icon: String
+    }
+
+    /// Field names here are decoded by `CustomComplication`.
+    private struct CustomMetricsPayload: Codable, Equatable {
+        let metrics: [CustomMetric]
     }
 
     private enum Water {
@@ -141,21 +154,26 @@ enum ComplicationPublisher {
             ),
             forKey: Energy.key,
             reloading: Energy.kind,
-            alsoReloading: [CalorieGoal.kind, Custom.kind]
+            alsoReloading: [CalorieGoal.kind]
         )
     }
 
-    /// PHASE 0 SPIKE: publishes fixed sample definitions so the configurable
-    /// complication's picker has something to list. Replaced by the
-    /// definitions the phone sends once the builder exists.
-    static func publishSampleCustomDefinitions() {
+    /// Publishes the wearer's custom complications, for the watch-face picker.
+    /// Ignores a list older than the one already held, since queued copies can
+    /// arrive out of order.
+    static func publish(customDefinitions: [CustomDefinition], revision: Double) {
+        guard let defaults = sharedDefaults() else { return }
+        guard revision >= defaults.double(forKey: Custom.revisionKey) else { return }
+        defaults.set(revision, forKey: Custom.revisionKey)
+        write(customDefinitions, forKey: Custom.key, reloading: Custom.kind)
+    }
+
+    /// Publishes the numbers a custom complication can show. Each carries its
+    /// own day, so unlike the snapshots above this isn't gated on `day`.
+    static func publish(customMetrics: [CustomMetric]) {
         write(
-            [
-                CustomDefinition(id: "sample-calories", name: "Calories", source: "calories"),
-                CustomDefinition(id: "sample-water", name: "Water", source: "water"),
-                CustomDefinition(id: "sample-steps", name: "Steps", source: "steps"),
-            ],
-            forKey: Custom.key,
+            CustomMetricsPayload(metrics: customMetrics),
+            forKey: Custom.metricsKey,
             reloading: Custom.kind
         )
     }
@@ -169,8 +187,7 @@ enum ComplicationPublisher {
                 progress: max(0, min(1, waterProgress))
             ),
             forKey: Water.key,
-            reloading: Water.kind,
-            alsoReloading: [Custom.kind]
+            reloading: Water.kind
         )
     }
 
@@ -180,8 +197,7 @@ enum ComplicationPublisher {
         write(
             StepsSnapshotPayload(date: day, count: max(0, steps), goal: max(1, goal)),
             forKey: Steps.key,
-            reloading: Steps.kind,
-            alsoReloading: [Custom.kind]
+            reloading: Steps.kind
         )
     }
 
