@@ -103,10 +103,6 @@ const LEGACY_KEYS = {
 
 type LegacyKey = keyof typeof LEGACY_KEYS;
 
-export type ActiveWorkoutView = 'list' | 'focus';
-export type FocusMediaDefault = 'expanded' | 'minimized';
-
-/** Which stat the active-workout log shows in its per-set metric column. */
 export type HealthTrendRanges = Partial<
   Record<HealthTrendKey, HealthTrendDateRange>
 >;
