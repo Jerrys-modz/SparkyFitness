@@ -257,6 +257,48 @@ private enum ShortcutCall {
     }
 }
 
+/// One of the person's water containers, so "Log water" can name which one
+/// ("a bottle", "a glass") instead of always using the dashboard's.
+@available(iOS 16.0, *)
+struct WaterContainerEntity: AppEntity {
+    static var typeDisplayRepresentation = TypeDisplayRepresentation(name: "Water container")
+    static var defaultQuery = WaterContainerQuery()
+
+    var id: Int
+    var name: String
+
+    var displayRepresentation: DisplayRepresentation {
+        DisplayRepresentation(title: LocalizedStringResource(stringLiteral: name))
+    }
+}
+
+/// Reads the containers from the server each time, so a container added or
+/// renamed in the app shows up without any sync. A failed read gives an empty
+/// list; the action then falls back to the dashboard's container.
+@available(iOS 16.0, *)
+struct WaterContainerQuery: EntityQuery {
+    private func fetchAll() async -> [WaterContainerEntity] {
+        guard
+            let config = try? ShortcutCall.config(),
+            let data = try? await ShortcutCall.send(config, method: "GET", path: "/api/water-containers"),
+            let rows = (try? JSONSerialization.jsonObject(with: data)) as? [[String: Any]]
+        else { return [] }
+        return rows.compactMap { row in
+            guard let id = (row["id"] as? NSNumber)?.intValue,
+                  let name = row["name"] as? String else { return nil }
+            return WaterContainerEntity(id: id, name: name)
+        }
+    }
+
+    func entities(for identifiers: [Int]) async throws -> [WaterContainerEntity] {
+        await fetchAll().filter { identifiers.contains($0.id) }
+    }
+
+    func suggestedEntities() async throws -> [WaterContainerEntity] {
+        await fetchAll()
+    }
+}
+
 @available(iOS 16.0, *)
 struct LogWaterIntent: AppIntent {
     static var title: LocalizedStringResource = "Log water"
@@ -273,14 +315,28 @@ struct LogWaterIntent: AppIntent {
     )
     var drinks: Int
 
+    @Parameter(
+        title: "Container",
+        description: "Which water container to log. Leave empty to use the one picked in SparkyFitness"
+    )
+    var container: WaterContainerEntity?
+
     static var parameterSummary: some ParameterSummary {
-        Summary("Log \(\.$drinks) water")
+        Summary("Log \(\.$drinks) water") {
+            \.$container
+        }
     }
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
         do {
             let config = try ShortcutCall.config()
-            guard let containerId = config.containerId, let name = config.containerName else {
+            // A container named in the request wins; its volume is not known
+            // here, so the reply gives only its name.
+            let chosen = container.map { (id: $0.id, name: $0.name, label: nil as String?) }
+            let fallback = config.containerId.flatMap { id in
+                config.containerName.map { (id: id, name: $0, label: config.volumeLabel) }
+            }
+            guard let target = chosen ?? fallback else {
                 return .result(dialog: "Pick a water container in SparkyFitness first.")
             }
             let response = try await ShortcutCall.send(
@@ -288,11 +344,11 @@ struct LogWaterIntent: AppIntent {
                 body: [
                     "entry_date": localDateString(),
                     "change_drinks": drinks,
-                    "container_id": containerId,
+                    "container_id": target.id,
                 ]
             )
             WaterSnapshotWriter.apply(response: response, fallbackDrinks: drinks)
-            let what = config.volumeLabel.map { "\(name) (\($0))" } ?? name
+            let what = target.label.map { "\(target.name) (\($0))" } ?? target.name
             return .result(dialog: "Logged \(drinks) × \(what).")
         } catch let failure as ShortcutCall.Failure {
             return .result(dialog: IntentDialog(stringLiteral: failure.message))
