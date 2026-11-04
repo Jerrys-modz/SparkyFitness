@@ -8758,6 +8758,8 @@
     "needStrain": "Strain",
     "needStrainHint": "From today's workouts",
     "needDebt": "Debt recovery",
+    "needDebtHint": "Part of your {{amount}} sleep debt",
+    "needSurplusHint": "Part of your {{amount}} sleep surplus",
     "trainingLoad": "Training load",
     "trainingLoadHint": "Heart-rate-weighted workout minutes",
     "hoursValue": "{{hours}} h",
