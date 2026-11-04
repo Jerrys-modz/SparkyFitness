@@ -1439,6 +1439,7 @@
     "treadmillStrideSubtitle": "See and set the stride used to estimate indoor distance, and correct a treadmill that reads long or short.",
     "workoutView": "Workout view",
     "workoutViewSubtitle": "List shows every exercise in one scrolling list; Focus shows one exercise at a time with a large photo card.",
+    "workoutViewGuidedSubtitle": "Guided workouts always use the list. Focus applies when guided mode is off.",
     "workoutViewList": "List",
     "workoutViewFocus": "Focus",
     "focusMedia": "Exercise photo",

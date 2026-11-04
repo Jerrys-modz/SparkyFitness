@@ -110,6 +110,7 @@ export type HealthTrendRanges = Partial<
 export type ActiveWorkoutView = 'list' | 'focus';
 export type FocusMediaDefault = 'expanded' | 'minimized';
 
+/** Which stat the active-workout log shows in its per-set metric column. */
 export type ActiveWorkoutMetricColumn =
   'rpe' | 'rir' | 'volume' | 'e1rm' | 'tenrm';
 

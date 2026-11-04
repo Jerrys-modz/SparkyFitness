@@ -236,6 +236,8 @@ interface ActiveWorkoutSetRowProps {
   entryId?: string;
   /** False hides the RPE input (preset sets store no RPE). */
   rpeEditable?: boolean;
+  /** Drops the swipe-to-delete wrapper, for hosts whose own pan owns horizontal drags. */
+  disableSwipeDelete?: boolean;
   /** Whether this set is completed (draft `completedAt`) — drives the check. */
   completedBadge?: boolean;
   /**
@@ -288,6 +290,7 @@ function ActiveWorkoutSetRow({
   nextSetId,
   entryId,
   rpeEditable = true,
+  disableSwipeDelete = false,
   completedBadge = false,
   onToggleComplete,
   onActivateSet,
@@ -1502,7 +1505,7 @@ function ActiveWorkoutSetRow({
     </Pressable>
   );
 
-  if (readOnly) return row;
+  if (readOnly || disableSwipeDelete) return row;
 
   return (
     <ReanimatedSwipeable
