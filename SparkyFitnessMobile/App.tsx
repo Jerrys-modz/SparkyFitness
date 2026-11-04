@@ -134,6 +134,8 @@ import {
   SafeActivityRingsSettings,
   SafePinnedMetricsSettings,
   SafeWatchSettings,
+  SafeWatchComplications,
+  SafeWatchComplicationEdit,
   SafeAddMenuSettings,
   SafeDiarySettings,
   SafeCustomCategories,
@@ -1293,6 +1295,16 @@ function AppContent() {
             name="WatchSettings"
             component={SafeWatchSettings}
             options={createStackScreenOptions(t('screens.watchSettings', { defaultValue: 'Apple Watch' }), { headerBackTitle: t('navigation.settings', { defaultValue: 'Settings' }) })}
+          />
+          <Stack.Screen
+            name="WatchComplications"
+            component={SafeWatchComplications}
+            options={createStackScreenOptions(t('watchComplications.title', { defaultValue: 'Complications' }), { headerBackTitle: t('screens.watchSettings', { defaultValue: 'Apple Watch' }) })}
+          />
+          <Stack.Screen
+            name="WatchComplicationEdit"
+            component={SafeWatchComplicationEdit}
+            options={createStackScreenOptions(t('watchComplications.editTitle', { defaultValue: 'Edit complication' }), { headerBackTitle: t('common.back', { defaultValue: 'Back' }) })}
           />
           <Stack.Screen
             name="AddMenuSettings"

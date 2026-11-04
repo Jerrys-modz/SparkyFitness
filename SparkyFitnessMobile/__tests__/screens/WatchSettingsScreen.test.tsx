@@ -264,4 +264,10 @@ describe('WatchSettingsScreen', () => {
     fireEvent.press(screen.getByText('Digital Crown'));
     expect(useAppPreferencesStore.getState().watchSetInputStyle).toBe('crown');
   });
+
+  test('has a row that opens the complications screen', () => {
+    renderScreen();
+    fireEvent.press(screen.getByTestId('watch-complications-row'));
+    expect(navigation.navigate).toHaveBeenCalledWith('WatchComplications');
+  });
 });

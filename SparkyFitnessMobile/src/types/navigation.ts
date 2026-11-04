@@ -479,6 +479,8 @@ export type RootStackParamList = {
   ActivityRingsSettings: undefined;
   PinnedMetricsSettings: undefined;
   WatchSettings: undefined;
+  WatchComplications: undefined;
+  WatchComplicationEdit: { complicationId?: string } | undefined;
   AddMenuSettings: undefined;
   DiarySettings: undefined;
   CustomCategories: undefined;

@@ -85,6 +85,8 @@ import HealthTrendsSettingsScreen from '../screens/HealthTrendsSettingsScreen';
 import ActivityRingsSettingsScreen from '../screens/ActivityRingsSettingsScreen';
 import PinnedMetricsSettingsScreen from '../screens/PinnedMetricsSettingsScreen';
 import WatchSettingsScreen from '../screens/WatchSettingsScreen';
+import WatchComplicationsScreen from '../screens/WatchComplicationsScreen';
+import WatchComplicationEditScreen from '../screens/WatchComplicationEditScreen';
 import AddMenuSettingsScreen from '../screens/AddMenuSettingsScreen';
 import CustomCategoriesScreen from '../screens/CustomCategoriesScreen';
 import CustomCategoryEditScreen from '../screens/CustomCategoryEditScreen';
@@ -257,6 +259,8 @@ export const SafePinnedMetricsSettings = withErrorBoundary(PinnedMetricsSettings
 export const SafeActivityRingsSettings = withErrorBoundary(ActivityRingsSettingsScreen, 'ActivityRingsSettings', { canGoBack: true });
 export const SafeHealthTrendsSettings = withErrorBoundary(HealthTrendsSettingsScreen, 'HealthTrendsSettings', { canGoBack: true });
 export const SafeWatchSettings = withErrorBoundary(WatchSettingsScreen, 'WatchSettings', { canGoBack: true });
+export const SafeWatchComplications = withErrorBoundary(WatchComplicationsScreen, 'WatchComplications', { canGoBack: true });
+export const SafeWatchComplicationEdit = withErrorBoundary(WatchComplicationEditScreen, 'WatchComplicationEdit', { canGoBack: true });
 export const SafeAddMenuSettings = withErrorBoundary(AddMenuSettingsScreen, 'AddMenuSettings', { canGoBack: true });
 export const SafeDiarySettings = withErrorBoundary(DiarySettingsScreen, 'DiarySettings', { canGoBack: true });
 export const SafeCustomCategories = withErrorBoundary(CustomCategoriesScreen, 'CustomCategories', { canGoBack: true });
