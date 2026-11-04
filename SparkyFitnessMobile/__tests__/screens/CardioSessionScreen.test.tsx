@@ -55,6 +55,10 @@ jest.mock('../../src/hooks/useBestEfforts', () => ({
     isError: false,
   }),
 }));
+const mockTemperatureUnit = jest.fn(() => 'celsius');
+jest.mock('../../src/hooks/useTemperatureUnit', () => ({
+  useTemperatureUnit: () => mockTemperatureUnit(),
+}));
 jest.mock('../../src/hooks/useCardioSessionDetail', () => ({
   useCardioSessionDetail: jest.fn(),
 }));
@@ -311,6 +315,19 @@ describe('CardioSessionScreen', () => {
         },
       }) as unknown as RootStackScreenProps<'CardioSession'>;
 
+    it('shows Celsius with the Celsius setting even with miles', () => {
+      mockDetail.mockReturnValue(detail({ route: [] }));
+      const screen = render(
+        <CardioSessionScreen
+          {...imperial(
+            withWeather({ weatherTempCelsius: 10, weatherCondition: 'Clear' })
+          )}
+        />
+      );
+
+      expect(screen.getByText('10°C · Clear')).toBeTruthy();
+    });
+
     it('shows the temperature and conditions at the start', () => {
       mockDetail.mockReturnValue(detail({ route: [] }));
       const screen = render(
@@ -328,7 +345,8 @@ describe('CardioSessionScreen', () => {
       expect(screen.getByText('9°C · Light rain')).toBeTruthy();
     });
 
-    it('shows Fahrenheit with the miles setting', () => {
+    it('shows Fahrenheit with the Fahrenheit setting', () => {
+      mockTemperatureUnit.mockReturnValueOnce('fahrenheit');
       mockDetail.mockReturnValue(detail({ route: [] }));
       const screen = render(
         <CardioSessionScreen
