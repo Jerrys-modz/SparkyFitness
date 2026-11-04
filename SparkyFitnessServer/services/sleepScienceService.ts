@@ -23,6 +23,7 @@ import {
   MCTQ_CONFIG,
   CHRONOTYPE_BOUNDARIES,
 } from '../constants/sleepScienceConstants.js';
+import { getRecoveryScore } from './reportService.js';
 // ==========================================
 // UTILITY FUNCTIONS
 // ==========================================
@@ -597,6 +598,26 @@ async function getDayStrain(
     return null;
   }
 }
+/**
+ * How recovered the person is on the morning of `day`: the readiness score
+ * from the night before's sleep against tonight's need and, when a watch
+ * recorded them, resting heart rate and HRV against their own 14-night
+ * baseline (Apple Health and Health Connect attach both to sleep entries),
+ * blended with training form. Null when there is no data for it or the lookup
+ * fails, so a missing figure never blocks the sleep need.
+ */
+async function getMorningRecovery(
+  userId: string,
+  day: string,
+  sleepNeedHours: number
+): Promise<number | null> {
+  try {
+    return await getRecoveryScore(userId, day, sleepNeedHours);
+  } catch (err) {
+    log('warn', `Failed to compute recovery score for user ${userId}:`, err);
+    return null;
+  }
+}
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function getDailyNeed(userId: any, targetDate: any) {
   log(
@@ -621,6 +642,11 @@ async function getDailyNeed(userId: any, targetDate: any) {
       baselineNeed + strainAddition + debtAddition - napSubtraction
     )
   );
+  const recoveryScore = await getMorningRecovery(
+    userId,
+    String(targetDate),
+    totalNeed
+  );
   const breakdown = {
     date: targetDate,
     baseline_need: baselineNeed,
@@ -633,7 +659,7 @@ async function getDailyNeed(userId: any, targetDate: any) {
     training_load_score: strain?.loadScore ?? null,
     current_debt_hours: debtData.currentDebt,
     nap_minutes: 0,
-    recovery_score_yesterday: null,
+    recovery_score_yesterday: recoveryScore,
   };
   // Cache it
   try {

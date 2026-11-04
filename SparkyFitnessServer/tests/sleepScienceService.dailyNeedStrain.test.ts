@@ -7,6 +7,10 @@ import heartRateZoneService from '../services/heartRateZoneService.js';
 vi.mock('../models/sleepScienceRepository');
 vi.mock('../models/reportRepository');
 vi.mock('../services/heartRateZoneService');
+// Recovery is covered by its own test file.
+vi.mock('../services/reportService.js', () => ({
+  getRecoveryScore: vi.fn().mockResolvedValue(null),
+}));
 vi.mock('../utils/timezoneLoader', () => ({
   loadUserTimezone: vi.fn().mockResolvedValue('UTC'),
 }));
