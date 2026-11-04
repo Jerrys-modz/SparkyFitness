@@ -3,6 +3,7 @@ import {
   exerciseHistoryResetQueryKey,
   skinTemperatureQueryKeyRoot,
   sleepDayQueryKeyRoot,
+  sleepNeedQueryKey,
   sleepRangeQueryKeyRoot,
   vo2MaxRangeQueryKeyRoot,
   heartRateRangeQueryKeyRoot,
@@ -30,6 +31,8 @@ export function refreshHealthSyncCache(queryClient: QueryClient) {
   void queryClient.invalidateQueries({
     queryKey: skinTemperatureQueryKeyRoot,
   });
+  // Sleep need reads the same sleep plus the workouts synced alongside it.
+  void queryClient.invalidateQueries({ queryKey: sleepNeedQueryKey });
   // VO2 max arrives in the same sync as a custom measurement.
   void queryClient.invalidateQueries({ queryKey: vo2MaxRangeQueryKeyRoot });
   // Resting heart rate and recovery arrive in the same sync; the report's
