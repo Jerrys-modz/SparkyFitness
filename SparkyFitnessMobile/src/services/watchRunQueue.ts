@@ -518,7 +518,10 @@ async function drainOnce(
       );
       // The watch's steps may not have reached Apple Health yet, which leaves
       // the entry without cadence and stride; measure it again later.
-      if (!form) {
+      if (
+        !form &&
+        (item.payload.kind === 'walk' || item.payload.kind === 'run')
+      ) {
         await rememberPendingWatchForm({
           entryId,
           ownerId: item.payload.ownerId ?? activeOwnerId,
