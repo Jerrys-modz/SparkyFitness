@@ -265,7 +265,12 @@ struct LogWaterIntent: AppIntent {
     )
     static var openAppWhenRun: Bool = false
 
-    @Parameter(title: "Drinks", default: 1, inclusiveRange: (1, 20))
+    @Parameter(
+        title: "Drinks",
+        description: "How many drinks of the current water container to log",
+        default: 1,
+        inclusiveRange: (1, 20)
+    )
     var drinks: Int
 
     static var parameterSummary: some ParameterSummary {
@@ -343,7 +348,11 @@ struct LogWeightIntent: AppIntent {
     )
     static var openAppWhenRun: Bool = false
 
-    @Parameter(title: "Weight", inclusiveRange: (20, 700))
+    @Parameter(
+        title: "Weight",
+        description: "Today's body weight, in the unit set in SparkyFitness",
+        inclusiveRange: (20, 700)
+    )
     var weight: Double
 
     static var parameterSummary: some ParameterSummary {
@@ -375,7 +384,12 @@ struct StartFastIntent: AppIntent {
     )
     static var openAppWhenRun: Bool = false
 
-    @Parameter(title: "Hours", default: 16, inclusiveRange: (1, 72))
+    @Parameter(
+        title: "Hours",
+        description: "How many hours the fast should last",
+        default: 16,
+        inclusiveRange: (1, 72)
+    )
     var hours: Int
 
     static var parameterSummary: some ParameterSummary {
