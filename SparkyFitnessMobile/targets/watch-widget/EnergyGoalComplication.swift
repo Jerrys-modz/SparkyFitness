@@ -254,13 +254,11 @@ private func percentText(_ fraction: Double) -> String {
 }
 
 struct EnergyGoalComplicationEntryView: View {
+    @Environment(\.widgetFamily) private var family
     var entry: EnergyGoalProvider.Entry
 
     var body: some View {
-        // Bare ring, no visible text — Adam's choice, to keep the watch face
-        // uncluttered. Everything still reaches VoiceOver/Assistive Access
-        // through the accessibility label below.
-        EnergyGoalRings(snapshot: entry.snapshot)
+        content
             // Tapping the complication opens the watch app on its Goals page
             // rather than wherever the app was last left.
             .widgetURL(ComplicationLink.goals.url)
@@ -272,6 +270,44 @@ struct EnergyGoalComplicationEntryView: View {
                         "Calories \(percentText(entry.snapshot.calorieGoalProgress)) of goal. Fat \(percentText(entry.snapshot.fatGoalProgress)), carbs \(percentText(entry.snapshot.carbsGoalProgress)), protein \(percentText(entry.snapshot.proteinGoalProgress)) of their goals."
                 )
             )
+    }
+
+    private func coloured(_ fraction: Double, _ color: Color) -> Text {
+        Text(verbatim: "\(Int((max(0, min(1, fraction)) * 100).rounded()))")
+            .foregroundStyle(color)
+    }
+
+    private var cornerNumbers: some View {
+        let snapshot = entry.snapshot
+        let dot = Text(verbatim: " • ").foregroundStyle(.secondary)
+        return (
+            coloured(snapshot.calorieGoalProgress, ComplicationPalette.calories)
+                + dot + coloured(snapshot.fatGoalProgress, ComplicationPalette.fat)
+                + dot + coloured(snapshot.carbsGoalProgress, ComplicationPalette.carbs)
+                + dot + coloured(snapshot.proteinGoalProgress, ComplicationPalette.protein)
+        )
+        .minimumScaleFactor(0.6)
+        .lineLimit(1)
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        switch family {
+        case .accessoryCorner:
+            // Laid out like Apple's Activity corner: the rings in the corner
+            // and a curved row of coloured numbers beside them, one per ring
+            // in ring order (calories, then fat, carbs, protein). It reads
+            // differently from the calories-only Calorie Goal corner.
+            EnergyGoalRings(snapshot: entry.snapshot)
+                .widgetLabel {
+                    cornerNumbers
+                }
+        default:
+            // Bare ring, no visible text — Adam's choice, to keep the watch
+            // face uncluttered. Everything still reaches VoiceOver/Assistive
+            // Access through the accessibility label above.
+            EnergyGoalRings(snapshot: entry.snapshot)
+        }
     }
 }
 
@@ -286,7 +322,7 @@ struct EnergyGoalComplication: Widget {
         }
         .configurationDisplayName("Daily Energy Goal")
         .description("Calories in the inner ring, fat/carbs/protein goal progress in the outer ring.")
-        .supportedFamilies([.accessoryCircular])
+        .supportedFamilies([.accessoryCircular, .accessoryCorner])
     }
 }
 
@@ -304,5 +340,19 @@ struct EnergyGoalComplication: Widget {
             )
         )
         EnergyGoalEntry(date: .now, snapshot: .empty)
+    }
+
+    #Preview(as: .accessoryCorner) {
+        EnergyGoalComplication()
+    } timeline: {
+        EnergyGoalEntry(
+            date: .now,
+            snapshot: EnergyGoalSnapshot(
+                calorieGoalProgress: 0.65,
+                proteinGoalProgress: 1,
+                carbsGoalProgress: 0.4,
+                fatGoalProgress: 0.7
+            )
+        )
     }
 #endif
