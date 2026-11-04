@@ -6110,6 +6110,9 @@
   "sleepScience": {
     "title": "Sleep Science",
     "sleepDebt": "Sleep Debt",
+    "sleepSurplus": "Sleep Surplus",
+    "debtSurplus": "Surplus",
+    "debtSurplusDesc": "You're ahead on sleep. Tonight's need is a little lower.",
     "debtLow": "Low",
     "debtLowDesc": "Your sleep debt is minimal. Great recovery!",
     "debtModerate": "Moderate",
