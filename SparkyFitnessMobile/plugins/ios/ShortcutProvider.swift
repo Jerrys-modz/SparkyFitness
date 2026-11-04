@@ -36,6 +36,12 @@ struct SparkyFitnessShortcuts: AppShortcutsProvider {
             systemImageName: "scalemass"
         )
         AppShortcut(
+            intent: LogMealIntent(),
+            phrases: ["Log \(\.$meal) in \(.applicationName)"],
+            shortTitle: "Log meal",
+            systemImageName: "fork.knife"
+        )
+        AppShortcut(
             intent: OpenWorkoutPresetIntent(),
             phrases: ["Open \(\.$workout) in \(.applicationName)"],
             shortTitle: "Open workout",

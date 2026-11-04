@@ -56,6 +56,7 @@ const SIRI_TOOL_INTENTS = [
   'CaloriesLeftIntent',
   'MacrosTodayIntent',
   'OpenWorkoutPresetIntent',
+  'LogMealIntent',
 ];
 
 function addSiriToolMacro(contents: string): string {
