@@ -51,6 +51,21 @@ enum ComplicationPublisher {
         static let kind = "calorieGoalComplication"
     }
 
+    /// The user-defined complication. Its definitions live under `key`; its
+    /// values come from the snapshots above, so it is also reloaded whenever
+    /// one of those changes.
+    private enum Custom {
+        static let key = "customComplicationDefinitions"
+        static let kind = "customComplication"
+    }
+
+    /// Field names here are decoded by `CustomComplication`.
+    struct CustomDefinition: Codable, Equatable {
+        let id: String
+        let name: String
+        let source: String
+    }
+
     private enum Water {
         static let key = "waterGoalSnapshot"
         static let kind = "waterGoalComplication"
@@ -126,7 +141,22 @@ enum ComplicationPublisher {
             ),
             forKey: Energy.key,
             reloading: Energy.kind,
-            alsoReloading: [CalorieGoal.kind]
+            alsoReloading: [CalorieGoal.kind, Custom.kind]
+        )
+    }
+
+    /// PHASE 0 SPIKE: publishes fixed sample definitions so the configurable
+    /// complication's picker has something to list. Replaced by the
+    /// definitions the phone sends once the builder exists.
+    static func publishSampleCustomDefinitions() {
+        write(
+            [
+                CustomDefinition(id: "sample-calories", name: "Calories", source: "calories"),
+                CustomDefinition(id: "sample-water", name: "Water", source: "water"),
+                CustomDefinition(id: "sample-steps", name: "Steps", source: "steps"),
+            ],
+            forKey: Custom.key,
+            reloading: Custom.kind
         )
     }
 
@@ -139,7 +169,8 @@ enum ComplicationPublisher {
                 progress: max(0, min(1, waterProgress))
             ),
             forKey: Water.key,
-            reloading: Water.kind
+            reloading: Water.kind,
+            alsoReloading: [Custom.kind]
         )
     }
 
@@ -149,7 +180,8 @@ enum ComplicationPublisher {
         write(
             StepsSnapshotPayload(date: day, count: max(0, steps), goal: max(1, goal)),
             forKey: Steps.key,
-            reloading: Steps.kind
+            reloading: Steps.kind,
+            alsoReloading: [Custom.kind]
         )
     }
 
