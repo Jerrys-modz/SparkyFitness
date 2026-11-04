@@ -8751,6 +8751,7 @@
     "nightsTracked": "Nights tracked",
     "nightsOfWindow": "{{nights}} of {{total}}",
     "stageShare": "{{pct}}% of the night",
+    "negativeDuration": "-{{duration}}",
     "needTonight": "Sleep need tonight",
     "needTotal": "Total",
     "needBaseline": "Baseline",
