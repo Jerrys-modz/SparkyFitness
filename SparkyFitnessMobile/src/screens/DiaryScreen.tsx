@@ -42,6 +42,7 @@ import ServingAdjustSheet, {
 } from '../components/ServingAdjustSheet';
 import { BedTimeCard, NapsCard, WakeUpCard } from '../components/SleepCards';
 import StatusView from '../components/StatusView';
+import { ServerStatusView } from '../components/ServerGate';
 import Button from '../components/ui/Button';
 import {
   useCustomNutrients,
@@ -544,23 +545,7 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
     // With the server out of reach the cached day (and anything logged since,
     // waiting in the offline queue) is still worth showing.
     if (!isConnectionLoading && !isConnected && !summary) {
-      return (
-        <StatusView
-          icon="cloud-offline"
-          iconTone="muted"
-          iconSize={64}
-          title={t('diary.noServer', { defaultValue: 'No server configured' })}
-          subtitle={t('diary.configureServer', {
-            defaultValue:
-              'Configure your server connection in Settings to view your diary.',
-          })}
-          action={{
-            label: t('diary.goToSettings', { defaultValue: 'Go to Settings' }),
-            onPress: () => navigation.navigate('Settings'),
-            variant: 'primary',
-          }}
-        />
-      );
+      return <ServerStatusView />;
     }
 
     // Sleep is deliberately not part of this gate: the cards render nothing until their

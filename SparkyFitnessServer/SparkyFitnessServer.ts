@@ -1,6 +1,7 @@
 import path from 'path';
 import { emailLoginGuard } from './middleware/emailLoginGuard.js';
 import { passkeyLoginGuard } from './middleware/passkeyLoginGuard.js';
+import { magicLinkLoginGuard } from './middleware/magicLinkLoginGuard.js';
 import { restoreWriteFence } from './middleware/restoreWriteFence.js';
 import { UPLOAD_STAGING_DIR } from './utils/uploadsPath.js';
 
@@ -346,6 +347,7 @@ const mountBetterAuth = () => {
 };
 app.use(emailLoginGuard);
 app.use(passkeyLoginGuard);
+app.use(magicLinkLoginGuard);
 app.use(
   createMcpOAuthAuthGate({
     isAuthHandlerMounted: () => betterAuthHandlerInstance !== null,
