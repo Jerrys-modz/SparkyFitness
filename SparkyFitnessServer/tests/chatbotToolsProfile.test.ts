@@ -129,7 +129,8 @@ describe('sparky_manage_profile', () => {
         '- **Timezone:** America/New_York\n' +
         '- **Energy Unit:** kJ\n' +
         '- **Weight Unit:** lbs\n' +
-        '- **Distance Unit:** miles\n'
+        '- **Distance Unit:** miles\n' +
+        '- **Temperature Unit:** celsius\n'
     );
     expect(preferenceService.getUserPreferences).toHaveBeenCalledWith(
       'user-1',
@@ -154,7 +155,8 @@ describe('sparky_manage_profile', () => {
         '- **Timezone:** UTC\n' +
         '- **Energy Unit:** kcal\n' +
         '- **Weight Unit:** kg\n' +
-        '- **Distance Unit:** km\n'
+        '- **Distance Unit:** km\n' +
+        '- **Temperature Unit:** celsius\n'
     );
   });
 
