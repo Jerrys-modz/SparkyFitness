@@ -1,4 +1,4 @@
-import { renderHook } from '@testing-library/react-native';
+import { renderHook, waitFor } from '@testing-library/react-native';
 import { AppState, Platform } from 'react-native';
 import { navigationRef } from '../../src/components/ActiveWorkoutBar';
 import { useControlRouteHandoff } from '../../src/hooks/useQuickActions';
@@ -24,6 +24,10 @@ jest.mock('expo-quick-actions', () => ({
   initial: undefined,
 }));
 jest.mock('../../src/services/LogService', () => ({ addLog: jest.fn() }));
+const mockGetWorkoutPresetById = jest.fn();
+jest.mock('../../src/services/api/workoutPresetsApi', () => ({
+  getWorkoutPresetById: (id: number) => mockGetWorkoutPresetById(id),
+}));
 jest.mock('../../src/components/ActiveWorkoutBar', () => ({
   navigationRef: { isReady: jest.fn(() => true), navigate: jest.fn() },
 }));
@@ -60,6 +64,27 @@ describe('useControlRouteHandoff', () => {
     expect(navigationRef.navigate).toHaveBeenCalledWith('Tabs', {
       screen: 'Diary',
     });
+  });
+
+  it('opens the saved workout the Open workout action named', async () => {
+    const preset = { id: 7, name: 'Push day' };
+    mockGetWorkoutPresetById.mockResolvedValue(preset);
+    mockStore.value = 'preset:7';
+    renderHook(() => useControlRouteHandoff(true));
+    await waitFor(() =>
+      expect(navigationRef.navigate).toHaveBeenCalledWith(
+        'WorkoutPresetDetail',
+        { preset }
+      )
+    );
+    expect(mockGetWorkoutPresetById).toHaveBeenCalledWith(7);
+  });
+
+  it('ignores a workout note that is not a positive whole number', () => {
+    mockStore.value = 'preset:abc';
+    renderHook(() => useControlRouteHandoff(true));
+    expect(mockGetWorkoutPresetById).not.toHaveBeenCalled();
+    expect(navigationRef.navigate).not.toHaveBeenCalled();
   });
 
   it('does nothing without a note, and ignores one it does not know', () => {

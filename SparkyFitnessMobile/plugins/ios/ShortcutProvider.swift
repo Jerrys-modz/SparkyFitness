@@ -36,6 +36,12 @@ struct SparkyFitnessShortcuts: AppShortcutsProvider {
             systemImageName: "scalemass"
         )
         AppShortcut(
+            intent: OpenWorkoutPresetIntent(),
+            phrases: ["Open \(\.$workout) in \(.applicationName)"],
+            shortTitle: "Open workout",
+            systemImageName: "figure.strengthtraining.traditional"
+        )
+        AppShortcut(
             intent: CaloriesLeftIntent(),
             phrases: [
                 "How many calories do I have left in \(.applicationName)",

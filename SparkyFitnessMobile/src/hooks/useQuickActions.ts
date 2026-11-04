@@ -21,6 +21,7 @@ import { queryClient } from './queryClient';
 import { getTodayDate } from '../utils/dateUtils';
 import { addLog } from '../services/LogService';
 import { refreshBackgroundWaterShortcut } from '../services/backgroundWater';
+import { getWorkoutPresetById } from '../services/api/workoutPresetsApi';
 
 type QuickActionId = 'scan-food' | 'search-food' | 'log-water' | 'fasting';
 
@@ -194,6 +195,22 @@ export function useQuickActions(enabled: boolean): void {
 
 const CONTROL_ROUTE_KEY = 'pendingControlRoute';
 
+/** Opens a saved workout named by the Open workout Siri action. */
+function openWorkoutPreset(rawId: string): void {
+  const id = Number(rawId);
+  if (!Number.isInteger(id) || id <= 0) return;
+  void getWorkoutPresetById(id)
+    .then((preset) =>
+      whenNavigationReady(() =>
+        navigationRef.navigate('WorkoutPresetDetail', { preset })
+      )
+    )
+    .catch((error) =>
+      addLog(`Open workout from Siri failed: ${String(error)}`, 'WARNING')
+    );
+}
+
+
 const iosAppGroup = (
   Constants.expoConfig?.extra as { iosAppGroup?: string } | undefined
 )?.iosAppGroup;
@@ -214,6 +231,7 @@ export function useControlRouteHandoff(enabled: boolean): void {
       storage.remove(CONTROL_ROUTE_KEY);
       if (route === 'scan') runQuickAction('scan-food');
       else if (route === 'search') runQuickAction('search-food');
+      else if (route.startsWith('preset:')) openWorkoutPreset(route.slice(7));
       else if (route === 'diary') {
         whenNavigationReady(() =>
           navigationRef.navigate('Tabs', { screen: 'Diary' })

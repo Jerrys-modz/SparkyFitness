@@ -55,6 +55,7 @@ const SIRI_TOOL_INTENTS = [
   'EndFastIntent',
   'CaloriesLeftIntent',
   'MacrosTodayIntent',
+  'OpenWorkoutPresetIntent',
 ];
 
 function addSiriToolMacro(contents: string): string {
