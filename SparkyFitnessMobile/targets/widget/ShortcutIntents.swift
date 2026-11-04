@@ -598,6 +598,162 @@ private func leaveControlRoute(_ route: String) {
     }
 }
 
+/// One of the person's saved meals, so a request can name it.
+@available(iOS 16.0, *)
+struct MealEntity: AppEntity {
+    static var typeDisplayRepresentation = TypeDisplayRepresentation(name: "Meal")
+    static var defaultQuery = MealQuery()
+
+    var id: String
+    var name: String
+
+    var displayRepresentation: DisplayRepresentation {
+        DisplayRepresentation(title: LocalizedStringResource(stringLiteral: name))
+    }
+}
+
+/// Reads the saved meals from the server each time. A failed read gives an
+/// empty list.
+@available(iOS 16.0, *)
+struct MealQuery: EntityQuery {
+    private func fetchAll() async -> [MealEntity] {
+        guard
+            let config = try? ShortcutCall.config(),
+            let data = try? await ShortcutCall.send(config, method: "GET", path: "/api/meals"),
+            let rows = (try? JSONSerialization.jsonObject(with: data)) as? [[String: Any]]
+        else { return [] }
+        return rows.compactMap { row in
+            guard let id = row["id"] as? String, let name = row["name"] as? String else { return nil }
+            return MealEntity(id: id, name: name)
+        }
+    }
+
+    func entities(for identifiers: [String]) async throws -> [MealEntity] {
+        await fetchAll().filter { identifiers.contains($0.id) }
+    }
+
+    func suggestedEntities() async throws -> [MealEntity] {
+        await fetchAll()
+    }
+}
+
+/// One of the person's visible meal types (Breakfast, Lunch, or their own).
+@available(iOS 16.0, *)
+struct MealTypeEntity: AppEntity {
+    static var typeDisplayRepresentation = TypeDisplayRepresentation(name: "Meal type")
+    static var defaultQuery = MealTypeQuery()
+
+    var id: String
+    var name: String
+    /// Minutes after midnight of the type's usual time, if it has one.
+    var defaultMinutes: Int?
+
+    var displayRepresentation: DisplayRepresentation {
+        DisplayRepresentation(title: LocalizedStringResource(stringLiteral: name))
+    }
+}
+
+private func fetchMealTypes() async -> [MealTypeEntity] {
+    guard
+        let config = try? ShortcutCall.config(),
+        let data = try? await ShortcutCall.send(config, method: "GET", path: "/api/meal-types"),
+        let rows = (try? JSONSerialization.jsonObject(with: data)) as? [[String: Any]]
+    else { return [] }
+    return rows
+        .filter { ($0["is_visible"] as? Bool) != false }
+        .sorted { (($0["sort_order"] as? NSNumber)?.intValue ?? 0) < (($1["sort_order"] as? NSNumber)?.intValue ?? 0) }
+        .compactMap { row in
+            guard let id = row["id"] as? String, let name = row["name"] as? String else { return nil }
+            // "HH:MM" or "HH:MM:SS".
+            let parts = (row["default_time"] as? String)?.split(separator: ":").compactMap { Int($0) }
+            let minutes = parts.flatMap { $0.count >= 2 ? $0[0] * 60 + $0[1] : nil }
+            return MealTypeEntity(id: id, name: name, defaultMinutes: minutes)
+        }
+}
+
+@available(iOS 16.0, *)
+struct MealTypeQuery: EntityQuery {
+    func entities(for identifiers: [String]) async throws -> [MealTypeEntity] {
+        await fetchMealTypes().filter { identifiers.contains($0.id) }
+    }
+
+    func suggestedEntities() async throws -> [MealTypeEntity] {
+        await fetchMealTypes()
+    }
+}
+
+/// The meal type whose usual time is closest to now, else the first one.
+private func mealTypeForNow(_ types: [MealTypeEntity]) -> MealTypeEntity? {
+    let parts = Calendar.current.dateComponents([.hour, .minute], from: Date())
+    let now = (parts.hour ?? 0) * 60 + (parts.minute ?? 0)
+    let timed = types.compactMap { type in type.defaultMinutes.map { (type, abs($0 - now)) } }
+    return timed.min { $0.1 < $1.1 }?.0 ?? types.first
+}
+
+/// Logs a saved meal to today's diary. The server expands the meal's foods
+/// itself (`POST /api/food-entry-meals` with only `meal_template_id`), the same
+/// call the app makes, so nothing about the meal is worked out here.
+@available(iOS 16.0, *)
+struct LogMealIntent: AppIntent {
+    static var title: LocalizedStringResource = "Log meal"
+    static var description = IntentDescription(
+        "Logs one of your saved meals to today's food diary without opening SparkyFitness."
+    )
+    static var openAppWhenRun: Bool = false
+
+    @Parameter(title: "Meal", description: "Which saved meal to log")
+    var meal: MealEntity
+
+    @Parameter(
+        title: "Meal type",
+        description: "Breakfast, lunch, dinner or one of your own. Leave empty to use the one closest to the current time"
+    )
+    var mealType: MealTypeEntity?
+
+    @Parameter(
+        title: "Servings",
+        description: "How many servings of the meal to log",
+        default: 1,
+        inclusiveRange: (0.25, 20)
+    )
+    var servings: Double
+
+    static var parameterSummary: some ParameterSummary {
+        Summary("Log \(\.$servings) of \(\.$meal)") {
+            \.$mealType
+        }
+    }
+
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        do {
+            let config = try ShortcutCall.config()
+            let chosen: MealTypeEntity?
+            if let mealType {
+                chosen = mealType
+            } else {
+                chosen = mealTypeForNow(await fetchMealTypes())
+            }
+            guard let type = chosen else {
+                return .result(dialog: "I could not find a meal type to log it under. Open SparkyFitness and check your meal types.")
+            }
+            _ = try await ShortcutCall.send(
+                config, method: "POST", path: "/api/food-entry-meals",
+                body: [
+                    "meal_template_id": meal.id,
+                    "meal_type_id": type.id,
+                    "meal_type": type.name,
+                    "entry_date": localDateString(),
+                    "quantity": servings,
+                    "unit": "serving",
+                ]
+            )
+            return .result(dialog: "Logged \(servings.formatted()) × \(meal.name) as \(type.name).")
+        } catch let failure as ShortcutCall.Failure {
+            return .result(dialog: IntentDialog(stringLiteral: failure.message))
+        }
+    }
+}
+
 /// One of the person's saved workouts (presets), so a request can name it.
 @available(iOS 16.0, *)
 struct WorkoutPresetEntity: AppEntity {
