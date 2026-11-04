@@ -4,6 +4,7 @@ import {
   isValidTimeZone,
   SUPPORTED_TIME_FORMATS,
   MAX_GOAL_MODE_PERCENTAGE,
+  MAX_GOAL_MODE_WEEKLY_CHANGE_KG,
   CALORIE_SAFETY_FLOOR_MODES,
   MIN_CALORIE_SAFETY_FLOOR,
   MAX_CALORIE_SAFETY_FLOOR,
@@ -18,7 +19,10 @@ import {
 type GoalModePreferenceInput = Partial<
   Pick<
     UserPreferencesMutator,
-    'goal_mode' | 'goal_mode_calculation_method' | 'goal_mode_custom_percentage'
+    | 'goal_mode'
+    | 'goal_mode_calculation_method'
+    | 'goal_mode_custom_percentage'
+    | 'goal_mode_weekly_change_kg'
   >
 >;
 type CalorieSafetyFloorPreferenceInput = Partial<
@@ -31,7 +35,19 @@ type ChartScaleModePreferenceInput = Partial<
   Pick<UserPreferencesMutator, 'chart_scale_mode'>
 >;
 
-function validateAdaptiveActivity(preferences: UserPreferencesMutator): void {
+function validateActivityPreferences(
+  preferences: UserPreferencesMutator
+): void {
+  if (
+    !userPreferencesMutatorSchema.shape.adjust_macros_with_exercise.safeParse(
+      preferences.adjust_macros_with_exercise
+    ).success
+  ) {
+    throw Object.assign(
+      new Error('adjust_macros_with_exercise must be a boolean.'),
+      { status: 400 }
+    );
+  }
   if (
     !userPreferencesMutatorSchema.shape.adaptive_activity_separate.safeParse(
       preferences.adaptive_activity_separate
@@ -85,6 +101,7 @@ async function validateGoalMode(preferenceData: GoalModePreferenceInput) {
       'lean_bulk',
       'bulk',
       'manual',
+      'weekly',
     ];
     if (!validGoalModes.includes(preferenceData.goal_mode)) {
       throw Object.assign(
@@ -117,6 +134,22 @@ async function validateGoalMode(preferenceData: GoalModePreferenceInput) {
       throw Object.assign(
         new Error(
           `Invalid goal_mode_custom_percentage: '${preferenceData.goal_mode_custom_percentage}'. Must be an integer between -${MAX_GOAL_MODE_PERCENTAGE} and ${MAX_GOAL_MODE_PERCENTAGE}.`
+        ),
+        { status: 400 }
+      );
+    }
+  }
+  if (preferenceData.goal_mode_weekly_change_kg !== undefined) {
+    const rate = preferenceData.goal_mode_weekly_change_kg;
+    if (
+      typeof rate !== 'number' ||
+      !Number.isFinite(rate) ||
+      Math.abs(rate) > MAX_GOAL_MODE_WEEKLY_CHANGE_KG ||
+      Math.round(rate * 1000) / 1000 !== rate
+    ) {
+      throw Object.assign(
+        new Error(
+          `Invalid goal_mode_weekly_change_kg: '${rate}'. Must be a number between -${MAX_GOAL_MODE_WEEKLY_CHANGE_KG} and ${MAX_GOAL_MODE_WEEKLY_CHANGE_KG}, with at most three decimal places.`
         ),
         { status: 400 }
       );
@@ -179,12 +212,15 @@ function getDefaultPreferences() {
     active_voice_ai_service_id: null,
     calorie_goal_adjustment_mode: 'dynamic',
     adaptive_activity_separate: false,
+    adjust_macros_with_exercise: false,
     show_net_carbs: false,
+    use_move_ring_active_calories: false,
     timezone: null,
     time_format: 'h:mm A',
     calorie_safety_floor_mode: 'standard',
     calorie_safety_floor_value: DEFAULT_CUSTOM_CALORIE_SAFETY_FLOOR,
     chart_scale_mode: DEFAULT_CHART_SCALE_MODE,
+    goal_mode_weekly_change_kg: 0,
   };
 }
 async function updateUserPreferences(
@@ -193,7 +229,7 @@ async function updateUserPreferences(
   preferenceData: UserPreferencesMutator
 ) {
   try {
-    validateAdaptiveActivity(preferenceData);
+    validateActivityPreferences(preferenceData);
     await validateTimezone(preferenceData);
     await validateTimeFormat(preferenceData);
     await validateGoalMode(preferenceData);
@@ -246,6 +282,7 @@ const OWNER_ONLY_PREFERENCE_FIELDS = [
   'resting_heart_rate',
   'hr_zone_method',
   'hr_zone_custom_floors',
+  'hr_zone_display_count',
 ] as const;
 async function getUserPreferences(
   authenticatedUserId: string | undefined,
@@ -313,7 +350,7 @@ async function upsertUserPreferences(
   preferenceData: UserPreferencesMutator
 ) {
   try {
-    validateAdaptiveActivity(preferenceData);
+    validateActivityPreferences(preferenceData);
     await validateTimezone(preferenceData);
     await validateTimeFormat(preferenceData);
     await validateGoalMode(preferenceData);

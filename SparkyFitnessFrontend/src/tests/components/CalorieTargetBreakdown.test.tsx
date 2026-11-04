@@ -38,6 +38,7 @@ const mockT = jest.fn(
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (...args: Parameters<typeof mockT>) => mockT(...args),
+    i18n: { language: 'en', resolvedLanguage: 'en' },
   }),
   initReactI18next: {
     type: '3rdParty',
@@ -99,6 +100,85 @@ beforeEach(() => {
     energyUnit: 'kcal',
     convertEnergy: (value: number) => value,
     weightUnit: 'kg',
+  });
+});
+
+describe('CalorieTargetBreakdown weekly weight goal', () => {
+  it.each([
+    { weightUnit: 'lbs', kg: -0.5, rate: '-1.102 lbs / week' },
+    { weightUnit: 'st_lbs', kg: -0.5, rate: '-0 st 1.102 lbs / week' },
+    { weightUnit: 'lbs', kg: 0.5, rate: '+1.102 lbs / week' },
+    { weightUnit: 'st_lbs', kg: 0.5, rate: '+0 st 1.102 lbs / week' },
+    { weightUnit: 'st_lbs', kg: 0, rate: '0 st 0 lbs / week' },
+    { weightUnit: 'kg', kg: -0.25, rate: '-0.25 kg / week' },
+  ])(
+    'shows a $weightUnit weekly target of $kg kg using the preferred weight unit',
+    ({ weightUnit, kg, rate }) => {
+      mockUsePreferences.mockReturnValue({
+        energyUnit: 'kcal',
+        convertEnergy: (value: number) => value,
+        weightUnit,
+      });
+      render(
+        <CalorieTargetBreakdown
+          {...defaultProps}
+          goalMode="weekly"
+          goalModeWeeklyChangeKg={kg}
+        />
+      );
+
+      expect(screen.getByText(/Weekly weight change/)).toHaveTextContent(rate);
+    }
+  );
+
+  it('explains safety-floor clamping for weekly goals using the manual baseline', () => {
+    render(
+      <CalorieTargetBreakdown
+        {...defaultProps}
+        goalMode="weekly"
+        goalModeCalculationMethod="manual"
+        goalModeWeeklyChangeKg={-2}
+        previewResult={{
+          ...defaultProps.previewResult,
+          target: 480,
+          finalTarget: 1800,
+          appliedDeficit: 1714,
+          wasClampedToFloor: true,
+          clampedFloorSource: 'rmr',
+        }}
+      />
+    );
+    expect(
+      screen.getByText(
+        '⚠️ Daily budget was automatically raised to the safety-floor limit.'
+      )
+    ).toBeInTheDocument();
+  });
+
+  it('explains the weekly loss target as weight rather than a percentage', () => {
+    render(
+      <CalorieTargetBreakdown
+        {...defaultProps}
+        {...{ goalModeWeeklyChangeKg: -0.5 }}
+        goalMode="weekly"
+        previewResult={{
+          ...defaultProps.previewResult,
+          target: 1765,
+          finalTarget: 1800,
+          appliedDeficit: 429,
+          projectedWeeklyChangeKg: -0.46,
+          wasClampedToFloor: true,
+          clampedFloorSource: 'rmr',
+        }}
+      />
+    );
+
+    expect(screen.getByText(/Weekly weight change Deficit/)).toHaveTextContent(
+      '-0.5 kg / week'
+    );
+    expect(
+      screen.queryByText(/Weekly weight change Deficit \(-0%\)/)
+    ).toBeNull();
   });
 });
 
@@ -455,7 +535,7 @@ describe('CalorieTargetBreakdown weight-trend units', () => {
     const { container } = render(<CalorieTargetBreakdown {...trendProps} />);
 
     expect(
-      screen.getByText(/114\.6 kg → 110\.9 kg \(-3\.72 kg across all 28 days/)
+      screen.getByText(/114\.6 kg → 110\.9 kg \(-3\.72 kg over the 27 days/)
     ).toBeInTheDocument();
     expect(screen.getByText(/= -0\.1328 kg\/day/)).toBeInTheDocument();
     expect(
@@ -474,9 +554,7 @@ describe('CalorieTargetBreakdown weight-trend units', () => {
     const { container } = render(<CalorieTargetBreakdown {...trendProps} />);
 
     expect(
-      screen.getByText(
-        /252\.6 lbs → 244\.5 lbs \(-8\.20 lbs across all 28 days/
-      )
+      screen.getByText(/252\.6 lbs → 244\.5 lbs \(-8\.20 lbs over the 27 days/)
     ).toBeInTheDocument();
     expect(screen.getByText(/= -0\.2928 lbs\/day/)).toBeInTheDocument();
     expect(
@@ -511,10 +589,43 @@ describe('CalorieTargetBreakdown weight-trend units', () => {
     const { container } = render(<CalorieTargetBreakdown {...trendProps} />);
 
     expect(
-      screen.getByText(
-        /252\.6 lbs → 244\.5 lbs \(-8\.20 lbs across all 28 days/
-      )
+      screen.getByText(/252\.6 lbs → 244\.5 lbs \(-8\.20 lbs over the 27 days/)
     ).toBeInTheDocument();
     expect(container.textContent).not.toMatch(/\{\{/);
+  });
+});
+
+describe('CalorieTargetBreakdown adaptive checklist', () => {
+  const renderFallback = (daysOfData: number, fallbackReason: string) =>
+    render(
+      <CalorieTargetBreakdown
+        {...defaultProps}
+        previewResult={{
+          ...defaultProps.previewResult,
+          insufficientHistory: true,
+        }}
+        adaptiveTdeeData={{
+          tdee: 0,
+          isFallback: true,
+          fallbackReason,
+          daysOfData,
+        }}
+      />
+    );
+
+  it('shows the real calorie-day count as met when only the weight rule fails (#3142)', () => {
+    renderFallback(7, 'Insufficient weight entries (need at least 2)');
+    expect(screen.getByText('✓ Met (7/7 days logged)')).toBeInTheDocument();
+    expect(
+      screen.getByText('⚠️ Missing (7/14 days logged)')
+    ).toBeInTheDocument();
+  });
+
+  it('does not mark the calorie rule met below the required days', () => {
+    renderFallback(3, 'Weight entries span less than 7 days');
+    expect(
+      screen.getByText('❌ Missing (3/7 days logged)')
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Met \(3\/7/)).not.toBeInTheDocument();
   });
 });

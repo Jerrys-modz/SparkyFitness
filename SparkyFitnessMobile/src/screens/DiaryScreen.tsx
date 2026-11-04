@@ -42,6 +42,7 @@ import ServingAdjustSheet, {
 } from '../components/ServingAdjustSheet';
 import { BedTimeCard, NapsCard, WakeUpCard } from '../components/SleepCards';
 import StatusView from '../components/StatusView';
+import { ServerStatusView } from '../components/ServerGate';
 import Button from '../components/ui/Button';
 import {
   useCustomNutrients,
@@ -55,6 +56,7 @@ import { useWorkoutPresets } from '../hooks/useWorkoutPresets';
 import { getWorkoutPresetById } from '../services/api/workoutPresetsApi';
 import RunProgramBanner from '../components/recording/RunProgramBanner';
 import RunEffortPrompt from '../components/recording/RunEffortPrompt';
+import ProgramRetestPrompt from '../components/recording/ProgramRetestPrompt';
 import { useActiveWorkoutPlans } from '../hooks/useActiveWorkoutPlan';
 import { useStartLiveWorkout } from '../hooks/useStartLiveWorkout';
 import {
@@ -541,23 +543,7 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
 
   const renderContent = () => {
     if (!isConnectionLoading && !isConnected) {
-      return (
-        <StatusView
-          icon="cloud-offline"
-          iconTone="muted"
-          iconSize={64}
-          title={t('diary.noServer', { defaultValue: 'No server configured' })}
-          subtitle={t('diary.configureServer', {
-            defaultValue:
-              'Configure your server connection in Settings to view your diary.',
-          })}
-          action={{
-            label: t('diary.goToSettings', { defaultValue: 'Go to Settings' }),
-            onPress: () => navigation.navigate('Settings'),
-            variant: 'primary',
-          }}
-        />
-      );
+      return <ServerStatusView />;
     }
 
     // Sleep is deliberately not part of this gate: the cards render nothing until their
@@ -677,6 +663,11 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
                   <RunEffortPrompt
                     date={selectedDate}
                     today={toLocalDateString(new Date())}
+                  />
+                  <ProgramRetestPrompt
+                    date={selectedDate}
+                    today={toLocalDateString(new Date())}
+                    onRetest={() => navigation.navigate('FitnessTest')}
                   />
                   <RunProgramBanner
                     date={selectedDate}

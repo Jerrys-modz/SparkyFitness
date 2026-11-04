@@ -79,7 +79,7 @@ Uses height, weight, and age to estimate body fat:
 
 This setting determines **how physical activity changes your calorie budget** throughout the day:
 
-- **Adaptive TDEE:** Dynamically computes your metabolic expenditure by correlating your actual weight changes with your historical calorie intake over the last 28 days. _(Best for high-precision tracking)._
+- **Adaptive TDEE:** Dynamically computes your metabolic expenditure by correlating your actual weight changes with your historical calorie intake over the last 28 completed days. _(Best for high-precision tracking)._ The window ends the day before the date you are viewing, so food or a weigh-in logged today counts from tomorrow and your target does not move while you eat. Viewing a past day shows the estimate as it stood then.
   - **Expenditure (Adaptive TDEE):** On the Diary page, "Expenditure" represents your calculated Total Daily Energy Expenditure (TDEE). This is the baseline number from which your deficit/surplus is subtracted.
   - **Fallback Behavior:** If you have insufficient history (less than 14 days of weight and calorie data, or fewer than 7 days of calorie entries ≥ 200 kcal), the system will use a fallback estimate based on the standard `BMR × Activity Multiplier` formula until enough data is collected.
   - **The formula:** `TDEE = Average Daily Calories - (Daily Weight Change in kg × 6,000 kcal/kg)`. The average covers only days with at least 200 kcal logged — unlogged days are skipped, not counted as zero — while the weight change spans the whole 28-day window.
@@ -92,16 +92,58 @@ This setting determines **how physical activity changes your calorie budget** th
 - **Dynamic Goal:** Increases your budget as you burn active calories or take steps (adds exercise directly back to your budget).
 - **Fixed Goal:** Your calorie target remains completely static, ignoring daily exercise.
 - **Percentage Earn-Back:** Adds back a custom percentage (e.g., 50%) of active calories burned to create a buffer against device calorie over-estimations.
-- **Device Projection:** Uses the cumulative **Total Calories** value synced from Health Connect (resting plus active energy). For the current day, it projects that value from its dedicated source capture time to midnight and treats the result as your live TDEE; completed days use the recorded total without extrapolation. Goal Mode is then applied directly: for example, a projected TDEE of 2,400 kcal becomes 2,400 kcal at Maintain, 2,160 kcal at Body Recomposition (-10%), or 2,640 kcal at Lean Bulk (+10%). Enable **Total Calories** in the Android Health Connect sync settings. When that value is unavailable, too early, or implausible for a complete daily total, SparkyFitness falls back to BMR plus projected active calories.
+- **Device Projection:** Uses the cumulative **Total Calories** value (resting plus active energy) synced from Health Connect, Garmin or Polar. When more than one of them has a total for the same day, one is used, never a sum, in this order: Health Connect, Garmin, Polar. Apple Health totals are not used yet. For the current day, it projects that value from its dedicated source capture time to midnight and treats the result as your live TDEE; completed days use the recorded total without extrapolation. Goal Mode is then applied directly: for example, a projected TDEE of 2,400 kcal becomes 2,400 kcal at Maintain, 2,160 kcal at Body Recomposition (-10%), or 2,640 kcal at Lean Bulk (+10%). On Android, enable **Total Calories** in the app's Health Connect sync settings; Garmin and Polar send it with their daily summary. To use Garmin's figure while the phone also syncs, turn off Total Calories in the phone's sync settings; days the phone already synced keep its figure. When that value is unavailable, too early, or implausible for a complete daily total, SparkyFitness falls back to BMR plus projected active calories.
 
 > [!NOTE]
 > If you use [Nutrient Goal Direction](/features/goals)'s **Target range** for calories, note that Adaptive, Dynamic, Percentage Earn-Back, and Device Projection all recalculate your calorie goal value regularly — a manually entered target band won't move with it. Target range for calories works best paired with **Fixed Goal**.
 
 ---
 
+### Percentage macro goals and exercise
+
+**Adjust percentage macro goals with exercise calories** is available in web
+Calculation Settings and mobile Calorie Settings. It is off by default.
+
+When enabled, protein, carbohydrate and fat gram targets use your saved percentage
+split and the positive exercise calories credited by your calorie adjustment mode.
+For example, a 2,000 kcal goal plus 500 credited exercise calories uses 2,500 kcal
+for the macro calculation. With 50% exercise earn-back, it uses 2,250 kcal instead.
+The existing fiber calorie allocation is preserved; fiber and micronutrient targets
+do not increase.
+
+Fixed goals and goals entered directly in grams stay unchanged. Adaptive targets
+that already include activity do not earn it back again; **Count activity calories
+separately** can credit that day's resolved activity once. Device Projection uses
+the positive exercise-attributable increase above its no-activity budget and the
+base goal, without adding the workout again. Resting-only projection changes are
+not added as exercise.
+
+Targets follow the selected diary date and update when activity is edited, removed
+or synced. The saved base goals and percentage split remain unchanged. Changes to
+this option apply from today in your timezone, alongside the other recorded
+calorie settings. Earlier days keep their own on/off choice: enabling it does not
+raise past macro targets, and disabling it does not remove past exercise credit.
+Turning it off restores the existing macro calculation from today onward.
+
 ## 4. Goal Mode & Caloric Deficits
 
-**Goal Mode** applies a body composition percentage-based adjustment to your baseline maintenance. The sign works the way you would expect: **positive adds calories, negative cuts them.**
+**Goal Mode** adjusts your baseline calorie target. Select **Weekly weight change** to enter a desired weekly change directly, or keep one of the existing percentage-based modes.
+
+### Weekly Weight Change
+
+Choose **Maintain**, **Lose weight**, or **Gain weight**. The weekly entry starts in your profile's weight unit: kilograms, pounds, or stone and pounds. You can also choose grams; for example, **500 g/week** and **0.5 kg/week** represent the same setting. Changing only the display unit keeps the saved rate unchanged. Maintain uses a zero adjustment. Existing percentage goals stay selected until you explicitly switch modes.
+
+SparkyFitness converts the signed weekly change into a daily calorie adjustment using the same energy-density assumption as its Adaptive TDEE and projected weight-change calculations:
+
+`daily adjustment = weekly change in kg × energy density (kcal/kg) ÷ 7`
+
+Loss subtracts calories; gain adds them. The daily adjustment stays the same when the baseline changes. The requested weekly rate is an estimate, not a guarantee of measured weight change. The configured safety floor still limits weekly targets with either calculation method, so the effective projected change can be smaller than the requested rate. The input accepts up to 2 kg (2,000 g, about 4.409 lb) in either direction per week, to gram precision; this is an input limit, not a recommended rate. Pound and stone/pound entries are converted to kilograms and rounded to the nearest gram for storage. For example, 1 lb/week is stored as 0.454 kg/week.
+
+This choice works with Adaptive Goal, Dynamic Goal, Fixed Goal, Percentage Earn-Back, and Device Projection. The selected calculation method still determines the non-device baseline, while each goal adjustment mode keeps its existing handling of activity. Device Projection applies the weekly daily adjustment once to its projected device TDEE.
+
+### Percentage-Based Modes
+
+The existing presets and custom percentage remain available. **Positive adds calories, negative cuts them.** Switching back to them restores percentage-based behavior; the saved weekly amount is ignored until Weekly weight change is selected again.
 
 | Goal Mode              | Adjustment            | Target Purpose                                     |
 | :--------------------- | :-------------------- | :------------------------------------------------ |
@@ -163,6 +205,20 @@ under the Adaptive Method.
 
 Device Projection always uses the projected device TDEE as the live baseline for the selected Goal Mode; the calculation-method selector controls the saved non-device baseline and previews used by the other modes.
 
+### Use Move ring for active calories
+
+On iPhone, SparkyFitness can read your active calories from the Move ring instead
+of the Apple Health Active Energy total, so they match the Fitness app. This is
+**off by default**. Turn on **Use Move ring for active calories** in Calories &
+BMR on the iPhone app; the setting is saved to your account.
+
+- **The ring is built from your Apple Watch and iPhone.** Workouts other apps save
+  to Apple Health can add to it too.
+- **Days without a ring keep the Active Energy total**, for example when Activity
+  access is off in Apple Health.
+- **It applies to days synced after the change.** Earlier days keep what they had
+  until they sync again.
+
 ---
 
 ## 5. Metabolic Safety Floors
@@ -175,10 +231,10 @@ SparkyFitness shows two recommended safety limits for calorie goals:
 > [!IMPORTANT]
 > **Adaptive Safety Floor:**
 >
-> - **Standard (default):** The higher of your estimated RMR and the sex-specific clinical minimum is enforced. If an Adaptive target falls below it, SparkyFitness raises the target and explains which limit bound.
+> - **Standard (default):** The higher of your estimated RMR and the sex-specific clinical minimum is enforced. If an Adaptive or Weekly weight change target falls below it, SparkyFitness raises the target and explains which limit bound.
 > - **Custom minimum:** Replaces the Standard floor with a calorie value you choose. This can be below or above the recommended limits; those recommendations and health warnings remain visible.
-> - **Disabled:** Does not automatically raise Adaptive targets. The calculated target is used as-is, while recommended limits and health warnings remain visible.
-> - Under the **Manual** method, the target is **not automatically raised**, but a prominent warning banner is displayed warning you that your budget is in an unsafe range.
+> - **Disabled:** Does not automatically raise Adaptive or Weekly weight change targets. The calculated target is used as-is, while recommended limits and health warnings remain visible.
+> - Under the **Manual** method, percentage-based targets are **not automatically raised**, but a prominent warning banner is displayed warning you that your budget is in an unsafe range. **Weekly weight change** targets use the configured floor with either calculation method.
 
 Under the Adaptive method the floor applies whenever the calculated target falls below it. That is almost always a deficit, but a surplus can trip it too: if your entire maintenance sits below the clinical minimum, even a gain goal is raised to that minimum.
 

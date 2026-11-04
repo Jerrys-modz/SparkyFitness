@@ -1,7 +1,14 @@
 import React, { useMemo } from 'react';
 import { Text, View } from 'react-native';
 import { DashPathEffect } from '@shopify/react-native-skia';
-import type { CompareResponse } from '@workspace/shared';
+import {
+  type CompareQuestion,
+  type CompareResponse,
+  displayDots,
+  pairedDots,
+  timingOf,
+  trendLine,
+} from '@workspace/shared';
 import { useTranslation } from 'react-i18next';
 import { CartesianChart, Line, Scatter } from 'victory-native';
 import { useCSSVariable } from 'uniwind';
@@ -10,12 +17,6 @@ import { COMPARE_METRIC_LABELS } from '../../constants/compareMetrics';
 import { dotsAxisCaption } from '../../utils/compareCopy';
 import { formatLocalizedNumber } from '../../localization';
 import { CHART_LABEL_FONT_SIZE, useChartFont } from '../charts/chartFormatting';
-import {
-  displayDots,
-  pairedDots,
-  trendLine,
-} from '../../utils/compareChartData';
-import { timingOf, type CompareQuestion } from '../../utils/compareQuestion';
 
 interface CompareScatterChartProps {
   response: CompareResponse;

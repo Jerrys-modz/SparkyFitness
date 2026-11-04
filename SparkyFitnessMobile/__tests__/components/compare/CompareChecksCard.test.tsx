@@ -1,13 +1,13 @@
 import React from 'react';
 import { render } from '@testing-library/react-native';
-import type { CompareResult } from '@workspace/shared';
+import {
+  type CompareMode,
+  type CompareQuestion,
+  type CompareResult,
+} from '@workspace/shared';
 
 import CompareChecksCard from '../../../src/components/compare/CompareChecksCard';
 import { initializeI18n } from '../../../src/localization/i18n';
-import type {
-  CompareMode,
-  CompareQuestion,
-} from '../../../src/utils/compareQuestion';
 
 const DAY_Q: CompareQuestion = { a: 'mood', b: 'energy', choice: 'sameDay' };
 

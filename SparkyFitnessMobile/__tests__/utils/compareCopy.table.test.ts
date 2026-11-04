@@ -1,7 +1,10 @@
-import type { CompareResponse, CompareResult } from '@workspace/shared';
+import {
+  type CompareQuestion,
+  type CompareResponse,
+  type CompareResult,
+} from '@workspace/shared';
 import i18n, { initializeI18n } from '../../src/localization/i18n';
 import { sentenceText, verdictCopy } from '../../src/utils/compareCopy';
-import type { CompareQuestion } from '../../src/utils/compareQuestion';
 
 const t = ((key: string, options: Record<string, unknown>) =>
   i18n.t(key, options)) as never;
@@ -145,76 +148,76 @@ describe('day mode: which side is yes/no × timing (difference path)', () => {
       'yes/no A, the day before',
       { a: 'meditated', b: 'mood', choice: 'dayBefore' },
       'Does meditating go with mood the day before?',
-      'The day before you meditated, your mood was higher than usual.',
+      'The day before you meditated, your mood was higher than on other days.',
     ],
     [
       'yes/no A, the same day',
       { a: 'meditated', b: 'mood', choice: 'sameDay' },
       'Does meditating go with mood the same day?',
-      'On days you meditated, your mood was higher than usual.',
+      'On days you meditated, your mood was higher than on days without meditating.',
     ],
     [
       'yes/no A, the next day',
       { a: 'meditated', b: 'mood', choice: 'nextDay' },
       'Does meditating go with mood the next day?',
-      'The day after you meditated, your mood was higher than usual.',
+      'The day after you meditated, your mood was higher than on other days.',
     ],
     // Yes/no on B, the outcome is not sleep.
     [
       'yes/no B, the day before',
       { a: 'mood', b: 'meditated', choice: 'dayBefore' },
       'Does mood go with meditating the day before?',
-      'The day after you meditated, your mood was higher than usual.',
+      'The day after you meditated, your mood was higher than on other days.',
     ],
     [
       'yes/no B, the same day',
       { a: 'mood', b: 'meditated', choice: 'sameDay' },
       'Does mood go with meditating the same day?',
-      'On days you meditated, your mood was higher than usual.',
+      'On days you meditated, your mood was higher than on days without meditating.',
     ],
     [
       'yes/no B, the next day',
       { a: 'mood', b: 'meditated', choice: 'nextDay' },
       'Does mood go with meditating the next day?',
-      'The day before you meditated, your mood was higher than usual.',
+      'The day before you meditated, your mood was higher than on other days.',
     ],
     // Yes/no on A, the outcome is a sleep metric (dated by the wake day).
     [
       'yes/no A, sleep B, the day before',
       { a: 'meditated', b: 'timeAsleep', choice: 'dayBefore' },
       'Does meditating go with time asleep two nights before?',
-      'On days you meditated, your time asleep two nights before was higher than usual.',
+      'On days you meditated, your time asleep two nights before was higher than on other nights.',
     ],
     [
       'yes/no A, sleep B, the same day',
       { a: 'meditated', b: 'timeAsleep', choice: 'sameDay' },
       'Does meditating go with time asleep the night before?',
-      'On days you meditated, your time asleep the night before was higher than usual.',
+      'On days you meditated, your time asleep the night before was higher than on other nights.',
     ],
     [
       'yes/no A, sleep B, the next day',
       { a: 'meditated', b: 'timeAsleep', choice: 'nextDay' },
       'Does meditating go with time asleep that night?',
-      'On days you meditated, your time asleep that night was higher than usual.',
+      'On days you meditated, your time asleep that night was higher than on other nights.',
     ],
     // Yes/no on B, the outcome is a sleep metric.
     [
       'sleep A, yes/no B, the day before',
       { a: 'timeAsleep', b: 'meditated', choice: 'dayBefore' },
       "Does last night's time asleep go with meditating the day before?",
-      'On days you meditated, your time asleep that night was higher than usual.',
+      'On days you meditated, your time asleep that night was higher than on other nights.',
     ],
     [
       'sleep A, yes/no B, the same day',
       { a: 'timeAsleep', b: 'meditated', choice: 'sameDay' },
       "Does last night's time asleep go with meditating that day?",
-      'On days you meditated, your time asleep the night before was higher than usual.',
+      'On days you meditated, your time asleep the night before was higher than on other nights.',
     ],
     [
       'sleep A, yes/no B, the next day',
       { a: 'timeAsleep', b: 'meditated', choice: 'nextDay' },
       "Does last night's time asleep go with meditating the day after you woke?",
-      'On days you meditated, your time asleep two nights before was higher than usual.',
+      'On days you meditated, your time asleep two nights before was higher than on other nights.',
     ],
   ])('%s', (_name, q, sentence, detail) => {
     expect(sentenceText(q, t)).toBe(sentence);
@@ -227,7 +230,9 @@ describe('day mode: which side is yes/no × timing (difference path)', () => {
     const q: CompareQuestion = { a: 'meditated', b: 'mood', choice: 'nextDay' };
     expect(
       verdictCopy(response(q, differenceResult(-6)), q, '90d', t).detail
-    ).toBe('The day after you meditated, your mood was lower than usual.');
+    ).toBe(
+      'The day after you meditated, your mood was lower than on other days.'
+    );
   });
 });
 
