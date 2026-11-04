@@ -210,7 +210,6 @@ function openWorkoutPreset(rawId: string): void {
     );
 }
 
-
 const iosAppGroup = (
   Constants.expoConfig?.extra as { iosAppGroup?: string } | undefined
 )?.iosAppGroup;

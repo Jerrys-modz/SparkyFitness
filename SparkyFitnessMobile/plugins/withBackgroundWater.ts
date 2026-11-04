@@ -68,10 +68,7 @@ function addSiriToolMacro(contents: string): string {
         `withBackgroundWater: ${name} not found in ShortcutIntents.swift; update SIRI_TOOL_INTENTS.`
       );
     }
-    patched = patched.replace(
-      declaration,
-      `@AppIntent(.tool)\n${declaration}`
-    );
+    patched = patched.replace(declaration, `@AppIntent(.tool)\n${declaration}`);
   }
   return patched;
 }
