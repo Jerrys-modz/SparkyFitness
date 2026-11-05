@@ -109,6 +109,36 @@ const SleepNeedBreakdown: React.FC<SleepNeedBreakdownProps> = ({ data }) => {
           </BarChart>
         </ResponsiveContainer>
 
+        {data.training_load_score != null && (
+          <div
+            className="mt-2 flex items-center justify-between text-sm"
+            data-testid="sleep-need-training-load"
+          >
+            <span className="text-muted-foreground">
+              {t('sleepScience.trainingLoad', 'Training load')}
+            </span>
+            <span className="font-semibold">
+              {Math.round(data.training_load_score).toLocaleString()}
+            </span>
+          </div>
+        )}
+
+        {data.recovery_score_yesterday != null && (
+          <div
+            className="mt-2 flex items-center justify-between text-sm"
+            data-testid="sleep-need-recovery"
+          >
+            <span className="text-muted-foreground">
+              {t('sleepScience.recovery', 'Recovery')}
+            </span>
+            <span className="font-semibold">
+              {t('sleepScience.recoveryScore', '{{score}}/100', {
+                score: Math.round(data.recovery_score_yesterday),
+              })}
+            </span>
+          </div>
+        )}
+
         {/* Summary */}
         <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
           <span className="capitalize">
