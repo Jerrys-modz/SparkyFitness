@@ -1008,7 +1008,20 @@
     "activityRings": "Activity Rings",
     "activityRingsSettings": "Settings",
     "pinnedMetrics": "At a Glance",
-    "pinnedMetricsSettings": "Settings"
+    "pinnedMetricsSettings": "Settings",
+    "tabs": {
+      "summary": "Summary",
+      "nutrition": "Nutrition",
+      "activity": "Activity",
+      "wellness": "Wellness"
+    },
+    "askSparkyTabs": {
+      "summary": "Ask Sparky about today's progress…",
+      "nutrition": "Ask Sparky about today's meals or macros…",
+      "activity": "Ask Sparky about workouts, pacing or load…",
+      "wellness": "Ask Sparky about sleep, meds or recovery…"
+    },
+    "tabEmpty": "All the cards on this tab are hidden. Tap to choose cards in Dashboard Settings."
   },
   "syncScreen": {
     "healthConnectSettings": "Health Connect settings",
@@ -1286,7 +1299,10 @@
     "activityRings": "Activity Rings",
     "activityRingsSubtitle": "Show Move, Exercise, Stand and Steps rings for the day",
     "pinnedMetrics": "At a Glance",
-    "pinnedMetricsSubtitle": "A slim row of the numbers worth seeing first"
+    "pinnedMetricsSubtitle": "A slim row of the numbers worth seeing first",
+    "tabs": "Dashboard tabs",
+    "tabsSubtitle": "Split the Dashboard into Summary, Nutrition, Activity and Wellness",
+    "showsOnTabs": "Shows on {{tabs}}"
   },
   "diarySettings": {
     "updateFailed": "Failed to update setting.",

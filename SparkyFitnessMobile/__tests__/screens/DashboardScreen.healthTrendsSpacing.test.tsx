@@ -218,6 +218,8 @@ describe('DashboardScreen Health Trends spacing', () => {
     // is observable without mocking every other card's data dependencies.
     // Every other card is hidden so it cannot render (`resolveDashboardCardOrder`
     // appends unlisted keys to the end regardless of order).
+    // One list, as before tabs: with tabs on, Ask Sparky moves to the top of the tab.
+    store.setDashboardTabsEnabled(false);
     store.setDashboardCardOrder(['healthTrends', 'askSparky']);
     store.setCalorieRingCardVisible(false);
     store.setMacrosCardVisible(false);
@@ -251,5 +253,67 @@ describe('DashboardScreen Health Trends spacing', () => {
     fireEvent.press(screen.getByTestId('dashboard-reports-link'));
 
     expect(mockNavigation.navigate).toHaveBeenCalledWith('Reports');
+  });
+});
+
+describe('DashboardScreen tabs', () => {
+  beforeEach(() => {
+    __resetAppPreferencesStoreForTests();
+    mockNavigation.navigate.mockClear();
+    const store = useAppPreferencesStore.getState();
+    // Only cards with no data of their own, so each tab's content is easy to tell apart.
+    store.setDashboardCardOrder(['healthTrends', 'askSparky']);
+    store.setCalorieRingCardVisible(false);
+    store.setMacrosCardVisible(false);
+    store.setExerciseCardVisible(false);
+    store.setHydrationCardVisible(false);
+    store.setCaffeineCardVisible(false);
+    store.setFastingCardVisible(false);
+    store.setCycleCardVisible(false);
+    store.setMedicationsCardVisible(false);
+    store.setProgressPhotosCardVisible(false);
+    store.setTrainingLoadCardVisible(false);
+    store.setSymptomsCardVisible(false);
+    store.setMoodCardVisible(false);
+    store.setMindfulnessCardVisible(false);
+    store.setLabResultsCardVisible(false);
+  });
+
+  it('opens on Summary with a prompt worded for it', () => {
+    renderDashboard();
+
+    expect(screen.getByTestId('dashboard-tabs')).toBeTruthy();
+    expect(screen.getByText("Ask Sparky about today's progress…")).toBeTruthy();
+    expect(screen.queryByText('Health Trends')).toBeNull();
+  });
+
+  it('shows a tab’s own cards and remembers the tab', () => {
+    renderDashboard();
+
+    fireEvent.press(screen.getByTestId('dashboard-tabs-wellness'));
+
+    expect(screen.getByText('Health Trends')).toBeTruthy();
+    expect(
+      screen.getByText('Ask Sparky about sleep, meds or recovery…')
+    ).toBeTruthy();
+    expect(useAppPreferencesStore.getState().dashboardTab).toBe('wellness');
+  });
+
+  it('points to Dashboard Settings when every card on a tab is hidden', () => {
+    renderDashboard();
+
+    fireEvent.press(screen.getByTestId('dashboard-tabs-activity'));
+    fireEvent.press(screen.getByTestId('dashboard-tab-empty'));
+
+    expect(mockNavigation.navigate).toHaveBeenCalledWith('DashboardSettings');
+  });
+
+  it('shows every card in one list with tabs off', () => {
+    useAppPreferencesStore.getState().setDashboardTabsEnabled(false);
+    renderDashboard();
+
+    expect(screen.queryByTestId('dashboard-tabs')).toBeNull();
+    expect(screen.getByText('Health Trends')).toBeTruthy();
+    expect(screen.getByText('Ask Sparky…')).toBeTruthy();
   });
 });
