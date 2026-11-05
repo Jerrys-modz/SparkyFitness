@@ -6106,6 +6106,8 @@
     "baseline": "Baseline",
     "strain": "Strain",
     "trainingLoad": "Training load",
+    "recovery": "Recovery",
+    "recoveryScore": "{{score}}/100",
     "debtRecovery": "Debt Recovery",
     "naps": "Naps",
     "method": "Method",

@@ -595,6 +595,26 @@ const SleepAnalyticsScreen: React.FC<SleepAnalyticsScreenProps> = () => {
                   hint: debtHint(sleepNeed.current_debt_hours, t),
                   testID: 'sleep-need-debt',
                 },
+                ...(sleepNeed.recovery_score_yesterday != null
+                  ? [
+                      {
+                        label: t('sleepAnalytics.recovery', {
+                          defaultValue: 'Recovery',
+                        }),
+                        value: t('sleepAnalytics.recoveryScore', {
+                          defaultValue: '{{score}}/100',
+                          score: formatLocalizedNumber(
+                            Math.round(sleepNeed.recovery_score_yesterday)
+                          ),
+                        }),
+                        hint: t('sleepAnalytics.recoveryHint', {
+                          defaultValue:
+                            'Your readiness: sleep, resting heart rate and HRV',
+                        }),
+                        testID: 'sleep-need-recovery',
+                      },
+                    ]
+                  : []),
                 ...(sleepNeed.training_load_score != null
                   ? [
                       {
