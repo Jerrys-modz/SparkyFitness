@@ -9726,7 +9726,9 @@
       "minutesDone": "Time {{done}} min",
       "loadDone": "Training load {{done}}",
       "minutesExtra": "(+{{extra}} min extra)",
-      "loadExtra": "(+{{extra}} extra)"
+      "loadExtra": "(+{{extra}} extra)",
+      "thisWeek": "This week",
+      "ahead": "Upcoming"
     },
     "loadFailed": "Could not load your training calendar.",
     "refreshFailed": "Could not refresh. Showing the last result.",
@@ -9751,6 +9753,7 @@
     "dayA11yNone": "{{date}}, nothing planned or logged",
     "weekTotalA11y": "{{done}} of {{planned}} planned sessions done",
     "weekTotalShort": "{{done}}/{{planned}}",
+    "weekTotalHeader": "Total",
     "weekLoggedA11y_one": "{{count}} session logged",
     "weekLoggedA11y_other": "{{count}} sessions logged",
     "weekEmptyA11y": "No sessions this week",

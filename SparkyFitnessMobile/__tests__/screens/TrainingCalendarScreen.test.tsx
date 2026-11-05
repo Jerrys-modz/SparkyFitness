@@ -1,5 +1,10 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import {
+  fireEvent,
+  render,
+  screen,
+  within,
+} from '@testing-library/react-native';
 import type { TrainingCalendarResponse } from '@workspace/shared';
 import TrainingCalendarScreen from '../../src/screens/TrainingCalendarScreen';
 import { useTrainingCalendar } from '../../src/hooks/useTrainingCalendar';
@@ -170,13 +175,22 @@ test('today has a ring and the selected day a box, both on the same day', () => 
   ).toMatchObject({ selected: false });
 });
 
-test('shows the legend with the sports', () => {
+test('shows the legend with only the sports on the grid', () => {
   state();
   renderScreen();
   expect(screen.getByTestId('calendar-legend')).toBeTruthy();
-  expect(screen.getAllByText('Running').length).toBeGreaterThan(0);
-  expect(screen.getAllByText('Cardio').length).toBeGreaterThan(0);
+  const sports = within(screen.getByTestId('calendar-sport-legend'));
+  expect(sports.getByText('Running')).toBeTruthy();
+  expect(sports.getByText('Strength')).toBeTruthy();
+  expect(sports.queryByText('Cardio')).toBeNull();
   expect(screen.getAllByText('Extra').length).toBeGreaterThan(0);
+});
+
+test('labels the grid totals column and marks today with its weekday', () => {
+  state();
+  renderScreen();
+  expect(screen.getByText('Total')).toBeTruthy();
+  expect(screen.getByText('Wednesday')).toBeTruthy();
 });
 
 test('opens today first and a tapped day with its planned and completed work', () => {
@@ -353,4 +367,31 @@ test('shows time and load against the plan with the extra work apart', () => {
   expect(
     screen.getByText(/Training load 80 of 320 \(\+60 extra\)/)
   ).toBeTruthy();
+});
+
+test('tags this week and the weeks ahead, with a percentage only for weeks under way', () => {
+  const ahead = {
+    ...data.weeks[0]!,
+    start: '2026-10-19',
+    doneSessions: 0,
+    partialSessions: 0,
+    missedSessions: 0,
+    extraSessions: 0,
+    completedSessions: 0,
+  };
+  state({ data: { ...data, weeks: [...data.weeks, ahead] } });
+  renderScreen();
+  expect(screen.getByTestId('week-tag-2026-10-12')).toHaveTextContent(
+    'This week'
+  );
+  expect(screen.getByTestId('week-percent-2026-10-12')).toHaveTextContent(
+    '50%'
+  );
+  expect(screen.getByTestId('week-tag-2026-10-19')).toHaveTextContent(
+    'Upcoming'
+  );
+  expect(screen.queryByTestId('week-percent-2026-10-19')).toBeNull();
+  expect(screen.getByTestId('week-row-2026-10-19').props.style).toEqual({
+    opacity: 0.6,
+  });
 });
