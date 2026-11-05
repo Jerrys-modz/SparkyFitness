@@ -1,15 +1,15 @@
 import React from 'react';
 import { Text, View } from 'react-native';
-import type { CompareResult } from '@workspace/shared';
+import {
+  type CompareMode,
+  type CompareQuestion,
+  type CompareResult,
+  timingOf,
+} from '@workspace/shared';
 import { useTranslation } from 'react-i18next';
 
 import type { Translator } from '../../constants/reports';
 import { metricName } from '../../utils/compareCopy';
-import {
-  timingOf,
-  type CompareMode,
-  type CompareQuestion,
-} from '../../utils/compareQuestion';
 
 interface CompareChecksCardProps {
   result: CompareResult;

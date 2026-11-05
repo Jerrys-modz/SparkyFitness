@@ -10,6 +10,8 @@ import {
   MAX_CALORIE_SAFETY_FLOOR,
   DEFAULT_CUSTOM_CALORIE_SAFETY_FLOOR,
   CHART_SCALE_MODES,
+  TEMPERATURE_UNITS,
+  DEFAULT_TEMPERATURE_UNIT,
   DEFAULT_CHART_SCALE_MODE,
   type UserPreferencesMutator,
   userPreferencesMutatorSchema,
@@ -35,7 +37,19 @@ type ChartScaleModePreferenceInput = Partial<
   Pick<UserPreferencesMutator, 'chart_scale_mode'>
 >;
 
-function validateAdaptiveActivity(preferences: UserPreferencesMutator): void {
+function validateActivityPreferences(
+  preferences: UserPreferencesMutator
+): void {
+  if (
+    !userPreferencesMutatorSchema.shape.adjust_macros_with_exercise.safeParse(
+      preferences.adjust_macros_with_exercise
+    ).success
+  ) {
+    throw Object.assign(
+      new Error('adjust_macros_with_exercise must be a boolean.'),
+      { status: 400 }
+    );
+  }
   if (
     !userPreferencesMutatorSchema.shape.adaptive_activity_separate.safeParse(
       preferences.adaptive_activity_separate
@@ -194,18 +208,38 @@ async function validateChartScaleMode(
     );
   }
 }
+function assertValidTemperatureUnit(
+  preferenceData: Pick<UserPreferencesMutator, 'default_temperature_unit'>
+) {
+  if (
+    preferenceData.default_temperature_unit !== undefined &&
+    !(TEMPERATURE_UNITS as readonly string[]).includes(
+      preferenceData.default_temperature_unit
+    )
+  ) {
+    throw Object.assign(
+      new Error(
+        `Invalid default_temperature_unit: '${preferenceData.default_temperature_unit}'. Must be one of: ${TEMPERATURE_UNITS.join(', ')}.`
+      ),
+      { status: 400 }
+    );
+  }
+}
 function getDefaultPreferences() {
   return {
     voice_input_enabled: true,
     active_voice_ai_service_id: null,
     calorie_goal_adjustment_mode: 'dynamic',
     adaptive_activity_separate: false,
+    adjust_macros_with_exercise: false,
     show_net_carbs: false,
+    use_move_ring_active_calories: false,
     timezone: null,
     time_format: 'h:mm A',
     calorie_safety_floor_mode: 'standard',
     calorie_safety_floor_value: DEFAULT_CUSTOM_CALORIE_SAFETY_FLOOR,
     chart_scale_mode: DEFAULT_CHART_SCALE_MODE,
+    default_temperature_unit: DEFAULT_TEMPERATURE_UNIT,
     goal_mode_weekly_change_kg: 0,
   };
 }
@@ -215,12 +249,13 @@ async function updateUserPreferences(
   preferenceData: UserPreferencesMutator
 ) {
   try {
-    validateAdaptiveActivity(preferenceData);
+    validateActivityPreferences(preferenceData);
     await validateTimezone(preferenceData);
     await validateTimeFormat(preferenceData);
     await validateGoalMode(preferenceData);
     await validateCalorieSafetyFloor(preferenceData);
     await validateChartScaleMode(preferenceData);
+    assertValidTemperatureUnit(preferenceData);
     const updatedPreferences = await preferenceRepository.updateUserPreferences(
       targetUserId,
       preferenceData
@@ -268,6 +303,7 @@ const OWNER_ONLY_PREFERENCE_FIELDS = [
   'resting_heart_rate',
   'hr_zone_method',
   'hr_zone_custom_floors',
+  'hr_zone_display_count',
 ] as const;
 async function getUserPreferences(
   authenticatedUserId: string | undefined,
@@ -335,12 +371,13 @@ async function upsertUserPreferences(
   preferenceData: UserPreferencesMutator
 ) {
   try {
-    validateAdaptiveActivity(preferenceData);
+    validateActivityPreferences(preferenceData);
     await validateTimezone(preferenceData);
     await validateTimeFormat(preferenceData);
     await validateGoalMode(preferenceData);
     await validateCalorieSafetyFloor(preferenceData);
     await validateChartScaleMode(preferenceData);
+    assertValidTemperatureUnit(preferenceData);
     // Provide a default for calorie_goal_adjustment_mode if it's not present
     if (!preferenceData.calorie_goal_adjustment_mode) {
       preferenceData.calorie_goal_adjustment_mode = 'dynamic';

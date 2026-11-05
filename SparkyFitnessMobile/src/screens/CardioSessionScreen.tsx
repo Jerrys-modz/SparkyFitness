@@ -17,7 +17,9 @@ import {
 import {
   paceSeriesFromDistance,
   paceSeriesFromTrack,
+  splitsFromTrack,
 } from '../utils/cardioSession';
+import { useTemperatureUnit } from '../hooks/useTemperatureUnit';
 import { bpmText, sessionStats } from '../utils/cardioSessionStats';
 import Button from '../components/ui/Button';
 import { shareRouteAsGpx } from '../services/gpxExport';
@@ -25,8 +27,10 @@ import { saveActivityAsRoute } from '../services/routeService';
 import RouteMap from '../components/exerciseStats/RouteMap';
 import HeartRateChart from '../components/exerciseStats/HeartRateChart';
 import PaceChart from '../components/exerciseStats/PaceChart';
+import SplitsTable from '../components/recording/SplitsTable';
 import HeartRateZones from '../components/exerciseStats/HeartRateZones';
 import ProgramWorkoutBadge from '../components/recording/ProgramWorkoutBadge';
+import FitnessTestBadge from '../components/recording/FitnessTestBadge';
 import ShoePickerCard from '../components/ShoePickerCard';
 import type { RootStackScreenProps } from '../types/navigation';
 
@@ -76,7 +80,8 @@ const CardioSessionScreen: React.FC<CardioSessionScreenProps> = ({
   });
 
   const detail = useCardioSessionDetail(session.id, session.entryDate);
-  const stats = sessionStats(t, session, distanceUnit);
+  const temperatureUnit = useTemperatureUnit();
+  const stats = sessionStats(t, session, distanceUnit, temperatureUnit);
   const exportGpx = async () => {
     try {
       await shareRouteAsGpx({
@@ -137,6 +142,13 @@ const CardioSessionScreen: React.FC<CardioSessionScreenProps> = ({
         : paceSeriesFromDistance(detail.distanceSeries ?? [], unitMeters),
     [detail.route, detail.distanceSeries, unitMeters]
   );
+  const splits = React.useMemo(
+    () =>
+      detail.route.length > 1
+        ? splitsFromTrack(detail.route, unitMeters, detail.heartRate)
+        : [],
+    [detail.route, detail.heartRate, unitMeters]
+  );
   const paceUnitLabel =
     distanceUnit === 'miles'
       ? t('exerciseStatistics.cardio.perMile', { defaultValue: '/mi' })
@@ -166,6 +178,7 @@ const CardioSessionScreen: React.FC<CardioSessionScreenProps> = ({
         <Text className="text-text-secondary text-sm mb-3">{dateText}</Text>
 
         <ProgramWorkoutBadge entryId={session.id} />
+        <FitnessTestBadge entryId={session.id} unit={distanceUnit} />
 
         {stats.length > 0 ? (
           <View className="bg-surface rounded-xl p-4 mb-4 shadow-sm flex-row flex-wrap">
@@ -196,49 +209,52 @@ const CardioSessionScreen: React.FC<CardioSessionScreenProps> = ({
         </Button>
         <ShoePickerCard exerciseEntryId={session.id} />
 
-        <Card
-          title={t('exerciseStatistics.cardio.route', {
-            defaultValue: 'Route',
-          })}
-        >
-          {detail.isRouteLoading ? (
-            <ActivityIndicator />
-          ) : detail.route.length > 1 ? (
-            <>
-              <RouteMap
-                points={detail.route}
-                accessibilityLabel={t('exerciseStatistics.cardio.routeA11y', {
+        {/* A duration-only workout (a jump rope) has no distance, so no route. */}
+        {(session.modality ?? 'duration_distance') !== 'duration' ? (
+          <Card
+            title={t('exerciseStatistics.cardio.route', {
+              defaultValue: 'Route',
+            })}
+          >
+            {detail.isRouteLoading ? (
+              <ActivityIndicator />
+            ) : detail.route.length > 1 ? (
+              <>
+                <RouteMap
+                  points={detail.route}
+                  accessibilityLabel={t('exerciseStatistics.cardio.routeA11y', {
+                    defaultValue:
+                      'Route of this workout, from the green dot to the red ring',
+                  })}
+                />
+                <Button
+                  variant="link"
+                  testID="export-gpx"
+                  onPress={() => void exportGpx()}
+                >
+                  {t('exerciseStatistics.cardio.exportGpx', {
+                    defaultValue: 'Export GPX',
+                  })}
+                </Button>
+                <Button
+                  variant="link"
+                  testID="save-as-route"
+                  loading={savingRoute}
+                  onPress={saveAsRoute}
+                >
+                  {t('routes.saveAsRoute', { defaultValue: 'Save as route' })}
+                </Button>
+              </>
+            ) : (
+              <Text className="text-text-secondary text-sm">
+                {t('exerciseStatistics.cardio.noRoute', {
                   defaultValue:
-                    'Route of this workout, from the green dot to the red ring',
+                    'No GPS route stored. Indoor workouts do not have one. An outdoor walk only has a route if Apple Health shared it when the workout synced.',
                 })}
-              />
-              <Button
-                variant="link"
-                testID="export-gpx"
-                onPress={() => void exportGpx()}
-              >
-                {t('exerciseStatistics.cardio.exportGpx', {
-                  defaultValue: 'Export GPX',
-                })}
-              </Button>
-              <Button
-                variant="link"
-                testID="save-as-route"
-                loading={savingRoute}
-                onPress={saveAsRoute}
-              >
-                {t('routes.saveAsRoute', { defaultValue: 'Save as route' })}
-              </Button>
-            </>
-          ) : (
-            <Text className="text-text-secondary text-sm">
-              {t('exerciseStatistics.cardio.noRoute', {
-                defaultValue:
-                  'No GPS route stored. Indoor workouts do not have one. An outdoor walk only has a route if Apple Health shared it when the workout synced.',
-              })}
-            </Text>
-          )}
-        </Card>
+              </Text>
+            )}
+          </Card>
+        ) : null}
 
         {paceSeries.length >= 2 ? (
           <Card
@@ -267,6 +283,20 @@ const CardioSessionScreen: React.FC<CardioSessionScreenProps> = ({
                       defaultValue: 'Kilometers from start',
                     })
               }
+            />
+          </Card>
+        ) : null}
+
+        {splits.length > 0 ? (
+          <Card
+            title={t('exerciseStatistics.cardio.splits', {
+              defaultValue: 'Splits',
+            })}
+          >
+            <SplitsTable
+              splits={splits}
+              unitMeters={unitMeters}
+              unit={distanceUnit}
             />
           </Card>
         ) : null}

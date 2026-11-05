@@ -1,18 +1,19 @@
-import { daysBetween } from '@workspace/shared';
 import {
-  COMPARE_SPANS,
-  DEFAULT_COMPARE_SPAN,
-  MAX_CUSTOM_DAYS,
-  SUGGESTED_QUESTIONS,
   clampSinceStart,
+  COMPARE_SPANS,
+  type CompareQuestion,
   compareWindow,
+  daysBetween,
+  DEFAULT_COMPARE_SPAN,
   isAskable,
   knownCompareQuestions,
+  MAX_CUSTOM_DAYS,
+  offeredInMode,
   sinceStartBounds,
+  SUGGESTED_QUESTIONS,
   timingOf,
   withRecentQuestion,
-  type CompareQuestion,
-} from '../../src/utils/compareQuestion';
+} from '@workspace/shared';
 
 const TODAY = '2026-10-21';
 
@@ -225,12 +226,42 @@ describe('isAskable', () => {
     expect(
       isAskable({ a: 'meditationSessions7d', b: 'mood', choice: 'sinceHabit' })
     ).toBe(true);
-    expect(
-      isAskable({ a: 'weightTrend', b: 'mood', choice: 'sinceHabit' })
-    ).toBe(true);
     expect(isAskable({ a: 'mood', b: 'mood', choice: 'sinceHabit' })).toBe(
       false
     );
+  });
+});
+
+describe('weight trend and since', () => {
+  test('isAskable is false for a since question with weight trend in either slot', () => {
+    expect(
+      isAskable({ a: 'weightTrend', b: 'mood', choice: 'sinceHabit' })
+    ).toBe(false);
+    expect(
+      isAskable({ a: 'meditated', b: 'weightTrend', choice: 'sinceHabit' })
+    ).toBe(false);
+    expect(isAskable({ a: 'weightTrend', b: 'mood', choice: 'sameDay' })).toBe(
+      true
+    );
+  });
+
+  test('offeredInMode follows the weekly and since rules', () => {
+    expect(offeredInMode('meditationSessions7d', 'day')).toBe(true);
+    expect(offeredInMode('meditationSessions7d', 'week')).toBe(false);
+    expect(offeredInMode('meditationSessions7d', 'since')).toBe(true);
+    expect(offeredInMode('weightTrend', 'day')).toBe(true);
+    expect(offeredInMode('weightTrend', 'week')).toBe(true);
+    expect(offeredInMode('weightTrend', 'since')).toBe(false);
+  });
+
+  test('knownCompareQuestions drops a stored weight-trend since question but keeps the same pair by day', () => {
+    const since = { a: 'weightTrend', b: 'mood', choice: 'sinceHabit' };
+    const byDay: CompareQuestion = {
+      a: 'weightTrend',
+      b: 'mood',
+      choice: 'sameDay',
+    };
+    expect(knownCompareQuestions([since, byDay])).toEqual([byDay]);
   });
 });
 

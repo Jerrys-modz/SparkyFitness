@@ -45,10 +45,7 @@ import {
   activityDetailsOptions as fetchActivityDetailsOptions,
   useActivityDetailsQuery,
 } from '@/hooks/Exercises/useExercises';
-import {
-  useUpdateExerciseEntryMutation,
-  exerciseDetailsOptions,
-} from '@/hooks/Exercises/useExerciseEntries';
+import { useUpdateExerciseEntryMutation } from '@/hooks/Exercises/useExerciseEntries';
 import {
   DndContext,
   closestCenter,
@@ -331,10 +328,28 @@ const EditExerciseEntryDialog = ({
   const [caloriesBurnedInput, setCaloriesBurnedInput] = useState<number | ''>(
     entry.calories_burned || ''
   );
+  // What the daily balance counts instead of the estimate; blank counts the estimate.
+  const [caloriesAppliedInput, setCaloriesAppliedInput] = useState<number | ''>(
+    entry.calories_applied ?? ''
+  );
   const [distanceInput, setDistanceInput] = useState<number | ''>(() =>
     seedDistanceInput(entry, (km) => convertDistance(km, 'km', distanceUnit))
   );
   const [shoeId, setShoeId] = useState<string | null>(entry.shoe_id ?? null);
+  // Only the fields the calorie estimate and the duration are derived from;
+  // notes, RPE and the like must not count as a change to the sets.
+  const setsSignature = (rows: readonly SortableSet[]) =>
+    JSON.stringify(
+      rows.map(({ reps, weight, duration, rest_time }) => [
+        reps,
+        weight,
+        duration,
+        rest_time,
+      ])
+    );
+  const [initialSetsSignature] = useState(() => setsSignature(sets));
+  const [initialCaloriesInput] = useState(entry.calories_burned || '');
+
   const [avgHeartRateInput, setAvgHeartRateInput] = useState<number | ''>(
     entry.avg_heart_rate != null ? entry.avg_heart_rate : ''
   );
@@ -703,28 +718,44 @@ const EditExerciseEntryDialog = ({
   const handleSave = async () => {
     info(loggingLevel, 'EditExerciseEntryDialog: saving entry:', entry.id);
     try {
-      // An entry whose library exercise has been deleted keeps its snapshot but
-      // has nothing left to look up, so skip the fetch and fall back.
-      const exerciseData = entry.exercise_id
-        ? await queryClient.fetchQuery(
-            exerciseDetailsOptions(entry.exercise_id)
-          )
-        : null;
-      const caloriesPerHour =
-        (exerciseData as { calories_per_hour?: number })?.calories_per_hour ||
-        300;
+      // Adding or changing sets makes the stored duration and calorie figures
+      // stale: re-derive the duration from the sets and let the server
+      // re-estimate the calories, unless the user typed their own.
+      const setsChanged = setsSignature(sets) !== initialSetsSignature;
+      const derivedSetsDuration = setsDurationMinutes(sets);
+      const durationEdited =
+        durationInput !== '' && durationInput !== seedDurationInput(entry);
 
-      const totalDuration =
-        durationInput !== ''
+      // Untimed strength sets derive 0 minutes; that is no information, so
+      // keep the stored duration unless every set was removed.
+      const usesDerivedDuration =
+        setsChanged &&
+        !durationEdited &&
+        (derivedSetsDuration > 0 || sets.length === 0);
+
+      const totalDuration = usesDerivedDuration
+        ? derivedSetsDuration
+        : durationInput !== ''
           ? Number(durationInput)
           : cardioForm
             ? 0
-            : setsDurationMinutes(sets);
+            : derivedSetsDuration;
 
-      const caloriesBurned =
-        caloriesBurnedInput !== '' && caloriesBurnedInput !== 0
-          ? caloriesBurnedInput
-          : Math.round((caloriesPerHour / 60) * totalDuration);
+      const caloriesEdited = caloriesBurnedInput !== initialCaloriesInput;
+      const storedCalories =
+        entry.calories_burned != null ? Number(entry.calories_burned) : null;
+      // Untouched calories go back as stored (a stored 0 shows as a blank
+      // input but is still the saved value) unless the sets or the duration
+      // changed, which makes them stale and lets the server re-estimate.
+      // Typed values, including 0, are the user's override; clearing the
+      // field asks for an estimate.
+      const caloriesBurned = caloriesEdited
+        ? caloriesBurnedInput === ''
+          ? undefined
+          : caloriesBurnedInput
+        : setsChanged || durationEdited
+          ? undefined
+          : (storedCalories ?? undefined);
 
       // A field still showing its starting value goes back as stored, not as
       // its rounded display value: for a synced workout the server would
@@ -744,9 +775,10 @@ const EditExerciseEntryDialog = ({
       const stepsUntouched =
         stepsInput === (seededSteps !== '' ? seededSteps : (entry.steps ?? ''));
 
-      const durationMinutes = durationUntouched
-        ? entry.duration_minutes
-        : totalDuration;
+      const durationMinutes =
+        durationUntouched && !usesDerivedDuration
+          ? entry.duration_minutes
+          : totalDuration;
       const distanceKm = distanceUntouched
         ? (entry.distance ?? null)
         : distanceInput === ''
@@ -772,7 +804,11 @@ const EditExerciseEntryDialog = ({
         id: entry.id,
         data: {
           duration_minutes: durationMinutes,
-          calories_burned: caloriesBurned,
+          ...(caloriesBurned !== undefined && {
+            calories_burned: caloriesBurned,
+          }),
+          calories_applied:
+            caloriesAppliedInput === '' ? null : Number(caloriesAppliedInput),
           notes,
           entry_time: entryTime || null,
           sets: sets.map(({ _dndId, ...set }) => ({
@@ -1176,6 +1212,56 @@ const EditExerciseEntryDialog = ({
                   </div>
                 </div>
               )}
+
+              {/* Calories counted in the daily total — any entry */}
+              <div className="space-y-1.5">
+                <Label htmlFor="calories-applied" className="text-sm">
+                  {t(
+                    'exercise.editExerciseEntryDialog.caloriesAppliedLabel',
+                    'Calories counted in daily total (optional)'
+                  )}
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="calories-applied"
+                    type="number"
+                    min={0}
+                    value={caloriesAppliedInput}
+                    disabled={Boolean(entry.calorie_link_id)}
+                    onChange={(e) =>
+                      setCaloriesAppliedInput(
+                        e.target.value === '' ? '' : Number(e.target.value)
+                      )
+                    }
+                    placeholder={t(
+                      'exercise.editExerciseEntryDialog.caloriesAppliedPlaceholder',
+                      'Blank counts the calories burned above'
+                    )}
+                    className="pr-8"
+                  />
+                  {caloriesAppliedInput !== '' && !entry.calorie_link_id && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setCaloriesAppliedInput('')}
+                      className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6"
+                    >
+                      <XCircle className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {entry.calorie_link_id
+                    ? t(
+                        'exercise.editExerciseEntryDialog.caloriesAppliedLinkedHint',
+                        'Counted calories come from the workout link. Manage that link from the manual workout.'
+                      )
+                    : t(
+                        'exercise.editExerciseEntryDialog.caloriesAppliedHint',
+                        'Use 0 when a watch workout already counts this session. The calories burned estimate is kept.'
+                      )}
+                </p>
+              </div>
 
               {/* Duration & Avg heart rate — strength only */}
               {!cardioForm && (

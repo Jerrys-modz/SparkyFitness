@@ -7,6 +7,7 @@ import FoodScanScreen from '../../src/screens/FoodScanScreen';
 import {
   lookupBarcodeV2,
   scanNutritionLabel,
+  type BarcodeLookupResult,
   type LabelScanResult,
 } from '../../src/services/api/externalFoodSearchApi';
 import { ApiError } from '../../src/services/api/errors';
@@ -150,9 +151,65 @@ describe('FoodScanScreen', () => {
           id: 'food-1',
           barcode: '012345678905',
         }),
+        barcodeLookup: expect.objectContaining({
+          barcode: '012345678905',
+          providerId: 'local',
+        }),
       })
     );
   });
+
+  it.each([
+    ['11111111-1111-4111-8111-111111111111', 'Resolved configured source'],
+    ['openfoodfacts-fallback', 'Open Food Facts fallback'],
+  ])(
+    'uses resolved source metadata for %s rather than the requested provider',
+    async (providerId, providerName) => {
+      const result: BarcodeLookupResult = {
+        source: 'openfoodfacts',
+        providerId,
+        providerName,
+        food: {
+          name: 'Provider milk',
+          brand: 'Example',
+          barcode: '1234567890123',
+          provider_type: 'openfoodfacts',
+          provider_external_id: '1234567890123',
+          is_custom: false,
+          default_variant: {
+            serving_size: 100,
+            serving_unit: 'ml',
+            calories: 50,
+            protein: 3,
+            carbs: 5,
+            fat: 2,
+            is_default: true,
+          },
+        },
+      };
+      mockLookupBarcodeV2.mockResolvedValue(result);
+      const requestedProvider = '22222222-2222-4222-8222-222222222222';
+      const screen = renderScreenWithRoute({ providerId: requestedProvider });
+      fireEvent(screen.getByTestId('camera-view'), 'onBarcodeScanned', {
+        data: '1234567890123',
+      });
+      await waitFor(() =>
+        expect(mockNavigation.replace).toHaveBeenCalledWith(
+          'FoodEntryAdd',
+          expect.objectContaining({
+            barcodeLookup: expect.objectContaining({
+              providerId,
+              providerName,
+            }),
+          })
+        )
+      );
+      expect(mockLookupBarcodeV2).toHaveBeenCalledWith(
+        '1234567890123',
+        requestedProvider
+      );
+    }
+  );
 
   it('preserves meal-plan selection context after a barcode lookup', async () => {
     mockLookupBarcodeV2.mockResolvedValue(existingFoodResult);
@@ -182,6 +239,25 @@ describe('FoodScanScreen', () => {
       )
     );
   });
+
+  it.each(['action-tag', 'container-link'] as const)(
+    'keeps %s picking after a barcode lookup instead of logging',
+    async (pickerMode) => {
+      mockLookupBarcodeV2.mockResolvedValue(existingFoodResult);
+      const screen = renderScreenWithRoute({ pickerMode, returnDepth: 2 });
+
+      fireEvent(screen.getByTestId('camera-view'), 'onBarcodeScanned', {
+        data: '012345678905',
+      });
+
+      await waitFor(() =>
+        expect(mockNavigation.replace).toHaveBeenCalledWith(
+          'FoodEntryAdd',
+          expect.objectContaining({ pickerMode, returnDepth: 2 })
+        )
+      );
+    }
+  );
 
   it('does not fire a success haptic when barcode lookup finds no match', async () => {
     mockLookupBarcodeV2.mockResolvedValue({
@@ -489,6 +565,13 @@ describe('FoodScanScreen', () => {
 
       expect(screen.getByText('Barcode')).toBeTruthy();
       expect(screen.getByText('Label')).toBeTruthy();
+      expect(screen.queryByText('Photo')).toBeNull();
+    });
+
+    it('hides the diary-only Photo segment when picking for an NFC tag', () => {
+      const screen = renderScreenWithRoute({ pickerMode: 'action-tag' });
+
+      expect(screen.getByText('Barcode')).toBeTruthy();
       expect(screen.queryByText('Photo')).toBeNull();
     });
 

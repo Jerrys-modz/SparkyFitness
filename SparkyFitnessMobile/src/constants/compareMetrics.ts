@@ -1,11 +1,12 @@
 import {
-  COMPARE_METRICS,
   COMPARE_METRIC_KEYS,
+  COMPARE_METRICS,
   type CompareMetricDef,
   type CompareMetricKey,
+  type CompareMode,
+  offeredInMode,
 } from '@workspace/shared';
 import type { PickerSection } from '../components/BottomSheetPicker';
-import type { CompareMode } from '../utils/compareQuestion';
 import type { Translator } from './reports';
 
 export const COMPARE_GROUP_LABELS: Record<
@@ -102,12 +103,10 @@ export function compareMetricSections(
   return GROUP_ORDER.map((group) => ({
     title: COMPARE_GROUP_LABELS[group](t),
     options: COMPARE_METRIC_KEYS.filter((key) => {
-      const def = COMPARE_METRICS[key];
       return (
-        def.group === group &&
+        COMPARE_METRICS[key].group === group &&
         key !== exclude &&
-        // Only week mode needs a weekly form; day and since read each day's value.
-        (mode !== 'week' || def.weekly !== null)
+        offeredInMode(key, mode)
       );
     }).map((key) => ({ label: COMPARE_METRIC_LABELS[key](t), value: key })),
   })).filter((section) => section.options.length > 0);

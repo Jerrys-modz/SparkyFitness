@@ -155,7 +155,8 @@ router.post('/import', async (req, res, next) => {
   } catch (error) {
     if (error instanceof WorkoutProgramExercisesUnavailableError) {
       return res.status(502).json({
-        error: error.message,
+        error:
+          'Some exercises could not be added from the exercise database. Try again when it is reachable.',
         missingExerciseIds: error.missingExerciseIds,
       });
     }

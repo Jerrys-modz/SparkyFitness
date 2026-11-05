@@ -8,6 +8,7 @@ import {
 import { CHART_SCALE_MODES } from '../../constants/chartConstants.ts';
 import { MAX_GOAL_MODE_WEEKLY_CHANGE_KG } from '../../utils/calorieCalculations.ts';
 import { HR_ZONE_METHODS } from '../../utils/heartRateZones.ts';
+import { TEMPERATURE_UNITS } from '../../utils/temperatureUnit.ts';
 
 export const SUPPORTED_TIME_FORMATS = ['HH:mm', 'h:mm A', 'h:mm a'] as const;
 
@@ -21,6 +22,7 @@ const weeklyWeightChangeSchema = z
 
 export const userPreferencesSchema = z.object({
   adaptive_activity_separate: z.boolean().optional(),
+  adjust_macros_with_exercise: z.boolean().optional(),
   voice_input_enabled: z.boolean().optional(),
   active_voice_ai_service_id: z.string().uuid().nullable().optional(),
   id: z.string(),
@@ -43,6 +45,7 @@ export const userPreferencesSchema = z.object({
   show_net_carbs: z.boolean(),
   food_search_all_providers_default: z.boolean(),
   default_distance_unit: z.string(),
+  default_temperature_unit: z.enum(TEMPERATURE_UNITS),
   language: z.string().nullable(),
   calorie_goal_adjustment_mode: z.string().nullable(),
   energy_unit: z.string(),
@@ -86,6 +89,7 @@ export const userPreferencesSchema = z.object({
   measurement_decimal_places: z.number().int().min(0),
   // Manually added (file is ts-to-zod generated; precedent: MealFoods.zod.ts). Keep on regen.
   use_external_bmr: z.boolean(),
+  use_move_ring_active_calories: z.boolean(),
   active_ai_service_id: z.string().uuid().nullable().optional(),
   active_vision_ai_service_id: z.string().uuid().nullable().optional(),
   auto_scale_online_imports: z.boolean().nullable().optional(),
@@ -101,10 +105,12 @@ export const userPreferencesSchema = z.object({
   resting_heart_rate: z.number().int().min(25).max(150).nullable(),
   hr_zone_method: z.enum(HR_ZONE_METHODS),
   hr_zone_custom_floors: z.array(z.number().int()).length(5).nullable(),
+  hr_zone_display_count: z.union([z.literal(4), z.literal(5)]),
 });
 
 export const userPreferencesInitializerSchema = z.object({
   adaptive_activity_separate: z.boolean().optional(),
+  adjust_macros_with_exercise: z.boolean().optional(),
   voice_input_enabled: z.boolean().optional(),
   active_voice_ai_service_id: z.string().uuid().nullable().optional(),
   id: z.string().optional(),
@@ -127,6 +133,7 @@ export const userPreferencesInitializerSchema = z.object({
   show_net_carbs: z.boolean().optional(),
   food_search_all_providers_default: z.boolean().optional(),
   default_distance_unit: z.string().optional(),
+  default_temperature_unit: z.enum(TEMPERATURE_UNITS).optional(),
   language: z.string().optional().nullable(),
   calorie_goal_adjustment_mode: z.string().optional().nullable(),
   energy_unit: z.string().optional(),
@@ -176,6 +183,7 @@ export const userPreferencesInitializerSchema = z.object({
   adaptive_workout_suggestions: z.boolean().optional(),
   measurement_decimal_places: z.number().int().min(0).optional(),
   use_external_bmr: z.boolean().optional(),
+  use_move_ring_active_calories: z.boolean().optional(),
   active_ai_service_id: z.string().uuid().nullable().optional(),
   active_vision_ai_service_id: z.string().uuid().nullable().optional(),
   auto_scale_online_imports: z.boolean().optional().nullable(),
@@ -195,10 +203,12 @@ export const userPreferencesInitializerSchema = z.object({
     .length(5)
     .nullable()
     .optional(),
+  hr_zone_display_count: z.union([z.literal(4), z.literal(5)]).optional(),
 });
 
 export const userPreferencesMutatorSchema = z.object({
   adaptive_activity_separate: z.boolean().optional(),
+  adjust_macros_with_exercise: z.boolean().optional(),
   voice_input_enabled: z.boolean().optional(),
   active_voice_ai_service_id: z.string().uuid().nullable().optional(),
   id: z.string().optional(),
@@ -221,6 +231,7 @@ export const userPreferencesMutatorSchema = z.object({
   show_net_carbs: z.boolean().optional(),
   food_search_all_providers_default: z.boolean().optional(),
   default_distance_unit: z.string().optional(),
+  default_temperature_unit: z.enum(TEMPERATURE_UNITS).optional(),
   language: z.string().optional().nullable(),
   calorie_goal_adjustment_mode: z.string().optional().nullable(),
   energy_unit: z.string().optional(),
@@ -270,6 +281,7 @@ export const userPreferencesMutatorSchema = z.object({
   adaptive_workout_suggestions: z.boolean().optional(),
   measurement_decimal_places: z.number().int().min(0).optional(),
   use_external_bmr: z.boolean().optional(),
+  use_move_ring_active_calories: z.boolean().optional(),
   active_ai_service_id: z.string().uuid().nullable().optional(),
   active_vision_ai_service_id: z.string().uuid().nullable().optional(),
   auto_scale_online_imports: z.boolean().optional().nullable(),
@@ -289,6 +301,7 @@ export const userPreferencesMutatorSchema = z.object({
     .length(5)
     .nullable()
     .optional(),
+  hr_zone_display_count: z.union([z.literal(4), z.literal(5)]).optional(),
 });
 
 export type UserPreferences = z.infer<typeof userPreferencesSchema>;

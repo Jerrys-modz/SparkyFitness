@@ -1,6 +1,10 @@
 import React, { useMemo } from 'react';
 import { Text, View } from 'react-native';
-import type { CompareResponse } from '@workspace/shared';
+import {
+  type CompareQuestion,
+  type CompareResponse,
+  overTimeData,
+} from '@workspace/shared';
 import { useTranslation } from 'react-i18next';
 import { CartesianChart, Line } from 'victory-native';
 import { useCSSVariable } from 'uniwind';
@@ -12,8 +16,6 @@ import {
   formatXLabel30d90d,
   useChartFont,
 } from '../charts/chartFormatting';
-import { overTimeData } from '../../utils/compareChartData';
-import type { CompareQuestion } from '../../utils/compareQuestion';
 
 interface CompareOverTimeChartProps {
   response: CompareResponse;

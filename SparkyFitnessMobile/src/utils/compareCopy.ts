@@ -3,22 +3,21 @@ import {
   COMPARE_METRICS,
   compareDigits,
   compareDisplayValue,
-  isSleepMetric,
   type CompareMetricKey,
+  type CompareMode,
+  type CompareQuestion,
   type CompareResponse,
   type CompareResult,
+  type CompareSpan,
+  type CompareTimingChoice,
+  isSleepMetric,
+  timingOf,
 } from '@workspace/shared';
 import { COMPARE_METRIC_LABELS } from '../constants/compareMetrics';
 import type { Translator } from '../constants/reports';
 import { formatLocalizedNumber } from '../localization';
+import { getAppLanguageCode } from '../localization/i18n';
 import { formatTimeLabel } from './entryTimeDisplay';
-import {
-  timingOf,
-  type CompareMode,
-  type CompareQuestion,
-  type CompareSpan,
-  type CompareTimingChoice,
-} from './compareQuestion';
 
 function lowerFirst(text: string): string {
   return text.charAt(0).toLowerCase() + text.slice(1);
@@ -32,9 +31,24 @@ function isYesNo(key: CompareMetricKey): boolean {
   return COMPARE_METRICS[key].kind === 'binary';
 }
 
-/** The label in lower case, for the middle of a sentence. */
+/** Languages that capitalize every noun, also in the middle of a sentence. */
+const NOUN_CAPITALIZING_LANGUAGES = new Set(['de']);
+
+/**
+ * The label for the middle of a sentence: in lower case, except a translated
+ * noun in a language that capitalizes nouns ("Stimmung" in German). A label
+ * still in English (not translated yet) is lowered, as the English sentence
+ * around it needs. A yes/no label is a verb ("Meditated", "Meditiert"), so it
+ * is lowered in every language.
+ */
 function plainLabel(key: CompareMetricKey, t: Translator): string {
-  return lowerFirst(COMPARE_METRIC_LABELS[key](t));
+  const label = COMPARE_METRIC_LABELS[key](t);
+  const english = COMPARE_METRIC_LABELS[key]((_key, o) => o.defaultValue);
+  const keepCapital =
+    !isYesNo(key) &&
+    label !== english &&
+    NOUN_CAPITALIZING_LANGUAGES.has(getAppLanguageCode());
+  return keepCapital ? label : lowerFirst(label);
 }
 
 /**
@@ -409,6 +423,102 @@ function directionPhrase(
       });
 }
 
+/**
+ * The sentence after a yes/no "Yes": the habit's days against the other days, which is what
+ * the analysis compares. Not "than usual": a habit kept on most days is the usual, so its days
+ * can sit near usual while the other days fall below it.
+ */
+function differenceSentence(
+  outcomeKey: CompareMetricKey,
+  up: boolean,
+  wording: YesNoWording,
+  t: Translator
+): string {
+  const values = {
+    when: wording.when,
+    outcome: wording.outcome,
+    others: lowerFirst(wording.noLabel),
+  };
+  if (outcomeKey === 'bedtime') {
+    return up
+      ? t('compareReport.verdict.differenceLater', {
+          defaultValue: '{{when}}, {{outcome}} was later than on {{others}}.',
+          ...values,
+        })
+      : t('compareReport.verdict.differenceEarlier', {
+          defaultValue: '{{when}}, {{outcome}} was earlier than on {{others}}.',
+          ...values,
+        });
+  }
+  return up
+    ? t('compareReport.verdict.differenceHigher', {
+        defaultValue: '{{when}}, {{outcome}} was higher than on {{others}}.',
+        ...values,
+      })
+    : t('compareReport.verdict.differenceLower', {
+        defaultValue: '{{when}}, {{outcome}} was lower than on {{others}}.',
+        ...values,
+      });
+}
+
+/**
+ * A yes/no habit's difference for the bars: how far the habit's days sat from the other days,
+ * each measured against the person's own normal (the analysis's `binary.diff`). The direction
+ * word carries the sign, so the amount is unsigned.
+ */
+export function yesNoDifferenceText(
+  q: CompareQuestion,
+  binary: NonNullable<CompareResult['binary']>,
+  t: Translator
+): string {
+  const outcomeKey = binary.yesKey === q.a ? q.b : q.a;
+  const others = lowerFirst(yesNoWording(q, binary.yesKey, t).noLabel);
+  const same = () =>
+    t('compareReport.howSure.differenceSame', {
+      defaultValue:
+        'About the same as on {{others}} (each measured against your own normal)',
+      others,
+    });
+  if (outcomeKey === 'bedtime') {
+    // A bedtime difference is a span of minutes, not a time of day.
+    const minutes = Math.round(Math.abs(binary.diff));
+    if (minutes === 0) return same();
+    const diff = formatLocalizedNumber(minutes, { maximumFractionDigits: 0 });
+    return binary.diff > 0
+      ? t('compareReport.howSure.differenceLater', {
+          defaultValue:
+            '{{diff}} min later than on {{others}} (each measured against your own normal)',
+          diff,
+          others,
+        })
+      : t('compareReport.howSure.differenceEarlier', {
+          defaultValue:
+            '{{diff}} min earlier than on {{others}} (each measured against your own normal)',
+          diff,
+          others,
+        });
+  }
+  const shown = Math.abs(compareDisplayValue(outcomeKey, binary.diff));
+  if (Math.round(shown * 10) === 0) return same();
+  const diff = formatLocalizedNumber(shown, {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  });
+  return binary.diff > 0
+    ? t('compareReport.howSure.differenceHigher', {
+        defaultValue:
+          '{{diff}} higher than on {{others}} (each measured against your own normal)',
+        diff,
+        others,
+      })
+    : t('compareReport.howSure.differenceLower', {
+        defaultValue:
+          '{{diff}} lower than on {{others}} (each measured against your own normal)',
+        diff,
+        others,
+      });
+}
+
 /** A signed span of whole minutes, e.g. "+25" for a bedtime difference. */
 export function signedMinutes(value: number): string {
   return formatLocalizedNumber(value, {
@@ -613,12 +723,12 @@ export function verdictCopy(
       headline: t('compareReport.verdict.differenceHeadline', {
         defaultValue: 'Yes, a difference',
       }),
-      detail: t('compareReport.verdict.difference', {
-        defaultValue: '{{when}}, {{outcome}} was {{direction}}.',
-        when: wording.when,
-        outcome: wording.outcome,
-        direction: directionPhrase(yesKey === q.a ? q.b : q.a, diff >= 0, t),
-      }),
+      detail: differenceSentence(
+        yesKey === q.a ? q.b : q.a,
+        diff >= 0,
+        wording,
+        t
+      ),
     };
   }
 

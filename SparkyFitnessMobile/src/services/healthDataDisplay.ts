@@ -10,6 +10,7 @@ import {
 } from './healthConnectService';
 import { HEALTH_METRICS } from '../HealthMetrics';
 import { addLog } from './LogService';
+import { isAuthorizationNotDeterminedError } from '../utils/healthErrors';
 import type { HealthDataDisplayState } from '../types/healthRecords';
 import type { TimeRange } from './storage';
 import i18n, { formatLocalizedNumber } from '../localization/i18n';
@@ -467,6 +468,20 @@ const RAW_FORMATTERS: Record<string, (records: unknown[]) => string> = {
 
   BasalBodyTemperature: formatTemperature,
   BodyTemperature: formatTemperature,
+  SleepingWristTemperature: formatTemperature,
+  // Pre-aggregated nights ({ value, timestamp } in °C), not raw samples.
+  OvernightBodyTemperature: (records) => {
+    const latest = (records as { value?: number; timestamp?: string }[])
+      .filter((r) => typeof r.value === 'number')
+      .sort(
+        (a, b) =>
+          new Date(b.timestamp ?? '').getTime() -
+          new Date(a.timestamp ?? '').getTime()
+      )[0];
+    return latest?.value != null
+      ? formatTemperature([{ temperature: { inCelsius: latest.value } }])
+      : NO_DATA_DISPLAY;
+  },
 
   BloodGlucose: (records) => {
     const latestGlucose = (
@@ -759,6 +774,11 @@ export async function fetchHealthDisplayData(
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
+      if (isAuthorizationNotDeterminedError(error)) {
+        result[metric.id] = NO_DATA_DISPLAY;
+        continue;
+      }
+
       addLog(
         `[healthDataDisplay] Error fetching ${metric.defaultLabel}: ${errorMessage}`,
         'ERROR'

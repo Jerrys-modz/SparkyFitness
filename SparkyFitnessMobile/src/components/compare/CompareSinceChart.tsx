@@ -5,14 +5,13 @@ import {
   Line as SkiaLine,
   Rect,
 } from '@shopify/react-native-skia';
-import type { CompareSinceResponse } from '@workspace/shared';
+import { type CompareSinceResponse, sinceChartData } from '@workspace/shared';
 import { useTranslation } from 'react-i18next';
 import { CartesianChart, Line } from 'victory-native';
 import { useCSSVariable } from 'uniwind';
 
 import { COMPARE_METRIC_LABELS } from '../../constants/compareMetrics';
 import { compareValueText } from '../../utils/compareCopy';
-import { sinceChartData } from '../../utils/compareChartData';
 import { formatDateWithYear, formatMonthYear } from '../../utils/dayLabel';
 import {
   CHART_LABEL_FONT_SIZE,
