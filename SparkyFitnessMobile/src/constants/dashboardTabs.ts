@@ -13,58 +13,46 @@ export type DashboardTab = (typeof DASHBOARD_TABS)[number];
 export const DEFAULT_DASHBOARD_TAB: DashboardTab = 'summary';
 
 /**
- * The cards each tab may show. A card can sit on more than one tab: Summary repeats the
- * few daily essentials (calories, meds due, nutrients, training load) whose full home is
- * another tab. Ask Sparky is on every tab and is pinned to the top of it.
+ * The tab each card lives on. Summary is the exception: besides At a Glance, which lives
+ * there, it shows a person-chosen list of cards that live on other tabs (calories, meds
+ * due, nutrients and training load to start). Ask Sparky has no home; it is pinned to
+ * the top of every tab.
  */
-const TAB_CARDS: Record<DashboardTab, readonly DashboardCardKey[]> = {
-  summary: [
-    'askSparky',
-    'calorieRing',
-    'pinnedMetrics',
-    'medications',
-    'macros',
-    'trainingLoad',
-  ],
-  nutrition: [
-    'askSparky',
-    'calorieRing',
-    'macros',
-    'hydration',
-    'caffeine',
-    'fasting',
-    'meals',
-  ],
-  activity: [
-    'askSparky',
-    'activityRings',
-    'exercise',
-    'trainingLoad',
-    'workouts',
-    'steps',
-    'heartRate',
-  ],
-  wellness: [
-    'askSparky',
-    'sleep',
-    'readiness',
-    'medications',
-    'symptoms',
-    'mood',
-    'mindfulness',
-    'cycle',
-    'healthTrends',
-    'labResults',
-    'progressPhotos',
-  ],
+const HOME_TAB: Record<DashboardCardKey, DashboardTab | null> = {
+  askSparky: null,
+  pinnedMetrics: 'summary',
+  calorieRing: 'nutrition',
+  macros: 'nutrition',
+  hydration: 'nutrition',
+  caffeine: 'nutrition',
+  fasting: 'nutrition',
+  meals: 'nutrition',
+  activityRings: 'activity',
+  exercise: 'activity',
+  trainingLoad: 'activity',
+  workouts: 'activity',
+  steps: 'activity',
+  heartRate: 'activity',
+  sleep: 'wellness',
+  readiness: 'wellness',
+  medications: 'wellness',
+  symptoms: 'wellness',
+  mood: 'wellness',
+  mindfulness: 'wellness',
+  cycle: 'wellness',
+  healthTrends: 'wellness',
+  labResults: 'wellness',
+  progressPhotos: 'wellness',
 };
 
-const TAB_CARD_SETS: Record<DashboardTab, ReadonlySet<DashboardCardKey>> = {
-  summary: new Set(TAB_CARDS.summary),
-  nutrition: new Set(TAB_CARDS.nutrition),
-  activity: new Set(TAB_CARDS.activity),
-  wellness: new Set(TAB_CARDS.wellness),
-};
+/** The cards Summary repeats until the person picks their own. */
+const DEFAULT_SUMMARY_CARDS: readonly DashboardCardKey[] = [
+  'calorieRing',
+  'pinnedMetrics',
+  'medications',
+  'macros',
+  'trainingLoad',
+];
 
 export const isDashboardTab = (value: unknown): value is DashboardTab =>
   typeof value === 'string' &&
@@ -74,28 +62,81 @@ export const isDashboardTab = (value: unknown): value is DashboardTab =>
 export const resolveDashboardTab = (value: unknown): DashboardTab =>
   isDashboardTab(value) ? value : DEFAULT_DASHBOARD_TAB;
 
-export const cardShowsOnTab = (
-  key: DashboardCardKey,
-  tab: DashboardTab
-): boolean => TAB_CARD_SETS[tab].has(key);
+export const homeTabOf = (key: DashboardCardKey): DashboardTab | null =>
+  HOME_TAB[key];
 
-/** The tabs a card shows on, in tab order. */
-export const tabsForCard = (key: DashboardCardKey): DashboardTab[] =>
-  DASHBOARD_TABS.filter((tab) => cardShowsOnTab(key, tab));
+const isCardKey = (value: string): value is DashboardCardKey =>
+  Object.prototype.hasOwnProperty.call(HOME_TAB, value);
 
 /**
- * The cards of one tab in the person's saved order, with Ask Sparky moved to the top so
- * every tab opens on it.
+ * The cards on Summary, in order: the saved list (or the default one), with unknown,
+ * repeated and Ask Sparky entries dropped, and At a Glance always kept because Summary is
+ * its only home.
  */
-export const cardsForTab = (
-  order: readonly DashboardCardKey[],
-  tab: DashboardTab
+export const resolveSummaryCards = (
+  saved: readonly string[] | null | undefined
 ): DashboardCardKey[] => {
-  const onTab = order.filter((key) => cardShowsOnTab(key, tab));
-  return onTab.includes('askSparky')
-    ? ['askSparky', ...onTab.filter((key) => key !== 'askSparky')]
-    : onTab;
+  const result: DashboardCardKey[] = [];
+  for (const key of saved ?? DEFAULT_SUMMARY_CARDS) {
+    if (!isCardKey(key) || key === 'askSparky' || result.includes(key))
+      continue;
+    result.push(key);
+  }
+  for (const key of Object.keys(HOME_TAB) as DashboardCardKey[]) {
+    if (HOME_TAB[key] === 'summary' && !result.includes(key)) result.push(key);
+  }
+  return result;
 };
+
+/**
+ * The cards that live on one of Nutrition, Activity or Wellness, in order: the tab's own
+ * saved order first, then any card it does not list yet (a card added in a later build,
+ * or a tab never reordered) in the one shared Dashboard order, so nobody's layout changes
+ * when per-tab ordering arrives.
+ */
+export const resolveHomeTabCards = (
+  tab: Exclude<DashboardTab, 'summary'>,
+  savedTabOrder: readonly string[] | undefined,
+  sharedOrder: readonly DashboardCardKey[]
+): DashboardCardKey[] => {
+  const result: DashboardCardKey[] = [];
+  for (const key of savedTabOrder ?? []) {
+    if (isCardKey(key) && HOME_TAB[key] === tab && !result.includes(key)) {
+      result.push(key);
+    }
+  }
+  for (const key of sharedOrder) {
+    if (HOME_TAB[key] === tab && !result.includes(key)) result.push(key);
+  }
+  return result;
+};
+
+export interface DashboardTabLayout {
+  /** The one shared order, still used with tabs off and as each tab's starting order. */
+  sharedOrder: readonly DashboardCardKey[];
+  tabOrders: Partial<Record<DashboardTab, readonly string[]>>;
+  summaryCards: readonly DashboardCardKey[];
+}
+
+/** The cards of one tab, with Ask Sparky at the top so every tab opens on it. */
+export const cardsForTab = (
+  tab: DashboardTab,
+  layout: DashboardTabLayout
+): DashboardCardKey[] => [
+  'askSparky',
+  ...(tab === 'summary'
+    ? layout.summaryCards
+    : resolveHomeTabCards(tab, layout.tabOrders[tab], layout.sharedOrder)),
+];
+
+export const cardShowsOnTab = (
+  key: DashboardCardKey,
+  tab: DashboardTab,
+  summaryCards: readonly DashboardCardKey[]
+): boolean =>
+  key === 'askSparky' ||
+  HOME_TAB[key] === tab ||
+  (tab === 'summary' && summaryCards.includes(key));
 
 export const DASHBOARD_TAB_LABELS: Record<
   DashboardTab,

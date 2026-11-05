@@ -1,27 +1,27 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, Text, View } from 'react-native';
-import { useDerivedValue, useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 
 import { useActiveWorkoutBarPadding } from '../components/ActiveWorkoutBar';
-import { ReorderSwitchRow } from '../components/ReorderSwitchRow';
+import DashboardCardReorderList from '../components/DashboardCardReorderList';
 import SettingsRow, { SettingsRowGroup } from '../components/SettingsRow';
 import StatusView from '../components/StatusView';
 import Switch from '../components/ui/Switch';
-import {
-  computeReorderTargetIndex,
-  resetReorderDragPreview,
-  useReorderRowGeometry,
-} from '../components/WorkoutReorderList';
 import {
   DASHBOARD_CARD_SUBTITLES,
   DASHBOARD_CARD_TITLES,
   type DashboardCardKey,
 } from '../constants/dashboardCards';
-import { DASHBOARD_TAB_LABELS, tabsForCard } from '../constants/dashboardTabs';
+import {
+  DASHBOARD_TABS,
+  DASHBOARD_TAB_LABELS,
+  homeTabOf,
+  resolveHomeTabCards,
+  resolveSummaryCards,
+} from '../constants/dashboardTabs';
 import {
   useCustomNutrients,
   useNutrientDisplayPreferences,
@@ -38,13 +38,11 @@ import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import type { RootStackScreenProps } from '../types/navigation';
 import { resolveDashboardCardOrder } from '../utils/dashboardCardPreferences';
 import { toggleNutrientVisibility } from '../utils/nutrientUtils';
-import { moveItem } from '../utils/reorderUtils';
 
 type DashboardSettingsScreenProps = RootStackScreenProps<'DashboardSettings'>;
 
 const SUMMARY_VIEW_GROUP = 'summary';
 const MOBILE_PLATFORM = 'mobile';
-const DASHBOARD_CARD_ROW_HEIGHT = 72;
 
 // Matches what the server synthesizes for the summary/mobile row when the user
 // has never customized it. Only used defensively if the row is somehow absent
@@ -210,6 +208,19 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
     (s) => s.setDashboardTabsEnabled
   );
 
+  const savedSummaryCards = useAppPreferencesStore(
+    (s) => s.dashboardSummaryCards
+  );
+  const setDashboardSummaryCards = useAppPreferencesStore(
+    (s) => s.setDashboardSummaryCards
+  );
+  const dashboardTabCardOrders = useAppPreferencesStore(
+    (s) => s.dashboardTabCardOrders
+  );
+  const setDashboardTabCardOrder = useAppPreferencesStore(
+    (s) => s.setDashboardTabCardOrder
+  );
+
   const orderedCards = useMemo(
     () => resolveDashboardCardOrder(dashboardCardOrder),
     [dashboardCardOrder]
@@ -347,44 +358,72 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
     ]
   );
 
-  const { strides, offsets } = useReorderRowGeometry(
-    orderedCards.length,
-    DASHBOARD_CARD_ROW_HEIGHT
+  const summaryCards = useMemo(
+    () => resolveSummaryCards(savedSummaryCards),
+    [savedSummaryCards]
   );
-
-  const activeDragIndex = useSharedValue(-1);
-  const panY = useSharedValue(0);
-  const committingTranslate = useSharedValue(0);
-  const pendingDragResetRef = useRef(false);
-
-  const targetIndex = useDerivedValue(() =>
-    activeDragIndex.value < 0
-      ? -1
-      : computeReorderTargetIndex(
-          strides,
-          offsets,
-          activeDragIndex.value,
-          panY.value
-        )
+  // Summary's own cards first, in its order, then every other card that could join it.
+  const summaryRows = useMemo(
+    () => [
+      ...summaryCards,
+      ...orderedCards.filter(
+        (key) => key !== 'askSparky' && !summaryCards.includes(key)
+      ),
+    ],
+    [summaryCards, orderedCards]
   );
-
-  const handleMove = useCallback(
-    (fromIndex: number, toIndex: number) => {
-      if (fromIndex === toIndex) return;
-      const newOrder = moveItem(orderedCards, fromIndex, toIndex);
-      pendingDragResetRef.current = true;
-      setDashboardCardOrder(newOrder);
+  const toggleSummaryCard = useCallback(
+    (key: DashboardCardKey, enabled: boolean) => {
+      // At a Glance lives on Summary, so its switch there is its only switch.
+      if (homeTabOf(key) === 'summary') {
+        setCardVisibility(key, enabled);
+        return;
+      }
+      setDashboardSummaryCards(
+        enabled
+          ? [...summaryCards.filter((k) => k !== key), key]
+          : summaryCards.filter((k) => k !== key)
+      );
     },
-    [orderedCards, setDashboardCardOrder]
+    [setCardVisibility, setDashboardSummaryCards, summaryCards]
   );
-
-  // Release the floating transform only once the reordered rows have rendered, so
-  // clearing it is a visual no-op instead of a one-frame snap-back.
-  useEffect(() => {
-    if (!pendingDragResetRef.current) return;
-    pendingDragResetRef.current = false;
-    resetReorderDragPreview(activeDragIndex, panY, committingTranslate);
-  }, [orderedCards, committingTranslate, activeDragIndex, panY]);
+  const summarySubtitle = (key: DashboardCardKey): string => {
+    const home = homeTabOf(key);
+    if (home == null || home === 'summary') {
+      return DASHBOARD_CARD_SUBTITLES[key](t);
+    }
+    const tab = DASHBOARD_TAB_LABELS[home](t);
+    if (!cardVisibilityMap[key]) {
+      return t('dashboardSettings.turnedOffOnTab', {
+        defaultValue: 'Turned off on {{tab}}',
+        tab,
+      });
+    }
+    return summaryCards.includes(key)
+      ? t('dashboardSettings.alsoOnTab', {
+          defaultValue: 'Also on {{tab}}',
+          tab,
+        })
+      : t('dashboardSettings.onTabOnly', {
+          defaultValue: 'On {{tab}} only',
+          tab,
+        });
+  };
+  const configureFor = useCallback(
+    (key: DashboardCardKey) => {
+      switch (key) {
+        case 'healthTrends':
+          return () => navigation.navigate('HealthTrendsSettings');
+        case 'activityRings':
+          return () => navigation.navigate('ActivityRingsSettings');
+        case 'pinnedMetrics':
+          return () => navigation.navigate('PinnedMetricsSettings');
+        default:
+          return undefined;
+      }
+    },
+    [navigation]
+  );
 
   const queryClient = useQueryClient();
   const { isConnected } = useServerConnection();
@@ -560,69 +599,96 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
           />
         </SettingsRowGroup>
 
-        <Text className="text-text-secondary text-sm mb-4 mt-6">
-          {t('dashboardSettings.description', {
-            defaultValue:
-              'Drag a card by its handle to reorder your Dashboard. Toggle off to hide cards you do not use.',
-          })}
-        </Text>
-
-        <View className="bg-surface rounded-xl overflow-hidden shadow-sm mb-6">
-          {orderedCards.map((cardKey, index) => {
-            const title = DASHBOARD_CARD_TITLES[cardKey](t);
-            // With tabs on, where a card shows matters more than what it is.
-            const subtitle = dashboardTabsEnabled
-              ? t('dashboardSettings.showsOnTabs', {
-                  defaultValue: 'Shows on {{tabs}}',
-                  tabs: tabsForCard(cardKey)
-                    .map((tab) => DASHBOARD_TAB_LABELS[tab](t))
-                    .join(', '),
-                })
-              : DASHBOARD_CARD_SUBTITLES[cardKey](t);
-            return (
-              <ReorderSwitchRow
-                key={cardKey}
-                testID={`dashboard-card-row-${cardKey}`}
-                dragHandleTestID={`dashboard-card-drag-handle-${cardKey}`}
-                switchTestID={`dashboard-card-switch-${cardKey}`}
-                index={index}
-                lastIndex={orderedCards.length - 1}
-                title={title}
-                subtitle={subtitle}
-                isEnabled={cardVisibilityMap[cardKey]}
-                onToggle={(enabled) => setCardVisibility(cardKey, enabled)}
-                onMove={handleMove}
-                onConfigure={
-                  cardKey === 'healthTrends'
-                    ? () => navigation.navigate('HealthTrendsSettings')
-                    : cardKey === 'activityRings'
-                      ? () => navigation.navigate('ActivityRingsSettings')
-                      : cardKey === 'pinnedMetrics'
-                        ? () => navigation.navigate('PinnedMetricsSettings')
-                        : undefined
+        {dashboardTabsEnabled ? (
+          <>
+            <SettingsRowGroup>
+              <SettingsRow
+                title={DASHBOARD_CARD_TITLES.askSparky(t)}
+                subtitle={t('dashboardSettings.askSparkyOnEveryTab', {
+                  defaultValue: 'At the top of every tab',
+                })}
+                rightAccessory={
+                  <Switch
+                    testID="dashboard-ask-sparky-switch"
+                    accessibilityLabel={DASHBOARD_CARD_TITLES.askSparky(t)}
+                    value={askSparkyVisible}
+                    onValueChange={setAskSparkyVisible}
+                  />
                 }
-                configureTestID={`dashboard-card-configure-${cardKey}`}
-                configureA11yLabel={t('dashboardSettings.configureCard', {
-                  defaultValue: 'Configure {{name}}',
-                  name: title,
-                })}
-                rowHeight={DASHBOARD_CARD_ROW_HEIGHT}
-                reorderA11yLabel={t('dashboardSettings.reorder', {
-                  defaultValue: 'Reorder {{name}}',
-                  name: title,
-                })}
-                reorderA11yHint={t('dashboardSettings.reorderHint', {
-                  defaultValue: 'Reorder this card on your Dashboard',
-                })}
-                activeDragIndex={activeDragIndex}
-                panY={panY}
-                committingTranslate={committingTranslate}
-                targetIndex={targetIndex}
-                strides={strides}
               />
-            );
-          })}
-        </View>
+            </SettingsRowGroup>
+            <Text className="text-text-secondary text-sm mt-6 mb-4">
+              {t('dashboardSettings.tabsDescription', {
+                defaultValue:
+                  "Drag a card by its handle to reorder its tab. A card's own switch hides it everywhere; Summary has its own list of cards it repeats from the other tabs.",
+              })}
+            </Text>
+            {DASHBOARD_TABS.map((tab) => (
+              <View
+                key={tab}
+                className="mb-6"
+                testID={`dashboard-tab-section-${tab}`}
+              >
+                <Text className="text-xs font-semibold uppercase text-text-muted mb-2 px-1">
+                  {DASHBOARD_TAB_LABELS[tab](t)}
+                </Text>
+                {tab === 'summary' ? (
+                  <DashboardCardReorderList
+                    cards={summaryRows}
+                    testIDPrefix="dashboard-summary-card"
+                    subtitle={summarySubtitle}
+                    isEnabled={(key) =>
+                      homeTabOf(key) === 'summary'
+                        ? cardVisibilityMap[key]
+                        : summaryCards.includes(key)
+                    }
+                    onToggle={toggleSummaryCard}
+                    onReorder={(order) =>
+                      setDashboardSummaryCards(
+                        order.filter((key) => summaryCards.includes(key))
+                      )
+                    }
+                    onConfigure={configureFor}
+                  />
+                ) : (
+                  <DashboardCardReorderList
+                    cards={resolveHomeTabCards(
+                      tab,
+                      dashboardTabCardOrders[tab],
+                      orderedCards
+                    )}
+                    testIDPrefix="dashboard-card"
+                    subtitle={(key) => DASHBOARD_CARD_SUBTITLES[key](t)}
+                    isEnabled={(key) => cardVisibilityMap[key]}
+                    onToggle={setCardVisibility}
+                    onReorder={(order) => setDashboardTabCardOrder(tab, order)}
+                    onConfigure={configureFor}
+                  />
+                )}
+              </View>
+            ))}
+          </>
+        ) : (
+          <>
+            <Text className="text-text-secondary text-sm mb-4 mt-6">
+              {t('dashboardSettings.description', {
+                defaultValue:
+                  'Drag a card by its handle to reorder your Dashboard. Toggle off to hide cards you do not use.',
+              })}
+            </Text>
+            <View className="mb-6">
+              <DashboardCardReorderList
+                cards={orderedCards}
+                testIDPrefix="dashboard-card"
+                subtitle={(key) => DASHBOARD_CARD_SUBTITLES[key](t)}
+                isEnabled={(key) => cardVisibilityMap[key]}
+                onToggle={setCardVisibility}
+                onReorder={setDashboardCardOrder}
+                onConfigure={configureFor}
+              />
+            </View>
+          </>
+        )}
 
         <Text className="text-base font-semibold text-text-primary mb-4">
           {t('dashboardSettings.customNutrientDisplay', {

@@ -3,44 +3,100 @@ import {
   DASHBOARD_TABS,
   cardShowsOnTab,
   cardsForTab,
+  homeTabOf,
   resolveDashboardTab,
-  tabsForCard,
+  resolveHomeTabCards,
+  resolveSummaryCards,
 } from '../../src/constants/dashboardTabs';
 
+const SHARED = [...DASHBOARD_CARD_KEYS];
+
 describe('dashboard tabs', () => {
-  it('puts every card on at least one tab', () => {
+  it('gives every card but Ask Sparky a home tab', () => {
     for (const key of DASHBOARD_CARD_KEYS) {
-      expect(tabsForCard(key).length).toBeGreaterThan(0);
+      if (key === 'askSparky') {
+        expect(homeTabOf(key)).toBeNull();
+      } else {
+        expect(DASHBOARD_TABS).toContain(homeTabOf(key));
+      }
     }
   });
 
-  it('shows Ask Sparky on every tab', () => {
+  it('opens every tab on Ask Sparky', () => {
     for (const tab of DASHBOARD_TABS) {
-      expect(cardShowsOnTab('askSparky', tab)).toBe(true);
+      expect(
+        cardsForTab(tab, {
+          sharedOrder: SHARED,
+          tabOrders: {},
+          summaryCards: resolveSummaryCards(null),
+        })[0]
+      ).toBe('askSparky');
     }
   });
 
-  it('repeats the daily essentials on Summary', () => {
-    expect(tabsForCard('calorieRing')).toEqual(['summary', 'nutrition']);
-    expect(tabsForCard('medications')).toEqual(['summary', 'wellness']);
-    expect(tabsForCard('trainingLoad')).toEqual(['summary', 'activity']);
-    expect(tabsForCard('pinnedMetrics')).toEqual(['summary']);
+  describe('Summary', () => {
+    it('starts with the daily essentials', () => {
+      expect(resolveSummaryCards(null)).toEqual([
+        'calorieRing',
+        'pinnedMetrics',
+        'medications',
+        'macros',
+        'trainingLoad',
+      ]);
+    });
+
+    it('keeps the saved list, drops unknown or repeated keys, and always keeps At a Glance', () => {
+      expect(
+        resolveSummaryCards(['hydration', 'gone', 'hydration', 'askSparky'])
+      ).toEqual(['hydration', 'pinnedMetrics']);
+    });
+
+    it('shows a repeated card on Summary as well as on its home tab', () => {
+      const summary = resolveSummaryCards(['hydration']);
+      expect(cardShowsOnTab('hydration', 'summary', summary)).toBe(true);
+      expect(cardShowsOnTab('hydration', 'nutrition', summary)).toBe(true);
+      expect(cardShowsOnTab('macros', 'summary', summary)).toBe(false);
+    });
   });
 
-  it('keeps the saved order within a tab and moves Ask Sparky to the top', () => {
-    expect(
-      cardsForTab(
-        ['hydration', 'calorieRing', 'mood', 'askSparky', 'macros'],
-        'nutrition'
-      )
-    ).toEqual(['askSparky', 'hydration', 'calorieRing', 'macros']);
-  });
+  describe('home tabs', () => {
+    it('follow the shared order until the tab is reordered', () => {
+      expect(
+        resolveHomeTabCards('nutrition', undefined, [
+          'hydration',
+          'mood',
+          'calorieRing',
+          'macros',
+          'caffeine',
+          'fasting',
+          'meals',
+        ])
+      ).toEqual([
+        'hydration',
+        'calorieRing',
+        'macros',
+        'caffeine',
+        'fasting',
+        'meals',
+      ]);
+    });
 
-  it('leaves Ask Sparky out when the order does not have it', () => {
-    expect(cardsForTab(['exercise', 'activityRings'], 'activity')).toEqual([
-      'exercise',
-      'activityRings',
-    ]);
+    it('use the saved tab order, then any card it does not list yet', () => {
+      expect(
+        resolveHomeTabCards(
+          'activity',
+          ['steps', 'mood', 'workouts', 'steps'],
+          SHARED
+        )
+      ).toEqual([
+        'steps',
+        'workouts',
+        'exercise',
+        'activityRings',
+        'trainingLoad',
+        'heartRate',
+      ]);
+    });
   });
 
   it('falls back to Summary for a tab it does not know', () => {
