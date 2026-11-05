@@ -27,7 +27,6 @@ import {
   onOfflineQueueIdentityChanged,
   purgeOfflineQueueForConfig,
 } from '../services/offlineQueue/queueActions';
-import { resetAllDayHeartRateForAccountChange } from '../services/shared/heartRateSamplesSync';
 
 export type AuthModalReason = 'session_expired' | 'no_configs' | null;
 

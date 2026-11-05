@@ -13,6 +13,11 @@ import {
 import type { HealthMetricStates } from '../../src/types/healthRecords';
 import type { SyncDuration } from '../../src/services/healthkit/preferences';
 
+import { getActiveServerConfig } from '../../src/services/storage';
+jest.mock('../../src/services/storage', () => ({
+  ...jest.requireActual('../../src/services/storage'),
+  getActiveServerConfig: jest.fn().mockResolvedValue(null),
+}));
 jest.mock('../../src/services/LogService', () => ({
   addLog: jest.fn(),
 }));
@@ -230,6 +235,11 @@ describe('syncHealthData (iOS)', () => {
     mockQueryStatisticsCollection.mockResolvedValue([
       statsBucket(48, 120, 72.4),
     ]);
+    mockQueryQuantitySamples.mockResolvedValue([]);
+    (getActiveServerConfig as jest.Mock).mockResolvedValue({
+      id: 'test-config',
+      url: 'https://example.test',
+    });
     api.syncHealthData.mockResolvedValue({ success: true });
 
     const result = await syncHealthData('today' as SyncDuration, {
@@ -239,7 +249,10 @@ describe('syncHealthData (iOS)', () => {
     expect(result.success).toBe(true);
     // The daily min/max/avg come from one discrete-statistics collection query. The
     // only raw sample read is the separate all-day heart rate upload.
+    // The all-day upload runs detached after the main upload; let it settle.
+    await new Promise((resolve) => setTimeout(resolve, 50));
     expect(mockQueryQuantitySamples).toHaveBeenCalled();
+    (getActiveServerConfig as jest.Mock).mockResolvedValue(null);
     for (const call of mockQueryQuantitySamples.mock.calls) {
       expect(call[0]).toBe('HKQuantityTypeIdentifierHeartRate');
     }
