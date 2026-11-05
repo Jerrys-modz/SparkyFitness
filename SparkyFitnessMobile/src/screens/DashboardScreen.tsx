@@ -131,6 +131,7 @@ import {
   cardShowsOnTab,
   cardsForTab,
   resolveDashboardTab,
+  resolveSummaryCards,
   type DashboardTab,
 } from '../constants/dashboardTabs';
 import type { RootStackParamList, TabParamList } from '../types/navigation';
@@ -366,10 +367,20 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
   const savedDashboardTab = useAppPreferencesStore((s) => s.dashboardTab);
   const setDashboardTab = useAppPreferencesStore((s) => s.setDashboardTab);
   const dashboardTab = resolveDashboardTab(savedDashboardTab);
+  const dashboardTabCardOrders = useAppPreferencesStore(
+    (s) => s.dashboardTabCardOrders
+  );
+  const savedSummaryCards = useAppPreferencesStore(
+    (s) => s.dashboardSummaryCards
+  );
+  const summaryCards = useMemo(
+    () => resolveSummaryCards(savedSummaryCards),
+    [savedSummaryCards]
+  );
   const isOnTab = useCallback(
     (key: DashboardCardKey) =>
-      !dashboardTabsEnabled || cardShowsOnTab(key, dashboardTab),
-    [dashboardTabsEnabled, dashboardTab]
+      !dashboardTabsEnabled || cardShowsOnTab(key, dashboardTab, summaryCards),
+    [dashboardTabsEnabled, dashboardTab, summaryCards]
   );
   const selectDashboardTab = useCallback(
     (tab: DashboardTab) => {
@@ -626,9 +637,19 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
   const shownCardKeys = useMemo(
     () =>
       dashboardTabsEnabled
-        ? cardsForTab(orderedDashboardCards, dashboardTab)
+        ? cardsForTab(dashboardTab, {
+            sharedOrder: orderedDashboardCards,
+            tabOrders: dashboardTabCardOrders,
+            summaryCards,
+          })
         : orderedDashboardCards,
-    [dashboardTabsEnabled, orderedDashboardCards, dashboardTab]
+    [
+      dashboardTabsEnabled,
+      orderedDashboardCards,
+      dashboardTab,
+      dashboardTabCardOrders,
+      summaryCards,
+    ]
   );
   const cardVisible: Record<DashboardCardKey, boolean> = {
     calorieRing: calorieRingCardVisible,

@@ -173,6 +173,10 @@ export const PREFERENCE_DEFAULTS = {
   dashboardCardOrder: [...DASHBOARD_CARD_KEYS] as DashboardCardKey[],
   dashboardTabsEnabled: true,
   dashboardTab: DEFAULT_DASHBOARD_TAB as DashboardTab,
+  dashboardTabCardOrders: {} as Partial<
+    Record<DashboardTab, DashboardCardKey[]>
+  >,
+  dashboardSummaryCards: null as DashboardCardKey[] | null,
   medicationRemindersEnabled: true,
   medicationReminderRepeats: true,
   medicationReminderHideNames: false,
@@ -302,6 +306,10 @@ export type AppPreferencesData = {
   dashboardTabsEnabled: boolean;
   /** The Dashboard tab last open, so the app returns to it. */
   dashboardTab: DashboardTab;
+  /** Card order within Nutrition, Activity and Wellness; a tab not listed follows `dashboardCardOrder`. */
+  dashboardTabCardOrders: Partial<Record<DashboardTab, DashboardCardKey[]>>;
+  /** The cards Summary repeats, in order; null until chosen, so the default can evolve. */
+  dashboardSummaryCards: DashboardCardKey[] | null;
   medicationRemindersEnabled: boolean;
   medicationReminderRepeats: boolean;
   medicationReminderHideNames: boolean;
@@ -487,6 +495,11 @@ export interface AppPreferencesState extends AppPreferencesData {
   setDashboardCardOrder: (order: DashboardCardKey[]) => void;
   setDashboardTabsEnabled: (value: boolean) => void;
   setDashboardTab: (tab: DashboardTab) => void;
+  setDashboardTabCardOrder: (
+    tab: DashboardTab,
+    order: DashboardCardKey[]
+  ) => void;
+  setDashboardSummaryCards: (cards: DashboardCardKey[]) => void;
   setMedicationRemindersEnabled: (value: boolean) => void;
   setMedicationReminderRepeats: (value: boolean) => void;
   setMedicationReminderHideNames: (value: boolean) => void;
@@ -710,6 +723,15 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
       setDashboardCardOrder: (order) => set({ dashboardCardOrder: order }),
       setDashboardTabsEnabled: (value) => set({ dashboardTabsEnabled: value }),
       setDashboardTab: (tab) => set({ dashboardTab: tab }),
+      setDashboardTabCardOrder: (tab, order) =>
+        set((state) => ({
+          dashboardTabCardOrders: {
+            ...state.dashboardTabCardOrders,
+            [tab]: order,
+          },
+        })),
+      setDashboardSummaryCards: (cards) =>
+        set({ dashboardSummaryCards: cards }),
       setMedicationRemindersEnabled: (value) =>
         set({ medicationRemindersEnabled: value }),
       setMedicationReminderRepeats: (value) =>
@@ -982,6 +1004,8 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         dashboardCardOrder: state.dashboardCardOrder,
         dashboardTabsEnabled: state.dashboardTabsEnabled,
         dashboardTab: state.dashboardTab,
+        dashboardTabCardOrders: state.dashboardTabCardOrders,
+        dashboardSummaryCards: state.dashboardSummaryCards,
         medicationRemindersEnabled: state.medicationRemindersEnabled,
         medicationReminderRepeats: state.medicationReminderRepeats,
         medicationReminderHideNames: state.medicationReminderHideNames,
