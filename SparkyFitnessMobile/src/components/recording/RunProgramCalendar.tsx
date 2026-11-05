@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { useCSSVariable } from 'uniwind';
 import {
   catchUpFor,
   daysBetween,
@@ -46,7 +45,6 @@ const RunProgramCalendar: React.FC<{
   onCatchUp?: (next: number) => void;
 }> = ({ status, schedule, doneDay, today, onCatchUp }) => {
   const { t } = useTranslation();
-  const successGlyph = useCSSVariable('--color-icon-success') as string;
   const accent = useCSSVariable('--color-accent-primary') as string;
   const [showAll, setShowAll] = useState(false);
   if (status.finished) return null;
@@ -114,10 +112,6 @@ const RunProgramCalendar: React.FC<{
           });
   }
 
-  const movesNote = t('runPrograms.calendar.moves', {
-    defaultValue:
-      'A workout you miss is not skipped: the dates after it move along.',
-  });
   const catchUp = catchUpFor({ ...base, schedule: plan });
 
   const shown = showAll ? runs : runs.slice(0, PREVIEW_RUNS);
@@ -173,20 +167,6 @@ const RunProgramCalendar: React.FC<{
               })}
             </Text>
           ) : null}
-          {fit ? (
-            <View
-              className="bg-raised rounded-lg px-3 py-2.5 mt-3"
-              testID="run-program-fit"
-            >
-              <View className="flex-row items-start">
-                <View
-                  className="w-2 h-2 rounded-full mt-1.5 mr-2"
-                  style={{ backgroundColor: successGlyph }}
-                />
-                <Text className="text-text-primary text-sm flex-1">{fit}</Text>
-              </View>
-              <Text className="text-text-muted text-xs mt-1">{movesNote}</Text>
-            </View>
           {fit && badge?.late ? (
             <Text className="text-text-secondary text-sm mt-1">{fit}</Text>
           ) : null}
@@ -236,11 +216,6 @@ const RunProgramCalendar: React.FC<{
               })}
             </Text>
           ) : null}
-          {fit ? null : (
-            <Text className="text-text-muted text-xs mt-1">{movesNote}</Text>
-          )}
-          <View className="mt-3">
-            {shown.map((run) => {
           <Text className="text-text-muted text-xs mt-1">
             {t('runPrograms.calendar.moves', {
               defaultValue:
@@ -308,33 +283,6 @@ const RunProgramCalendar: React.FC<{
                   className="mb-3.5 pl-3 flex-row items-center justify-between"
                   testID={`run-program-timeline-${run.index}`}
                 >
-                  <View className="flex-row items-center">
-                    {run.day === today ? (
-                      <View className="w-1.5 h-1.5 rounded-full bg-accent-primary mr-2" />
-                    ) : null}
-                    <Text className="text-text-primary text-sm">
-                      {dayText(run.day, 'short')}
-                      {run.day === today
-                        ? ` · ${t('date.today', { defaultValue: 'Today' })}`
-                        : ''}
-                    </Text>
-                  </View>
-                  <Text className="text-text-secondary text-sm">
-                    {status.program.activity === 'walk'
-                      ? t('runPrograms.calendar.rowWalk', {
-                          week: workout.week + 1,
-                          walk: workout.day + 1,
-                          minutes: planMinutes(workout.plan),
-                          defaultValue:
-                            'Week {{week}}, walk {{walk}} · {{minutes}} min',
-                        })
-                      : t('runPrograms.calendar.row', {
-                          week: workout.week + 1,
-                          run: workout.day + 1,
-                          minutes: planMinutes(workout.plan),
-                          defaultValue:
-                            'Week {{week}}, run {{run}} · {{minutes}} min',
-                        })}
                   <View
                     className="absolute rounded-full bg-text-muted"
                     style={{ left: -16, top: 6, width: 8, height: 8 }}

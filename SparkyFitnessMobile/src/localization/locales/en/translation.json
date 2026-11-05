@@ -1391,6 +1391,7 @@
     "pinnedMetricsSubtitle": "A slim row of the numbers worth seeing first",
     "tabs": "Dashboard tabs",
     "tabsSubtitle": "Split the Dashboard into Summary, Nutrition, Activity and Wellness",
+    "showsOnTabs": "Shows on {{tabs}}",
     "workouts": "Workouts",
     "workoutsSubtitle": "Show today's logged and planned workouts",
     "meals": "Meals",
@@ -1402,12 +1403,7 @@
     "steps": "Steps",
     "stepsSubtitle": "Show the day's steps against your goal and the last seven days",
     "heartRate": "Heart Rate",
-    "heartRateSubtitle": "Show resting heart rate and today's time in each heart rate zone",
-    "askSparkyOnEveryTab": "At the top of every tab",
-    "tabsDescription": "Drag a card by its handle to reorder its tab. A card's own switch hides it everywhere; Summary has its own list of cards it repeats from the other tabs.",
-    "turnedOffOnTab": "Turned off on {{tab}}",
-    "alsoOnTab": "Also on {{tab}}",
-    "onTabOnly": "On {{tab}} only"
+    "heartRateSubtitle": "Show resting heart rate and today's time in each heart rate zone"
   },
   "diarySettings": {
     "updateFailed": "Failed to update setting.",
@@ -9298,13 +9294,7 @@
       "catchUpButton_one": "Skip {{count}} workout",
       "catchUpButton_other": "Skip {{count}} workouts",
       "tooFar_one": "You are too far behind to catch up by skipping: {{count}} workout will not fit. Add workout days or move your goal date.",
-      "tooFar_other": "You are too far behind to catch up by skipping: {{count}} workouts will not fit. Add workout days or move your goal date.",
-      "timelineTitle": "Workout timeline",
-      "todayDate": "Today · {{date}}",
-      "onTrackBadge_one": "On track (+{{count}} day)",
-      "onTrackBadge_other": "On track (+{{count}} days)",
-      "lateBadge_one": "{{count}} day late",
-      "lateBadge_other": "{{count}} days late"
+      "tooFar_other": "You are too far behind to catch up by skipping: {{count}} workouts will not fit. Add workout days or move your goal date."
     },
     "select": {
       "today": "Today's program workout",
@@ -9343,14 +9333,7 @@
         "distance": "Enter a distance above zero, or leave it empty.",
         "raceDay": "Pick the race day, or clear the race name and distance.",
         "save": "Could not save your goals. Please try again."
-      },
-      "weeklyTile": "Weekly goal",
-      "ofTarget": "/ {{target}} {{unit}}",
-      "noWeekly": "No weekly distance set.",
-      "raceTile": "Race",
-      "daysUnit_one": "day",
-      "daysUnit_other": "days",
-      "noRace": "No race set."
+      }
     },
     "recommended": {
       "pill": "Recommended today",
@@ -9482,8 +9465,7 @@
       "targetHint": "Use m:ss for pace and bpm for heart rate, with the two ends at least 10 apart. Empty means no target.",
       "customize": "Customize this program",
       "customizeHint": "Copy it as a plan you can edit",
-      "copyName": "{{name}} (my copy)",
-      "selfCoached": "Self-coached"
+      "copyName": "{{name}} (my copy)"
     },
     "race": {
       "distance": {
@@ -9593,42 +9575,6 @@
     },
     "runsPerWeekHintBoth": "Two runs keeps the long run and one other day. Four runs adds a short easy run, so the long run is a smaller share of the week.",
     "runsPerWeekHintTwo": "Two runs keeps the long run and one other day, for a week you cannot train more often."
-    "hero": {
-      "active": "Active program",
-      "today": "Today's workout",
-      "next": "Next workout",
-      "weekOf": "Week {{week}} of {{weeks}}",
-      "duration": "Duration",
-      "minutes": "{{minutes}} min",
-      "done": "Completed",
-      "doneOf": "{{done}} / {{total}}",
-      "effort": "Effort",
-      "zone": "Zone {{zone}}",
-      "completion": "Program completion",
-      "left_one": "({{count}} left)",
-      "left_other": "({{count}} left)",
-      "daysAWeek_one": "{{count}} day a week",
-      "daysAWeek_other": "{{count}} days a week",
-      "everyDay": "Every day"
-    },
-    "focus": {
-      "easy": "Easy run",
-      "long": "Long run",
-      "tempo": "Tempo run",
-      "marathon": "Marathon pace",
-      "hills": "Hill repeats",
-      "strides": "Easy run with strides",
-      "intervals": "Intervals",
-      "runWalk": "Run/walk intervals",
-      "briskWalk": "Brisk walk"
-    },
-    "tools": {
-      "title": "Tools & plan actions",
-      "pacesHint": "Guided fitness test and pace ranges",
-      "changeHint": "Pick another built-in program",
-      "pickHint": "Jump ahead or go back in the program",
-      "skip": "Skip current workout"
-    }
   },
   "speechVoice": {
     "automatic": "Automatic (best installed)",

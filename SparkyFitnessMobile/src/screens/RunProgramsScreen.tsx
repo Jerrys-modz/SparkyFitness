@@ -12,7 +12,6 @@ import {
   programVersions,
   type CustomRunProgramResponse,
 } from '@workspace/shared';
-import RecommendedTodayCard from '../components/recording/RecommendedTodayCard';
 import RunProgramCard, {
   programDescription,
   programName,
@@ -384,10 +383,6 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
     const active = enabled;
     body = (
       <>
-        {fitnessPanel}
-        {enabled ? (
-          <RecommendedTodayCard status={status} distanceUnit={distanceUnit} />
-        ) : null}
         {active ? null : fitnessPanel}
         <RunProgramCard
           programId={storedId ?? chosenId}
@@ -430,35 +425,6 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
             }
           />
         ) : null}
-        <View className="bg-surface rounded-xl px-4 mt-4">
-          <ProgramActionList>
-            <ProgramActionRow
-              label={t('runPrograms.openCalendar', {
-                defaultValue: 'Open the training calendar',
-              })}
-              hint={t('runPrograms.openCalendarHint', {
-                defaultValue: 'Program and plan workouts, done and to come',
-              })}
-              onPress={() => navigation.navigate('TrainingCalendar')}
-            />
-            {status.program.custom ? null : (
-              <ProgramActionRow
-                label={t('runPrograms.custom.customize', {
-                  defaultValue: 'Customize this program',
-                })}
-                hint={t('runPrograms.custom.customizeHint', {
-                  defaultValue: 'Copy it as a plan you can edit',
-                })}
-                onPress={() =>
-                  navigation.navigate('RunProgramEdit', {
-                    fromProgramId: status.program.id,
-                  })
-                }
-                testID="customize-current"
-              />
-            )}
-          </ProgramActionList>
-        </View>
         {active ? goalTiles : null}
         <RunProgramCalendar
           status={status}
@@ -475,7 +441,7 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
           <RunProgramToolsCard
             status={status}
             programId={storedId ?? chosenId}
-            onOpenCalendar={() => navigation.navigate('RunProgramCalendar')}
+            onOpenCalendar={() => navigation.navigate('TrainingCalendar')}
             onCustomize={
               status.program.custom
                 ? undefined
