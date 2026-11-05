@@ -99,11 +99,6 @@ export function useAuth() {
       // it (its saved flags and its mood check-in id), so the next account is
       // never offered to continue it.
       useGuidedCheckInStore.getState().clearProgress();
-      // A running all-day heart rate phase stops before its next week, so it
-      // never uploads to the new account, and the stored coverage goes too:
-      // a session replaced on the same server keeps the config id it is
-      // keyed by. Stopping is synchronous; the storage sweep is not awaited.
-      void resetAllDayHeartRateForAccountChange();
       // The cookie jar is the third thing carrying identity, and the only one
       // that survives dropping every cache: it belongs to the native HTTP
       // client and is keyed by host, not by configured server, so two accounts
