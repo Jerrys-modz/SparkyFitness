@@ -123,6 +123,22 @@ const SleepNeedBreakdown: React.FC<SleepNeedBreakdownProps> = ({ data }) => {
           </div>
         )}
 
+        {data.recovery_score_yesterday != null && (
+          <div
+            className="mt-2 flex items-center justify-between text-sm"
+            data-testid="sleep-need-recovery"
+          >
+            <span className="text-muted-foreground">
+              {t('sleepScience.recovery', 'Recovery')}
+            </span>
+            <span className="font-semibold">
+              {t('sleepScience.recoveryScore', '{{score}}/100', {
+                score: Math.round(data.recovery_score_yesterday),
+              })}
+            </span>
+          </div>
+        )}
+
         {/* Summary */}
         <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
           <span className="capitalize">

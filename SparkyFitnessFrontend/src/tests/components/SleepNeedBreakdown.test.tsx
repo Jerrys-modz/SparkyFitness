@@ -5,10 +5,13 @@ import SleepNeedBreakdown from '@/pages/Reports/SleepScience/SleepNeedBreakdown'
 
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string, second?: unknown) => {
-      if (typeof second === 'string') return second;
-      const opts = second as Record<string, unknown> | undefined;
-      const template = (opts?.['defaultValue'] as string) ?? key;
+    t: (key: string, second?: unknown, third?: unknown) => {
+      const opts = (typeof second === 'string' ? third : second) as
+        Record<string, unknown> | undefined;
+      const template =
+        typeof second === 'string'
+          ? second
+          : ((opts?.['defaultValue'] as string) ?? key);
       return template.replace(/\{\{(\w+)\}\}/g, (_m, name: string) =>
         String(opts?.[name] ?? '')
       );
@@ -50,7 +53,7 @@ const baseNeed: DailyNeedData = {
   training_load_score: 180,
   current_debt_hours: 0,
   nap_minutes: 0,
-  recovery_score_yesterday: null,
+  recovery_score_yesterday: 64,
 };
 
 describe('SleepNeedBreakdown', () => {
@@ -70,5 +73,21 @@ describe('SleepNeedBreakdown', () => {
     expect(
       screen.queryByTestId('sleep-need-training-load')
     ).not.toBeInTheDocument();
+  });
+
+  it('shows the recovery score out of 100', () => {
+    render(<SleepNeedBreakdown data={baseNeed} />);
+    const row = screen.getByTestId('sleep-need-recovery');
+    expect(row).toHaveTextContent('Recovery');
+    expect(row).toHaveTextContent('64/100');
+  });
+
+  it('hides the recovery row when there is no score', () => {
+    render(
+      <SleepNeedBreakdown
+        data={{ ...baseNeed, recovery_score_yesterday: null }}
+      />
+    );
+    expect(screen.queryByTestId('sleep-need-recovery')).not.toBeInTheDocument();
   });
 });
