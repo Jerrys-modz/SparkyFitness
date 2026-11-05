@@ -212,3 +212,27 @@ test('removing the race sends no race fields', async () => {
     race_distance_km: null,
   });
 });
+
+describe('tiles layout', () => {
+  it('shows the weekly goal and the race countdown side by side', () => {
+    render(
+      <RunGoalsCard
+        data={full}
+        distanceUnit="km"
+        today="2026-10-15"
+        onSave={jest.fn()}
+        layout="tiles"
+      />
+    );
+    expect(screen.getByTestId('run-goals-tiles')).toBeTruthy();
+    expect(screen.getByTestId('run-goals-weekly')).toHaveTextContent(
+      /12\.5 \/ 30 km/
+    );
+    expect(screen.getByTestId('run-goals-race')).toHaveTextContent(/31 days/);
+    expect(screen.getByTestId('run-goals-race')).toHaveTextContent(
+      /City 10K · 10 km/
+    );
+    fireEvent.press(screen.getByText('Edit'));
+    expect(screen.queryByTestId('run-goals-tiles')).toBeNull();
+  });
+});

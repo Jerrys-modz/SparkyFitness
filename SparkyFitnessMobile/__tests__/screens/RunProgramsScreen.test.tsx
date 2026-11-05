@@ -785,7 +785,7 @@ describe('RunProgramsScreen', () => {
       expect(screen.getByTestId('pace-reference-test-note')).toBeTruthy();
     });
 
-    it('shows one short row, not the full invitation, while a program runs', () => {
+    it('offers training paces from the Tools card, not the full invitation, while a program runs', () => {
       mockedUse.mockReturnValue({
         status: programStatus({ programId: 'beginner5k', next: 3 })!,
         enabled: true,
@@ -797,9 +797,10 @@ describe('RunProgramsScreen', () => {
         refetch: jest.fn(),
       });
       renderScreen(props());
-      expect(screen.getByText('Take a guided fitness test')).toBeTruthy();
+      expect(screen.getByText('Find your training paces')).toBeTruthy();
       expect(screen.queryByText(/Run a guided fitness test/)).toBeNull();
-      fireEvent.press(screen.getByTestId('fitness-test-take'));
+      expect(screen.queryByTestId('fitness-test-take')).toBeNull();
+      fireEvent.press(screen.getByTestId('run-program-tools-paces'));
       expect(navigate).toHaveBeenCalledWith('FitnessTest');
     });
 
