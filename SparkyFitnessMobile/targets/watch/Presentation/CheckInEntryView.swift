@@ -319,52 +319,25 @@ struct CheckInEntryView: View {
 }
 
 /// Deliberately slow path for the once-or-twice-a-year genuine jump that falls
-/// outside the crown's window. Scribble and dictation both work here.
+/// outside the crown's window, on the same passcode-style pad as the workout
+/// values rather than the system keyboard.
 struct TypedValueEntryView: View {
     let title: String
     let initial: Double
-    /// What may be committed, in the same unit `initial` is in. Scribble and
-    /// dictation will hand over whatever they think they heard, and this is
-    /// the one path into a check-in that the Digital Crown's own clamping
-    /// doesn't cover.
+    /// What may be committed, in the same unit `initial` is in. This is the
+    /// one path into a check-in that the Digital Crown's own clamping doesn't
+    /// cover, so a value outside it leaves OK off instead of closing having
+    /// silently done nothing.
     let range: ClosedRange<Double>
     let onCommit: (Double) -> Void
 
-    @Environment(\.dismiss) private var dismiss
-    @State private var text: String = ""
-
-    /// Nil when what's typed isn't worth committing: unparseable, non-finite
-    /// (`Double("nan")` and `Double("inf")` both parse happily), or outside
-    /// `range`.
-    ///
-    /// Drives the commit and the button's enabled state from one place, so an
-    /// invalid entry leaves the sheet open instead of dismissing having
-    /// silently done nothing — the same shape `FirstRunEntryView` already
-    /// uses for its Save button.
-    private var parsed: Double? {
-        let normalized = text.replacingOccurrences(of: ",", with: ".")
-        guard let value = Double(normalized), value.isFinite, range.contains(value) else {
-            return nil
-        }
-        return value
-    }
-
     var body: some View {
-        VStack(spacing: 8) {
-            Text(title).watchFont(.footnote, classic: .caption).foregroundStyle(.secondary)
-            TextField("0.0", text: $text)
-                .font(.title3)
-                .multilineTextAlignment(.center)
-            Button(String(localized: "watch.common.set", defaultValue: "Set")) {
-                guard let parsed else { return }
-                Haptics.tap()
-                onCommit(parsed)
-                dismiss()
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(parsed == nil)
-        }
-        .padding()
-        .onAppear { text = String(format: "%.1f", initial) }
+        NumericKeypadView(
+            title: title,
+            initial: (initial * 10).rounded() / 10,
+            allowsDecimal: true,
+            range: range,
+            onCommit: onCommit
+        )
     }
 }
