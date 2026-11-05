@@ -151,6 +151,10 @@ export const PREFERENCE_DEFAULTS = {
   mindfulnessCardVisible: true,
   labResultsCardVisible: true,
   trainingLoadCardVisible: true,
+  workoutsCardVisible: true,
+  mealsCardVisible: true,
+  sleepCardVisible: true,
+  readinessCardVisible: true,
   dashboardCardOrder: [...DASHBOARD_CARD_KEYS] as DashboardCardKey[],
   dashboardTabsEnabled: true,
   dashboardTab: DEFAULT_DASHBOARD_TAB as DashboardTab,
@@ -264,6 +268,10 @@ export type AppPreferencesData = {
   mindfulnessCardVisible: boolean;
   labResultsCardVisible: boolean;
   trainingLoadCardVisible: boolean;
+  workoutsCardVisible: boolean;
+  mealsCardVisible: boolean;
+  sleepCardVisible: boolean;
+  readinessCardVisible: boolean;
   dashboardCardOrder: DashboardCardKey[];
   /** Split the Dashboard into Summary, Nutrition, Activity and Wellness tabs. */
   dashboardTabsEnabled: boolean;
@@ -431,6 +439,10 @@ export interface AppPreferencesState extends AppPreferencesData {
   setMindfulnessCardVisible: (value: boolean) => void;
   setLabResultsCardVisible: (value: boolean) => void;
   setTrainingLoadCardVisible: (value: boolean) => void;
+  setWorkoutsCardVisible: (value: boolean) => void;
+  setMealsCardVisible: (value: boolean) => void;
+  setSleepCardVisible: (value: boolean) => void;
+  setReadinessCardVisible: (value: boolean) => void;
   setDashboardCardOrder: (order: DashboardCardKey[]) => void;
   setDashboardTabsEnabled: (value: boolean) => void;
   setDashboardTab: (tab: DashboardTab) => void;
@@ -623,6 +635,10 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         set({ labResultsCardVisible: value }),
       setTrainingLoadCardVisible: (value) =>
         set({ trainingLoadCardVisible: value }),
+      setWorkoutsCardVisible: (value) => set({ workoutsCardVisible: value }),
+      setMealsCardVisible: (value) => set({ mealsCardVisible: value }),
+      setSleepCardVisible: (value) => set({ sleepCardVisible: value }),
+      setReadinessCardVisible: (value) => set({ readinessCardVisible: value }),
       setDashboardCardOrder: (order) => set({ dashboardCardOrder: order }),
       setDashboardTabsEnabled: (value) => set({ dashboardTabsEnabled: value }),
       setDashboardTab: (tab) => set({ dashboardTab: tab }),
@@ -870,6 +886,10 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         mindfulnessCardVisible: state.mindfulnessCardVisible,
         labResultsCardVisible: state.labResultsCardVisible,
         trainingLoadCardVisible: state.trainingLoadCardVisible,
+        workoutsCardVisible: state.workoutsCardVisible,
+        mealsCardVisible: state.mealsCardVisible,
+        sleepCardVisible: state.sleepCardVisible,
+        readinessCardVisible: state.readinessCardVisible,
         dashboardCardOrder: state.dashboardCardOrder,
         dashboardTabsEnabled: state.dashboardTabsEnabled,
         dashboardTab: state.dashboardTab,

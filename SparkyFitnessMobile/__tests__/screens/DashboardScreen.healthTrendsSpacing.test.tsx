@@ -277,6 +277,10 @@ describe('DashboardScreen tabs', () => {
     store.setMoodCardVisible(false);
     store.setMindfulnessCardVisible(false);
     store.setLabResultsCardVisible(false);
+    store.setWorkoutsCardVisible(false);
+    store.setMealsCardVisible(false);
+    store.setSleepCardVisible(false);
+    store.setReadinessCardVisible(false);
   });
 
   it('opens on Summary with a prompt worded for it', () => {

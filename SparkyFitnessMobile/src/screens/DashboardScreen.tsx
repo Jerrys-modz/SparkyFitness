@@ -110,6 +110,12 @@ import {
   resolveGlanceCandidates,
 } from '../utils/pinnedMetrics';
 import GlanceStrip from '../components/GlanceStrip';
+import MealsDashboardCard from '../components/dashboard/MealsDashboardCard';
+import ReadinessDashboardCard from '../components/dashboard/ReadinessDashboardCard';
+import SleepDashboardCard from '../components/dashboard/SleepDashboardCard';
+import WorkoutsDashboardCard from '../components/dashboard/WorkoutsDashboardCard';
+import { useStartPlanAssignment } from '../hooks/useStartPlanAssignment';
+import { openExerciseSession } from '../utils/openExerciseSession';
 import { resolveDashboardCardOrder } from '../utils/dashboardCardPreferences';
 import type { DashboardCardKey } from '../constants/dashboardCards';
 import {
@@ -475,6 +481,10 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
     };
   }, [trends.weight, weightUnit]);
   const weightGoal = resolveWeightGoal(profile?.target_weight, weightUnit);
+  const distanceUnit: 'km' | 'miles' =
+    preferences?.default_distance_unit === 'miles' ? 'miles' : 'km';
+  const isToday = getDateRelationToToday(selectedDate) === 'today';
+  const startPlanAssignment = useStartPlanAssignment(navigation);
 
   // CSS variable macro colors are theme-aware (lower saturation than hardcoded hex)
   const [
@@ -579,6 +589,14 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
   const trainingLoadCardVisible = useAppPreferencesStore(
     (s) => s.trainingLoadCardVisible
   );
+  const workoutsCardVisible = useAppPreferencesStore(
+    (s) => s.workoutsCardVisible
+  );
+  const mealsCardVisible = useAppPreferencesStore((s) => s.mealsCardVisible);
+  const sleepCardVisible = useAppPreferencesStore((s) => s.sleepCardVisible);
+  const readinessCardVisible = useAppPreferencesStore(
+    (s) => s.readinessCardVisible
+  );
 
   const { sessions: mindfulSessions, totalMindfulMinutes } =
     useMindfulnessDay(selectedDate);
@@ -617,6 +635,10 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
     healthTrends: healthTrendsCardVisible,
     mindfulness: mindfulnessCardVisible,
     labResults: labResultsCardVisible,
+    workouts: workoutsCardVisible,
+    meals: mealsCardVisible,
+    sleep: sleepCardVisible,
+    readiness: readinessCardVisible,
   };
   // Ask Sparky alone is not a tab's content, so a tab with nothing else says so.
   const tabHasVisibleCard = shownCardKeys.some(
@@ -1280,6 +1302,70 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
             case 'labResults':
               return labResultsCardVisible ? (
                 <LabResultsCard key="labResults" navigation={navigation} />
+              ) : null;
+            case 'sleep':
+              return sleepCardVisible ? (
+                <SleepDashboardCard
+                  key="sleep"
+                  date={selectedDate}
+                  onOpenSleep={(entryId, day) =>
+                    navigation.navigate('SleepDetail', { entryId, day })
+                  }
+                />
+              ) : null;
+            case 'readiness':
+              return readinessCardVisible ? (
+                <ReadinessDashboardCard
+                  key="readiness"
+                  isToday={isToday}
+                  onOpenDetails={() =>
+                    navigation.navigate('ExerciseStatistics')
+                  }
+                />
+              ) : null;
+            case 'meals':
+              return mealsCardVisible ? (
+                <MealsDashboardCard
+                  key="meals"
+                  foodEntries={summary.foodEntries}
+                  goals={summary.goals}
+                  calorieGoal={summary.calorieGoal}
+                  onAddFood={(mealTypeId) =>
+                    navigation.navigate('FoodSearch', {
+                      date: selectedDate,
+                      mealTypeId,
+                    })
+                  }
+                  onOpenMeal={(group, label) =>
+                    navigation.navigate('MealTypeDetail', {
+                      date: selectedDate,
+                      mealTypeId: group.mealTypeId ?? undefined,
+                      mealType: group.name,
+                      mealLabel: label,
+                    })
+                  }
+                />
+              ) : null;
+            case 'workouts':
+              return workoutsCardVisible ? (
+                <WorkoutsDashboardCard
+                  key="workouts"
+                  date={selectedDate}
+                  isToday={isToday}
+                  sessions={summary.exerciseEntries}
+                  weightUnit={weightUnit}
+                  distanceUnit={distanceUnit}
+                  onOpenSession={(session) =>
+                    openExerciseSession(navigation, session, distanceUnit)
+                  }
+                  onStartPlanned={(plan, assignment) => {
+                    void startPlanAssignment(plan, assignment);
+                  }}
+                  onLog={() =>
+                    navigation.navigate('ActivityAdd', { date: selectedDate })
+                  }
+                  onRecord={() => navigation.navigate('RecordActivity')}
+                />
               ) : null;
             case 'mindfulness':
               return mindfulnessCardVisible ? (
