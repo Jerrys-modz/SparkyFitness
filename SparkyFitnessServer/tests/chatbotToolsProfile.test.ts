@@ -116,6 +116,7 @@ describe('sparky_manage_profile', () => {
       energy_unit: 'kJ',
       default_weight_unit: 'lbs',
       default_distance_unit: 'miles',
+      default_temperature_unit: 'fahrenheit',
       item_display_limit: 10,
     });
 
@@ -131,6 +132,7 @@ describe('sparky_manage_profile', () => {
         '- **Weight Unit:** lbs\n' +
         '- **Distance Unit:** miles\n' +
         '- **Temperature Unit:** celsius\n'
+        '- **Temperature Unit:** fahrenheit\n'
     );
     expect(preferenceService.getUserPreferences).toHaveBeenCalledWith(
       'user-1',
