@@ -44,9 +44,10 @@ test('says whether the program fits before the goal date', () => {
       today={today}
     />
   );
-  expect(
-    screen.getByText(/On track: you finish on .* before your goal date/)
-  ).toBeTruthy();
+  expect(screen.getByTestId('run-program-fit-badge')).toHaveTextContent(
+    /^On track \(\+\d+ days?\)$/
+  );
+  expect(screen.queryByText(/On track: you finish on/)).toBeNull();
 
   rerender(
     <RunProgramCalendar
@@ -74,4 +75,19 @@ test('shows nothing once the program is finished', () => {
     />
   );
   expect(screen.queryByTestId('run-program-calendar')).toBeNull();
+});
+
+test('draws a timeline with the next workout highlighted', () => {
+  render(
+    <RunProgramCalendar
+      status={status}
+      schedule={days}
+      doneDay={null}
+      today={today}
+    />
+  );
+  expect(screen.getByText('Workout timeline')).toBeTruthy();
+  const first = screen.getByTestId(`run-program-timeline-${status.done}`);
+  expect(first).toHaveTextContent(/Week \d, run \d/);
+  expect(first).toHaveTextContent(/\d+ min/);
 });
