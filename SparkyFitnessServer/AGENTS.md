@@ -1,12 +1,6 @@
 # AGENTS.md
 
-_Last updated: 2026-10-30_
-_Last updated: 2026-10-25_
-_Last updated: 2026-10-26_
-_Last updated: 2026-10-17_
-_Last updated: 2026-10-31_
-_Last updated: 2026-11-01_
-_Last updated: 2026-11-03_
+_Last updated: 2026-11-04_
 
 SparkyFitness Server is the backend API package for the SparkyFitness monorepo. Use this file as the primary guide for work inside `SparkyFitnessServer/`.
 

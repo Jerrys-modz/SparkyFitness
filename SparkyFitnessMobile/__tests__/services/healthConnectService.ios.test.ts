@@ -10,14 +10,20 @@ import {
   queryQuantitySamples,
 } from '@kingstinct/react-native-healthkit';
 
+import { allDayHeartRateSettled } from '../../src/services/shared/healthSyncEngine';
 import type { HealthMetricStates } from '../../src/types/healthRecords';
 import type { SyncDuration } from '../../src/services/healthkit/preferences';
 
-import { getActiveServerConfig } from '../../src/services/storage';
+// The all-day heart rate phase runs only for the account the sync started for.
 jest.mock('../../src/services/storage', () => ({
   ...jest.requireActual('../../src/services/storage'),
-  getActiveServerConfig: jest.fn().mockResolvedValue(null),
+  getActiveServerConfig: jest.fn().mockResolvedValue({
+    id: 'server-1',
+    url: 'https://sparky.example',
+    apiKey: 'key-1',
+  }),
 }));
+
 jest.mock('../../src/services/LogService', () => ({
   addLog: jest.fn(),
 }));
@@ -129,6 +135,9 @@ const statsBucket = (
 
 describe('syncHealthData (iOS)', () => {
   beforeEach(async () => {
+    // A heart rate phase from an earlier sync must finish first, so the calls
+    // a test sees are its own sync's.
+    await allDayHeartRateSettled();
     jest.clearAllMocks();
     // Initialize HealthKit as available for most tests
     mockIsHealthDataAvailable.mockResolvedValue(true);
@@ -235,11 +244,6 @@ describe('syncHealthData (iOS)', () => {
     mockQueryStatisticsCollection.mockResolvedValue([
       statsBucket(48, 120, 72.4),
     ]);
-    mockQueryQuantitySamples.mockResolvedValue([]);
-    (getActiveServerConfig as jest.Mock).mockResolvedValue({
-      id: 'test-config',
-      url: 'https://example.test',
-    });
     api.syncHealthData.mockResolvedValue({ success: true });
 
     const result = await syncHealthData('today' as SyncDuration, {
@@ -248,11 +252,10 @@ describe('syncHealthData (iOS)', () => {
 
     expect(result.success).toBe(true);
     // The daily min/max/avg come from one discrete-statistics collection query. The
-    // only raw sample read is the separate all-day heart rate upload.
-    // The all-day upload runs detached after the main upload; let it settle.
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    // only raw sample read is the separate all-day heart rate upload, which runs
+    // after the sync has returned.
+    await allDayHeartRateSettled();
     expect(mockQueryQuantitySamples).toHaveBeenCalled();
-    (getActiveServerConfig as jest.Mock).mockResolvedValue(null);
     for (const call of mockQueryQuantitySamples.mock.calls) {
       expect(call[0]).toBe('HKQuantityTypeIdentifierHeartRate');
     }

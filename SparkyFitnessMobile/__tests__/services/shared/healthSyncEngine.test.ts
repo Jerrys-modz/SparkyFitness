@@ -1,5 +1,5 @@
-import { waitFor } from '@testing-library/react-native';
 import {
+  allDayHeartRateSettled,
   collectHealthData,
   runForegroundSync,
   type HealthReadProvider,
@@ -670,7 +670,10 @@ describe('runForegroundSync', () => {
     timeoutLabelPrefix: 'Test query',
   };
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    // A heart rate phase left over from an earlier test must not run into
+    // this one, or its calls would pass for this sync's.
+    await allDayHeartRateSettled();
     jest.clearAllMocks();
     writeback.runWriteback.mockResolvedValue(undefined);
   });
@@ -742,16 +745,14 @@ describe('runForegroundSync', () => {
     expect(result.success).toBe(true);
     expect(result.syncErrors).toEqual([]);
     // The phase runs after the sync returns.
-    await waitFor(() =>
-      expect(healthSamples.postHealthMetricSamples).toHaveBeenCalled()
-    );
+    await allDayHeartRateSettled();
+    expect(healthSamples.postHealthMetricSamples).toHaveBeenCalled();
     expect(readRaw).toHaveBeenCalledWith(
       'HeartRate',
       expect.any(Date),
       expect.any(Date),
       expect.anything()
     );
-    await flushPromises();
   });
 
   test('uploads the main payload first and returns without waiting for all-day heart rate', async () => {
@@ -793,9 +794,61 @@ describe('runForegroundSync', () => {
 
     // Resolved while the heart rate read is still pending.
     expect(result.success).toBe(true);
-    await waitFor(() => expect(order).toEqual(['upload', 'heartRate']));
+    // The phase reaches its heart rate read after the upload, and is still
+    // waiting on it.
+    for (let i = 0; i < 50 && order.length < 2; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+    expect(order).toEqual(['upload', 'heartRate']);
     releaseHeartRate();
-    await flushPromises();
+    await allDayHeartRateSettled();
+  });
+
+  test('a sync that finds a heart rate phase running queues its own after it', async () => {
+    let releaseFirst: () => void = () => {};
+    const firstRead = new Promise<{ records: [] }>((resolve) => {
+      releaseFirst = () => resolve({ records: [] });
+    });
+    const firstReadRaw = jest.fn((type: string) =>
+      type === 'HeartRate' ? firstRead : Promise.resolve({ records: [] })
+    );
+    const secondReadRaw = jest.fn().mockResolvedValue({ records: [] });
+
+    // Day statistics come from their own reader, so readRaw is only the
+    // all-day phase's.
+    const readMinMaxAvgByDay = () => Promise.resolve({ records: [] });
+    await runForegroundSync(
+      fakeProvider({ readRaw: firstReadRaw, readMinMaxAvgByDay }),
+      'today',
+      { isHeartRateSyncEnabled: true },
+      opts
+    );
+    for (let i = 0; i < 50 && firstReadRaw.mock.calls.length === 0; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+    await runForegroundSync(
+      fakeProvider({ readRaw: secondReadRaw, readMinMaxAvgByDay }),
+      'today',
+      { isHeartRateSyncEnabled: true },
+      opts
+    );
+    // Held back while the first phase is still running...
+    expect(secondReadRaw).not.toHaveBeenCalledWith(
+      'HeartRate',
+      expect.anything(),
+      expect.anything(),
+      expect.anything()
+    );
+
+    // ...and run, not dropped, once it settles.
+    releaseFirst();
+    await allDayHeartRateSettled();
+    expect(secondReadRaw).toHaveBeenCalledWith(
+      'HeartRate',
+      expect.any(Date),
+      expect.any(Date),
+      expect.anything()
+    );
   });
 
   test('does not read all-day heart rate when Heart Rate sync is off', async () => {
@@ -1125,9 +1178,3 @@ describe('sessionTelemetryOutcomesUsable', () => {
     );
   });
 });
-
-/** Lets a detached phase settle so it cannot leak into the next test. */
-async function flushPromises(): Promise<void> {
-  for (let i = 0; i < 20; i++) await Promise.resolve();
-  await new Promise((resolve) => setTimeout(resolve, 0));
-}
