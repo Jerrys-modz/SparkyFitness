@@ -229,6 +229,9 @@ export const SortableExerciseItem = ({
     ex.category
   );
   const isCardio = modality === 'duration_distance';
+  // Progression, equipment and ramp settings only make sense for loaded sets;
+  // the superset group applies to every exercise type.
+  const supportsProgression = !isCardio && modality !== 'duration';
   const setTableModality = toSetTableModality(modality);
   const hasSets = Array.isArray(ex.sets) && ex.sets.length > 0;
 
@@ -504,13 +507,10 @@ export const SortableExerciseItem = ({
       {/* Per-Exercise Progression, Superset & Notes Settings Bar. Only where
           the edits can be saved (the preset form); plan assignments have no
           columns for any of these. */}
-      {onExerciseFieldChange &&
-        !isWorkoutPreset &&
-        !isCardio &&
-        modality !== 'duration' &&
-        isExpanded && (
-          <div className="bg-muted/40 p-3 rounded-lg border border-border/50 space-y-2.5">
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-2.5 items-end">
+      {onExerciseFieldChange && !isWorkoutPreset && isExpanded && (
+        <div className="bg-muted/40 p-3 rounded-lg border border-border/50 space-y-2.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-2.5 items-end">
+            {supportsProgression && (
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <Label className="text-[11px] font-semibold text-muted-foreground uppercase">
@@ -567,141 +567,144 @@ export const SortableExerciseItem = ({
                   </option>
                 </select>
               </div>
-              {/* Rep Goal Input: Only for rep_goal & step_load */}
-              {progressionMode !== 'manual' && (
-                <div>
-                  <Label className="text-[11px] font-semibold text-muted-foreground uppercase flex items-center gap-1 mb-1">
-                    <Trophy className="h-3 w-3 text-primary" />
-                    {progressionMode === 'fixed'
-                      ? t(
-                          'exercises.sortableExerciseItem.targetRepsSet',
-                          'Target Reps / Set'
-                        )
-                      : t(
-                          'exercises.sortableExerciseItem.repGoalTotal',
-                          'Rep Goal (Total)'
-                        )}
-                  </Label>
-                  <Input
-                    type="number"
-                    className="h-8 text-xs bg-background"
-                    placeholder="e.g. 24"
-                    value={repGoal}
-                    onChange={(e) => handleRepGoalChange(e.target.value)}
-                  />
-                </div>
-              )}
-
-              {/* Increment Type: Only for overload modes */}
-              {progressionMode !== 'manual' &&
-                progressionMode !== 'step_load' && (
-                  <div>
-                    <Label className="text-[11px] font-semibold text-muted-foreground uppercase mb-1 block">
-                      {t(
-                        'exercises.sortableExerciseItem.incrementType',
-                        'Increment Type'
-                      )}
-                    </Label>
-                    <select
-                      className="h-8 w-full text-xs rounded-md border border-input bg-background px-2 py-1 text-foreground disabled:opacity-50"
-                      value={incrementType}
-                      onChange={(e) =>
-                        handleIncrementTypeChange(
-                          e.target.value as 'weight' | 'reps'
-                        )
-                      }
-                    >
-                      <option value="weight">
-                        {t(
-                          'exercises.sortableExerciseItem.weight',
-                          'Weight ({{weightUnit}})',
-                          { weightUnit }
-                        )}
-                      </option>
-                      <option value="reps">
-                        {t(
-                          'exercises.sortableExerciseItem.repsRepCount',
-                          'Reps (Rep Count)'
-                        )}
-                      </option>
-                    </select>
-                  </div>
-                )}
-
-              {/* Increment Amount */}
-              {progressionMode !== 'manual' && (
-                <div>
-                  <Label className="text-[11px] font-semibold text-muted-foreground uppercase mb-1 block">
-                    {progressionMode === 'step_load' || incrementType === 'reps'
-                      ? t(
-                          'exercises.sortableExerciseItem.incrementReps',
-                          'Increment (Reps)'
-                        )
-                      : t(
-                          'exercises.sortableExerciseItem.increment',
-                          'Increment ({{weightUnit}})',
-                          { weightUnit }
-                        )}
-                  </Label>
-                  <Input
-                    type="number"
-                    step="any"
-                    className="h-8 text-xs bg-background"
-                    placeholder="+5"
-                    value={incrementValue}
-                    onChange={(e) => handleIncrementValueChange(e.target.value)}
-                  />
-                </div>
-              )}
-
-              {/* Superset Grouping */}
+            )}
+            {/* Rep Goal Input: Only for rep_goal & step_load */}
+            {supportsProgression && progressionMode !== 'manual' && (
               <div>
                 <Label className="text-[11px] font-semibold text-muted-foreground uppercase flex items-center gap-1 mb-1">
-                  <Layers className="h-3 w-3 text-primary" />
-                  {t(
-                    'exercises.sortableExerciseItem.supersetGroup',
-                    'Superset Group'
-                  )}
+                  <Trophy className="h-3 w-3 text-primary" />
+                  {progressionMode === 'fixed'
+                    ? t(
+                        'exercises.sortableExerciseItem.targetRepsSet',
+                        'Target Reps / Set'
+                      )
+                    : t(
+                        'exercises.sortableExerciseItem.repGoalTotal',
+                        'Rep Goal (Total)'
+                      )}
                 </Label>
-                <select
-                  className="h-8 w-full text-xs rounded-md border border-input bg-background px-2 py-1 text-foreground"
-                  value={supersetGroup ? String(supersetGroup) : 'none'}
-                  onChange={(e) => handleSupersetChange(e.target.value)}
-                >
-                  <option value="none">
-                    {t(
-                      'exercises.sortableExerciseItem.soloNoSuperset',
-                      'Solo (No Superset)'
-                    )}
-                  </option>
-                  <option value="1">
-                    {t(
-                      'exercises.sortableExerciseItem.supersetABlue',
-                      'Superset A (Blue)'
-                    )}
-                  </option>
-                  <option value="2">
-                    {t(
-                      'exercises.sortableExerciseItem.supersetBPurple',
-                      'Superset B (Purple)'
-                    )}
-                  </option>
-                  <option value="3">
-                    {t(
-                      'exercises.sortableExerciseItem.supersetCGreen',
-                      'Superset C (Green)'
-                    )}
-                  </option>
-                  <option value="4">
-                    {t(
-                      'exercises.sortableExerciseItem.supersetDAmber',
-                      'Superset D (Amber)'
-                    )}
-                  </option>
-                </select>
+                <Input
+                  type="number"
+                  className="h-8 text-xs bg-background"
+                  placeholder="e.g. 24"
+                  value={repGoal}
+                  onChange={(e) => handleRepGoalChange(e.target.value)}
+                />
               </div>
+            )}
 
-              {/* Equipment / Brand */}
+            {/* Increment Type: Only for overload modes */}
+            {supportsProgression &&
+              progressionMode !== 'manual' &&
+              progressionMode !== 'step_load' && (
+                <div>
+                  <Label className="text-[11px] font-semibold text-muted-foreground uppercase mb-1 block">
+                    {t(
+                      'exercises.sortableExerciseItem.incrementType',
+                      'Increment Type'
+                    )}
+                  </Label>
+                  <select
+                    className="h-8 w-full text-xs rounded-md border border-input bg-background px-2 py-1 text-foreground disabled:opacity-50"
+                    value={incrementType}
+                    onChange={(e) =>
+                      handleIncrementTypeChange(
+                        e.target.value as 'weight' | 'reps'
+                      )
+                    }
+                  >
+                    <option value="weight">
+                      {t(
+                        'exercises.sortableExerciseItem.weight',
+                        'Weight ({{weightUnit}})',
+                        { weightUnit }
+                      )}
+                    </option>
+                    <option value="reps">
+                      {t(
+                        'exercises.sortableExerciseItem.repsRepCount',
+                        'Reps (Rep Count)'
+                      )}
+                    </option>
+                  </select>
+                </div>
+              )}
+
+            {/* Increment Amount */}
+            {supportsProgression && progressionMode !== 'manual' && (
+              <div>
+                <Label className="text-[11px] font-semibold text-muted-foreground uppercase mb-1 block">
+                  {progressionMode === 'step_load' || incrementType === 'reps'
+                    ? t(
+                        'exercises.sortableExerciseItem.incrementReps',
+                        'Increment (Reps)'
+                      )
+                    : t(
+                        'exercises.sortableExerciseItem.increment',
+                        'Increment ({{weightUnit}})',
+                        { weightUnit }
+                      )}
+                </Label>
+                <Input
+                  type="number"
+                  step="any"
+                  className="h-8 text-xs bg-background"
+                  placeholder="+5"
+                  value={incrementValue}
+                  onChange={(e) => handleIncrementValueChange(e.target.value)}
+                />
+              </div>
+            )}
+
+            {/* Superset Grouping */}
+            <div>
+              <Label className="text-[11px] font-semibold text-muted-foreground uppercase flex items-center gap-1 mb-1">
+                <Layers className="h-3 w-3 text-primary" />
+                {t(
+                  'exercises.sortableExerciseItem.supersetGroup',
+                  'Superset Group'
+                )}
+              </Label>
+              <select
+                className="h-8 w-full text-xs rounded-md border border-input bg-background px-2 py-1 text-foreground"
+                value={supersetGroup ? String(supersetGroup) : 'none'}
+                onChange={(e) => handleSupersetChange(e.target.value)}
+              >
+                <option value="none">
+                  {t(
+                    'exercises.sortableExerciseItem.soloNoSuperset',
+                    'Solo (No Superset)'
+                  )}
+                </option>
+                <option value="1">
+                  {t(
+                    'exercises.sortableExerciseItem.supersetABlue',
+                    'Superset A (Blue)'
+                  )}
+                </option>
+                <option value="2">
+                  {t(
+                    'exercises.sortableExerciseItem.supersetBPurple',
+                    'Superset B (Purple)'
+                  )}
+                </option>
+                <option value="3">
+                  {t(
+                    'exercises.sortableExerciseItem.supersetCGreen',
+                    'Superset C (Green)'
+                  )}
+                </option>
+                <option value="4">
+                  {t(
+                    'exercises.sortableExerciseItem.supersetDAmber',
+                    'Superset D (Amber)'
+                  )}
+                </option>
+              </select>
+            </div>
+
+            {/* Equipment / Brand */}
+            {supportsProgression && (
               <div>
                 <Label className="text-[11px] font-semibold text-muted-foreground uppercase mb-1 block">
                   {t(
@@ -720,38 +723,39 @@ export const SortableExerciseItem = ({
                   onChange={(e) => handleEquipmentChange(e.target.value)}
                 />
               </div>
+            )}
 
-              {/* Per-set ramp within one workout (not between sessions) */}
-              {modality !== 'reps_only' && (
-                <div>
-                  <Label
-                    htmlFor={`ramp-increment-${sortableId}`}
-                    className="text-[11px] font-semibold text-muted-foreground uppercase mb-1 block"
-                    title={t(
-                      'workoutPresetForm.rampHint',
-                      'Each working set after the first pre-fills this much heavier in the same workout; use a negative number to ramp down. Warm-up and drop sets are skipped.'
-                    )}
-                  >
-                    {t('workoutPresetForm.rampLabel', {
-                      defaultValue: 'Add per set (this workout, {{unit}})',
-                      // Stone users enter pounds, like the rounding.
-                      unit: weightUnit === 'kg' ? 'kg' : 'lbs',
-                    })}
-                  </Label>
-                  <Input
-                    id={`ramp-increment-${sortableId}`}
-                    type="number"
-                    step="any"
-                    className="h-8 text-xs bg-background"
-                    placeholder={t('workoutPresetForm.rampPlaceholder', 'Off')}
-                    value={rampIncrement}
-                    onChange={(e) => handleRampIncrementChange(e.target.value)}
-                  />
-                </div>
-              )}
-            </div>
+            {/* Per-set ramp within one workout (not between sessions) */}
+            {supportsProgression && modality !== 'reps_only' && (
+              <div>
+                <Label
+                  htmlFor={`ramp-increment-${sortableId}`}
+                  className="text-[11px] font-semibold text-muted-foreground uppercase mb-1 block"
+                  title={t(
+                    'workoutPresetForm.rampHint',
+                    'Each working set after the first pre-fills this much heavier in the same workout; use a negative number to ramp down. Warm-up and drop sets are skipped.'
+                  )}
+                >
+                  {t('workoutPresetForm.rampLabel', {
+                    defaultValue: 'Add per set (this workout, {{unit}})',
+                    // Stone users enter pounds, like the rounding.
+                    unit: weightUnit === 'kg' ? 'kg' : 'lbs',
+                  })}
+                </Label>
+                <Input
+                  id={`ramp-increment-${sortableId}`}
+                  type="number"
+                  step="any"
+                  className="h-8 text-xs bg-background"
+                  placeholder={t('workoutPresetForm.rampPlaceholder', 'Off')}
+                  value={rampIncrement}
+                  onChange={(e) => handleRampIncrementChange(e.target.value)}
+                />
+              </div>
+            )}
           </div>
-        )}
+        </div>
+      )}
 
       {isExpanded && isCardio && (
         <CardioLog

@@ -292,6 +292,28 @@ describe('SortableExerciseItem replace/duplicate exercise actions', () => {
       );
     });
 
+    it.each(['weight_reps', 'duration', 'duration_distance'])(
+      'offers the superset group for %s exercises',
+      (modality) => {
+        const onExerciseFieldChange = renderPresetItem(
+          { modality, category: 'general' },
+          'kg'
+        );
+        const select = screen.getByDisplayValue('Solo (No Superset)');
+        fireEvent.change(select, { target: { value: '2' } });
+        expect(onExerciseFieldChange).toHaveBeenLastCalledWith(
+          0,
+          'superset_group',
+          2
+        );
+      }
+    );
+
+    it('hides progression settings for duration exercises', () => {
+      renderPresetItem({ modality: 'duration', category: 'general' }, 'kg');
+      expect(screen.queryByText('Progression Mode')).not.toBeInTheDocument();
+    });
+
     // Presets have no exercise-level notes column; notes live on each set (#3110).
     it('has no exercise-level notes field', () => {
       renderPresetItem({}, 'kg');
