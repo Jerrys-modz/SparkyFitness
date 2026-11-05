@@ -54,6 +54,8 @@ struct WatchRunView: View {
             signal: run.place == .outdoor
                 ? { (now: Date) -> GpsSignal in GpsSignal(accuracy: run.gpsAccuracy, at: run.gpsAccuracyAt, now: now) }
                 : nil,
+            zones: store.context.runHeartRateZones,
+            heartRate: run.metrics.heartRate,
             banner: { _ in
                 if run.route != nil {
                     RouteCueStrip(progress: run.routeProgress, usesMiles: usesMiles)
@@ -68,6 +70,25 @@ struct WatchRunView: View {
             }
         )
         .sheet(isPresented: $showingSettings) { settingsSheet }
+    }
+
+    /// The pace tile's caption: "/km", or how the pace stands against the range
+    /// being held ("on target", "too fast", "too slow").
+    private var paceUnit: String {
+        switch run.paceStanding {
+        case .onTarget: return String(localized: "watch.run.pace.onTarget", defaultValue: "on target")
+        case .tooFast: return String(localized: "watch.run.pace.tooFast", defaultValue: "too fast")
+        case .tooSlow: return String(localized: "watch.run.pace.tooSlow", defaultValue: "too slow")
+        case nil: return usesMiles ? "/mi" : "/km"
+        }
+    }
+
+    private var paceTint: Color {
+        switch run.paceStanding {
+        case .onTarget: return .green
+        case .tooFast, .tooSlow: return .orange
+        case nil: return .white
+        }
     }
 
     private func stats(elapsed: TimeInterval, metrics: WatchRunMetrics) -> [CardioStat] {
@@ -90,7 +111,8 @@ struct WatchRunView: View {
                             usesMiles: usesMiles
                         )
                     ),
-                    unit: usesMiles ? "/mi" : "/km"
+                    unit: paceUnit,
+                    tint: paceTint
                 )
             )
         } else if metrics.activeEnergyKcal > 0 {
