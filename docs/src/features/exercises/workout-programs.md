@@ -78,6 +78,26 @@ You can change anything afterwards. The presets and plan are ordinary ones, so e
 The exercises come from the free exercise database. If it cannot be reached, nothing is added and you see an error. Try again once you are connected; exercises already added are not added twice.
 :::
 
+## Sharing your own workouts
+
+You can send a workout preset or a whole plan to a friend, a client or another SparkyFitness server as a file.
+
+**To share (web):** on the **Exercises** page, open the menu on a preset or a plan and choose **Share as file**. A `.sparkyfitness.json` file downloads. A plan's file includes every preset it runs. You can share anything you can see, including presets and plans a family member shares with you.
+
+**To add a shared file (web):** go to **Workout programs**, choose **Add from a file** and pick the file. The dialog lists the presets in it; for a plan you can rename it and make it your active plan. Accept the medical disclaimer and choose **Add workouts**.
+
+What happens when you add a file:
+
+- Exercises from the free exercise database are added from there, with their images, or reused if you already have them.
+- Other exercises reuse one of your own with the same name, or are added as your own custom exercises from the details in the file (category, muscles, equipment, instructions).
+- Every preset becomes your own private preset, and the plan becomes your own plan. Nothing in the file links back to the person who shared it, and changing your copy does not change theirs.
+
+Files hold no account or database ids, only the workouts themselves. Weights are in kilograms and distances in kilometres, whatever units the sender uses. Sharing from the mobile app is not available yet.
+
+::: details The file format
+A workout file is JSON with `"format": "sparkyfitness.workout-program"` and `"version": 1`. It has an `exercises` list (each with a `key`, a `name` and optionally `source`, `sourceId`, `category`, `equipment`, `primaryMuscles` and so on), a `presets` list whose exercises point at an exercise `key` and carry their `sets`, and an optional `plan` (`name`, `scheduleType` of `weekly` or `sequential`, and `sessions` that run a `preset` key, or an `exercise` key with its own `sets`, on a `dayOfWeek` from 0 for Sunday or a `sessionIndex` from 1). The full contract is `shared/src/schemas/api/WorkoutPrograms.api.zod.ts`, and the API is `GET /api/v2/workout-programs/presets/{id}/export`, `GET /api/v2/workout-programs/plans/{id}/export` and `POST /api/v2/workout-programs/import`.
+:::
+
 ## How progression works
 
 - Most exercises have a rep range, such as 3 sets of 8 to 12. When you reach the top of the range on every set, the next session suggests a little more weight (2.5 kg for upper-body lifts, 5 kg for the big lower-body lifts).

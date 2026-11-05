@@ -12,6 +12,7 @@ import {
   X,
   MoreHorizontal,
   Repeat,
+  Share2,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -23,6 +24,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { useExportWorkoutProgramMutation } from '@/hooks/Exercises/useWorkoutPrograms';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import { error } from '@/utils/logging';
 import type { WorkoutPlanTemplate } from '@/types/workout';
@@ -48,6 +50,8 @@ import { Badge } from '@/components/ui/badge';
 
 const WorkoutPlansManager = () => {
   const { t } = useTranslation();
+  const { mutate: exportProgram, isPending: isExporting } =
+    useExportWorkoutProgramMutation();
   const { user } = useAuth();
   const { loggingLevel } = usePreferences();
   const isMobile = useIsMobile();
@@ -341,6 +345,19 @@ const WorkoutPlansManager = () => {
                     </>
                   )}
                 </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={isExporting}
+                  onClick={() =>
+                    exportProgram({
+                      kind: 'plan',
+                      id: plan.id,
+                      name: plan.plan_name,
+                    })
+                  }
+                >
+                  <Share2 className="mr-2 h-4 w-4" />
+                  {t('workoutPrograms.export.action', 'Share as file')}
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className="text-destructive focus:text-destructive"
@@ -355,7 +372,7 @@ const WorkoutPlansManager = () => {
         },
       },
     ],
-    [t, handleTogglePlanActive, handleDeletePlan]
+    [t, handleTogglePlanActive, handleDeletePlan, exportProgram, isExporting]
   );
 
   if (!plans) return null;

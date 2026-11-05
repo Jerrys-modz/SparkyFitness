@@ -54,6 +54,12 @@ jest.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({ user: { id: 'user-1' } }),
 }));
 
+jest.mock('@/hooks/Exercises/useWorkoutPrograms', () => ({
+  useExportWorkoutProgramMutation: () => ({
+    mutate: jest.fn(),
+    isPending: false,
+  }),
+}));
 jest.mock('@/hooks/Exercises/useExerciseEntries', () => ({
   useLogWorkoutPresetMutation: () => ({ mutateAsync: jest.fn() }),
 }));

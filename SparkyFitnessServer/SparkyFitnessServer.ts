@@ -116,6 +116,7 @@ import fitnessTestRoutesV2 from './routes/v2/fitnessTestRoutes.js';
 import runGoalRoutesV2 from './routes/v2/runGoalRoutes.js';
 import calorieMaintenancePeriodRoutesV2 from './routes/v2/calorieMaintenancePeriodRoutes.js';
 import workoutSplitRoutesV2 from './routes/v2/workoutSplitRoutes.js';
+import workoutProgramRoutesV2 from './routes/v2/workoutProgramRoutes.js';
 import shoeRoutesV2 from './routes/v2/shoeRoutes.js';
 import plateInventoryRoutesV2 from './routes/v2/plateInventoryRoutes.js';
 import actionTagRoutesV2 from './routes/v2/actionTagRoutes.js';
@@ -879,6 +880,7 @@ app.use(
   calorieMaintenancePeriodRoutesV2
 );
 app.use('/api/v2/workout-splits', workoutSplitRoutesV2);
+app.use('/api/v2/workout-programs', workoutProgramRoutesV2);
 app.use('/api/v2/shoes', shoeRoutesV2);
 app.use('/api/v2/plate-inventory', plateInventoryRoutesV2);
 app.use('/api/v2/action-tags', actionTagRoutesV2);

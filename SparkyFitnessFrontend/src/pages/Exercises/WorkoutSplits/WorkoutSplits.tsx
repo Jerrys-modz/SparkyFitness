@@ -12,6 +12,7 @@ import {
   type WorkoutSplitVenue,
 } from '@workspace/shared';
 import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -25,6 +26,7 @@ import {
 import { useActiveUser } from '@/contexts/ActiveUserContext';
 import { useImportWorkoutSplitMutation } from '@/hooks/Exercises/useWorkoutSplits';
 import { goalLabel, levelLabel, venueLabel } from '@/utils/workoutSplits';
+import ImportWorkoutProgramDialog from './ImportWorkoutProgramDialog';
 import ImportWorkoutSplitDialog from './ImportWorkoutSplitDialog';
 import WorkoutSplitCard from './WorkoutSplitCard';
 
@@ -52,6 +54,7 @@ const WorkoutSplits = () => {
   const [goal, setGoal] = useState<string>(ANY);
   const [days, setDays] = useState<string>(ANY);
   const [importing, setImporting] = useState<WorkoutSplit | null>(null);
+  const [importingFile, setImportingFile] = useState(false);
 
   const visible = WORKOUT_SPLITS.filter(
     (split) =>
@@ -149,9 +152,20 @@ const WorkoutSplits = () => {
     <div className="space-y-6">
       {heading}
       <div>
-        <h1 className="text-2xl font-bold">
-          {t('workoutSplits.page.title', 'Workout programs')}
-        </h1>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h1 className="text-2xl font-bold">
+            {t('workoutSplits.page.title', 'Workout programs')}
+          </h1>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setImportingFile(true)}
+          >
+            <Upload className="mr-2 h-4 w-4" />
+            {t('workoutPrograms.import.open', 'Add from a file')}
+          </Button>
+        </div>
         <p className="text-sm text-muted-foreground">
           {t(
             'workoutSplits.page.intro',
@@ -207,6 +221,15 @@ const WorkoutSplits = () => {
           ))}
         </div>
       )}
+
+      <ImportWorkoutProgramDialog
+        open={importingFile}
+        onClose={() => setImportingFile(false)}
+        onImported={() => {
+          setImportingFile(false);
+          navigate('/exercises');
+        }}
+      />
 
       <ImportWorkoutSplitDialog
         split={importing}

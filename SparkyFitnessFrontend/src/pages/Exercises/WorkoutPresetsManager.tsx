@@ -23,6 +23,7 @@ import {
   MoreHorizontal,
   CopyPlus,
   StretchHorizontal,
+  Share2,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -34,6 +35,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { useExportWorkoutProgramMutation } from '@/hooks/Exercises/useWorkoutPrograms';
 import type { WorkoutPreset } from '@/types/workout';
 import WorkoutPresetForm from './WorkoutPresetForm';
 import {
@@ -64,6 +66,8 @@ const MAX_PRESET_NAME_LENGTH = 255;
 
 const WorkoutPresetsManager = () => {
   const { t } = useTranslation();
+  const { mutate: exportProgram, isPending: isExporting } =
+    useExportWorkoutProgramMutation();
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
@@ -405,6 +409,19 @@ const WorkoutPresetsManager = () => {
                   {t('workoutPresetsManager.duplicate', 'Duplicate')}
                 </DropdownMenuItem>
                 <DropdownMenuItem
+                  disabled={isExporting}
+                  onClick={() =>
+                    exportProgram({
+                      kind: 'preset',
+                      id: preset.id,
+                      name: preset.name,
+                    })
+                  }
+                >
+                  <Share2 className="mr-2 h-4 w-4" />
+                  {t('workoutPrograms.export.action', 'Share as file')}
+                </DropdownMenuItem>
+                <DropdownMenuItem
                   disabled={!isOwned}
                   onClick={() => {
                     setSelectedPreset(preset);
@@ -431,6 +448,8 @@ const WorkoutPresetsManager = () => {
     ],
     [
       t,
+      exportProgram,
+      isExporting,
       user?.id,
       weightUnit,
       handleLogPresetToDiary,
