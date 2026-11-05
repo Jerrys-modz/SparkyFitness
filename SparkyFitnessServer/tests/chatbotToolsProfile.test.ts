@@ -131,7 +131,6 @@ describe('sparky_manage_profile', () => {
         '- **Energy Unit:** kJ\n' +
         '- **Weight Unit:** lbs\n' +
         '- **Distance Unit:** miles\n' +
-        '- **Temperature Unit:** celsius\n'
         '- **Temperature Unit:** fahrenheit\n'
     );
     expect(preferenceService.getUserPreferences).toHaveBeenCalledWith(
