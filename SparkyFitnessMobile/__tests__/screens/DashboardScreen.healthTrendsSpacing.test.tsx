@@ -258,10 +258,6 @@ describe('DashboardScreen Health Trends spacing', () => {
   });
 });
 
-describe('DashboardScreen without a connection', () => {
-  beforeEach(() => {
-    __resetAppPreferencesStoreForTests();
-    const store = useAppPreferencesStore.getState();
 describe('DashboardScreen tabs', () => {
   beforeEach(() => {
     __resetAppPreferencesStoreForTests();
@@ -278,35 +274,6 @@ describe('DashboardScreen tabs', () => {
     store.setCycleCardVisible(false);
     store.setMedicationsCardVisible(false);
     store.setProgressPhotosCardVisible(false);
-    jest
-      .mocked(useServerConnection)
-      .mockReturnValue({ isConnected: false, isLoading: false } as never);
-  });
-
-  afterEach(() => {
-    jest
-      .mocked(useServerConnection)
-      .mockReturnValue({ isConnected: true, isLoading: false } as never);
-  });
-
-  it('keeps showing the cached day, with what was logged offline, instead of "no server"', () => {
-    renderDashboard();
-
-    expect(screen.getByText('Health Trends')).toBeTruthy();
-    expect(screen.queryByText("Can't reach your server")).toBeNull();
-  });
-
-  it('shows the no-server state when nothing is cached', () => {
-    jest.mocked(useDailySummary).mockReturnValueOnce({
-      summary: undefined,
-      isLoading: false,
-      isError: false,
-      refetch: jest.fn(),
-    } as never);
-
-    renderDashboard();
-
-    expect(screen.getByText("Can't reach your server")).toBeTruthy();
     store.setTrainingLoadCardVisible(false);
     store.setSymptomsCardVisible(false);
     store.setMoodCardVisible(false);
@@ -356,5 +323,51 @@ describe('DashboardScreen tabs', () => {
     expect(screen.queryByTestId('dashboard-tabs')).toBeNull();
     expect(screen.getByText('Health Trends')).toBeTruthy();
     expect(screen.getByText('Ask Sparky…')).toBeTruthy();
+  });
+});
+
+describe('DashboardScreen without a connection', () => {
+  beforeEach(() => {
+    __resetAppPreferencesStoreForTests();
+    const store = useAppPreferencesStore.getState();
+    store.setDashboardCardOrder(['healthTrends', 'askSparky']);
+    store.setCalorieRingCardVisible(false);
+    store.setMacrosCardVisible(false);
+    store.setExerciseCardVisible(false);
+    store.setHydrationCardVisible(false);
+    store.setCaffeineCardVisible(false);
+    store.setFastingCardVisible(false);
+    store.setCycleCardVisible(false);
+    store.setMedicationsCardVisible(false);
+    store.setProgressPhotosCardVisible(false);
+    jest
+      .mocked(useServerConnection)
+      .mockReturnValue({ isConnected: false, isLoading: false } as never);
+  });
+
+  afterEach(() => {
+    jest
+      .mocked(useServerConnection)
+      .mockReturnValue({ isConnected: true, isLoading: false } as never);
+  });
+
+  it('keeps showing the cached day, with what was logged offline, instead of "no server"', () => {
+    renderDashboard();
+
+    expect(screen.getByText('Health Trends')).toBeTruthy();
+    expect(screen.queryByText("Can't reach your server")).toBeNull();
+  });
+
+  it('shows the no-server state when nothing is cached', () => {
+    jest.mocked(useDailySummary).mockReturnValueOnce({
+      summary: undefined,
+      isLoading: false,
+      isError: false,
+      refetch: jest.fn(),
+    } as never);
+
+    renderDashboard();
+
+    expect(screen.getByText("Can't reach your server")).toBeTruthy();
   });
 });

@@ -599,9 +599,6 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
         )
       : []
   );
-  const trainingLoadCardVisible = useAppPreferencesStore(
-    (s) => s.trainingLoadCardVisible
-  );
   const workoutsCardVisible = useAppPreferencesStore(
     (s) => s.workoutsCardVisible
   );
