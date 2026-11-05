@@ -19,6 +19,7 @@ import RunGoalsCard from '../components/recording/RunGoalsCard';
 import PaceReferenceCard from '../components/recording/PaceReferenceCard';
 import FitnessTestPanel from '../components/recording/FitnessTestPanel';
 import RunProgramCalendar from '../components/recording/RunProgramCalendar';
+import RunProgramToolsCard from '../components/recording/RunProgramToolsCard';
 import RunProgramRealignCard, {
   realignIsOffered,
   realignOutcomeFor,
@@ -28,9 +29,6 @@ import RunProgramGuide, {
 } from '../components/recording/RunProgramGuide';
 import Button from '../components/ui/Button';
 import SegmentedControl from '../components/SegmentedControl';
-import ProgramActionRow, {
-  ProgramActionList,
-} from '../components/recording/ProgramActionRow';
 import CalendarSheet, {
   type CalendarSheetRef,
 } from '../components/CalendarSheet';
@@ -232,9 +230,16 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
 
   const yourPlans = (
     <View className="mt-6" testID="your-plans">
-      <Text className="text-text-primary text-base font-semibold">
-        {t('runPrograms.custom.title', { defaultValue: 'Your plans' })}
-      </Text>
+      <View className="flex-row items-baseline justify-between">
+        <Text className="text-text-primary text-base font-bold">
+          {t('runPrograms.custom.title', { defaultValue: 'Your plans' })}
+        </Text>
+        <Text className="text-text-muted text-xs">
+          {t('runPrograms.custom.selfCoached', {
+            defaultValue: 'Self-coached',
+          })}
+        </Text>
+      </View>
       <Text className="text-text-secondary text-xs mt-1">
         {t('runPrograms.custom.intro', {
           defaultValue:
@@ -330,11 +335,33 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
     enabled &&
     realignIsOffered(realignOutcomeFor(program, today));
 
+  const goalsCard = goals.data ? (
+    <RunGoalsCard
+      data={goals.data}
+      distanceUnit={goals.distanceUnit}
+      today={accountToday}
+      saving={goals.isSaving}
+      onSave={goals.save}
+    />
+  ) : null;
+
+  const goalTiles = goals.data ? (
+    <RunGoalsCard
+      data={goals.data}
+      distanceUnit={goals.distanceUnit}
+      today={accountToday}
+      saving={goals.isSaving}
+      onSave={goals.save}
+      layout="tiles"
+    />
+  ) : null;
+
   let body: React.ReactNode = null;
   if (loaded && status) {
+    const active = enabled;
     body = (
       <>
-        {fitnessPanel}
+        {active ? null : fitnessPanel}
         <RunProgramCard
           programId={storedId ?? chosenId}
           onChooseProgram={chooseProgram}
@@ -344,7 +371,6 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
           onSchedule={(next) => change(() => setProgramSchedule(next))}
           raceDay={goals.data?.goals?.race_date ?? null}
           accountToday={accountToday}
-          onPickWorkout={(index) => change(() => setProgramPosition(index))}
           status={status}
           loaded={loaded}
           selected={false}
@@ -360,7 +386,6 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
             defaultValue: "Start today's workout",
           })}
           onRestart={() => change(restartProgram)}
-          onSkip={() => change(skipProgramWorkout)}
         />
         {program && enabled ? (
           <RunProgramRealignCard
@@ -378,35 +403,7 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
             }
           />
         ) : null}
-        <View className="bg-surface rounded-xl px-4 mt-4">
-          <ProgramActionList>
-            <ProgramActionRow
-              label={t('runPrograms.openCalendar', {
-                defaultValue: 'Open the program calendar',
-              })}
-              hint={t('runPrograms.openCalendarHint', {
-                defaultValue: 'Every workout on a month view',
-              })}
-              onPress={() => navigation.navigate('RunProgramCalendar')}
-            />
-            {status.program.custom ? null : (
-              <ProgramActionRow
-                label={t('runPrograms.custom.customize', {
-                  defaultValue: 'Customize this program',
-                })}
-                hint={t('runPrograms.custom.customizeHint', {
-                  defaultValue: 'Copy it as a plan you can edit',
-                })}
-                onPress={() =>
-                  navigation.navigate('RunProgramEdit', {
-                    fromProgramId: status.program.id,
-                  })
-                }
-                testID="customize-current"
-              />
-            )}
-          </ProgramActionList>
-        </View>
+        {active ? goalTiles : null}
         <RunProgramCalendar
           status={status}
           schedule={schedule}
@@ -418,6 +415,29 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
               : (next) => change(() => setProgramPosition(next))
           }
         />
+        {active ? (
+          <RunProgramToolsCard
+            status={status}
+            programId={storedId ?? chosenId}
+            onOpenCalendar={() => navigation.navigate('RunProgramCalendar')}
+            onCustomize={
+              status.program.custom
+                ? undefined
+                : () =>
+                    navigation.navigate('RunProgramEdit', {
+                      fromProgramId: status.program.id,
+                    })
+            }
+            onOpenPaces={() => navigation.navigate('FitnessTest')}
+            onChooseProgram={chooseProgram}
+            onPickWorkout={(index) => change(() => setProgramPosition(index))}
+            onSkip={() => change(skipProgramWorkout)}
+            onRestart={() => change(restartProgram)}
+          />
+        ) : null}
+        {active && latestTest !== null ? (
+          <View className="mt-4">{fitnessPanel}</View>
+        ) : null}
         <RunProgramGuide
           programId={status.program.custom ? undefined : storedId}
         />
@@ -556,16 +576,6 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
     );
   }
 
-  const goalsCard = goals.data ? (
-    <RunGoalsCard
-      data={goals.data}
-      distanceUnit={goals.distanceUnit}
-      today={accountToday}
-      saving={goals.isSaving}
-      onSave={goals.save}
-    />
-  ) : null;
-
   return (
     <>
       {header}
@@ -576,7 +586,7 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
           paddingBottom: insets.bottom + 24,
         }}
       >
-        {goalsCard}
+        {loaded && status && enabled ? null : goalsCard}
         {body}
       </ScrollView>
       <CalendarSheet

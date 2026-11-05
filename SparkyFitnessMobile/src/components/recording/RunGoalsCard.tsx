@@ -54,7 +54,16 @@ const RunGoalsCard: React.FC<{
   saving?: boolean;
   /** Rejects when the goals could not be saved. */
   onSave: (body: UpsertRunGoalsBody) => Promise<void>;
-}> = ({ data, distanceUnit, today, saving = false, onSave }) => {
+  /** Two side-by-side tiles (weekly goal, race countdown) instead of one card. */
+  layout?: 'card' | 'tiles';
+}> = ({
+  data,
+  distanceUnit,
+  today,
+  saving = false,
+  onSave,
+  layout = 'card',
+}) => {
   const { t } = useTranslation();
   const { goals, progress } = data;
   const [editing, setEditing] = useState(false);
@@ -294,6 +303,133 @@ const RunGoalsCard: React.FC<{
               defaultValue_one: '{{count}} day ago',
               defaultValue_other: '{{count}} days ago',
             });
+
+  if (layout === 'tiles') {
+    const editLink = (
+      <Pressable accessibilityRole="button" onPress={startEditing} hitSlop={8}>
+        <Text className="text-accent-primary text-xs font-semibold">
+          {t('runPrograms.goals.edit', { defaultValue: 'Edit' })}
+        </Text>
+      </Pressable>
+    );
+    return (
+      <View
+        className="flex-row mt-4"
+        style={{ gap: 12 }}
+        testID="run-goals-tiles"
+      >
+        <View
+          className="flex-1 bg-surface rounded-2xl p-4 border border-border-subtle"
+          testID="run-goals-weekly"
+        >
+          <View className="flex-row items-center justify-between mb-2">
+            <Text className="text-text-secondary text-xs font-semibold">
+              {t('runPrograms.goals.weeklyTile', {
+                defaultValue: 'Weekly goal',
+              })}
+            </Text>
+            {editLink}
+          </View>
+          {target !== null && percent !== null ? (
+            <>
+              <Text className="text-text-primary text-2xl font-bold">
+                {shown(progress.week_distance_km, distanceUnit)}{' '}
+                <Text className="text-text-muted text-sm font-normal">
+                  {t('runPrograms.goals.ofTarget', {
+                    target: shown(target, distanceUnit),
+                    unit: unitLabel,
+                    defaultValue: '/ {{target}} {{unit}}',
+                  })}
+                </Text>
+              </Text>
+              <View className="h-1.5 rounded-full bg-progress-track mt-2.5 mb-2 overflow-hidden">
+                <View
+                  className="h-1.5 rounded-full bg-exercise"
+                  style={{ width: `${Math.min(100, percent)}%` }}
+                />
+              </View>
+              <Text className="text-text-muted text-xs">
+                {progress.daily_needed_km === null
+                  ? t('runPrograms.goals.weeklyReached', {
+                      defaultValue: 'Weekly goal reached',
+                    })
+                  : t('runPrograms.goals.weeklyNeeded', {
+                      amount: shown(progress.daily_needed_km, distanceUnit),
+                      unit: unitLabel,
+                      count: progress.days_left_in_week,
+                      defaultValue:
+                        'About {{amount}} {{unit}} a day to reach it ({{count}} days left)',
+                      defaultValue_one:
+                        '{{amount}} {{unit}} today to reach it ({{count}} day left)',
+                      defaultValue_other:
+                        'About {{amount}} {{unit}} a day to reach it ({{count}} days left)',
+                    })}
+              </Text>
+            </>
+          ) : (
+            <Text className="text-text-muted text-xs">
+              {t('runPrograms.goals.noWeekly', {
+                defaultValue: 'No weekly distance set.',
+              })}
+            </Text>
+          )}
+        </View>
+        <View
+          className="flex-1 bg-surface rounded-2xl p-4 border border-border-subtle"
+          testID="run-goals-race"
+        >
+          <View className="flex-row items-center justify-between mb-2">
+            <Text className="text-text-secondary text-xs font-semibold">
+              {t('runPrograms.goals.raceTile', { defaultValue: 'Race' })}
+            </Text>
+          </View>
+          {raceLine !== null ? (
+            <>
+              <Text className="text-text-primary text-2xl font-bold">
+                {raceDaysLeft !== null && raceDaysLeft > 0
+                  ? formatLocalizedNumber(raceDaysLeft)
+                  : null}
+                {raceDaysLeft !== null && raceDaysLeft > 0 ? (
+                  <Text className="text-text-muted text-sm font-normal">
+                    {' '}
+                    {t('runPrograms.goals.daysUnit', {
+                      count: raceDaysLeft,
+                      defaultValue: 'days',
+                      defaultValue_one: 'day',
+                      defaultValue_other: 'days',
+                    })}
+                  </Text>
+                ) : (
+                  <Text className="text-text-primary text-base font-bold">
+                    {raceLine}
+                  </Text>
+                )}
+              </Text>
+              {goals.race_date ? (
+                <View className="self-start mt-2 px-2 py-0.5 rounded bg-raised border border-border-subtle">
+                  <Text className="text-pr text-xs font-medium">
+                    {formatDayLabel(goals.race_date, 'short')}
+                  </Text>
+                </View>
+              ) : null}
+              <Text className="text-text-muted text-xs mt-2" numberOfLines={2}>
+                {raceName_}
+                {goals.race_distance_km !== null
+                  ? ` · ${shown(goals.race_distance_km, distanceUnit)} ${unitLabel}`
+                  : ''}
+              </Text>
+            </>
+          ) : (
+            <Text className="text-text-muted text-xs">
+              {t('runPrograms.goals.noRace', {
+                defaultValue: 'No race set.',
+              })}
+            </Text>
+          )}
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View className="bg-surface rounded-xl p-4 mb-4" testID="run-goals-card">

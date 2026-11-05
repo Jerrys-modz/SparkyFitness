@@ -2,8 +2,9 @@ import React, { useRef } from 'react';
 import { Pressable, Text, TouchableOpacity, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
+import { useCSSVariable } from 'uniwind';
 import Button from '../ui/Button';
-import ProgramActionRow, { ProgramActionList } from './ProgramActionRow';
+import Icon from '../Icon';
 import Switch from '../ui/Switch';
 import BottomSheetPicker, {
   type PickerOption,
@@ -15,6 +16,10 @@ import ZoneCheckNote from './ZoneCheckNote';
 import type { ProgramScheduleChange } from '../../services/runProgramService';
 import { toLocalDateString } from '../../utils/dateUtils';
 import { formatDayLabel } from '../../utils/dayLabel';
+import {
+  workoutFocus,
+  workoutFocusLabel,
+} from '../../utils/programWorkoutFocus';
 import {
   addDays,
   findProgram,
@@ -308,6 +313,77 @@ export function programWorkoutLabel(
   });
 }
 
+/** Every built-in program, with the person's own plan first when that is the one running. */
+export function programPickerOptions(
+  t: TFunction,
+  status: ProgramStatus | null
+): PickerOption<string>[] {
+  const programOptions: PickerOption<string>[] = RUN_PROGRAMS.map((p) => ({
+    label: t('recordActivity.program.optionLabel', {
+      name: programName(t, p.id),
+      weeks: p.weeks,
+      runs: p.workoutsPerWeek,
+      defaultValue: '{{name}} · {{weeks}} weeks, {{runs}} workouts a week',
+    }),
+    value: p.id,
+  }));
+  // A plan the person wrote is not in the built-in list, but is the one shown.
+  if (status?.program.custom) {
+    programOptions.unshift({
+      label: t('runPrograms.custom.optionLabel', {
+        name: programTitle(t, status.program),
+        count: status.total,
+        formattedCount: formatLocalizedNumber(status.total),
+        defaultValue: '{{name}} · {{formattedCount}} workouts',
+        defaultValue_one: '{{name}} · {{formattedCount}} workout',
+        defaultValue_other: '{{name}} · {{formattedCount}} workouts',
+      }),
+      value: status.program.id,
+    });
+  }
+
+  return programOptions;
+}
+
+/** The program's workouts, a section per week, for jumping to another one. */
+export function workoutPickerSections(
+  t: TFunction,
+  status: ProgramStatus
+): PickerSection<number>[] {
+  return Array.from({ length: status.program.weeks }, (_, week) => ({
+    title: t('recordActivity.program.weekTitle', {
+      week: week + 1,
+      defaultValue: 'Week {{week}}',
+    }),
+    options: status.program.workouts
+      .map((workout, index) => ({ workout, index }))
+      .filter(({ workout }) => workout.week === week)
+      .map(({ workout, index }) => ({
+        label: status.program.custom
+          ? t('recordActivity.program.pickOptionCustom', {
+              title: customWorkoutTitle(t, workout),
+              minutes: workoutMinutes(status.program, workout.plan),
+              mark: index < status.done ? '✓ ' : '',
+              defaultValue: '{{mark}}{{title}} · {{minutes}} min',
+            })
+          : status.program.activity === 'walk'
+            ? t('recordActivity.program.pickOptionWalk', {
+                walk: workout.day + 1,
+                minutes: workoutMinutes(status.program, workout.plan),
+                mark: index < status.done ? '✓ ' : '',
+                defaultValue: '{{mark}}Walk {{walk}} · {{minutes}} min',
+              })
+            : t('recordActivity.program.pickOption', {
+                run: workout.day + 1,
+                minutes: workoutMinutes(status.program, workout.plan),
+                mark: index < status.done ? '✓ ' : '',
+                defaultValue: '{{mark}}Run {{run}} · {{minutes}} min',
+              }),
+        value: index,
+      })),
+  }));
+}
+
 const weekdayLabel = (day: number, style: 'narrow' | 'long'): string =>
   // 2024-01-07 was a Sunday, so day 0 is Sunday.
   new Date(2024, 0, 7 + day).toLocaleDateString(getAppLocale(), {
@@ -336,8 +412,6 @@ interface Props {
   onSchedule: (change: ProgramScheduleChange) => void;
   /** The race day from the person's running goals (YYYY-MM-DD), if one is set. */
   raceDay?: string | null;
-  /** Jump to any workout in the program (0-based index). */
-  onPickWorkout: (index: number) => void;
   status: ProgramStatus | null;
   loaded: boolean;
   /** Whether today's program workout is the plan chosen for this recording. */
@@ -349,18 +423,9 @@ interface Props {
   /** Label for the button that uses today's workout; defaults to the Record screen's wording. */
   startLabel?: string;
   onRestart: () => void;
-  onSkip: () => void;
   /** Fill the start button, for the screen whose main job is starting it. */
   prominent?: boolean;
 }
-
-const SectionHeading: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => (
-  <Text className="text-xs font-bold text-text-secondary uppercase tracking-wider">
-    {children}
-  </Text>
-);
 
 const InlineLink: React.FC<{
   onPress: () => void;
@@ -389,7 +454,6 @@ const RunProgramCard: React.FC<Props> = ({
   schedule,
   onSchedule,
   raceDay = null,
-  onPickWorkout,
   status,
   loaded,
   selected,
@@ -398,10 +462,10 @@ const RunProgramCard: React.FC<Props> = ({
   onSelect,
   startLabel,
   onRestart,
-  onSkip,
   prominent = false,
 }) => {
   const { t } = useTranslation();
+  const prGold = useCSSVariable('--color-pr') as string;
   const calendarRef = useRef<CalendarSheetRef>(null);
   const goalCalendarRef = useRef<CalendarSheetRef>(null);
   if (!loaded) return null;
@@ -431,29 +495,7 @@ const RunProgramCard: React.FC<Props> = ({
     </View>
   );
 
-  const programOptions: PickerOption<string>[] = RUN_PROGRAMS.map((p) => ({
-    label: t('recordActivity.program.optionLabel', {
-      name: programName(t, p.id),
-      weeks: p.weeks,
-      runs: p.workoutsPerWeek,
-      defaultValue: '{{name}} · {{weeks}} weeks, {{runs}} workouts a week',
-    }),
-    value: p.id,
-  }));
-  // A plan the person wrote is not in the built-in list, but is the one shown.
-  if (status?.program.custom) {
-    programOptions.unshift({
-      label: t('runPrograms.custom.optionLabel', {
-        name: programTitle(t, status.program),
-        count: status.total,
-        formattedCount: formatLocalizedNumber(status.total),
-        defaultValue: '{{name}} · {{formattedCount}} workouts',
-        defaultValue_one: '{{name}} · {{formattedCount}} workout',
-        defaultValue_other: '{{name}} · {{formattedCount}} workouts',
-      }),
-      value: status.program.id,
-    });
-  }
+  const programOptions = programPickerOptions(t, status);
 
   if (!enabled || !status) {
     return (
@@ -507,41 +549,6 @@ const RunProgramCard: React.FC<Props> = ({
     );
   }
 
-  const sections: PickerSection<number>[] = Array.from(
-    { length: status.program.weeks },
-    (_, week) => ({
-      title: t('recordActivity.program.weekTitle', {
-        week: week + 1,
-        defaultValue: 'Week {{week}}',
-      }),
-      options: status.program.workouts
-        .map((workout, index) => ({ workout, index }))
-        .filter(({ workout }) => workout.week === week)
-        .map(({ workout, index }) => ({
-          label: status.program.custom
-            ? t('recordActivity.program.pickOptionCustom', {
-                title: customWorkoutTitle(t, workout),
-                minutes: workoutMinutes(status.program, workout.plan),
-                mark: index < status.done ? '✓ ' : '',
-                defaultValue: '{{mark}}{{title}} · {{minutes}} min',
-              })
-            : status.program.activity === 'walk'
-              ? t('recordActivity.program.pickOptionWalk', {
-                  walk: workout.day + 1,
-                  minutes: workoutMinutes(status.program, workout.plan),
-                  mark: index < status.done ? '✓ ' : '',
-                  defaultValue: '{{mark}}Walk {{walk}} · {{minutes}} min',
-                })
-              : t('recordActivity.program.pickOption', {
-                  run: workout.day + 1,
-                  minutes: workoutMinutes(status.program, workout.plan),
-                  mark: index < status.done ? '✓ ' : '',
-                  defaultValue: '{{mark}}Run {{run}} · {{minutes}} min',
-                }),
-          value: index,
-        })),
-    })
-  );
   // A change older than this is history, not news.
   const recentChange =
     lastAdjustment &&
@@ -561,134 +568,289 @@ const RunProgramCard: React.FC<Props> = ({
   const futureStart = hasStart && (schedule.startDay as string) > today;
   const dayLabel = (day: string): string => formatDayLabel(day);
   const fraction = status.total > 0 ? status.done / status.total : 0;
-  return (
-    <View className="bg-surface rounded-xl p-4 mt-4">
-      {header}
-      <View className="h-px bg-border-subtle mt-4" />
-      <Text className="text-text-primary text-lg font-semibold mt-4">
-        {status.finished
-          ? t('recordActivity.program.finished', {
-              name: programTitle(t, status.program),
-              defaultValue: '{{name}} complete',
-            })
-          : programWorkoutLabel(t, status)}
-      </Text>
-      <Text className="text-text-secondary text-xs mt-1">
-        {status.finished
-          ? t('recordActivity.program.finishedHint', {
-              defaultValue: 'Well done. You can start it again or move on.',
-            })
-          : t('recordActivity.program.progress', {
-              done: status.done,
-              total: status.total,
-              minutes: status.workout
-                ? workoutMinutes(status.program, status.workout.plan)
-                : 0,
-              defaultValue:
-                'Workout {{done}} of {{total}} done · {{minutes}} min today',
-            })}
-      </Text>
-      <ZoneCheckNote program={status.program} workout={status.workout} />
-      {recentChange ? (
-        <Text className="text-text-secondary text-xs mt-2">
-          {recentChange.source === 'assistant'
-            ? t('recordActivity.program.changedBySparky', {
-                date: changeDate,
-                summary: recentChange.summary,
-                defaultValue:
-                  'Sparky changed your plan on {{date}}: {{summary}}',
-              })
-            : t('recordActivity.program.changed', {
-                date: changeDate,
-                summary: recentChange.summary,
-                defaultValue: 'Plan changed on {{date}}: {{summary}}',
-              })}
+  const left = status.total - status.done;
+  const workout = status.workout;
+  const minutesToday = workout
+    ? workoutMinutes(status.program, workout.plan)
+    : 0;
+  const focus = workout ? workoutFocus(workout.plan) : null;
+  // Today is a workout day when the Diary offers one today: every day with no
+  // days picked, else on the picked weekdays, and never before the first day.
+  const todayIsWorkoutDay =
+    !futureStart &&
+    (schedule.days.length === 0 ||
+      schedule.days.includes(new Date(now).getDay()));
+
+  if (status.finished) {
+    return (
+      <View className="bg-surface rounded-2xl p-4 mt-4">
+        {header}
+        <View className="h-px bg-border-subtle mt-4" />
+        <Text className="text-text-primary text-lg font-semibold mt-4">
+          {t('recordActivity.program.finished', {
+            name: programTitle(t, status.program),
+            defaultValue: '{{name}} complete',
+          })}
         </Text>
-      ) : null}
-      <View className="h-2 rounded-full bg-raised mt-3 overflow-hidden">
-        <View
-          className="h-2 rounded-full bg-accent-primary"
-          style={{ width: `${Math.round(fraction * 100)}%` }}
-        />
-      </View>
-      <View className="mt-4">
-        {status.finished ? (
+        <Text className="text-text-secondary text-xs mt-1">
+          {t('recordActivity.program.finishedHint', {
+            defaultValue: 'Well done. You can start it again or move on.',
+          })}
+        </Text>
+        <View className="mt-4">
           <Button variant="outline" onPress={onRestart}>
             {t('recordActivity.program.restart', {
               defaultValue: 'Start again',
             })}
           </Button>
-        ) : (
-          <Button
-            variant={selected || prominent ? 'primary' : 'outline'}
-            onPress={onSelect}
-          >
-            {selected
-              ? t('recordActivity.program.using', {
-                  defaultValue: 'Using this workout',
-                })
-              : (startLabel ??
-                t('recordActivity.program.doThis', {
-                  defaultValue: 'Do this workout',
-                }))}
-          </Button>
-        )}
+        </View>
       </View>
-      {status.finished ? null : (
-        <View className="mt-6">
-          <SectionHeading>
-            {t('recordActivity.program.scheduleTitle', {
-              defaultValue: 'Schedule',
-            })}
-          </SectionHeading>
-          <Text className="text-text-primary text-sm font-semibold mt-3">
+    );
+  }
+
+  return (
+    <View
+      className="bg-surface rounded-2xl p-4 mt-4 border border-border-subtle"
+      testID="run-program-hero"
+    >
+      <View className="flex-row items-center justify-between pb-3 border-b border-border-subtle">
+        <View className="bg-accent-primary/15 rounded-full px-2.5 py-0.5">
+          <Text className="text-accent-primary text-xs font-bold uppercase tracking-wider">
+            {t('runPrograms.hero.active', { defaultValue: 'Active program' })}
+          </Text>
+        </View>
+        <Switch
+          value={enabled}
+          onValueChange={onToggle}
+          accessibilityLabel={t('recordActivity.program.use', {
+            defaultValue: 'Use a training program',
+          })}
+        />
+      </View>
+
+      <Text className="text-text-primary text-2xl font-bold mt-3">
+        {programTitle(t, status.program)}
+      </Text>
+      {workout ? (
+        <Text className="text-text-secondary text-sm mt-0.5">
+          {workoutTitle(t, status.program, workout)}
+        </Text>
+      ) : null}
+
+      <View className="bg-raised rounded-xl p-3.5 mt-3.5 border border-border-subtle">
+        <View className="flex-row items-center justify-between mb-3">
+          <View className="flex-row items-center">
+            <View className="w-1.5 h-1.5 rounded-full bg-accent-primary mr-1.5" />
+            <Text className="text-accent-primary text-xs font-bold uppercase tracking-wider">
+              {todayIsWorkoutDay
+                ? t('runPrograms.hero.today', {
+                    defaultValue: "Today's workout",
+                  })
+                : t('runPrograms.hero.next', { defaultValue: 'Next workout' })}
+            </Text>
+          </View>
+          {workout ? (
+            <Text className="text-text-muted text-xs">
+              {t('runPrograms.hero.weekOf', {
+                week: workout.week + 1,
+                weeks: status.program.weeks,
+                defaultValue: 'Week {{week}} of {{weeks}}',
+              })}
+            </Text>
+          ) : null}
+        </View>
+        <View className="flex-row py-2 border-y border-border-subtle">
+          <View
+            className="flex-1 items-center"
+            testID="run-program-stat-duration"
+          >
+            <Text className="text-text-muted text-xs">
+              {t('runPrograms.hero.duration', { defaultValue: 'Duration' })}
+            </Text>
+            <Text className="text-text-primary text-lg font-bold mt-0.5">
+              {t('runPrograms.hero.minutes', {
+                minutes: formatLocalizedNumber(minutesToday),
+                defaultValue: '{{minutes}} min',
+              })}
+            </Text>
+          </View>
+          <View
+            className="flex-1 items-center border-x border-border-subtle"
+            testID="run-program-stat-done"
+          >
+            <Text className="text-text-muted text-xs">
+              {t('runPrograms.hero.done', { defaultValue: 'Completed' })}
+            </Text>
+            <Text className="text-text-primary text-lg font-bold mt-0.5">
+              {t('runPrograms.hero.doneOf', {
+                done: formatLocalizedNumber(status.done),
+                total: formatLocalizedNumber(status.total),
+                defaultValue: '{{done}} / {{total}}',
+              })}
+            </Text>
+          </View>
+          <View className="flex-1 items-center" testID="run-program-stat-focus">
+            <Text className="text-text-muted text-xs">
+              {t('runPrograms.hero.effort', { defaultValue: 'Effort' })}
+            </Text>
+            {focus ? (
+              <>
+                <Text className="text-sm font-bold mt-1 text-exercise">
+                  {t('runPrograms.hero.zone', {
+                    zone: focus.zone,
+                    defaultValue: 'Zone {{zone}}',
+                  })}
+                </Text>
+                <Text
+                  className="text-text-muted text-xs text-center"
+                  numberOfLines={1}
+                >
+                  {workoutFocusLabel(t, focus.focus)}
+                </Text>
+              </>
+            ) : null}
+          </View>
+        </View>
+        <View className="mt-3">
+          <View className="flex-row items-center justify-between mb-1.5">
+            <Text className="text-text-secondary text-xs font-medium">
+              {t('runPrograms.hero.completion', {
+                defaultValue: 'Program completion',
+              })}
+            </Text>
+            <Text
+              className="text-accent-primary text-xs font-bold"
+              testID="run-program-completion"
+            >
+              {formatLocalizedNumber(Math.floor(fraction * 100) / 100, {
+                style: 'percent',
+              })}{' '}
+              <Text className="text-text-muted font-normal">
+                {t('runPrograms.hero.left', {
+                  count: left,
+                  defaultValue: '({{count}} left)',
+                  defaultValue_one: '({{count}} left)',
+                  defaultValue_other: '({{count}} left)',
+                })}
+              </Text>
+            </Text>
+          </View>
+          <View className="h-2 rounded-full bg-progress-track overflow-hidden">
+            <View
+              className="h-2 rounded-full bg-accent-primary"
+              style={{ width: `${Math.round(fraction * 100)}%` }}
+            />
+          </View>
+        </View>
+      </View>
+
+      <ZoneCheckNote program={status.program} workout={status.workout} />
+      {recentChange ? (
+        <View
+          className="mt-3 p-3 bg-raised rounded-xl border border-border-subtle flex-row"
+          testID="run-program-recent-change"
+        >
+          <View className="mr-2.5 mt-0.5">
+            <Icon name="info-circle" size={16} color={prGold} />
+          </View>
+          <Text className="text-text-secondary text-xs flex-1">
+            {recentChange.source === 'assistant'
+              ? t('recordActivity.program.changedBySparky', {
+                  date: changeDate,
+                  summary: recentChange.summary,
+                  defaultValue:
+                    'Sparky changed your plan on {{date}}: {{summary}}',
+                })
+              : t('recordActivity.program.changed', {
+                  date: changeDate,
+                  summary: recentChange.summary,
+                  defaultValue: 'Plan changed on {{date}}: {{summary}}',
+                })}
+          </Text>
+        </View>
+      ) : null}
+      <View className="mt-4">
+        <Button
+          variant={selected || prominent ? 'primary' : 'outline'}
+          onPress={onSelect}
+        >
+          {selected
+            ? t('recordActivity.program.using', {
+                defaultValue: 'Using this workout',
+              })
+            : (startLabel ??
+              t('recordActivity.program.doThis', {
+                defaultValue: 'Do this workout',
+              }))}
+        </Button>
+      </View>
+
+      <View className="mt-5 pt-4 border-t border-border-subtle">
+        <View className="flex-row items-center justify-between">
+          <Text className="text-text-primary text-sm font-semibold">
             {t('recordActivity.program.diaryDays', {
               defaultValue: 'Days in your Diary',
             })}
           </Text>
-          <View className="flex-row justify-between mt-2">
-            {Array.from({ length: 7 }, (_, day) => {
-              const on = schedule.days.includes(day);
-              return (
-                <TouchableOpacity
-                  key={day}
-                  accessibilityRole="button"
-                  accessibilityLabel={weekdayLabel(day, 'long')}
-                  accessibilityState={{ selected: on }}
-                  onPress={() => onSchedule({ toggleDay: day })}
-                  className={`w-10 h-10 rounded-full items-center justify-center ${
-                    on ? 'bg-accent-primary' : 'bg-raised'
+          <Text className="text-text-muted text-xs">
+            {schedule.days.length > 0
+              ? t('runPrograms.hero.daysAWeek', {
+                  count: schedule.days.length,
+                  defaultValue: '{{count}} days a week',
+                  defaultValue_one: '{{count}} day a week',
+                  defaultValue_other: '{{count}} days a week',
+                })
+              : t('runPrograms.hero.everyDay', { defaultValue: 'Every day' })}
+          </Text>
+        </View>
+        <View className="flex-row justify-between mt-2">
+          {Array.from({ length: 7 }, (_, day) => {
+            const on = schedule.days.includes(day);
+            return (
+              <TouchableOpacity
+                key={day}
+                accessibilityRole="button"
+                accessibilityLabel={weekdayLabel(day, 'long')}
+                accessibilityState={{ selected: on }}
+                onPress={() => onSchedule({ toggleDay: day })}
+                className={`w-10 h-10 rounded-full items-center justify-center ${
+                  on
+                    ? 'bg-accent-primary'
+                    : 'bg-raised border border-border-subtle'
+                }`}
+              >
+                <Text
+                  className={`text-xs ${
+                    on
+                      ? 'text-white font-bold'
+                      : 'text-text-muted font-semibold'
                   }`}
                 >
-                  <Text
-                    className={`text-sm font-semibold ${
-                      on ? 'text-white' : 'text-text-primary'
-                    }`}
-                  >
-                    {weekdayLabel(day, 'narrow')}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-          <Text className="text-text-muted text-xs mt-2">
-            {schedule.days.length > 0
-              ? t('recordActivity.program.diaryDaysSet', {
-                  defaultValue:
-                    'The Diary shows the workout on these days. A workout you miss stays due.',
-                })
-              : t('recordActivity.program.diaryDaysHint', {
-                  defaultValue:
-                    'Pick the days you plan to train, or leave them empty to see the workout every day.',
-                })}
-          </Text>
-          <View className="h-px bg-border-subtle mt-4" />
-          <Text className="text-text-primary text-sm font-semibold mt-4">
+                  {weekdayLabel(day, 'narrow')}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+        <Text className="text-text-muted text-xs mt-2">
+          {schedule.days.length > 0
+            ? t('recordActivity.program.diaryDaysSet', {
+                defaultValue:
+                  'The Diary shows the workout on these days. A workout you miss stays due.',
+              })
+            : t('recordActivity.program.diaryDaysHint', {
+                defaultValue:
+                  'Pick the days you plan to train, or leave them empty to see the workout every day.',
+              })}
+        </Text>
+
+        <View className="mt-3.5 p-3 bg-raised rounded-xl border border-border-subtle">
+          <Text className="text-text-muted text-xs font-medium">
             {t('recordActivity.program.startDay', {
               defaultValue: 'First workout',
             })}
           </Text>
-          <Text className="text-text-secondary text-xs mt-1">
+          <Text className="text-text-primary text-sm mt-0.5">
             {futureStart
               ? t('recordActivity.program.startDaySet', {
                   date: dayLabel(schedule.startDay as string),
@@ -721,13 +883,15 @@ const RunProgramCard: React.FC<Props> = ({
               </InlineLink>
             ) : null}
           </View>
-          <View className="h-px bg-border-subtle mt-4" />
-          <Text className="text-text-primary text-sm font-semibold mt-4">
+        </View>
+
+        <View className="mt-2 p-3 bg-raised rounded-xl border border-border-subtle">
+          <Text className="text-text-muted text-xs font-medium">
             {t('recordActivity.program.goalDay', {
               defaultValue: 'Goal date',
             })}
           </Text>
-          <Text className="text-text-secondary text-xs mt-1">
+          <Text className="text-text-primary text-sm mt-0.5">
             {schedule.endDay
               ? t('recordActivity.program.goalDaySet', {
                   date: dayLabel(schedule.endDay),
@@ -772,70 +936,6 @@ const RunProgramCard: React.FC<Props> = ({
             ) : null}
           </View>
         </View>
-      )}
-      <View className="mt-6">
-        <SectionHeading>
-          {t('recordActivity.program.manageTitle', {
-            defaultValue: 'Manage',
-          })}
-        </SectionHeading>
-        <ProgramActionList>
-          <BottomSheetPicker<string>
-            value={programId}
-            options={programOptions}
-            onSelect={onChooseProgram}
-            title={t('recordActivity.program.chooseTitle', {
-              defaultValue: 'Choose a program',
-            })}
-            renderTrigger={({ onPress }) => (
-              <ProgramActionRow
-                onPress={onPress}
-                label={t('recordActivity.program.change', {
-                  defaultValue: 'Change program',
-                })}
-              />
-            )}
-          />
-          <BottomSheetPicker<number>
-            value={Math.min(status.done, status.total - 1)}
-            sections={sections}
-            onSelect={onPickWorkout}
-            title={t('recordActivity.program.pickTitle', {
-              defaultValue: 'Choose a workout',
-            })}
-            renderTrigger={({ onPress }) => (
-              <ProgramActionRow
-                onPress={onPress}
-                label={t('recordActivity.program.pick', {
-                  defaultValue: 'Choose a different workout',
-                })}
-              />
-            )}
-          />
-          {status.finished ? null : (
-            <ProgramActionRow
-              onPress={onSkip}
-              chevron={false}
-              label={t('recordActivity.program.skip', { defaultValue: 'Skip' })}
-              hint={t('recordActivity.program.skipHint', {
-                defaultValue: 'Move on without doing this workout',
-              })}
-            />
-          )}
-          {status.done > 0 ? (
-            <ProgramActionRow
-              onPress={onRestart}
-              chevron={false}
-              destructive
-              label={t('recordActivity.program.startOver', {
-                defaultValue: 'Start over',
-              })}
-              hint={t('recordActivity.program.startOverHint', {
-                defaultValue: 'Go back to the first workout',
-              })}
-            />
-          ) : null}
-        </ProgramActionList>
       </View>
       <CalendarSheet
         ref={goalCalendarRef}
