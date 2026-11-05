@@ -1403,7 +1403,12 @@
     "steps": "Steps",
     "stepsSubtitle": "Show the day's steps against your goal and the last seven days",
     "heartRate": "Heart Rate",
-    "heartRateSubtitle": "Show resting heart rate and today's time in each heart rate zone"
+    "heartRateSubtitle": "Show resting heart rate and today's time in each heart rate zone",
+    "askSparkyOnEveryTab": "At the top of every tab",
+    "tabsDescription": "Drag a card by its handle to reorder its tab. A card's own switch hides it everywhere; Summary has its own list of cards it repeats from the other tabs.",
+    "turnedOffOnTab": "Turned off on {{tab}}",
+    "alsoOnTab": "Also on {{tab}}",
+    "onTabOnly": "On {{tab}} only"
   },
   "diarySettings": {
     "updateFailed": "Failed to update setting.",
