@@ -471,6 +471,8 @@ export type RootStackParamList = {
   AllergenSettings: undefined;
   DashboardSettings: undefined;
   HealthTrendsSettings: undefined;
+  ActivityRingsSettings: undefined;
+  PinnedMetricsSettings: undefined;
   WatchSettings: undefined;
   AddMenuSettings: undefined;
   DiarySettings: undefined;

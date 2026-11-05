@@ -146,6 +146,18 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
   const setLabResultsCardVisible = useAppPreferencesStore(
     (s) => s.setLabResultsCardVisible
   );
+  const pinnedMetricsCardVisible = useAppPreferencesStore(
+    (s) => s.pinnedMetricsCardVisible
+  );
+  const setPinnedMetricsCardVisible = useAppPreferencesStore(
+    (s) => s.setPinnedMetricsCardVisible
+  );
+  const activityRingsCardVisible = useAppPreferencesStore(
+    (s) => s.activityRingsCardVisible
+  );
+  const setActivityRingsCardVisible = useAppPreferencesStore(
+    (s) => s.setActivityRingsCardVisible
+  );
   const trainingLoadCardVisible = useAppPreferencesStore(
     (s) => s.trainingLoadCardVisible
   );
@@ -170,6 +182,8 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
     askSparky: askSparkyVisible,
     macros: macrosCardVisible,
     exercise: exerciseCardVisible,
+    activityRings: activityRingsCardVisible,
+    pinnedMetrics: pinnedMetricsCardVisible,
     hydration: hydrationCardVisible,
     caffeine: caffeineCardVisible,
     fasting: fastingCardVisible,
@@ -232,6 +246,12 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
         case 'labResults':
           setLabResultsCardVisible(isVisible);
           break;
+        case 'activityRings':
+          setActivityRingsCardVisible(isVisible);
+          break;
+        case 'pinnedMetrics':
+          setPinnedMetricsCardVisible(isVisible);
+          break;
         case 'trainingLoad':
           setTrainingLoadCardVisible(isVisible);
           break;
@@ -242,6 +262,8 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
       setAskSparkyVisible,
       setMacrosCardVisible,
       setExerciseCardVisible,
+      setActivityRingsCardVisible,
+      setPinnedMetricsCardVisible,
       setHydrationCardVisible,
       setCaffeineCardVisible,
       setFastingCardVisible,
@@ -475,7 +497,11 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
                 onConfigure={
                   cardKey === 'healthTrends'
                     ? () => navigation.navigate('HealthTrendsSettings')
-                    : undefined
+                    : cardKey === 'activityRings'
+                      ? () => navigation.navigate('ActivityRingsSettings')
+                      : cardKey === 'pinnedMetrics'
+                        ? () => navigation.navigate('PinnedMetricsSettings')
+                        : undefined
                 }
                 configureTestID={`dashboard-card-configure-${cardKey}`}
                 configureA11yLabel={t('dashboardSettings.configureCard', {

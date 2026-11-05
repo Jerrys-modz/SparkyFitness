@@ -759,7 +759,9 @@
     "labResults": "Lab results",
     "labResultDetail": "Lab result",
     "labResultAdd": "Add lab result",
-    "labReportImport": "Import report"
+    "labReportImport": "Import report",
+    "activityRingsSettings": "Activity Rings",
+    "pinnedMetricsSettings": "At a Glance"
   },
   "activityShare": {
     "title": "Share Activity",
@@ -1002,7 +1004,11 @@
     "perPress": "{{value}} {{unit}}",
     "logDrinkFailed": "Could not log that drink",
     "exerciseStatistics": "Statistics",
-    "reportsLink": "Reports"
+    "reportsLink": "Reports",
+    "activityRings": "Activity Rings",
+    "activityRingsSettings": "Settings",
+    "pinnedMetrics": "At a Glance",
+    "pinnedMetricsSettings": "Settings"
   },
   "syncScreen": {
     "healthConnectSettings": "Health Connect settings",
@@ -1276,7 +1282,11 @@
     "trainingLoad": "Training Load",
     "trainingLoadSubtitle": "Show this week against your usual training, with a nudge to rest",
     "labResults": "Lab Results",
-    "labResultsSubtitle": "Show your latest lab results and which are out of range"
+    "labResultsSubtitle": "Show your latest lab results and which are out of range",
+    "activityRings": "Activity Rings",
+    "activityRingsSubtitle": "Show Move, Exercise, Stand and Steps rings for the day",
+    "pinnedMetrics": "At a Glance",
+    "pinnedMetricsSubtitle": "A slim row of the numbers worth seeing first"
   },
   "diarySettings": {
     "updateFailed": "Failed to update setting.",
@@ -5399,6 +5409,14 @@
     },
     "allTrendsHidden": "All graphs are hidden. Choose which to show in Dashboard Settings.",
     "noTrendData": "No data to graph yet.",
+    "noTiles": "No tiles chosen. Pick up to 4 graphs in Dashboard Settings.",
+    "tiles": {
+      "stepsUnit": "steps/day",
+      "hoursUnit": "h/night",
+      "caloriesUnit": "kcal/day",
+      "bpmUnit": "bpm",
+      "vo2Unit": "ml/kg/min"
+    },
     "heartRate": {
       "title": "Resting Heart Rate",
       "avgLabel": "AVG",
@@ -6754,13 +6772,23 @@
     "photoUnavailable": "Photo unavailable"
   },
   "healthTrendsSettings": {
+    "layout": "Layout",
+    "layoutPager": "Swipe",
+    "layoutTiles": "Tiles",
+    "tilesDescription": "Choose up to {{max}} graphs to show as tiles.",
+    "graphs": "Graphs",
     "description": "Drag a graph by its handle to reorder it. Toggle off to hide it from your Dashboard.",
     "reorder": "Reorder {{name}}",
     "reorderHint": "Reorder this graph in your Dashboard health trends",
     "moveUp": "Move up",
     "moveDown": "Move down",
     "stateShown": "Shown",
-    "stateHidden": "Hidden"
+    "stateHidden": "Hidden",
+    "display": "Display",
+    "showRangeControl": "Range selector",
+    "showRangeControlSubtitle": "Show 7d, 30d and 90d above the graphs",
+    "showReportsLink": "Reports link",
+    "showReportsLinkSubtitle": "Show a Reports link beside the heading"
   },
   "quickActions": {
     "scanFood": "Scan food",
@@ -9853,5 +9881,48 @@
     "loadFailedSubtitle": "Check your connection and try again.",
     "emptyTitle": "No drinks logged",
     "emptySubtitle": "Drinks you log with the water buttons, a drink preset, the watch or a synced app show up here."
+  },
+  "activityRings": {
+    "move": "Move",
+    "exercise": "Exercise",
+    "steps": "Steps",
+    "minutesUnit": "min",
+    "stepsUnit": "steps",
+    "style": "Style",
+    "styleApple": "Move",
+    "styleCustom": "Custom",
+    "customDescription": "Choose which rings to show.",
+    "settingsDescription": "Rings fill toward your daily goals. Move and Exercise use your exercise goals, Stand and Active points have their own goals, and Steps uses your steps goal.",
+    "styleAppleDescription": "Move (calories), Exercise (minutes) and Stand (hours) rings. Stand shows on iPhone only.",
+    "points": "Active points",
+    "pointsUnit": "pts",
+    "styleGoogle": "Points",
+    "styleGoogleDescription": "Exercise minutes and Active points rings.",
+    "stand": "Stand",
+    "standUnit": "hr",
+    "standGoal": "Stand goal",
+    "standGoalUnit": "hours a day",
+    "standGoalDecrease": "Decrease stand goal",
+    "standGoalIncrease": "Increase stand goal",
+    "standDescription": "Stand hours are read from Apple Health on this device and are not uploaded.",
+    "size": "Size",
+    "sizeStandard": "Standard",
+    "sizeCompact": "Compact"
+  },
+  "pinnedMetrics": {
+    "settingsDescription": "Pick up to {{max}} metrics to show in the strip at the top of your Dashboard. Rings and goals show today against your target; trends show the latest reading or average.",
+    "rings": "Rings",
+    "trends": "Trends",
+    "empty": "No metrics pinned. Choose some in Pinned Metrics settings.",
+    "ofGoal": "of {{goal}} {{unit}}",
+    "limitReached": "You have pinned {{max}} metrics. Unpin one to choose another.",
+    "calories": "Calories",
+    "protein": "Protein",
+    "carbs": "Carbs",
+    "fat": "Fat",
+    "water": "Water",
+    "goals": "Nutrition & hydration",
+    "auto": "Choose for me",
+    "autoSubtitle": "Show a few useful metrics, skipping anything another card already shows"
   }
 }

@@ -2,9 +2,11 @@ import type { TFunction } from 'i18next';
 
 export const DASHBOARD_CARD_KEYS = [
   'calorieRing',
+  'pinnedMetrics',
   'askSparky',
   'macros',
   'exercise',
+  'activityRings',
   'trainingLoad',
   'hydration',
   'caffeine',
@@ -27,11 +29,15 @@ export const DASHBOARD_CARD_TITLES: Record<
 > = {
   calorieRing: (t) =>
     t('dashboardSettings.calorieRing', { defaultValue: 'Calorie Summary' }),
+  pinnedMetrics: (t) =>
+    t('dashboardSettings.pinnedMetrics', { defaultValue: 'At a Glance' }),
   askSparky: (t) =>
     t('dashboardSettings.askSparky', { defaultValue: 'Ask Sparky' }),
   macros: (t) => t('dashboardSettings.macros', { defaultValue: 'Nutrients' }),
   exercise: (t) =>
     t('dashboardSettings.exercise', { defaultValue: 'Exercise Progress' }),
+  activityRings: (t) =>
+    t('dashboardSettings.activityRings', { defaultValue: 'Activity Rings' }),
   trainingLoad: (t) =>
     t('dashboardSettings.trainingLoad', { defaultValue: 'Training Load' }),
   hydration: (t) =>
@@ -68,6 +74,10 @@ export const DASHBOARD_CARD_SUBTITLES: Record<
     t('dashboardSettings.calorieRingSubtitle', {
       defaultValue: 'Show daily calorie balance and progress ring',
     }),
+  pinnedMetrics: (t) =>
+    t('dashboardSettings.pinnedMetricsSubtitle', {
+      defaultValue: 'A slim row of the numbers worth seeing first',
+    }),
   askSparky: (t) =>
     t('dashboardSettings.askSparkySubtitle', {
       defaultValue: 'Show the Ask Sparky chat launcher on the Dashboard',
@@ -79,6 +89,10 @@ export const DASHBOARD_CARD_SUBTITLES: Record<
   exercise: (t) =>
     t('dashboardSettings.exerciseSubtitle', {
       defaultValue: 'Show exercise minutes and calorie burn targets',
+    }),
+  activityRings: (t) =>
+    t('dashboardSettings.activityRingsSubtitle', {
+      defaultValue: 'Show Move, Exercise, Stand and Steps rings for the day',
     }),
   trainingLoad: (t) =>
     t('dashboardSettings.trainingLoadSubtitle', {
