@@ -1,20 +1,23 @@
 import {
   getWorkoutSplit,
+  WORKOUT_PROGRAM_FILE_FORMAT,
+  WORKOUT_PROGRAM_FILE_VERSION,
+  WORKOUT_SPLIT_EXERCISE_SOURCE,
   type ImportWorkoutSplitRequest,
   type ImportWorkoutSplitResponse,
+  type WorkoutProgramFile,
+  type WorkoutProgramPreset,
   type WorkoutSplit,
   type WorkoutSplitExercise,
   workoutSplitExerciseIds,
 } from '@workspace/shared';
-import exerciseRepository from '../models/exerciseRepository.js';
-import { log } from '../config/logging.js';
-import { describeError, ValidationError } from '../utils/errors.js';
-import { addFreeExerciseDBExerciseToUserExercises } from './exerciseService.js';
-import workoutPlanTemplateService from './workoutPlanTemplateService.js';
-import workoutPresetService from './workoutPresetService.js';
+import { ValidationError } from '../utils/errors.js';
+import {
+  importWorkoutProgram,
+  WorkoutProgramExercisesUnavailableError,
+} from './workoutProgramService.js';
 
 const WORKING_SET = 'Working Set';
-const FREE_EXERCISE_DB = 'free-exercise-db';
 
 export class UnknownWorkoutSplitError extends Error {
   constructor(splitId: string) {
@@ -24,20 +27,7 @@ export class UnknownWorkoutSplitError extends Error {
 }
 
 /** Some of the split's exercises could not be added; nothing was created. */
-export class WorkoutSplitExercisesUnavailableError extends Error {
-  readonly missingExerciseIds: string[];
-  constructor(missingExerciseIds: string[]) {
-    super(
-      'Some exercises could not be added from the exercise database. Try again when it is reachable.'
-    );
-    this.name = 'WorkoutSplitExercisesUnavailableError';
-    this.missingExerciseIds = missingExerciseIds;
-  }
-}
-
-interface CreatedRow {
-  id: number;
-}
+export { WorkoutProgramExercisesUnavailableError as WorkoutSplitExercisesUnavailableError };
 
 function assertSessionNames(
   split: WorkoutSplit,
@@ -53,81 +43,74 @@ function assertSessionNames(
   }
 }
 
-/**
- * The person's library exercise for each free-exercise-db id, adding the ones
- * not there yet. Adding is idempotent, so a retry after a failure only
- * fetches what is still missing. All ids are tried before giving up so the
- * error can name every one that failed.
- */
-async function ensureLibraryExercises(
-  userId: string,
-  exerciseIds: string[]
-): Promise<{ libraryIds: Map<string, string>; addedCount: number }> {
-  const libraryIds = new Map<string, string>();
-  const missing: string[] = [];
-  let addedCount = 0;
-  for (const exerciseId of exerciseIds) {
-    try {
-      const existing = await exerciseRepository.getExerciseBySourceAndSourceId(
-        FREE_EXERCISE_DB,
-        exerciseId,
-        userId
-      );
-      if (existing) {
-        libraryIds.set(exerciseId, existing.id);
-        continue;
-      }
-      const added = await addFreeExerciseDBExerciseToUserExercises(
-        userId,
-        exerciseId
-      );
-      libraryIds.set(exerciseId, added.id);
-      addedCount += 1;
-    } catch (error) {
-      log(
-        'warn',
-        `Workout split import: could not add free-exercise-db exercise ${exerciseId}: ${describeError(error)}`
-      );
-      missing.push(exerciseId);
-    }
-  }
-  if (missing.length > 0) {
-    throw new WorkoutSplitExercisesUnavailableError(missing);
-  }
-  return { libraryIds, addedCount };
+function presetExercise(
+  exercise: WorkoutSplitExercise
+): WorkoutProgramPreset['exercises'][number] {
+  const timed = exercise.durationSeconds !== undefined;
+  return {
+    exercise: exercise.exerciseId,
+    supersetGroup: exercise.supersetGroup ?? null,
+    progressionMode: exercise.progressionMode,
+    repGoal: timed ? null : (exercise.repGoal ?? null),
+    incrementType: 'weight',
+    // Kept null for a hold: the schema wants a positive value when it is set.
+    incrementValue: exercise.incrementKg > 0 ? exercise.incrementKg : null,
+    sets: Array.from({ length: exercise.sets }, (_, index) => ({
+      setNumber: index + 1,
+      setType: WORKING_SET,
+      reps: timed ? null : exercise.reps,
+      weight: null,
+      duration: exercise.durationSeconds ?? null,
+    })),
+  };
 }
 
-function presetExercise(
-  exercise: WorkoutSplitExercise,
-  libraryId: string,
-  sortOrder: number
-) {
-  const sets = Array.from({ length: exercise.sets }, (_, index) => ({
-    set_number: index + 1,
-    set_type: WORKING_SET,
-    reps: exercise.durationSeconds === undefined ? exercise.reps : null,
-    weight: null,
-    duration: exercise.durationSeconds ?? null,
-  }));
+/**
+ * A split as a workout program file: its exercises by free-exercise-db id
+ * (the catalog has no names, so the id stands in), one preset per session
+ * and a sequential, prompt-mode plan running them from session 1.
+ */
+function splitAsProgram(
+  split: WorkoutSplit,
+  request: ImportWorkoutSplitRequest
+): WorkoutProgramFile {
   return {
-    exercise_id: libraryId,
-    sort_order: sortOrder,
-    superset_group: exercise.supersetGroup ?? null,
-    progression_mode: exercise.progressionMode,
-    rep_goal: exercise.durationSeconds === undefined ? exercise.repGoal : null,
-    increment_type: 'weight' as const,
-    // Kept null for a hold: the schema wants a positive value when it is set.
-    increment_value: exercise.incrementKg > 0 ? exercise.incrementKg : null,
-    sets,
+    format: WORKOUT_PROGRAM_FILE_FORMAT,
+    version: WORKOUT_PROGRAM_FILE_VERSION,
+    exercises: workoutSplitExerciseIds(split).map((exerciseId) => ({
+      key: exerciseId,
+      name: exerciseId.replace(/_/g, ' '),
+      source: WORKOUT_SPLIT_EXERCISE_SOURCE,
+      sourceId: exerciseId,
+    })),
+    presets: split.sessions.map((session) => ({
+      key: session.id,
+      name: `${request.planName}: ${request.sessionNames[session.id]}`,
+      description: null,
+      workoutFormat: 'standard',
+      exercises: session.exercises.map(presetExercise),
+    })),
+    plan: {
+      name: request.planName,
+      description: null,
+      scheduleType: 'sequential',
+      entryMode: 'prompt',
+      sessions: split.sessions.map((session, index) => ({
+        // The repository stores a session index of 0 as null.
+        sessionIndex: index + 1,
+        sessionName: request.sessionNames[session.id],
+        preset: session.id,
+      })),
+    },
   };
 }
 
 /**
  * Makes the person's own copy of a built-in split: its exercises are added to
  * the library from free-exercise-db, each session becomes a preset and the
- * sessions become a sequential plan. The exercises are fetched first, so an
- * unreachable provider fails before anything is created; if a later step
- * fails, the presets made so far are removed again.
+ * sessions become a sequential plan. It goes through the workout program
+ * import, with no custom fallback: an exercise the database cannot supply
+ * fails the import before anything is created.
  */
 export async function importWorkoutSplit(
   userId: string,
@@ -138,64 +121,14 @@ export async function importWorkoutSplit(
   if (!split) throw new UnknownWorkoutSplitError(splitId);
   assertSessionNames(split, request.sessionNames);
 
-  const { libraryIds, addedCount } = await ensureLibraryExercises(
+  const result = await importWorkoutProgram(
     userId,
-    workoutSplitExerciseIds(split)
+    splitAsProgram(split, request),
+    { activate: request.activate, allowCustomExercises: false }
   );
-
-  const presetIds: Record<string, number> = {};
-  try {
-    for (const session of split.sessions) {
-      const preset = (await workoutPresetService.createWorkoutPreset(userId, {
-        name: `${request.planName}: ${request.sessionNames[session.id]}`,
-        description: null,
-        is_public: false,
-        workout_format: 'standard',
-        exercises: session.exercises.map((exercise, index) =>
-          presetExercise(
-            exercise,
-            libraryIds.get(exercise.exerciseId) as string,
-            index
-          )
-        ),
-      })) as CreatedRow;
-      presetIds[session.id] = preset.id;
-    }
-    const plan = (await workoutPlanTemplateService.createWorkoutPlanTemplate(
-      userId,
-      {
-        plan_name: request.planName,
-        description: null,
-        is_active: request.activate,
-        schedule_type: 'sequential',
-        entry_mode: 'prompt',
-        assignments: split.sessions.map((session, index) => ({
-          session_index: index + 1,
-          session_name: request.sessionNames[session.id],
-          workout_preset_id: presetIds[session.id],
-          sort_order: index,
-        })),
-      }
-    )) as CreatedRow;
-    return { planId: plan.id, presetIds, addedExerciseCount: addedCount };
-  } catch (error) {
-    await removeCreatedPresets(userId, Object.values(presetIds));
-    throw error;
-  }
-}
-
-async function removeCreatedPresets(
-  userId: string,
-  presetIds: number[]
-): Promise<void> {
-  for (const presetId of presetIds) {
-    try {
-      await workoutPresetService.deleteWorkoutPreset(userId, presetId);
-    } catch (error) {
-      log(
-        'error',
-        `Workout split import: could not remove preset ${presetId} after a failure: ${describeError(error)}`
-      );
-    }
-  }
+  return {
+    planId: result.planId as number,
+    presetIds: result.presetIds,
+    addedExerciseCount: result.addedExerciseCount,
+  };
 }
