@@ -172,9 +172,12 @@ const ExerciseProgressCard: React.FC<ExerciseProgressCardProps> = ({
         accessibilityRole={onPressDetails ? 'button' : undefined}
         className="flex-row justify-between items-center mb-4"
       >
-        <Text className="text-md font-bold text-text-secondary">
-          {t('dashboard.exercise', { defaultValue: 'Exercise' })}
-        </Text>
+        <View className="flex-row items-center gap-2">
+          <Icon name="exercise" size={18} color={accentColor} />
+          <Text className="text-base font-bold text-text-primary">
+            {t('dashboard.exercise', { defaultValue: 'Exercise' })}
+          </Text>
+        </View>
         {onPressDetails ? (
           <View className="flex-row items-center">
             <Text className="text-xs font-semibold text-accent-primary mr-1">

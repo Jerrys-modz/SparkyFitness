@@ -101,7 +101,7 @@ export default function MoodCard({ navigation, date }: MoodCardProps) {
       <View className="flex-row items-center justify-between mb-3">
         <View className="flex-row items-center">
           <Icon name="mood" size={18} color={accentPrimary} />
-          <Text className="text-md font-bold text-text-secondary ml-2">
+          <Text className="text-base font-bold text-text-primary ml-2">
             {t('mood.logTitle', { defaultValue: 'Mood' })}
           </Text>
         </View>

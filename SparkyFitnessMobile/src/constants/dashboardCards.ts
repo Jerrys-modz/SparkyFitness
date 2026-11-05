@@ -9,6 +9,8 @@ export const DASHBOARD_CARD_KEYS = [
   'activityRings',
   'trainingLoad',
   'workouts',
+  'steps',
+  'heartRate',
   'hydration',
   'caffeine',
   'meals',
@@ -74,6 +76,9 @@ export const DASHBOARD_CARD_TITLES: Record<
   sleep: (t) => t('dashboardSettings.sleep', { defaultValue: 'Sleep' }),
   readiness: (t) =>
     t('dashboardSettings.readiness', { defaultValue: 'Readiness' }),
+  steps: (t) => t('dashboardSettings.steps', { defaultValue: 'Steps' }),
+  heartRate: (t) =>
+    t('dashboardSettings.heartRate', { defaultValue: 'Heart Rate' }),
 };
 
 export const DASHBOARD_CARD_SUBTITLES: Record<
@@ -170,5 +175,15 @@ export const DASHBOARD_CARD_SUBTITLES: Record<
   readiness: (t) =>
     t('dashboardSettings.readinessSubtitle', {
       defaultValue: "Show today's readiness score and what is holding it back",
+    }),
+  steps: (t) =>
+    t('dashboardSettings.stepsSubtitle', {
+      defaultValue:
+        "Show the day's steps against your goal and the last seven days",
+    }),
+  heartRate: (t) =>
+    t('dashboardSettings.heartRateSubtitle', {
+      defaultValue:
+        "Show resting heart rate and today's time in each heart rate zone",
     }),
 };

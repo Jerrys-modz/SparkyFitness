@@ -5,7 +5,16 @@ import type {
   FitnessFatigueResponse,
 } from '@workspace/shared';
 
+import HeartRateDashboardCard from '../../../src/components/dashboard/HeartRateDashboardCard';
 import MealsDashboardCard from '../../../src/components/dashboard/MealsDashboardCard';
+import StepsDashboardCard from '../../../src/components/dashboard/StepsDashboardCard';
+import SummaryStatusLine from '../../../src/components/dashboard/SummaryStatusLine';
+import { useHealthTrends } from '../../../src/hooks/useHealthTrends';
+import {
+  useMedicationEntries,
+  useMedications,
+} from '../../../src/hooks/useMedications';
+import { useWorkoutHeartRateZones } from '../../../src/hooks/useWorkoutHeartRateZones';
 import ReadinessDashboardCard from '../../../src/components/dashboard/ReadinessDashboardCard';
 import SleepDashboardCard from '../../../src/components/dashboard/SleepDashboardCard';
 import WorkoutsDashboardCard from '../../../src/components/dashboard/WorkoutsDashboardCard';
@@ -31,6 +40,20 @@ jest.mock('../../../src/hooks/useFitnessFatigue', () => ({
 }));
 jest.mock('../../../src/hooks/useMealTypes', () => ({
   useMealTypes: jest.fn(),
+}));
+jest.mock('../../../src/hooks/useHealthTrends', () => ({
+  useHealthTrends: jest.fn(),
+}));
+jest.mock('../../../src/hooks/useWorkoutHeartRateZones', () => ({
+  useWorkoutHeartRateZones: jest.fn(),
+}));
+jest.mock('../../../src/hooks/useMedications', () => ({
+  useMedications: jest.fn(),
+  useMedicationEntries: jest.fn(),
+}));
+jest.mock('@workspace/shared', () => ({
+  ...jest.requireActual('@workspace/shared'),
+  getDueDosesForDate: jest.fn(),
 }));
 jest.mock('../../../src/hooks/useActiveWorkoutPlan', () => ({
   useActiveWorkoutPlans: jest.fn(),
@@ -381,5 +404,142 @@ describe('WorkoutsDashboardCard', () => {
 
     expect(onLog).toHaveBeenCalled();
     expect(onRecord).toHaveBeenCalled();
+  });
+});
+
+const { getDueDosesForDate } = jest.requireMock('@workspace/shared') as {
+  getDueDosesForDate: jest.Mock;
+};
+
+const mockTrends = (
+  steps: { day: string; steps: number }[],
+  heartRate: { day: string; restingHr: number }[] = []
+) =>
+  jest.mocked(useHealthTrends).mockReturnValue({
+    steps: { data: steps, isLoading: false, isError: false },
+    heartRate: { data: heartRate, isLoading: false, isError: false },
+  } as never);
+
+describe('StepsDashboardCard', () => {
+  it('shows the day against the goal and a week of bars', () => {
+    mockTrends([{ day: '2026-11-04', steps: 8000 }]);
+    render(
+      <StepsDashboardCard
+        date="2026-11-05"
+        steps={6420}
+        goal={10000}
+        onOpenTrends={jest.fn()}
+      />
+    );
+
+    expect(screen.getByText('6,420')).toBeTruthy();
+    expect(screen.getByText('/ 10,000 steps (64%)')).toBeTruthy();
+    expect(
+      screen.getByTestId('steps-dashboard-card-week').props.children
+    ).toHaveLength(7);
+  });
+
+  it('shows nothing with no steps all week', () => {
+    mockTrends([]);
+    const { toJSON } = render(
+      <StepsDashboardCard
+        date="2026-11-05"
+        steps={0}
+        goal={10000}
+        onOpenTrends={jest.fn()}
+      />
+    );
+
+    expect(toJSON()).toBeNull();
+  });
+});
+
+describe('HeartRateDashboardCard', () => {
+  it('compares resting heart rate with the week and shows zones', () => {
+    mockTrends(
+      [],
+      [
+        { day: '2026-11-03', restingHr: 62 },
+        { day: '2026-11-04', restingHr: 64 },
+        { day: '2026-11-05', restingHr: 59 },
+      ]
+    );
+    jest.mocked(useWorkoutHeartRateZones).mockReturnValue([
+      { zone: 1, lowerBpm: null, upperBpm: 120, seconds: 120, share: 0.2 },
+      { zone: 2, lowerBpm: 120, upperBpm: 140, seconds: 480, share: 0.8 },
+    ]);
+    render(
+      <HeartRateDashboardCard
+        date="2026-11-05"
+        sessions={[]}
+        onOpenReport={jest.fn()}
+      />
+    );
+
+    expect(screen.getByText('59')).toBeTruthy();
+    expect(screen.getByText('−4 bpm vs 7d avg')).toBeTruthy();
+    expect(screen.getByText('Zone 2')).toBeTruthy();
+    expect(screen.getByText('80%')).toBeTruthy();
+  });
+
+  it('shows nothing without a resting heart rate or zones', () => {
+    mockTrends([], []);
+    jest.mocked(useWorkoutHeartRateZones).mockReturnValue(null);
+    const { toJSON } = render(
+      <HeartRateDashboardCard
+        date="2026-11-05"
+        sessions={[]}
+        onOpenReport={jest.fn()}
+      />
+    );
+
+    expect(toJSON()).toBeNull();
+  });
+});
+
+describe('SummaryStatusLine', () => {
+  const due = (id: string) => ({
+    medication: { id: `med-${id}` },
+    schedule: { id: `sched-${id}` },
+  });
+
+  beforeEach(() => {
+    jest.mocked(useMedications).mockReturnValue({ data: [] } as never);
+    jest.mocked(useMedicationEntries).mockReturnValue({ data: [] } as never);
+  });
+
+  it('names readiness and the doses still due', () => {
+    mockFitness(fitness({}));
+    getDueDosesForDate.mockReturnValue([due('a'), due('b')]);
+    render(<SummaryStatusLine date="2026-11-05" isToday />);
+
+    expect(
+      screen.getByText('Ready for a normal session · 2 doses still due')
+    ).toBeTruthy();
+  });
+
+  it('says when every dose is taken, and leaves readiness out on another day', () => {
+    mockFitness(fitness({}));
+    getDueDosesForDate.mockReturnValue([due('a')]);
+    jest.mocked(useMedicationEntries).mockReturnValue({
+      data: [
+        {
+          medication_id: 'med-a',
+          schedule_id: 'sched-a',
+          status: 'taken',
+        },
+      ],
+    } as never);
+    render(<SummaryStatusLine date="2026-11-04" isToday={false} />);
+
+    expect(screen.getByText('All doses taken')).toBeTruthy();
+  });
+
+  it('shows nothing when it has nothing to say', () => {
+    mockFitness(undefined);
+    getDueDosesForDate.mockReturnValue([]);
+    const { toJSON } = render(<SummaryStatusLine date="2026-11-05" isToday />);
+
+    expect(toJSON()).toBeNull();
   });
 });

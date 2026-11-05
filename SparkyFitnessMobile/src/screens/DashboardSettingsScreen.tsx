@@ -193,6 +193,16 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
   const setReadinessCardVisible = useAppPreferencesStore(
     (s) => s.setReadinessCardVisible
   );
+  const stepsCardVisible = useAppPreferencesStore((s) => s.stepsCardVisible);
+  const setStepsCardVisible = useAppPreferencesStore(
+    (s) => s.setStepsCardVisible
+  );
+  const heartRateCardVisible = useAppPreferencesStore(
+    (s) => s.heartRateCardVisible
+  );
+  const setHeartRateCardVisible = useAppPreferencesStore(
+    (s) => s.setHeartRateCardVisible
+  );
   const dashboardTabsEnabled = useAppPreferencesStore(
     (s) => s.dashboardTabsEnabled
   );
@@ -228,6 +238,8 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
     meals: mealsCardVisible,
     sleep: sleepCardVisible,
     readiness: readinessCardVisible,
+    steps: stepsCardVisible,
+    heartRate: heartRateCardVisible,
   };
 
   const setCardVisibility = useCallback(
@@ -299,6 +311,12 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
         case 'readiness':
           setReadinessCardVisible(isVisible);
           break;
+        case 'steps':
+          setStepsCardVisible(isVisible);
+          break;
+        case 'heartRate':
+          setHeartRateCardVisible(isVisible);
+          break;
       }
     },
     [
@@ -324,6 +342,8 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
       setMealsCardVisible,
       setSleepCardVisible,
       setReadinessCardVisible,
+      setStepsCardVisible,
+      setHeartRateCardVisible,
     ]
   );
 

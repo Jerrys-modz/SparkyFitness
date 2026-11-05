@@ -155,6 +155,8 @@ export const PREFERENCE_DEFAULTS = {
   mealsCardVisible: true,
   sleepCardVisible: true,
   readinessCardVisible: true,
+  stepsCardVisible: true,
+  heartRateCardVisible: true,
   dashboardCardOrder: [...DASHBOARD_CARD_KEYS] as DashboardCardKey[],
   dashboardTabsEnabled: true,
   dashboardTab: DEFAULT_DASHBOARD_TAB as DashboardTab,
@@ -272,6 +274,8 @@ export type AppPreferencesData = {
   mealsCardVisible: boolean;
   sleepCardVisible: boolean;
   readinessCardVisible: boolean;
+  stepsCardVisible: boolean;
+  heartRateCardVisible: boolean;
   dashboardCardOrder: DashboardCardKey[];
   /** Split the Dashboard into Summary, Nutrition, Activity and Wellness tabs. */
   dashboardTabsEnabled: boolean;
@@ -443,6 +447,8 @@ export interface AppPreferencesState extends AppPreferencesData {
   setMealsCardVisible: (value: boolean) => void;
   setSleepCardVisible: (value: boolean) => void;
   setReadinessCardVisible: (value: boolean) => void;
+  setStepsCardVisible: (value: boolean) => void;
+  setHeartRateCardVisible: (value: boolean) => void;
   setDashboardCardOrder: (order: DashboardCardKey[]) => void;
   setDashboardTabsEnabled: (value: boolean) => void;
   setDashboardTab: (tab: DashboardTab) => void;
@@ -639,6 +645,8 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
       setMealsCardVisible: (value) => set({ mealsCardVisible: value }),
       setSleepCardVisible: (value) => set({ sleepCardVisible: value }),
       setReadinessCardVisible: (value) => set({ readinessCardVisible: value }),
+      setStepsCardVisible: (value) => set({ stepsCardVisible: value }),
+      setHeartRateCardVisible: (value) => set({ heartRateCardVisible: value }),
       setDashboardCardOrder: (order) => set({ dashboardCardOrder: order }),
       setDashboardTabsEnabled: (value) => set({ dashboardTabsEnabled: value }),
       setDashboardTab: (tab) => set({ dashboardTab: tab }),
@@ -890,6 +898,8 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         mealsCardVisible: state.mealsCardVisible,
         sleepCardVisible: state.sleepCardVisible,
         readinessCardVisible: state.readinessCardVisible,
+        stepsCardVisible: state.stepsCardVisible,
+        heartRateCardVisible: state.heartRateCardVisible,
         dashboardCardOrder: state.dashboardCardOrder,
         dashboardTabsEnabled: state.dashboardTabsEnabled,
         dashboardTab: state.dashboardTab,

@@ -418,6 +418,8 @@ describe('appPreferencesStore', () => {
         'activityRings',
         'trainingLoad',
         'workouts',
+        'steps',
+        'heartRate',
         'hydration',
         'caffeine',
         'meals',

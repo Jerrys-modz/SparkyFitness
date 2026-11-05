@@ -112,7 +112,10 @@ import {
 import GlanceStrip from '../components/GlanceStrip';
 import MealsDashboardCard from '../components/dashboard/MealsDashboardCard';
 import ReadinessDashboardCard from '../components/dashboard/ReadinessDashboardCard';
+import HeartRateDashboardCard from '../components/dashboard/HeartRateDashboardCard';
 import SleepDashboardCard from '../components/dashboard/SleepDashboardCard';
+import StepsDashboardCard from '../components/dashboard/StepsDashboardCard';
+import SummaryStatusLine from '../components/dashboard/SummaryStatusLine';
 import WorkoutsDashboardCard from '../components/dashboard/WorkoutsDashboardCard';
 import { useStartPlanAssignment } from '../hooks/useStartPlanAssignment';
 import { openExerciseSession } from '../utils/openExerciseSession';
@@ -138,6 +141,9 @@ import { weightFromKg } from '../utils/unitConversions';
 import { resolveWeightGoal } from '../utils/healthTrendGoals';
 
 const DEFAULT_TREND_RANGE: HealthTrendDateRange = '7d';
+
+/** What the Dashboard list renders: a card, or the Summary tab's status line. */
+type DashboardSlot = DashboardCardKey | 'summaryStatus';
 
 const RANGE_SEGMENTS = (
   t: (key: string, options: { defaultValue: string }) => string
@@ -594,6 +600,10 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
   );
   const mealsCardVisible = useAppPreferencesStore((s) => s.mealsCardVisible);
   const sleepCardVisible = useAppPreferencesStore((s) => s.sleepCardVisible);
+  const stepsCardVisible = useAppPreferencesStore((s) => s.stepsCardVisible);
+  const heartRateCardVisible = useAppPreferencesStore(
+    (s) => s.heartRateCardVisible
+  );
   const readinessCardVisible = useAppPreferencesStore(
     (s) => s.readinessCardVisible
   );
@@ -639,7 +649,16 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
     meals: mealsCardVisible,
     sleep: sleepCardVisible,
     readiness: readinessCardVisible,
+    steps: stepsCardVisible,
+    heartRate: heartRateCardVisible,
   };
+  // The Summary tab's status line sits right under Ask Sparky.
+  const shownSlots: DashboardSlot[] =
+    dashboardTabsEnabled && dashboardTab === 'summary'
+      ? shownCardKeys.flatMap((key): DashboardSlot[] =>
+          key === 'askSparky' ? [key, 'summaryStatus'] : [key]
+        )
+      : shownCardKeys;
   // Ask Sparky alone is not a tab's content, so a tab with nothing else says so.
   const tabHasVisibleCard = shownCardKeys.some(
     (key) => key !== 'askSparky' && cardVisible[key]
@@ -887,8 +906,16 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
             </Text>
           </Pressable>
         )}
-        {shownCardKeys.map((cardKey) => {
+        {shownSlots.map((cardKey) => {
           switch (cardKey) {
+            case 'summaryStatus':
+              return (
+                <SummaryStatusLine
+                  key="summaryStatus"
+                  date={selectedDate}
+                  isToday={isToday}
+                />
+              );
             case 'calorieRing':
               return calorieRingCardVisible &&
                 (summary.foodEntries.length > 0 ||
@@ -954,11 +981,14 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                       }
                       className="flex-row justify-between items-center mb-2 px-1"
                     >
-                      <Text className="text-md font-bold text-text-secondary">
-                        {t('dashboard.nutrients', {
-                          defaultValue: 'Nutrients',
-                        })}
-                      </Text>
+                      <View className="flex-row items-center gap-2">
+                        <Icon name="food" size={18} color={accentColor} />
+                        <Text className="text-base font-bold text-text-primary">
+                          {t('dashboard.nutrients', {
+                            defaultValue: 'Nutrients',
+                          })}
+                        </Text>
+                      </View>
                       <View className="flex-row items-center">
                         <Text className="text-xs font-semibold text-accent-primary mr-1">
                           {t('common.details', { defaultValue: 'Details' })}
@@ -1365,6 +1395,25 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                     navigation.navigate('ActivityAdd', { date: selectedDate })
                   }
                   onRecord={() => navigation.navigate('RecordActivity')}
+                />
+              ) : null;
+            case 'steps':
+              return stepsCardVisible ? (
+                <StepsDashboardCard
+                  key="steps"
+                  date={selectedDate}
+                  steps={measurements?.steps ?? 0}
+                  goal={summary.stepsGoal}
+                  onOpenTrends={() => navigation.navigate('Reports')}
+                />
+              ) : null;
+            case 'heartRate':
+              return heartRateCardVisible ? (
+                <HeartRateDashboardCard
+                  key="heartRate"
+                  date={selectedDate}
+                  sessions={summary.exerciseEntries}
+                  onOpenReport={() => navigation.navigate('HeartRateReport')}
                 />
               ) : null;
             case 'mindfulness':

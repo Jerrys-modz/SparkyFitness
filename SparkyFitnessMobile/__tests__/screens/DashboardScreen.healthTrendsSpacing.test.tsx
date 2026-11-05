@@ -281,6 +281,8 @@ describe('DashboardScreen tabs', () => {
     store.setMealsCardVisible(false);
     store.setSleepCardVisible(false);
     store.setReadinessCardVisible(false);
+    store.setStepsCardVisible(false);
+    store.setHeartRateCardVisible(false);
   });
 
   it('opens on Summary with a prompt worded for it', () => {

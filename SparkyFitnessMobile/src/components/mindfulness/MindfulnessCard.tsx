@@ -132,10 +132,12 @@ export const MindfulnessCard: React.FC<MindfulnessCardProps> = ({
         {/* Header */}
         <View className="flex-row items-center justify-between mb-2">
           <View className="flex-row items-center">
-            <Text className="text-base mr-1.5">🧘</Text>
-            <Text className="text-md font-bold text-text-secondary">
-              {t('mindfulness.card.title', { defaultValue: 'Mindfulness' })}
-            </Text>
+            <View className="flex-row items-center gap-2">
+              <Icon name="wellness" size={18} color={accentPrimary} />
+              <Text className="text-base font-bold text-text-primary">
+                {t('mindfulness.card.title', { defaultValue: 'Mindfulness' })}
+              </Text>
+            </View>
           </View>
 
           <View className="flex-row items-center">

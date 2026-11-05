@@ -91,7 +91,7 @@ const ProgressPhotosCard: React.FC<ProgressPhotosCardProps> = ({
         })}
         className="bg-surface rounded-xl p-4 mb-3 shadow-sm"
       >
-        <Text className="text-md font-bold text-text-primary mb-4">
+        <Text className="text-base font-bold text-text-primary mb-4">
           {t('progressPhotos.card.title', { defaultValue: 'Progress' })}
         </Text>
         <Text className="text-text-muted text-sm text-center mb-4">
@@ -114,9 +114,12 @@ const ProgressPhotosCard: React.FC<ProgressPhotosCardProps> = ({
       className="bg-surface rounded-xl p-4 mb-3 shadow-sm"
     >
       <View className="flex-row items-center justify-between mb-2">
-        <Text className="font-bold text-text-secondary">
-          {t('progressPhotos.card.title', { defaultValue: 'Progress' })}
-        </Text>
+        <View className="flex-row items-center gap-2">
+          <Icon name="camera" size={18} color={accentPrimary} />
+          <Text className="text-base font-bold text-text-primary">
+            {t('progressPhotos.card.title', { defaultValue: 'Progress' })}
+          </Text>
+        </View>
         <View className="flex-row items-center">
           <Text className="text-accent-primary font-medium">
             {t('progressPhotos.card.viewAll', { defaultValue: 'View all' })}
