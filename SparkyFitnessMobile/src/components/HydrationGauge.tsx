@@ -180,9 +180,12 @@ const HydrationGauge: React.FC<HydrationGaugeProps> = ({
   return (
     <View className="bg-surface rounded-xl p-4 mb-3 shadow-sm">
       <View className="flex-row items-center justify-between mb-3">
-        <Text className="text-md font-bold text-text-secondary">
-          {t('dashboard.hydration', { defaultValue: 'Hydration' })}
-        </Text>
+        <View className="flex-row items-center gap-2">
+          <Icon name="water" size={18} color={accentPrimary} />
+          <Text className="text-base font-bold text-text-primary">
+            {t('dashboard.hydration', { defaultValue: 'Hydration' })}
+          </Text>
+        </View>
         {onPressHistory ? (
           <Pressable
             onPress={onPressHistory}

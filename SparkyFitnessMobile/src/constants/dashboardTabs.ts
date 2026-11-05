@@ -41,6 +41,8 @@ const TAB_CARDS: Record<DashboardTab, readonly DashboardCardKey[]> = {
     'exercise',
     'trainingLoad',
     'workouts',
+    'steps',
+    'heartRate',
   ],
   wellness: [
     'askSparky',

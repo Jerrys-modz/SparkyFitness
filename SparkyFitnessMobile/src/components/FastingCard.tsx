@@ -100,9 +100,12 @@ const FastingCard: React.FC<FastingCardProps> = ({ navigation }) => {
     return (
       <View className="bg-surface rounded-xl p-4 mb-3 shadow-sm">
         <View className="flex-row items-center justify-between">
-          <Text className="text-md font-bold text-text-secondary">
-            {t('fastingCard.title', { defaultValue: 'Fasting' })}
-          </Text>
+          <View className="flex-row items-center gap-2">
+            <Icon name="timer" size={18} color={accentPrimary} />
+            <Text className="text-base font-bold text-text-primary">
+              {t('fastingCard.title', { defaultValue: 'Fasting' })}
+            </Text>
+          </View>
           <ActivityIndicator size="small" color={accentPrimary} />
         </View>
       </View>
@@ -124,9 +127,12 @@ const FastingCard: React.FC<FastingCardProps> = ({ navigation }) => {
         >
           <View className="flex-row items-center justify-between mb-2">
             <View className="flex-row items-center">
-              <Text className="text-md font-bold text-text-secondary">
-                {t('fastingCard.title', { defaultValue: 'Fasting' })}
-              </Text>
+              <View className="flex-row items-center gap-2">
+                <Icon name="timer" size={18} color={accentPrimary} />
+                <Text className="text-base font-bold text-text-primary">
+                  {t('fastingCard.title', { defaultValue: 'Fasting' })}
+                </Text>
+              </View>
               {currentFast.is_eating_window ? (
                 <View className="ml-2 px-2 py-0.5 rounded-full bg-emerald-500/10">
                   <Text className="text-xs font-semibold text-emerald-600">
@@ -304,9 +310,12 @@ const FastingCard: React.FC<FastingCardProps> = ({ navigation }) => {
         })}
       >
         <View className="flex-row items-center justify-between mb-2">
-          <Text className="text-md font-bold text-text-secondary">
-            {t('fastingCard.title', { defaultValue: 'Fasting' })}
-          </Text>
+          <View className="flex-row items-center gap-2">
+            <Icon name="timer" size={18} color={accentPrimary} />
+            <Text className="text-base font-bold text-text-primary">
+              {t('fastingCard.title', { defaultValue: 'Fasting' })}
+            </Text>
+          </View>
           <TouchableOpacity
             onPress={() => navigation.navigate('FastingDetail')}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}

@@ -149,7 +149,7 @@ describe('DashboardSettingsScreen', () => {
 
     // Calories and Nutrients both sit on Summary and Nutrition.
     expect(screen.getAllByText('Shows on Summary, Nutrition')).toHaveLength(2);
-    // Activity Rings, Exercise Progress and Workouts.
-    expect(screen.getAllByText('Shows on Activity')).toHaveLength(3);
+    // Activity Rings, Exercise Progress, Workouts, Steps and Heart Rate.
+    expect(screen.getAllByText('Shows on Activity')).toHaveLength(5);
   });
 });

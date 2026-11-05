@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import Icon from './Icon';
 import { View, Text } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { CartesianChart, Line } from 'victory-native';
@@ -168,10 +169,13 @@ const CaffeineCard: React.FC<CaffeineCardProps> = ({
           : t('caffeine.anytimeSafe', { defaultValue: 'Any time' });
 
   return (
-    <View className="bg-surface rounded-xl p-4 my-2 shadow-sm">
-      <Text className="text-text-primary text-lg font-semibold mb-2">
-        {t('caffeine.title', { defaultValue: 'Active Caffeine' })}
-      </Text>
+    <View className="bg-surface rounded-xl p-4 mb-3 shadow-sm">
+      <View className="flex-row items-center gap-2 mb-2">
+        <Icon name="clock" size={18} color={accentColor} />
+        <Text className="text-base font-bold text-text-primary">
+          {t('caffeine.title', { defaultValue: 'Active Caffeine' })}
+        </Text>
+      </View>
 
       <View className="flex-row justify-between mb-3">
         <View>

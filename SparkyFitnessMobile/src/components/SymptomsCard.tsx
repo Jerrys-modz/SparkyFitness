@@ -141,7 +141,7 @@ export default function SymptomsCard({ navigation, date }: SymptomsCardProps) {
       <View className="flex-row items-center justify-between mb-3">
         <View className="flex-row items-center">
           <Icon name="symptoms" size={18} color={accentPrimary} />
-          <Text className="text-md font-bold text-text-secondary ml-2">
+          <Text className="text-base font-bold text-text-primary ml-2">
             {t('symptoms.title', { defaultValue: 'Symptoms' })}
           </Text>
         </View>

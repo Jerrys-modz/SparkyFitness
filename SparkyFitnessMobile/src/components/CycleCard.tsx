@@ -120,7 +120,10 @@ export const CycleCardRingContent: React.FC<{
       {/* Details on Left: stretched to the ring's height so the title sits
           at the card top; the phase block centers in the space below it */}
       <View className="flex-1 self-stretch">
-        <Text className="text-md font-bold text-text-secondary">{title}</Text>
+        <View className="flex-row items-center gap-2">
+          <Icon name="calendar" size={18} color={textAccent} />
+          <Text className="text-base font-bold text-text-primary">{title}</Text>
+        </View>
 
         <View className="flex-1 justify-center">
           <Text
@@ -217,7 +220,12 @@ const CycleCard: React.FC<CycleCardProps> = ({ navigation }) => {
         })}
       >
         <View className="flex-row items-center justify-between mb-2">
-          <Text className="text-md font-bold text-text-secondary">{title}</Text>
+          <View className="flex-row items-center gap-2">
+            <Icon name="calendar" size={18} color={accentPrimary} />
+            <Text className="text-base font-bold text-text-primary">
+              {title}
+            </Text>
+          </View>
           <View className="flex-row items-center">
             <Text className="text-md text-accent-primary font-medium">
               {t('cycleCard.setUp', { defaultValue: 'Set Up' })}
@@ -372,7 +380,12 @@ const CycleCard: React.FC<CycleCardProps> = ({ navigation }) => {
     >
       {!showsRingLayout && (
         <View className="flex-row items-center justify-between mb-2">
-          <Text className="text-md font-bold text-text-secondary">{title}</Text>
+          <View className="flex-row items-center gap-2">
+            <Icon name="calendar" size={18} color={accentPrimary} />
+            <Text className="text-base font-bold text-text-primary">
+              {title}
+            </Text>
+          </View>
 
           <View className="flex-row items-center">
             <Text className="text-md text-accent-primary font-medium">

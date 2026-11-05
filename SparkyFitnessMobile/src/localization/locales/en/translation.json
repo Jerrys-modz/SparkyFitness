@@ -1089,6 +1089,27 @@
       "empty": "No workouts logged yet.",
       "planned": "Planned · {{plan}}",
       "start": "Start"
+    },
+    "stepsCard": {
+      "title": "Steps",
+      "trends": "Trends",
+      "ofGoal": "/ {{goal}} steps ({{percent}}%)",
+      "lastSevenDays": "Last 7 days"
+    },
+    "heartRateCard": {
+      "title": "Heart Rate",
+      "restingBpm": "bpm resting",
+      "vsAverage": "{{delta}} bpm vs 7d avg",
+      "zone": "Zone {{zone}}",
+      "share": "{{percent}}%"
+    },
+    "status": {
+      "readyHard": "Ready for a hard session",
+      "readyNormal": "Ready for a normal session",
+      "takeItEasy": "Take it easy today",
+      "dosesDue_one": "{{count}} dose still due",
+      "dosesDue_other": "{{count}} doses still due",
+      "dosesDone": "All doses taken"
     }
   },
   "syncScreen": {
@@ -1378,7 +1399,11 @@
     "sleep": "Sleep",
     "sleepSubtitle": "Show last night's sleep, its stages and overnight vitals",
     "readiness": "Readiness",
-    "readinessSubtitle": "Show today's readiness score and what is holding it back"
+    "readinessSubtitle": "Show today's readiness score and what is holding it back",
+    "steps": "Steps",
+    "stepsSubtitle": "Show the day's steps against your goal and the last seven days",
+    "heartRate": "Heart Rate",
+    "heartRateSubtitle": "Show resting heart rate and today's time in each heart rate zone"
   },
   "diarySettings": {
     "updateFailed": "Failed to update setting.",
