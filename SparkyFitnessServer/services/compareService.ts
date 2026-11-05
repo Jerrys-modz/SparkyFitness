@@ -6,6 +6,7 @@ import heartRateZoneService from './heartRateZoneService.js';
 import {
   addDays,
   analyzeDays,
+  BEDTIME_ORIGIN_MINUTES,
   analyzeSince,
   analyzeWeeks,
   CompareModeError,
@@ -73,8 +74,6 @@ const SINCE_HABIT_DAYS = SINCE_START_MAX_DAYS_AGO + 14;
 const SINCE_BEFORE_DAYS = SINCE_STRETCH_MAX_DAYS + ROLLING_DAYS - 1;
 const SECONDS_PER_HOUR = 3600;
 const MINUTES_PER_DAY = 24 * 60;
-/** Bedtime counts from 18:00, so 23:30 and 00:30 sit an hour apart. */
-const BEDTIME_ORIGIN_MINUTES = 18 * 60;
 
 type FoodMetric =
   'calories' | 'protein' | 'carbs' | 'fat' | 'caffeine' | 'alcohol';

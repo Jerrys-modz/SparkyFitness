@@ -1,4 +1,9 @@
-import type { CompareResponse, CompareResult } from '@workspace/shared';
+import {
+  type CompareQuestion,
+  type CompareResponse,
+  type CompareResult,
+  SUGGESTED_QUESTIONS,
+} from '@workspace/shared';
 import i18n, { initializeI18n } from '../../src/localization/i18n';
 import {
   compareAmountText,
@@ -8,10 +13,6 @@ import {
   statsLine,
   verdictCopy,
 } from '../../src/utils/compareCopy';
-import {
-  SUGGESTED_QUESTIONS,
-  type CompareQuestion,
-} from '../../src/utils/compareQuestion';
 
 const t = ((key: string, options: Record<string, unknown>) =>
   i18n.t(key, options)) as never;
@@ -286,7 +287,7 @@ describe('verdictCopy', () => {
     );
     expect(up.headline).toBe('Yes, a difference');
     expect(up.detail).toBe(
-      'On days you meditated, your mood was higher than usual.'
+      'On days you meditated, your mood was higher than on days without meditating.'
     );
     const down = collect(
       verdictCopy(
@@ -303,7 +304,9 @@ describe('verdictCopy', () => {
         t
       )
     );
-    expect(down.detail).toContain('lower than usual');
+    expect(down.detail).toBe(
+      'On days you meditated, your mood was lower than on days without meditating.'
+    );
     const none = collect(
       verdictCopy(
         response({ method: 'difference', linked: false, binary }, q),
@@ -564,7 +567,7 @@ describe('bedtime reads later or earlier', () => {
         t
       ).detail
     ).toBe(
-      'On days you meditated, your bedtime that night was later than usual.'
+      'On days you meditated, your bedtime that night was later than on other nights.'
     );
     expect(
       verdictCopy(
@@ -581,7 +584,7 @@ describe('bedtime reads later or earlier', () => {
         t
       ).detail
     ).toBe(
-      'On days you meditated, your bedtime that night was earlier than usual.'
+      'On days you meditated, your bedtime that night was earlier than on other nights.'
     );
   });
 

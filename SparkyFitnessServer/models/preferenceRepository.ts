@@ -128,6 +128,7 @@ async function updateUserPreferences(
         goal_mode = COALESCE($33, goal_mode),
         goal_mode_calculation_method = COALESCE($34, goal_mode_calculation_method),
         goal_mode_custom_percentage = COALESCE($35, goal_mode_custom_percentage),
+        goal_mode_weekly_change_kg = COALESCE($58, goal_mode_weekly_change_kg),
         use_external_bmr = COALESCE($36, use_external_bmr),
         add_exercise_water_to_goal = COALESCE($39, add_exercise_water_to_goal),
         default_barcode_provider_id = CASE WHEN $27 THEN $26 ELSE default_barcode_provider_id END,
@@ -136,6 +137,8 @@ async function updateUserPreferences(
         active_voice_ai_service_id = CASE WHEN $55 THEN $54 ELSE active_voice_ai_service_id END,
         voice_input_enabled = COALESCE($56, voice_input_enabled),
         adaptive_activity_separate = COALESCE($57, adaptive_activity_separate),
+        use_move_ring_active_calories = COALESCE($59, use_move_ring_active_calories),
+        adjust_macros_with_exercise = COALESCE($60, adjust_macros_with_exercise),
         measurement_decimal_places = COALESCE($40, measurement_decimal_places),
         added_sugar_algorithm = COALESCE($43, added_sugar_algorithm),
         calorie_safety_floor_mode = COALESCE($45, calorie_safety_floor_mode),
@@ -202,6 +205,9 @@ async function updateUserPreferences(
         'active_voice_ai_service_id' in preferenceData,
         preferenceData.voice_input_enabled,
         preferenceData.adaptive_activity_separate,
+        preferenceData.goal_mode_weekly_change_kg,
+        preferenceData.use_move_ring_active_calories,
+        preferenceData.adjust_macros_with_exercise,
       ]
     );
     return result.rows[0];
@@ -284,6 +290,7 @@ async function upsertUserPreferences(
        goal_mode,
        goal_mode_calculation_method,
        goal_mode_custom_percentage,
+       goal_mode_weekly_change_kg,
        use_external_bmr,
        add_exercise_water_to_goal,
        active_ai_service_id,
@@ -301,6 +308,8 @@ async function upsertUserPreferences(
        target_bedtime,
        chart_scale_mode,
        adaptive_activity_separate,
+       use_move_ring_active_calories,
+       adjust_macros_with_exercise,
        created_at, updated_at
      ) VALUES (
        $1, COALESCE($2, 'yyyy-MM-dd'), COALESCE($44, 'HH:mm'), COALESCE($3, 'lbs'), COALESCE($4, 'in'), COALESCE($5, 'km'),
@@ -321,6 +330,7 @@ async function upsertUserPreferences(
        COALESCE($33, 'maintain'),
        COALESCE($34, 'manual'),
        COALESCE($35, 0),
+       COALESCE($58::double precision, 0),
        COALESCE($36, false),
        COALESCE($39, false),
        $37,
@@ -342,6 +352,8 @@ async function upsertUserPreferences(
        COALESCE($52::time without time zone, '22:30'),
        COALESCE($53, 'time'),
        COALESCE($57, FALSE),
+       COALESCE($59, FALSE),
+       COALESCE($60, FALSE),
        now(), now()
      )
      ON CONFLICT (user_id) DO UPDATE SET
@@ -374,9 +386,10 @@ async function upsertUserPreferences(
        barcode_fallback_open_food_facts = COALESCE(EXCLUDED.barcode_fallback_open_food_facts, user_preferences.barcode_fallback_open_food_facts),
        show_net_carbs = COALESCE(EXCLUDED.show_net_carbs, user_preferences.show_net_carbs),
        ai_assisted_conversions = COALESCE(EXCLUDED.ai_assisted_conversions, user_preferences.ai_assisted_conversions),
-       goal_mode = COALESCE(EXCLUDED.goal_mode, user_preferences.goal_mode),
-       goal_mode_calculation_method = COALESCE(EXCLUDED.goal_mode_calculation_method, user_preferences.goal_mode_calculation_method),
-       goal_mode_custom_percentage = COALESCE(EXCLUDED.goal_mode_custom_percentage, user_preferences.goal_mode_custom_percentage),
+       goal_mode = COALESCE($33, user_preferences.goal_mode),
+       goal_mode_calculation_method = COALESCE($34, user_preferences.goal_mode_calculation_method),
+       goal_mode_custom_percentage = COALESCE($35, user_preferences.goal_mode_custom_percentage),
+       goal_mode_weekly_change_kg = COALESCE($58, user_preferences.goal_mode_weekly_change_kg),
        use_external_bmr = COALESCE(EXCLUDED.use_external_bmr, user_preferences.use_external_bmr),
        add_exercise_water_to_goal = COALESCE(EXCLUDED.add_exercise_water_to_goal, user_preferences.add_exercise_water_to_goal),
        default_barcode_provider_id = CASE WHEN $28 THEN EXCLUDED.default_barcode_provider_id ELSE user_preferences.default_barcode_provider_id END,
@@ -385,6 +398,8 @@ async function upsertUserPreferences(
        active_voice_ai_service_id = CASE WHEN $55 THEN EXCLUDED.active_voice_ai_service_id ELSE user_preferences.active_voice_ai_service_id END,
        voice_input_enabled = COALESCE($56, user_preferences.voice_input_enabled),
        adaptive_activity_separate = COALESCE($57, user_preferences.adaptive_activity_separate),
+       use_move_ring_active_calories = COALESCE($59, user_preferences.use_move_ring_active_calories),
+       adjust_macros_with_exercise = COALESCE($60, user_preferences.adjust_macros_with_exercise),
        measurement_decimal_places = COALESCE(EXCLUDED.measurement_decimal_places, user_preferences.measurement_decimal_places),
        added_sugar_algorithm = COALESCE(EXCLUDED.added_sugar_algorithm, user_preferences.added_sugar_algorithm),
        calorie_safety_floor_mode = COALESCE($45, user_preferences.calorie_safety_floor_mode),
@@ -462,6 +477,9 @@ async function upsertUserPreferences(
         'active_voice_ai_service_id' in preferenceData,
         preferenceData.voice_input_enabled,
         preferenceData.adaptive_activity_separate,
+        preferenceData.goal_mode_weekly_change_kg,
+        preferenceData.use_move_ring_active_calories,
+        preferenceData.adjust_macros_with_exercise,
       ]
     );
     return result.rows[0];

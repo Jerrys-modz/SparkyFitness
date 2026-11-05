@@ -5,6 +5,8 @@ import {
   sleepScienceQueryKeyRoot,
   sleepRangeQueryKeyRoot,
   vo2MaxRangeQueryKeyRoot,
+  heartRateRangeQueryKeyRoot,
+  heartRateReportQueryKeyRoot,
 } from './queryKeys';
 
 const dailySummaryQueryFamily = ['dailySummary'] as const;
@@ -14,6 +16,7 @@ const exerciseHistoryQueryFamily = ['exerciseHistory'] as const;
 
 export function refreshHealthSyncCache(queryClient: QueryClient) {
   void queryClient.invalidateQueries({ queryKey: dailySummaryQueryFamily });
+  void queryClient.invalidateQueries({ queryKey: ['goalsRange'] });
   void queryClient.invalidateQueries({ queryKey: measurementsQueryFamily });
   void queryClient.invalidateQueries({
     queryKey: measurementsRangeQueryFamily,
@@ -28,6 +31,10 @@ export function refreshHealthSyncCache(queryClient: QueryClient) {
   void queryClient.invalidateQueries({ queryKey: sleepScienceQueryKeyRoot });
   // VO2 max arrives in the same sync as a custom measurement.
   void queryClient.invalidateQueries({ queryKey: vo2MaxRangeQueryKeyRoot });
+  // Resting heart rate and recovery arrive in the same sync; the report's
+  // previous-period query is not refetched on focus, so refresh both families.
+  void queryClient.invalidateQueries({ queryKey: heartRateRangeQueryKeyRoot });
+  void queryClient.invalidateQueries({ queryKey: heartRateReportQueryKeyRoot });
   void queryClient.invalidateQueries({
     queryKey: exerciseHistoryQueryFamily,
     refetchType: 'none',

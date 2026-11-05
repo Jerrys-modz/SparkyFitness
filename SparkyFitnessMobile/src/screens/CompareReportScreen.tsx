@@ -2,7 +2,20 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Text, TouchableOpacity, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useCSSVariable } from 'uniwind';
-import type { CompareMetricKey, CompareSinceResponse } from '@workspace/shared';
+import {
+  clampSinceStart,
+  type CompareMetricKey,
+  type CompareMode,
+  type CompareQuestion,
+  type CompareSinceResponse,
+  type CompareSpan,
+  compareWindow,
+  DEFAULT_COMPARE_SPAN,
+  isAskable,
+  knownCompareQuestions,
+  type CompareSpanMode,
+  timingOf,
+} from '@workspace/shared';
 
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { useCompare, useCompareSince } from '../hooks/useCompare';
@@ -18,18 +31,6 @@ import CompareChecksCard from '../components/compare/CompareChecksCard';
 import CompareSinceRows from '../components/compare/CompareSinceRows';
 import CompareSinceCard from '../components/compare/CompareSinceCard';
 import CompareSinceChart from '../components/compare/CompareSinceChart';
-import {
-  DEFAULT_COMPARE_SPAN,
-  clampSinceStart,
-  compareWindow,
-  isAskable,
-  knownCompareQuestions,
-  timingOf,
-  type CompareMode,
-  type CompareQuestion,
-  type CompareSpan,
-  type SpanMode,
-} from '../utils/compareQuestion';
 import type { CustomRange } from '../utils/trendRange';
 import type { RootStackScreenProps } from '../types/navigation';
 
@@ -57,8 +58,10 @@ const CompareReportScreen: React.FC<CompareReportScreenProps> = () => {
   const [question, setQuestion] = useState<Partial<CompareQuestion>>({});
   // Each mode remembers its own span, so flipping day/week/day keeps the pick.
   const [spans, setSpans] =
-    useState<Record<SpanMode, CompareSpan>>(DEFAULT_COMPARE_SPAN);
-  const [customs, setCustoms] = useState<Record<SpanMode, CustomRange | null>>({
+    useState<Record<CompareSpanMode, CompareSpan>>(DEFAULT_COMPARE_SPAN);
+  const [customs, setCustoms] = useState<
+    Record<CompareSpanMode, CustomRange | null>
+  >({
     day: null,
     week: null,
   });
@@ -78,7 +81,7 @@ const CompareReportScreen: React.FC<CompareReportScreenProps> = () => {
     ? timingOf(question.choice).mode
     : 'day';
   // Since mode has no span; the day one is kept for the way back.
-  const spanMode: SpanMode = mode === 'since' ? 'day' : mode;
+  const spanMode: CompareSpanMode = mode === 'since' ? 'day' : mode;
   const span = spans[spanMode];
   const window = compareWindow(span, spanMode, today, customs[spanMode]);
   const habitStart =

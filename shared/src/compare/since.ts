@@ -12,7 +12,7 @@ import { weekStartOf } from '../utils/trainingConsistency.ts';
 import { valueAt, type DaySeries } from './analyze.ts';
 import { COMPARE_METRICS, type CompareMetricKey } from './metrics.ts';
 import {
-  cautiousEffectiveNForMean,
+  biasCorrectedEffectiveNForMean,
   isSignificant,
   mean,
   olsSlope,
@@ -203,8 +203,8 @@ export function analyzeSince(input: {
   const test = welch(
     since.values,
     before.values,
-    cautiousEffectiveNForMean(since.values, MAX_LAG),
-    cautiousEffectiveNForMean(before.values, MAX_LAG)
+    biasCorrectedEffectiveNForMean(since.values, MAX_LAG),
+    biasCorrectedEffectiveNForMean(before.values, MAX_LAG)
   );
   const result: CompareSinceResult = {
     status: 'ok',
@@ -231,7 +231,7 @@ export function analyzeSince(input: {
  * regularity. A rolling one does not: its value on a day covers the 7 days ending there, so one
  * session a week reads as active every day.
  */
-function hasActiveDays(key: CompareMetricKey): boolean {
+export function hasActiveDays(key: CompareMetricKey): boolean {
   const def = COMPARE_METRICS[key];
   return !def.rolling && (def.missing === 'event' || def.kind === 'binary');
 }
@@ -309,7 +309,7 @@ function alreadyChanging(before: Stretch, diff: number): boolean {
   const residuals = before.values.map(
     (y, i) => y - intercept - fit.slope * (xs[i] ?? 0)
   );
-  const nEff = cautiousEffectiveNForMean(residuals, MAX_LAG);
+  const nEff = biasCorrectedEffectiveNForMean(residuals, MAX_LAG);
   const margin =
     tCritical95(Math.max(1, nEff - 2)) * fit.se * Math.sqrt(fit.n / nEff);
   const leavesOutZero = fit.slope - margin > 0 || fit.slope + margin < 0;

@@ -1,17 +1,17 @@
 import React from 'react';
 import { Text, View } from 'react-native';
-import type { CompareResponse } from '@workspace/shared';
+import {
+  type CompareQuestion,
+  type CompareResponse,
+  type CompareSpan,
+  timingOf,
+} from '@workspace/shared';
 import { useTranslation } from 'react-i18next';
 
 import { useAppLocale } from '../../localization/i18n';
 import { addDays, formatShortDate, getTodayDate } from '../../utils/dateUtils';
 
 import { statsLine, verdictCopy } from '../../utils/compareCopy';
-import {
-  timingOf,
-  type CompareQuestion,
-  type CompareSpan,
-} from '../../utils/compareQuestion';
 
 interface CompareAnswerCardProps {
   response: CompareResponse;

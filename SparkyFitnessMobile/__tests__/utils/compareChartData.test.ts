@@ -1,18 +1,15 @@
-import type {
-  CompareMetricKey,
-  CompareResponse,
-  CompareSinceResponse,
-  CompareSinceResult,
-} from '@workspace/shared';
-
 import {
+  type CompareMetricKey,
+  type CompareResponse,
+  type CompareSinceResponse,
+  type CompareSinceResult,
   displayDots,
   overTimeData,
   pairedDots,
   scaledSeries,
   sinceChartData,
   trendLine,
-} from '../../src/utils/compareChartData';
+} from '@workspace/shared';
 
 function response(
   devA: Record<string, number>,
