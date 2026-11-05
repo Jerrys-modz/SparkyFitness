@@ -19,6 +19,7 @@ import RunProgramCard, {
 import RunGoalsCard from '../components/recording/RunGoalsCard';
 import PaceReferenceCard from '../components/recording/PaceReferenceCard';
 import FitnessTestPanel from '../components/recording/FitnessTestPanel';
+import RecommendedTodayCard from '../components/recording/RecommendedTodayCard';
 import RunProgramCalendar from '../components/recording/RunProgramCalendar';
 import RunProgramToolsCard from '../components/recording/RunProgramToolsCard';
 import RunProgramRealignCard, {
@@ -384,6 +385,9 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
     body = (
       <>
         {active ? null : fitnessPanel}
+        {enabled ? (
+          <RecommendedTodayCard status={status} distanceUnit={distanceUnit} />
+        ) : null}
         <RunProgramCard
           programId={storedId ?? chosenId}
           onChooseProgram={chooseProgram}

@@ -23,7 +23,7 @@ test('lists the tools and runs each one', () => {
     />
   );
   expect(screen.getByText('Tools & plan actions')).toBeTruthy();
-  fireEvent.press(screen.getByText('Open the program calendar'));
+  fireEvent.press(screen.getByText('Open the training calendar'));
   fireEvent.press(screen.getByTestId('customize-current'));
   fireEvent.press(screen.getByTestId('run-program-tools-paces'));
   fireEvent.press(screen.getByText('Skip current workout'));

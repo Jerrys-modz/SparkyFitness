@@ -330,6 +330,7 @@ describe('DashboardScreen without a connection', () => {
   beforeEach(() => {
     __resetAppPreferencesStoreForTests();
     const store = useAppPreferencesStore.getState();
+    store.setDashboardTabsEnabled(false);
     store.setDashboardCardOrder(['healthTrends', 'askSparky']);
     store.setCalorieRingCardVisible(false);
     store.setMacrosCardVisible(false);
