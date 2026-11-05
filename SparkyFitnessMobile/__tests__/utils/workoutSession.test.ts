@@ -1,4 +1,5 @@
 import {
+  plateTargetKg,
   summarizeWorkoutEffort,
   summarizeWorkoutHeartRate,
   CATEGORY_ICON_MAP,
@@ -69,6 +70,7 @@ import {
   hasBodyweightExercise,
   isPrSet,
   setLoadKg,
+  upcomingExercises,
 } from '../../src/utils/workoutSession';
 import { wodScoreFormat } from '../../src/utils/wodScore';
 import type {
@@ -392,6 +394,37 @@ describe('workoutSession', () => {
 
     it('returns the trimmed source string as-is for unknown sources', () => {
       expect(getSourceLabel('MyFitnessPal')).toBe('MyFitnessPal');
+    });
+  });
+
+  describe('plateTargetKg', () => {
+    const sets = (types: (string | null)[]) =>
+      types.map((set_type, i) => ({
+        id: i + 1,
+        set_type,
+        weight: 20 * (i + 1),
+      }));
+
+    it('prefers the active set', () => {
+      expect(plateTargetKg(sets(['warmup', 'normal']), '2', null)).toBe(40);
+    });
+
+    it.each(['warmup', 'Warm-up', 'Warmup', 'WARM UP'])(
+      'skips a %s set when falling back to the first working set',
+      (type) => {
+        expect(plateTargetKg(sets([type, 'normal']), null, null)).toBe(40);
+      }
+    );
+
+    it('uses the assumed weight and ignores empty or non-positive weights', () => {
+      expect(
+        plateTargetKg([{ id: 1, set_type: 'normal', weight: null }], null, [
+          { weight: 55 },
+        ])
+      ).toBe(55);
+      expect(
+        plateTargetKg([{ id: 1, set_type: 'normal', weight: 0 }], null, null)
+      ).toBeNull();
     });
   });
 
@@ -6837,5 +6870,42 @@ describe('summarizeWorkoutEffort', () => {
         { workout_effort: 14 },
       ])
     ).toBe(9);
+  });
+});
+
+describe('upcomingExercises', () => {
+  const entry = (
+    id: string,
+    setIds: number[],
+    group: number | null = null
+  ) => ({
+    id,
+    superset_group: group,
+    sets: setIds.map((setId) => ({ id: setId })),
+  });
+  const session = {
+    exercises: [
+      entry('a', [1, 2], 1),
+      entry('b', [3, 4], 1),
+      entry('c', [5]),
+      entry('d', [6]),
+    ],
+  } as unknown as PresetSessionResponse;
+
+  it('lists the later exercises with a set to do, leaving out superset partners', () => {
+    expect(upcomingExercises(session, '1', {}).map((e) => e.id)).toEqual([
+      'c',
+      'd',
+    ]);
+  });
+
+  it('leaves out exercises that are already done', () => {
+    expect(upcomingExercises(session, '3', { 5: 1 }).map((e) => e.id)).toEqual([
+      'd',
+    ]);
+  });
+
+  it('is empty without an active set', () => {
+    expect(upcomingExercises(session, null, {})).toEqual([]);
   });
 });

@@ -187,7 +187,8 @@ export function computeRecordingProps(
           name: intervalStepName(
             ctx.t,
             position.step.kind,
-            session.intervals!.plan.style
+            session.intervals!.plan.style,
+            position.step.effort
           ),
           current: position.index + 1,
           total: session.intervals!.plan.steps.length,
