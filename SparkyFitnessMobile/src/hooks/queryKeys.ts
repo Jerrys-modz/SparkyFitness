@@ -153,8 +153,30 @@ export const waterIntakeRangeQueryKey = (startDate: string, endDate: string) =>
   ['waterIntakeRange', startDate, endDate] as const;
 
 export const sleepRangeQueryKeyRoot = ['sleepRange'] as const;
+/**
+ * Sleep science figures (need, debt, chronotype, energy, baseline). One root
+ * so a health sync or a baseline recalculation refreshes them all.
+ */
+export const sleepScienceQueryKeyRoot = ['sleepScience'] as const;
 /** Tonight's sleep need; it moves with both synced sleep and logged workouts. */
-export const sleepNeedQueryKey = ['sleepNeed'] as const;
+export const sleepNeedQueryKey = [...sleepScienceQueryKeyRoot, 'need'] as const;
+export const sleepDebtQueryKey = [...sleepScienceQueryKeyRoot, 'debt'] as const;
+export const chronotypeQueryKey = [
+  ...sleepScienceQueryKeyRoot,
+  'chronotype',
+] as const;
+export const energyCurveQueryKey = [
+  ...sleepScienceQueryKeyRoot,
+  'energy',
+] as const;
+export const sleepBaselineQueryKey = [
+  ...sleepScienceQueryKeyRoot,
+  'baseline',
+] as const;
+export const sleepDataSufficiencyQueryKey = [
+  ...sleepScienceQueryKeyRoot,
+  'sufficiency',
+] as const;
 export const sleepRangeQueryKey = (startDate: string, endDate: string) =>
   [...sleepRangeQueryKeyRoot, startDate, endDate] as const;
 

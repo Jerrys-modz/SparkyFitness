@@ -5,7 +5,17 @@ import { useTranslation } from 'react-i18next';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { useSleepAnalytics } from '../hooks/useSleepAnalytics';
 import { useSleepNeed } from '../hooks/useSleepNeed';
-import { formatLocalizedNumber, getAppLocale } from '../localization';
+import { formatLocalizedNumber } from '../localization';
+import {
+  formatSleepClock,
+  formatSleepSeconds,
+} from '../utils/sleepReportFormat';
+import {
+  ChronotypeCard,
+  EnergyCard,
+  SleepBaselineCard,
+  SleepDebtCard,
+} from '../components/sleepScience/SleepScienceCards';
 import ReportScreenLayout from '../components/reports/ReportScreenLayout';
 import ReportInsights from '../components/reports/ReportInsights';
 import ReportSummaryCard from '../components/reports/ReportSummaryCard';
@@ -35,28 +45,6 @@ type MetricConfig = {
 
 const getValue = (point: SleepAnalyticsPoint) => Math.max(0, point.value);
 
-const formatSeconds = (
-  seconds: number | null,
-  t: ReturnType<typeof useTranslation>['t']
-): string => {
-  if (seconds === null) return '-';
-  // Format the magnitude and sign it once: flooring a negative total would
-  // split -7 min into "-1h -7m". Sleep need's debt part goes negative when
-  // there is a sleep surplus.
-  const totalMinutes = Math.round(Math.abs(seconds) / 60);
-  const duration = t('sleepAnalytics.duration', {
-    defaultValue: '{{hours}}h {{minutes}}m',
-    hours: Math.floor(totalMinutes / 60),
-    minutes: totalMinutes % 60,
-  });
-  return seconds < 0 && totalMinutes > 0
-    ? t('sleepAnalytics.negativeDuration', {
-        defaultValue: '-{{duration}}',
-        duration,
-      })
-    : duration;
-};
-
 /**
  * Ties the Debt recovery row to the sleep debt the web report shows: tonight
  * only pays back part of it (a quarter, capped at 2 h), and a negative debt is
@@ -69,7 +57,7 @@ const debtHint = (
   if (debtHours == null || Math.round(Math.abs(debtHours) * 60) === 0) {
     return undefined;
   }
-  const amount = formatSeconds(Math.abs(debtHours) * 3600, t);
+  const amount = formatSleepSeconds(Math.abs(debtHours) * 3600, t);
   return debtHours > 0
     ? t('sleepAnalytics.needDebtHint', {
         defaultValue: 'Part of your {{amount}} sleep debt',
@@ -79,18 +67,6 @@ const debtHint = (
         defaultValue: 'Part of your {{amount}} sleep surplus',
         amount,
       });
-};
-
-const formatClock = (minutes: number | null): string => {
-  if (minutes === null) return '-';
-  const rounded = Math.round(minutes) % 1440;
-  return new Date(
-    2000,
-    0,
-    1,
-    Math.floor(rounded / 60),
-    rounded % 60
-  ).toLocaleTimeString(getAppLocale(), { hour: 'numeric', minute: '2-digit' });
 };
 
 const SleepAnalyticsScreen: React.FC<SleepAnalyticsScreenProps> = () => {
@@ -279,14 +255,14 @@ const SleepAnalyticsScreen: React.FC<SleepAnalyticsScreenProps> = () => {
                 label: t('sleepAnalytics.weekdayBedtime', {
                   defaultValue: 'Weeknight bedtime',
                 }),
-                value: formatClock(analytics.weekdayBedtimeMinutes),
+                value: formatSleepClock(analytics.weekdayBedtimeMinutes),
                 testID: 'sleep-weekday-bedtime',
               },
               {
                 label: t('sleepAnalytics.weekendBedtime', {
                   defaultValue: 'Weekend bedtime',
                 }),
-                value: formatClock(analytics.weekendBedtimeMinutes),
+                value: formatSleepClock(analytics.weekendBedtimeMinutes),
                 testID: 'sleep-weekend-bedtime',
               },
             ]
@@ -354,14 +330,14 @@ const SleepAnalyticsScreen: React.FC<SleepAnalyticsScreenProps> = () => {
           label: t('sleepAnalytics.avgBedtime', {
             defaultValue: 'Average bedtime',
           }),
-          value: formatClock(analytics.averageBedtimeMinutes),
+          value: formatSleepClock(analytics.averageBedtimeMinutes),
           testID: 'sleep-avg-bedtime',
         },
         {
           label: t('sleepAnalytics.avgWake', {
             defaultValue: 'Average wake time',
           }),
-          value: formatClock(analytics.averageWakeMinutes),
+          value: formatSleepClock(analytics.averageWakeMinutes),
           testID: 'sleep-avg-wake',
         },
         ...(analytics.bedtimeVariabilityMinutes === null
@@ -561,21 +537,21 @@ const SleepAnalyticsScreen: React.FC<SleepAnalyticsScreenProps> = () => {
                   label: t('sleepAnalytics.needTotal', {
                     defaultValue: 'Total',
                   }),
-                  value: formatSeconds(sleepNeed.total_need * 3600, t),
+                  value: formatSleepSeconds(sleepNeed.total_need * 3600, t),
                   testID: 'sleep-need-total',
                 },
                 {
                   label: t('sleepAnalytics.needBaseline', {
                     defaultValue: 'Baseline',
                   }),
-                  value: formatSeconds(sleepNeed.baseline_need * 3600, t),
+                  value: formatSleepSeconds(sleepNeed.baseline_need * 3600, t),
                   testID: 'sleep-need-baseline',
                 },
                 {
                   label: t('sleepAnalytics.needStrain', {
                     defaultValue: 'Strain',
                   }),
-                  value: formatSeconds(
+                  value: formatSleepSeconds(
                     (sleepNeed.strain_addition ?? 0) * 3600,
                     t
                   ),
@@ -588,7 +564,7 @@ const SleepAnalyticsScreen: React.FC<SleepAnalyticsScreenProps> = () => {
                   label: t('sleepAnalytics.needDebt', {
                     defaultValue: 'Debt recovery',
                   }),
-                  value: formatSeconds(
+                  value: formatSleepSeconds(
                     (sleepNeed.debt_addition ?? 0) * 3600,
                     t
                   ),
@@ -634,6 +610,8 @@ const SleepAnalyticsScreen: React.FC<SleepAnalyticsScreenProps> = () => {
               ]}
             />
           ) : null}
+          {isSectionShown('sleep.debt') ? <SleepDebtCard /> : null}
+          {isSectionShown('sleep.energy') ? <EnergyCard /> : null}
           {isSectionShown('sleep.stages') && analytics ? (
             <ReportSummaryCard
               title={t('sleepAnalytics.stages', {
@@ -644,7 +622,7 @@ const SleepAnalyticsScreen: React.FC<SleepAnalyticsScreenProps> = () => {
                   label: t('sleepAnalytics.stageDeep', {
                     defaultValue: 'Deep',
                   }),
-                  value: formatSeconds(analytics.stages.deepSeconds, t),
+                  value: formatSleepSeconds(analytics.stages.deepSeconds, t),
                   hint: stageShare(analytics.stagePct.deep),
                   testID: 'sleep-stage-deep',
                 },
@@ -652,13 +630,13 @@ const SleepAnalyticsScreen: React.FC<SleepAnalyticsScreenProps> = () => {
                   label: t('sleepAnalytics.stageLight', {
                     defaultValue: 'Light',
                   }),
-                  value: formatSeconds(analytics.stages.lightSeconds, t),
+                  value: formatSleepSeconds(analytics.stages.lightSeconds, t),
                   hint: stageShare(analytics.stagePct.light),
                   testID: 'sleep-stage-light',
                 },
                 {
                   label: t('sleepAnalytics.stageRem', { defaultValue: 'REM' }),
-                  value: formatSeconds(analytics.stages.remSeconds, t),
+                  value: formatSleepSeconds(analytics.stages.remSeconds, t),
                   hint: stageShare(analytics.stagePct.rem),
                   testID: 'sleep-stage-rem',
                 },
@@ -666,7 +644,7 @@ const SleepAnalyticsScreen: React.FC<SleepAnalyticsScreenProps> = () => {
                   label: t('sleepAnalytics.stageAwake', {
                     defaultValue: 'Awake',
                   }),
-                  value: formatSeconds(analytics.stages.awakeSeconds, t),
+                  value: formatSleepSeconds(analytics.stages.awakeSeconds, t),
                   hint: stageShare(analytics.stagePct.awake),
                   testID: 'sleep-stage-awake',
                 },
@@ -718,6 +696,8 @@ const SleepAnalyticsScreen: React.FC<SleepAnalyticsScreenProps> = () => {
               rows={nightRows}
             />
           ) : null}
+          {isSectionShown('sleep.chronotype') ? <ChronotypeCard /> : null}
+          {isSectionShown('sleep.baseline') ? <SleepBaselineCard /> : null}
           {isSectionShown('sleep.averages') && averageRows.length > 0 ? (
             <ReportSummaryCard
               title={t('sleepAnalytics.averages', {
