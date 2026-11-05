@@ -224,14 +224,27 @@ struct FirstRunEntryView: View {
     let onSave: (Double, Double?) -> Void
 
     @EnvironmentObject private var store: CheckInStore
-    @State private var weightText = ""
-    @State private var bodyFatText = ""
+    /// In `unit`, as typed.
+    @State private var weight: Double?
+    @State private var bodyFat: Double?
+    @State private var editing: Field?
+
+    private enum Field: Identifiable {
+        case weight
+        case bodyFat
+        var id: Self { self }
+    }
 
     /// Mirrors the phone's Settings → default weight unit, same as the crown
     /// screen and trend chart. Available here as long as the watch has synced
     /// with the phone at least once, which first-run entry doesn't require —
     /// falls back to kg otherwise.
     private var unit: WeightUnit { store.context.effectiveWeightUnit }
+
+    /// Same limits as the check-in page's typed entry.
+    private var weightRange: ClosedRange<Double> {
+        unit.fromKg(2)...unit.fromKg(500)
+    }
 
     var body: some View {
         ScrollView {
@@ -244,22 +257,65 @@ struct FirstRunEntryView: View {
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
 
-                TextField(String(localized: "watch.checkin.weightPlaceholder", defaultValue: "Weight \(unit.suffix)"), text: $weightText)
-                TextField(String(localized: "watch.checkin.bodyFatOptional", defaultValue: "Body fat % (optional)"), text: $bodyFatText)
+                // Rows that open the passcode-style pad, rather than text
+                // fields that bring up the full system keyboard for a number.
+                valueRow(
+                    weight.map { "\(Self.format($0)) \(unit.suffix)" },
+                    placeholder: String(localized: "watch.checkin.weightPlaceholder", defaultValue: "Weight \(unit.suffix)")
+                ) { editing = .weight }
+                valueRow(
+                    bodyFat.map { "\(Self.format($0)) %" },
+                    placeholder: String(localized: "watch.checkin.bodyFatOptional", defaultValue: "Body fat % (optional)")
+                ) { editing = .bodyFat }
 
                 Button(String(localized: "watch.common.save", defaultValue: "Save")) {
-                    guard let weight = parse(weightText) else { return }
+                    guard let weight else { return }
                     Haptics.tap()
-                    onSave(unit.toKg(weight), parse(bodyFatText))
+                    onSave(unit.toKg(weight), bodyFat)
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(parse(weightText) == nil)
+                .disabled(weight == nil)
             }
             .padding(.horizontal, 4)
         }
+        .sheet(item: $editing) { field in
+            switch field {
+            case .weight:
+                NumericKeypadView(
+                    title: unit.suffix,
+                    initial: weight,
+                    allowsDecimal: true,
+                    range: weightRange
+                ) { weight = $0 }
+            case .bodyFat:
+                NumericKeypadView(
+                    title: "%",
+                    initial: bodyFat,
+                    allowsDecimal: true,
+                    range: 0...100
+                ) { bodyFat = $0 }
+            }
+        }
+        // A unit change from the phone would otherwise save the typed number
+        // in the new unit.
+        .onChange(of: unit) { weight = nil }
     }
 
-    private func parse(_ value: String) -> Double? {
-        Double(value.replacingOccurrences(of: ",", with: "."))
+    private func valueRow(
+        _ value: String?,
+        placeholder: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: Haptics.tapping(action)) {
+            Text(value ?? placeholder)
+                .foregroundStyle(value == nil ? Color.secondary : Color.primary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private static func format(_ value: Double) -> String {
+        value == value.rounded() ? String(Int(value)) : String(format: "%.1f", value)
     }
 }
