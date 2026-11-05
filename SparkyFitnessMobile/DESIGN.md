@@ -418,7 +418,7 @@ Shared primitives to reuse (from the Styling And UI guide in `SparkyFitnessMobil
 - `FormInput` (`SparkyFitnessMobile/src/components/FormInput.tsx`): themed text field with focus border and placeholder color.
 - `Button` (`SparkyFitnessMobile/src/components/ui/Button.tsx`): the 7 button variants above.
 - `SettingsRow` and `SettingsRowGroup` (`SparkyFitnessMobile/src/components/SettingsRow.tsx`): icon, title, subtitle and trailing-slot rows, alone or grouped in one card.
-- `SegmentedControl` (`SparkyFitnessMobile/src/components/SegmentedControl.tsx`): `rounded-md` segments on a `bg-raised p-1 rounded-lg` track, the selected one filled with `bg-surface`.
+- `SegmentedControl` (`SparkyFitnessMobile/src/components/SegmentedControl.tsx`): `rounded-md` segments on a `bg-raised p-1 rounded-lg` track, the selected one filled with `bg-surface`. `tone="accent"` is for a control that switches what the whole screen shows (the Dashboard tabs): `rounded-lg` segments on a `rounded-xl` track, the selected one filled with Sparky Blue (`bg-accent-primary`) and labelled `text-white` semibold, the others `text-text-secondary`.
 - `StepperInput` (`SparkyFitnessMobile/src/components/StepperInput.tsx`): minus / value / plus numeric entry.
 - `BottomSheetPicker` (`SparkyFitnessMobile/src/components/BottomSheetPicker.tsx`): single-select sheet plus its `PickerTrigger` field.
 - `CalendarSheet` (`SparkyFitnessMobile/src/components/CalendarSheet.tsx`): single-date picker sheet.

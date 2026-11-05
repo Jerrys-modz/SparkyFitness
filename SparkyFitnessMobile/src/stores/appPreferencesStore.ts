@@ -43,6 +43,10 @@ import {
   type DashboardCardKey,
 } from '../constants/dashboardCards';
 import {
+  DEFAULT_DASHBOARD_TAB,
+  type DashboardTab,
+} from '../constants/dashboardTabs';
+import {
   DEFAULT_PINNED_METRICS,
   MAX_PINNED_METRICS,
   type PinnedMetricKey,
@@ -161,6 +165,8 @@ export const PREFERENCE_DEFAULTS = {
   labResultsCardVisible: true,
   trainingLoadCardVisible: true,
   dashboardCardOrder: [...DASHBOARD_CARD_KEYS] as DashboardCardKey[],
+  dashboardTabsEnabled: true,
+  dashboardTab: DEFAULT_DASHBOARD_TAB as DashboardTab,
   medicationRemindersEnabled: true,
   medicationReminderRepeats: true,
   medicationReminderHideNames: false,
@@ -280,6 +286,10 @@ export type AppPreferencesData = {
   labResultsCardVisible: boolean;
   trainingLoadCardVisible: boolean;
   dashboardCardOrder: DashboardCardKey[];
+  /** Split the Dashboard into Summary, Nutrition, Activity and Wellness tabs. */
+  dashboardTabsEnabled: boolean;
+  /** The Dashboard tab last open, so the app returns to it. */
+  dashboardTab: DashboardTab;
   medicationRemindersEnabled: boolean;
   medicationReminderRepeats: boolean;
   medicationReminderHideNames: boolean;
@@ -457,6 +467,8 @@ export interface AppPreferencesState extends AppPreferencesData {
   setLabResultsCardVisible: (value: boolean) => void;
   setTrainingLoadCardVisible: (value: boolean) => void;
   setDashboardCardOrder: (order: DashboardCardKey[]) => void;
+  setDashboardTabsEnabled: (value: boolean) => void;
+  setDashboardTab: (tab: DashboardTab) => void;
   setMedicationRemindersEnabled: (value: boolean) => void;
   setMedicationReminderRepeats: (value: boolean) => void;
   setMedicationReminderHideNames: (value: boolean) => void;
@@ -672,6 +684,8 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
       setTrainingLoadCardVisible: (value) =>
         set({ trainingLoadCardVisible: value }),
       setDashboardCardOrder: (order) => set({ dashboardCardOrder: order }),
+      setDashboardTabsEnabled: (value) => set({ dashboardTabsEnabled: value }),
+      setDashboardTab: (tab) => set({ dashboardTab: tab }),
       setMedicationRemindersEnabled: (value) =>
         set({ medicationRemindersEnabled: value }),
       setMedicationReminderRepeats: (value) =>
@@ -936,6 +950,8 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         labResultsCardVisible: state.labResultsCardVisible,
         trainingLoadCardVisible: state.trainingLoadCardVisible,
         dashboardCardOrder: state.dashboardCardOrder,
+        dashboardTabsEnabled: state.dashboardTabsEnabled,
+        dashboardTab: state.dashboardTab,
         medicationRemindersEnabled: state.medicationRemindersEnabled,
         medicationReminderRepeats: state.medicationReminderRepeats,
         medicationReminderHideNames: state.medicationReminderHideNames,

@@ -21,6 +21,7 @@ import {
   DASHBOARD_CARD_TITLES,
   type DashboardCardKey,
 } from '../constants/dashboardCards';
+import { DASHBOARD_TAB_LABELS, tabsForCard } from '../constants/dashboardTabs';
 import {
   useCustomNutrients,
   useNutrientDisplayPreferences,
@@ -171,6 +172,13 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
   );
   const setDashboardCardOrder = useAppPreferencesStore(
     (s) => s.setDashboardCardOrder
+  );
+
+  const dashboardTabsEnabled = useAppPreferencesStore(
+    (s) => s.dashboardTabsEnabled
+  );
+  const setDashboardTabsEnabled = useAppPreferencesStore(
+    (s) => s.setDashboardTabsEnabled
   );
 
   const orderedCards = useMemo(
@@ -471,7 +479,29 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
           usesNativeHeader ? 'automatic' : 'never'
         }
       >
-        <Text className="text-text-secondary text-sm mb-4">
+        <SettingsRowGroup>
+          <SettingsRow
+            title={t('dashboardSettings.tabs', {
+              defaultValue: 'Dashboard tabs',
+            })}
+            subtitle={t('dashboardSettings.tabsSubtitle', {
+              defaultValue:
+                'Split the Dashboard into Summary, Nutrition, Activity and Wellness',
+            })}
+            rightAccessory={
+              <Switch
+                testID="dashboard-tabs-switch"
+                accessibilityLabel={t('dashboardSettings.tabs', {
+                  defaultValue: 'Dashboard tabs',
+                })}
+                value={dashboardTabsEnabled}
+                onValueChange={setDashboardTabsEnabled}
+              />
+            }
+          />
+        </SettingsRowGroup>
+
+        <Text className="text-text-secondary text-sm mb-4 mt-6">
           {t('dashboardSettings.description', {
             defaultValue:
               'Drag a card by its handle to reorder your Dashboard. Toggle off to hide cards you do not use.',
@@ -481,7 +511,15 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
         <View className="bg-surface rounded-xl overflow-hidden shadow-sm mb-6">
           {orderedCards.map((cardKey, index) => {
             const title = DASHBOARD_CARD_TITLES[cardKey](t);
-            const subtitle = DASHBOARD_CARD_SUBTITLES[cardKey](t);
+            // With tabs on, where a card shows matters more than what it is.
+            const subtitle = dashboardTabsEnabled
+              ? t('dashboardSettings.showsOnTabs', {
+                  defaultValue: 'Shows on {{tabs}}',
+                  tabs: tabsForCard(cardKey)
+                    .map((tab) => DASHBOARD_TAB_LABELS[tab](t))
+                    .join(', '),
+                })
+              : DASHBOARD_CARD_SUBTITLES[cardKey](t);
             return (
               <ReorderSwitchRow
                 key={cardKey}

@@ -130,4 +130,25 @@ describe('DashboardSettingsScreen', () => {
     expect(state.dashboardCardOrder[0]).toBe('pinnedMetrics');
     expect(state.dashboardCardOrder[1]).toBe('calorieRing');
   });
+
+  test('the tabs switch turns the Dashboard tabs off and on', () => {
+    renderScreen();
+
+    const tabsSwitch = screen.getByTestId('dashboard-tabs-switch');
+    expect(tabsSwitch.props.value).toBe(true);
+
+    fireEvent(tabsSwitch, 'valueChange', false);
+    expect(useAppPreferencesStore.getState().dashboardTabsEnabled).toBe(false);
+
+    fireEvent(tabsSwitch, 'valueChange', true);
+    expect(useAppPreferencesStore.getState().dashboardTabsEnabled).toBe(true);
+  });
+
+  test('with tabs on, each card says which tabs it shows on', () => {
+    renderScreen();
+
+    // Calories and Nutrients both sit on Summary and Nutrition.
+    expect(screen.getAllByText('Shows on Summary, Nutrition')).toHaveLength(2);
+    expect(screen.getAllByText('Shows on Activity')).toHaveLength(2);
+  });
 });

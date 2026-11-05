@@ -114,6 +114,16 @@ import {
 } from '../utils/pinnedMetrics';
 import GlanceStrip from '../components/GlanceStrip';
 import { resolveDashboardCardOrder } from '../utils/dashboardCardPreferences';
+import type { DashboardCardKey } from '../constants/dashboardCards';
+import {
+  ASK_SPARKY_PROMPTS,
+  DASHBOARD_TABS,
+  DASHBOARD_TAB_LABELS,
+  cardShowsOnTab,
+  cardsForTab,
+  resolveDashboardTab,
+  type DashboardTab,
+} from '../constants/dashboardTabs';
 import type { RootStackParamList, TabParamList } from '../types/navigation';
 import { formatDateLabel, getDateRelationToToday } from '../utils/dateUtils';
 import {
@@ -336,10 +346,40 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
     () => selectTileTrends(visibleTrends, healthTrendTiles),
     [visibleTrends, healthTrendTiles]
   );
+  // With tabs on, a card only counts as shown while its tab is open, so a hidden tab's
+  // cards fetch nothing and the At a Glance strip only skips what is on screen with it.
+  const dashboardTabsEnabled = useAppPreferencesStore(
+    (s) => s.dashboardTabsEnabled
+  );
+  const savedDashboardTab = useAppPreferencesStore((s) => s.dashboardTab);
+  const setDashboardTab = useAppPreferencesStore((s) => s.setDashboardTab);
+  const dashboardTab = resolveDashboardTab(savedDashboardTab);
+  const isOnTab = useCallback(
+    (key: DashboardCardKey) =>
+      !dashboardTabsEnabled || cardShowsOnTab(key, dashboardTab),
+    [dashboardTabsEnabled, dashboardTab]
+  );
+  const selectDashboardTab = useCallback(
+    (tab: DashboardTab) => {
+      setDashboardTab(tab);
+      scrollViewRef.current?.scrollTo({ y: 0, animated: false });
+    },
+    [setDashboardTab]
+  );
+  const tabSegments = useMemo(
+    () =>
+      DASHBOARD_TABS.map((tab) => ({
+        key: tab,
+        label: DASHBOARD_TAB_LABELS[tab](t),
+      })),
+    [t]
+  );
+
   // The trends that need loading depend on the layout: tiles loads only the chosen ones.
   const pinnedMetricsCardVisible = useAppPreferencesStore(
     (s) => s.pinnedMetricsCardVisible
   );
+  const glanceOnScreen = pinnedMetricsCardVisible && isOnTab('pinnedMetrics');
   const savedPinnedMetrics = useAppPreferencesStore((s) => s.pinnedMetrics);
   const pinnedAuto = useAppPreferencesStore((s) => s.pinnedAuto);
   const activityRingsCompact = useAppPreferencesStore(
@@ -354,10 +394,10 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
   // What the At a Glance strip may draw, before data and other cards narrow it down.
   const pinnedMetrics = useMemo(
     () =>
-      pinnedMetricsCardVisible
+      glanceOnScreen
         ? resolveGlanceCandidates(pinnedAuto, savedPinnedMetrics)
         : [],
-    [pinnedMetricsCardVisible, pinnedAuto, savedPinnedMetrics]
+    [glanceOnScreen, pinnedAuto, savedPinnedMetrics]
   );
   // Trends the strip may show load even when the Health Trends card is not showing them.
   const loadedTrends = useMemo(() => {
@@ -484,7 +524,10 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
     nowMs: caffeineNowMs,
     isLoading: isCaffeineLoading,
     refetch: refetchCaffeine,
-  } = useCaffeineKinetics(selectedDate, caffeineCardVisible);
+  } = useCaffeineKinetics(
+    selectedDate,
+    caffeineCardVisible && isOnTab('caffeine')
+  );
   const askSparkyVisible = useAppPreferencesStore((s) => s.askSparkyVisible);
   const medicationsCardVisible = useAppPreferencesStore(
     (s) => s.medicationsCardVisible
@@ -512,6 +555,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
   const activityRingsCardVisible = useAppPreferencesStore(
     (s) => s.activityRingsCardVisible
   );
+  const ringsOnScreen = activityRingsCardVisible && isOnTab('activityRings');
   const activityRingStyle = useAppPreferencesStore((s) => s.activityRingStyle);
   const activityRingCustom = useAppPreferencesStore(
     (s) => s.activityRingCustom
@@ -519,13 +563,13 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
   // Active points come from each workout's stored time in heart rate zones, one request
   // per workout with a heart rate, so nothing is fetched unless the ring is on screen.
   const showsActivePoints =
-    (activityRingsCardVisible &&
+    (ringsOnScreen &&
       resolveActivityRingKeys(activityRingStyle, activityRingCustom).includes(
         'points'
       )) ||
     pinsActivePoints(pinnedMetrics);
   const showsStand =
-    (activityRingsCardVisible &&
+    (ringsOnScreen &&
       resolveActivityRingKeys(activityRingStyle, activityRingCustom).includes(
         'stand'
       )) ||
@@ -550,6 +594,37 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
   const orderedDashboardCards = useMemo(
     () => resolveDashboardCardOrder(dashboardCardOrder),
     [dashboardCardOrder]
+  );
+  const shownCardKeys = useMemo(
+    () =>
+      dashboardTabsEnabled
+        ? cardsForTab(orderedDashboardCards, dashboardTab)
+        : orderedDashboardCards,
+    [dashboardTabsEnabled, orderedDashboardCards, dashboardTab]
+  );
+  const cardVisible: Record<DashboardCardKey, boolean> = {
+    calorieRing: calorieRingCardVisible,
+    pinnedMetrics: pinnedMetricsCardVisible,
+    askSparky: askSparkyVisible,
+    macros: macrosCardVisible,
+    exercise: exerciseCardVisible,
+    activityRings: activityRingsCardVisible,
+    trainingLoad: trainingLoadCardVisible,
+    hydration: hydrationCardVisible,
+    caffeine: caffeineCardVisible,
+    fasting: fastingCardVisible,
+    cycle: cycleCardVisible,
+    medications: medicationsCardVisible,
+    symptoms: symptomsCardVisible,
+    mood: moodCardVisible,
+    progressPhotos: progressPhotosCardVisible,
+    healthTrends: healthTrendsCardVisible,
+    mindfulness: mindfulnessCardVisible,
+    labResults: labResultsCardVisible,
+  };
+  // Ask Sparky alone is not a tab's content, so a tab with nothing else says so.
+  const tabHasVisibleCard = shownCardKeys.some(
+    (key) => key !== 'askSparky' && cardVisible[key]
   );
 
   useLayoutEffect(() => {
@@ -735,13 +810,13 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
       auto: pinnedAuto,
       candidates: pinnedMetrics,
       covered: coveredPinnedKeys({
-        activityRings: activityRingsCardVisible
+        activityRings: ringsOnScreen
           ? resolveActivityRingKeys(activityRingStyle, activityRingCustom)
           : null,
-        exercise: exerciseCardVisible,
-        calorieRing: calorieRingCardVisible,
-        macros: macrosCardVisible,
-        hydration: hydrationCardVisible,
+        exercise: exerciseCardVisible && isOnTab('exercise'),
+        calorieRing: calorieRingCardVisible && isOnTab('calorieRing'),
+        macros: macrosCardVisible && isOnTab('macros'),
+        hydration: hydrationCardVisible && isOnTab('hydration'),
       }),
       hasData: (metric) =>
         metric.kind !== 'trend' ||
@@ -777,7 +852,32 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
             to `selectedDate`. Visibility is a local app setting toggled from
             Dashboard Settings. */}
         <FastingGoalReconciler />
-        {orderedDashboardCards.map((cardKey) => {
+        {dashboardTabsEnabled && (
+          <View className="mb-3">
+            <SegmentedControl
+              testID="dashboard-tabs"
+              tone="accent"
+              segments={tabSegments}
+              activeKey={dashboardTab}
+              onSelect={selectDashboardTab}
+            />
+          </View>
+        )}
+        {dashboardTabsEnabled && !tabHasVisibleCard && (
+          <Pressable
+            testID="dashboard-tab-empty"
+            onPress={() => navigation.navigate('DashboardSettings')}
+            className="bg-surface rounded-xl p-4 mb-3 shadow-sm"
+          >
+            <Text className="text-text-secondary text-sm text-center">
+              {t('dashboard.tabEmpty', {
+                defaultValue:
+                  'All the cards on this tab are hidden. Tap to choose cards in Dashboard Settings.',
+              })}
+            </Text>
+          </Pressable>
+        )}
+        {shownCardKeys.map((cardKey) => {
           switch (cardKey) {
             case 'calorieRing':
               return calorieRingCardVisible &&
@@ -803,7 +903,11 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                 >
                   <Icon name="sparkles" size={18} color={accentColor} />
                   <Text className="text-text-muted text-base ml-3">
-                    {t('dashboard.askSparky', { defaultValue: 'Ask Sparky…' })}
+                    {dashboardTabsEnabled
+                      ? ASK_SPARKY_PROMPTS[dashboardTab](t)
+                      : t('dashboard.askSparky', {
+                          defaultValue: 'Ask Sparky…',
+                        })}
                   </Text>
                 </Pressable>
               ) : null;
