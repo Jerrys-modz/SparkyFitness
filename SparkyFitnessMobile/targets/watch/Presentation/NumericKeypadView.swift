@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Digit pad for one value, laid out like the watch's own passcode pad: big
 /// round keys that fill the screen, 1-9 in three rows, then the decimal point,
-/// 0 and delete. watchOS has no usable inline number field, the system
+/// 0 and a green OK. Delete sits beside the number, so no row is spent on it. watchOS has no usable inline number field, the system
 /// keyboard is slow for a number, and the Digital Crown alone makes a
 /// 60 → 82.5 change a long scroll, so a tapped value opens this instead.
 ///
@@ -31,7 +31,7 @@ struct NumericKeypadView: View {
     private enum Key: Hashable {
         case digit(Int)
         case decimal
-        case delete
+        case ok
         case blank
     }
 
@@ -40,7 +40,7 @@ struct NumericKeypadView: View {
             [.digit(1), .digit(2), .digit(3)],
             [.digit(4), .digit(5), .digit(6)],
             [.digit(7), .digit(8), .digit(9)],
-            [allowsDecimal ? .decimal : .blank, .digit(0), .delete],
+            [allowsDecimal ? .decimal : .blank, .digit(0), .ok],
         ]
     }
 
@@ -60,13 +60,13 @@ struct NumericKeypadView: View {
 
     var body: some View {
         GeometryReader { geo in
-            let displayHeight: CGFloat = 30
-            let okHeight: CGFloat = 30
-            // Four rows of keys share whatever the display and OK leave, so
-            // the keys are as big as the screen allows on every watch size.
+            let displayHeight: CGFloat = 26
+            // Four rows of keys share whatever the display leaves, so the keys
+            // are as big as the screen allows on every watch size and never
+            // push the last row off a 40 mm screen.
             let keyHeight = max(
-                22,
-                (geo.size.height - displayHeight - okHeight - Self.spacing * 5) / 4
+                0,
+                (geo.size.height - displayHeight - Self.spacing * 4) / 4
             )
 
             VStack(spacing: Self.spacing) {
@@ -82,13 +82,13 @@ struct NumericKeypadView: View {
                         }
                     }
                 }
-
-                okButton
-                    .frame(height: okHeight)
             }
             .frame(width: geo.size.width, height: geo.size.height, alignment: .top)
         }
         .padding(.horizontal, 2)
+        // The bottom row runs into the screen's lower corners, as the passcode
+        // pad does, instead of leaving a strip empty.
+        .ignoresSafeArea(edges: .bottom)
     }
 
     // MARK: - Pieces
@@ -112,12 +112,16 @@ struct NumericKeypadView: View {
                 .watchFont(.footnote, classic: .system(size: 10))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
+        }
+        .frame(maxWidth: .infinity)
+        // Side buttons sit over the row's ends so the number stays centered
+        // whichever of them is shown.
+        .overlay(alignment: .leading) {
             if allowsNegative {
                 Button(action: Haptics.tapping(toggleSign)) {
                     Image(systemName: "plusminus")
                         .font(.footnote.weight(.semibold))
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 3)
+                        .frame(width: 32, height: 24)
                 }
                 .buttonStyle(KeypadKeyStyle())
                 .accessibilityLabel(
@@ -125,7 +129,18 @@ struct NumericKeypadView: View {
                 )
             }
         }
-        .frame(maxWidth: .infinity)
+        .overlay(alignment: .trailing) {
+            Button(action: Haptics.tapping(deleteLast)) {
+                Image(systemName: "delete.left")
+                    .font(.system(size: 16, weight: .medium))
+                    .frame(width: 32, height: 24)
+            }
+            .buttonStyle(KeypadKeyStyle(filled: false))
+            .disabled(entry.isEmpty)
+            .accessibilityLabel(
+                String(localized: "watch.keypad.delete", defaultValue: "Delete")
+            )
+        }
     }
 
     @ViewBuilder
@@ -148,37 +163,25 @@ struct NumericKeypadView: View {
             .accessibilityLabel(
                 String(localized: "watch.keypad.decimal", defaultValue: "Decimal point")
             )
-        case .delete:
-            // No key behind it, as on the passcode pad, so it reads as an
-            // action rather than another digit.
-            Button(action: Haptics.tapping { press(key) }) {
-                Image(systemName: "delete.left")
-                    .font(.system(size: 18, weight: .medium))
+        case .ok:
+            Button {
+                guard let value = committable else { return }
+                Haptics.tap()
+                onCommit(value)
+                dismiss()
+            } label: {
+                Image(systemName: "checkmark")
+                    .font(.system(size: 20, weight: .bold))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .buttonStyle(KeypadKeyStyle(filled: false))
-            .disabled(entry.isEmpty)
+            .buttonStyle(KeypadKeyStyle(tint: .green))
+            .disabled(committable == nil)
             .accessibilityLabel(
-                String(localized: "watch.keypad.delete", defaultValue: "Delete")
+                String(localized: "watch.common.ok", defaultValue: "OK")
             )
         case .blank:
             Color.clear
         }
-    }
-
-    private var okButton: some View {
-        Button {
-            guard let value = committable else { return }
-            Haptics.tap()
-            onCommit(value)
-            dismiss()
-        } label: {
-            Text(String(localized: "watch.common.ok", defaultValue: "OK"))
-                .watchFont(.body.weight(.semibold), classic: .footnote.weight(.semibold))
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-        .buttonStyle(KeypadKeyStyle(tint: .green))
-        .disabled(committable == nil)
     }
 
     // MARK: - Typing
@@ -214,6 +217,10 @@ struct NumericKeypadView: View {
         }
     }
 
+    private func deleteLast() {
+        if !entry.isEmpty { entry.removeLast() }
+    }
+
     private func press(_ key: Key) {
         let sign = entry.hasPrefix("-") ? "-" : ""
         let unsigned = entry.hasPrefix("-") ? String(entry.dropFirst()) : entry
@@ -221,8 +228,6 @@ struct NumericKeypadView: View {
         let hasPoint = parts.count > 1
 
         switch key {
-        case .delete:
-            if !entry.isEmpty { entry.removeLast() }
         case .decimal:
             guard !hasPoint else { return }
             entry = sign + (unsigned.isEmpty ? "0." : unsigned + ".")
@@ -237,7 +242,7 @@ struct NumericKeypadView: View {
                 guard unsigned.count < Self.maxIntegerDigits else { return }
                 entry += String(digit)
             }
-        case .blank:
+        case .ok, .blank:
             break
         }
     }
