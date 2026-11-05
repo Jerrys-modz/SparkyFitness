@@ -174,6 +174,26 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
     (s) => s.setDashboardCardOrder
   );
 
+  const workoutsCardVisible = useAppPreferencesStore(
+    (s) => s.workoutsCardVisible
+  );
+  const setWorkoutsCardVisible = useAppPreferencesStore(
+    (s) => s.setWorkoutsCardVisible
+  );
+  const mealsCardVisible = useAppPreferencesStore((s) => s.mealsCardVisible);
+  const setMealsCardVisible = useAppPreferencesStore(
+    (s) => s.setMealsCardVisible
+  );
+  const sleepCardVisible = useAppPreferencesStore((s) => s.sleepCardVisible);
+  const setSleepCardVisible = useAppPreferencesStore(
+    (s) => s.setSleepCardVisible
+  );
+  const readinessCardVisible = useAppPreferencesStore(
+    (s) => s.readinessCardVisible
+  );
+  const setReadinessCardVisible = useAppPreferencesStore(
+    (s) => s.setReadinessCardVisible
+  );
   const dashboardTabsEnabled = useAppPreferencesStore(
     (s) => s.dashboardTabsEnabled
   );
@@ -205,6 +225,10 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
     mindfulness: mindfulnessCardVisible,
     labResults: labResultsCardVisible,
     trainingLoad: trainingLoadCardVisible,
+    workouts: workoutsCardVisible,
+    meals: mealsCardVisible,
+    sleep: sleepCardVisible,
+    readiness: readinessCardVisible,
   };
 
   const setCardVisibility = useCallback(
@@ -264,6 +288,18 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
         case 'trainingLoad':
           setTrainingLoadCardVisible(isVisible);
           break;
+        case 'workouts':
+          setWorkoutsCardVisible(isVisible);
+          break;
+        case 'meals':
+          setMealsCardVisible(isVisible);
+          break;
+        case 'sleep':
+          setSleepCardVisible(isVisible);
+          break;
+        case 'readiness':
+          setReadinessCardVisible(isVisible);
+          break;
       }
     },
     [
@@ -285,6 +321,10 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
       setMindfulnessCardVisible,
       setLabResultsCardVisible,
       setTrainingLoadCardVisible,
+      setWorkoutsCardVisible,
+      setMealsCardVisible,
+      setSleepCardVisible,
+      setReadinessCardVisible,
     ]
   );
 

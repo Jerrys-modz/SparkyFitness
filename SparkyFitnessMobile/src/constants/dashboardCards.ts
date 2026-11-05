@@ -8,9 +8,13 @@ export const DASHBOARD_CARD_KEYS = [
   'exercise',
   'activityRings',
   'trainingLoad',
+  'workouts',
   'hydration',
   'caffeine',
+  'meals',
   'fasting',
+  'sleep',
+  'readiness',
   'cycle',
   'medications',
   'symptoms',
@@ -64,6 +68,12 @@ export const DASHBOARD_CARD_TITLES: Record<
     t('dashboardSettings.mindfulness', { defaultValue: 'Mindfulness' }),
   labResults: (t) =>
     t('dashboardSettings.labResults', { defaultValue: 'Lab Results' }),
+  workouts: (t) =>
+    t('dashboardSettings.workouts', { defaultValue: 'Workouts' }),
+  meals: (t) => t('dashboardSettings.meals', { defaultValue: 'Meals' }),
+  sleep: (t) => t('dashboardSettings.sleep', { defaultValue: 'Sleep' }),
+  readiness: (t) =>
+    t('dashboardSettings.readiness', { defaultValue: 'Readiness' }),
 };
 
 export const DASHBOARD_CARD_SUBTITLES: Record<
@@ -143,5 +153,22 @@ export const DASHBOARD_CARD_SUBTITLES: Record<
   labResults: (t) =>
     t('dashboardSettings.labResultsSubtitle', {
       defaultValue: 'Show your latest lab results and which are out of range',
+    }),
+  workouts: (t) =>
+    t('dashboardSettings.workoutsSubtitle', {
+      defaultValue: "Show today's logged and planned workouts",
+    }),
+  meals: (t) =>
+    t('dashboardSettings.mealsSubtitle', {
+      defaultValue:
+        "Show each meal's foods and calories, with a quick way to add more",
+    }),
+  sleep: (t) =>
+    t('dashboardSettings.sleepSubtitle', {
+      defaultValue: "Show last night's sleep, its stages and overnight vitals",
+    }),
+  readiness: (t) =>
+    t('dashboardSettings.readinessSubtitle', {
+      defaultValue: "Show today's readiness score and what is holding it back",
     }),
 };

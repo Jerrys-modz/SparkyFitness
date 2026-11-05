@@ -1054,7 +1054,42 @@
       "activity": "Ask Sparky about workouts, pacing or load…",
       "wellness": "Ask Sparky about sleep, meds or recovery…"
     },
-    "tabEmpty": "All the cards on this tab are hidden. Tap to choose cards in Dashboard Settings."
+    "tabEmpty": "All the cards on this tab are hidden. Tap to choose cards in Dashboard Settings.",
+    "sleepCard": {
+      "title": "Sleep",
+      "score": "Score {{score}}",
+      "timeAsleep": "Time asleep",
+      "restingHr": "Resting HR",
+      "hrv": "HRV",
+      "bpm": "{{value}} bpm",
+      "ms": "{{value}} ms",
+      "stages": "Sleep stages"
+    },
+    "readinessCard": {
+      "title": "Readiness",
+      "score": "Readiness score",
+      "levelHigh": "Ready",
+      "levelModerate": "Fine",
+      "levelLow": "Take it easy",
+      "weakest": "Held back most by {{factor}}"
+    },
+    "mealsCard": {
+      "title": "Meals",
+      "logMeal": "Log Meal",
+      "foodsMore": "{{names}} +{{more}}",
+      "target": "Target: ~{{calories}} Cal",
+      "nothingYet": "Nothing logged yet",
+      "calories": "{{calories}} Cal",
+      "add": "+ Add"
+    },
+    "workoutsCard": {
+      "title": "Workouts",
+      "log": "Log",
+      "record": "Record",
+      "empty": "No workouts logged yet.",
+      "planned": "Planned · {{plan}}",
+      "start": "Start"
+    }
   },
   "syncScreen": {
     "healthConnectSettings": "Health Connect settings",
@@ -1335,7 +1370,15 @@
     "pinnedMetricsSubtitle": "A slim row of the numbers worth seeing first",
     "tabs": "Dashboard tabs",
     "tabsSubtitle": "Split the Dashboard into Summary, Nutrition, Activity and Wellness",
-    "showsOnTabs": "Shows on {{tabs}}"
+    "showsOnTabs": "Shows on {{tabs}}",
+    "workouts": "Workouts",
+    "workoutsSubtitle": "Show today's logged and planned workouts",
+    "meals": "Meals",
+    "mealsSubtitle": "Show each meal's foods and calories, with a quick way to add more",
+    "sleep": "Sleep",
+    "sleepSubtitle": "Show last night's sleep, its stages and overnight vitals",
+    "readiness": "Readiness",
+    "readinessSubtitle": "Show today's readiness score and what is holding it back"
   },
   "diarySettings": {
     "updateFailed": "Failed to update setting.",
