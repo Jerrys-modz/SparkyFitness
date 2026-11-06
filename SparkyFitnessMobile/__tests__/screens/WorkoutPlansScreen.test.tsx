@@ -17,6 +17,14 @@ jest.mock('../../src/hooks', () => ({
   useWorkoutPlans: jest.fn(),
 }));
 
+const mockShareProgram = jest.fn();
+jest.mock('../../src/hooks/useWorkoutProgramSharing', () => ({
+  useShareWorkoutProgram: () => ({
+    shareProgram: mockShareProgram,
+    isSharing: false,
+  }),
+}));
+
 jest.mock('../../src/components/ActiveWorkoutBar', () => ({
   useActiveWorkoutBarPadding: jest.fn(() => 0),
 }));
@@ -115,6 +123,18 @@ describe('WorkoutPlansScreen', () => {
     expect(Toast.show).toHaveBeenCalledWith({
       type: 'success',
       text1: 'Workout plan deleted',
+    });
+  });
+
+  test('shares a plan as a file', () => {
+    const screen = renderScreen();
+
+    fireEvent.press(screen.getByLabelText('Share Push pull legs as a file'));
+
+    expect(mockShareProgram).toHaveBeenCalledWith({
+      kind: 'plan',
+      id: 'plan-1',
+      name: 'Push pull legs',
     });
   });
 

@@ -21,6 +21,7 @@ import {
 import { useExerciseImageSource } from '../hooks/useExerciseImageSource';
 import { useScreenHeader, type HeaderItem } from '../hooks/useScreenHeader';
 import { useStartLiveWorkout } from '../hooks/useStartLiveWorkout';
+import { useShareWorkoutProgram } from '../hooks/useWorkoutProgramSharing';
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import { useDiaryDateStore } from '../stores/diaryDateStore';
@@ -334,8 +335,24 @@ const WorkoutPresetDetailScreen: React.FC<WorkoutPresetDetailScreenProps> = ({
     }
   }, [createPresetAsync, preset, navigation, t]);
 
+  const { shareProgram, isSharing } = useShareWorkoutProgram();
+  const shareFileItem: HeaderItem = {
+    kind: 'icon',
+    sfSymbol: 'doc.text',
+    ionicon: 'document-text-outline',
+    role: 'secondary',
+    disabled: isSharing,
+    onPress: () =>
+      shareProgram({ kind: 'preset', id: preset.id, name: preset.name }),
+    accessibilityLabel: t('workoutPrograms.share.action', {
+      defaultValue: 'Share as file',
+    }),
+    identifier: 'workout-preset-detail-share-file',
+  };
+
   const rightItems: HeaderItem[] = canManagePreset
     ? [
+        shareFileItem,
         {
           kind: 'icon',
           sfSymbol: isPublic ? 'lock.fill' : 'square.and.arrow.up',
@@ -364,14 +381,14 @@ const WorkoutPresetDetailScreen: React.FC<WorkoutPresetDetailScreenProps> = ({
           identifier: 'workout-preset-detail-edit',
         } as const,
       ]
-    : [];
+    : [shareFileItem];
 
   const header = useScreenHeader({
     title: preset.name,
     nativeTitle: preset.name,
     borderless: true,
     left: { kind: 'back' },
-    right: rightItems.length > 0 ? rightItems : null,
+    right: rightItems,
   });
 
   return (

@@ -92,7 +92,9 @@ What happens when you add a file:
 - Other exercises reuse one of your own with the same name, or are added as your own custom exercises from the details in the file (category, muscles, equipment, instructions).
 - Every preset becomes your own private preset, and the plan becomes your own plan. Nothing in the file links back to the person who shared it, and changing your copy does not change theirs.
 
-Files hold no account or database ids, only the workouts themselves. Weights are in kilograms and distances in kilometres, whatever units the sender uses. Sharing from the mobile app is not available yet.
+**On mobile:** open a preset (**Library > Workout presets**) and tap the document button at the top to share it, or tap the share button on a plan in **Library > Workout plans**. The phone's share sheet opens, so you can send the file by message or mail, AirDrop it or save it to Files. To add one, go to **Library > Workout programs**, tap the download button at the top and pick the file.
+
+Files hold no account or database ids, only the workouts themselves. Weights are in kilograms and distances in kilometres, whatever units the sender uses.
 
 ::: details The file format
 A workout file is JSON with `"format": "sparkyfitness.workout-program"` and `"version": 1`. It has an `exercises` list (each with a `key`, a `name` and optionally `source`, `sourceId`, `category`, `equipment`, `primaryMuscles` and so on), a `presets` list whose exercises point at an exercise `key` and carry their `sets`, and an optional `plan` (`name`, `scheduleType` of `weekly` or `sequential`, and `sessions` that run a `preset` key, or an `exercise` key with its own `sets`, on a `dayOfWeek` from 0 for Sunday or a `sessionIndex` from 1). The full contract is `shared/src/schemas/api/WorkoutPrograms.api.zod.ts`, and the API is `GET /api/v2/workout-programs/presets/{id}/export`, `GET /api/v2/workout-programs/plans/{id}/export` and `POST /api/v2/workout-programs/import`.

@@ -23,6 +23,7 @@ import LabResultAddScreen from '../screens/LabResultAddScreen';
 import LabResultDetailScreen from '../screens/LabResultDetailScreen';
 import LabResultsScreen from '../screens/LabResultsScreen';
 import WorkoutFinderScreen from '../screens/WorkoutFinderScreen';
+import WorkoutProgramImportScreen from '../screens/WorkoutProgramImportScreen';
 import WorkoutSplitImportScreen from '../screens/WorkoutSplitImportScreen';
 import WorkoutSplitsScreen from '../screens/WorkoutSplitsScreen';
 import FuelingPlanScreen from '../screens/FuelingPlanScreen';
@@ -173,6 +174,7 @@ export const SafeWorkoutSplits = withErrorBoundary(WorkoutSplitsScreen, 'Workout
 export const SafeWorkoutFinder = withErrorBoundary(WorkoutFinderScreen, 'WorkoutFinder', { canGoBack: true });
 export const SafeWorkoutSplitImport = withErrorBoundary(WorkoutSplitImportScreen, 'WorkoutSplitImport', { canGoBack: true });
 export const SafeFuelingPlan = withErrorBoundary(FuelingPlanScreen, 'FuelingPlan', { canGoBack: true });
+export const SafeWorkoutProgramImport = withErrorBoundary(WorkoutProgramImportScreen, 'WorkoutProgramImport', { canGoBack: true });
 export const SafeRunProgramRace = withErrorBoundary(RunProgramRaceScreen, 'RunProgramRace', { canGoBack: true });
 export const SafeFitnessTest = withErrorBoundary(FitnessTestScreen, 'FitnessTest', { canGoBack: true });
 export const SafeFitnessTestResult = withErrorBoundary(FitnessTestResultScreen, 'FitnessTestResult', { canGoBack: true });
