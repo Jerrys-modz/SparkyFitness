@@ -1,12 +1,14 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import React, { useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useCSSVariable } from 'uniwind';
 import Toast from 'react-native-toast-message';
 
 import { useActiveWorkoutBarPadding } from '../components/ActiveWorkoutBar';
 import DashboardCardReorderList from '../components/DashboardCardReorderList';
+import Icon from '../components/Icon';
 import SettingsRow, { SettingsRowGroup } from '../components/SettingsRow';
 import StatusView from '../components/StatusView';
 import Switch from '../components/ui/Switch';
@@ -208,6 +210,7 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
     (s) => s.setDashboardTabsEnabled
   );
 
+  const accentColor = useCSSVariable('--color-accent-primary') as string;
   const savedSummaryCards = useAppPreferencesStore(
     (s) => s.dashboardSummaryCards
   );
@@ -362,14 +365,12 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
     () => resolveSummaryCards(savedSummaryCards),
     [savedSummaryCards]
   );
-  // Summary's own cards first, in its order, then every other card that could join it.
-  const summaryRows = useMemo(
-    () => [
-      ...summaryCards,
-      ...orderedCards.filter(
+  // Cards that could join Summary, offered under it with an Add button.
+  const summaryCandidates = useMemo(
+    () =>
+      orderedCards.filter(
         (key) => key !== 'askSparky' && !summaryCards.includes(key)
       ),
-    ],
     [summaryCards, orderedCards]
   );
   const toggleSummaryCard = useCallback(
@@ -399,15 +400,10 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
         tab,
       });
     }
-    return summaryCards.includes(key)
-      ? t('dashboardSettings.alsoOnTab', {
-          defaultValue: 'Also on {{tab}}',
-          tab,
-        })
-      : t('dashboardSettings.onTabOnly', {
-          defaultValue: 'On {{tab}} only',
-          tab,
-        });
+    return t('dashboardSettings.alsoOnTab', {
+      defaultValue: 'Also on {{tab}}',
+      tab,
+    });
   };
   const configureFor = useCallback(
     (key: DashboardCardKey) => {
@@ -633,23 +629,78 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
                   {DASHBOARD_TAB_LABELS[tab](t)}
                 </Text>
                 {tab === 'summary' ? (
-                  <DashboardCardReorderList
-                    cards={summaryRows}
-                    testIDPrefix="dashboard-summary-card"
-                    subtitle={summarySubtitle}
-                    isEnabled={(key) =>
-                      homeTabOf(key) === 'summary'
-                        ? cardVisibilityMap[key]
-                        : summaryCards.includes(key)
-                    }
-                    onToggle={toggleSummaryCard}
-                    onReorder={(order) =>
-                      setDashboardSummaryCards(
-                        order.filter((key) => summaryCards.includes(key))
-                      )
-                    }
-                    onConfigure={configureFor}
-                  />
+                  <>
+                    <DashboardCardReorderList
+                      cards={summaryCards}
+                      testIDPrefix="dashboard-summary-card"
+                      subtitle={summarySubtitle}
+                      // Every row here is on Summary; a switch turns it off there.
+                      isEnabled={(key) =>
+                        homeTabOf(key) === 'summary'
+                          ? cardVisibilityMap[key]
+                          : true
+                      }
+                      onToggle={toggleSummaryCard}
+                      onReorder={setDashboardSummaryCards}
+                      onConfigure={configureFor}
+                    />
+                    {summaryCandidates.length > 0 && (
+                      <>
+                        <Text className="text-xs text-text-muted mt-4 mb-2 px-1">
+                          {t('dashboardSettings.addToSummary', {
+                            defaultValue: 'Add to Summary',
+                          })}
+                        </Text>
+                        <SettingsRowGroup>
+                          {summaryCandidates.map((key) => {
+                            const home = homeTabOf(key);
+                            const title = DASHBOARD_CARD_TITLES[key](t);
+                            return (
+                              <SettingsRow
+                                key={key}
+                                title={title}
+                                subtitle={
+                                  home
+                                    ? t('dashboardSettings.fromTab', {
+                                        defaultValue: 'From {{tab}}',
+                                        tab: DASHBOARD_TAB_LABELS[home](t),
+                                      })
+                                    : undefined
+                                }
+                                rightAccessory={
+                                  <Pressable
+                                    testID={`dashboard-summary-add-${key}`}
+                                    onPress={() => toggleSummaryCard(key, true)}
+                                    accessibilityRole="button"
+                                    accessibilityLabel={t(
+                                      'dashboardSettings.addCardToSummary',
+                                      {
+                                        defaultValue: 'Add {{name}} to Summary',
+                                        name: title,
+                                      }
+                                    )}
+                                    hitSlop={8}
+                                    className="flex-row items-center"
+                                  >
+                                    <Icon
+                                      name="add-circle"
+                                      size={18}
+                                      color={accentColor}
+                                    />
+                                    <Text className="text-accent-primary font-medium ml-1">
+                                      {t('dashboardSettings.add', {
+                                        defaultValue: 'Add',
+                                      })}
+                                    </Text>
+                                  </Pressable>
+                                }
+                              />
+                            );
+                          })}
+                        </SettingsRowGroup>
+                      </>
+                    )}
+                  </>
                 ) : (
                   <DashboardCardReorderList
                     cards={resolveHomeTabCards(

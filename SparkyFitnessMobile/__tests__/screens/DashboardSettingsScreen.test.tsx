@@ -160,14 +160,25 @@ describe('DashboardSettingsScreen', () => {
       for (const tab of ['summary', 'nutrition', 'activity', 'wellness']) {
         expect(screen.getByTestId(`dashboard-tab-section-${tab}`)).toBeTruthy();
       }
-      // Summary's own cards come first, then the cards that could join it.
-      expect(summaryRowKeys().slice(0, 5)).toEqual([
+      // Summary lists only its own cards, all switched on.
+      expect(summaryRowKeys()).toEqual([
         'calorieRing',
         'pinnedMetrics',
         'medications',
         'macros',
         'trainingLoad',
       ]);
+      // At a Glance lives on Summary, so its switch is its (opt-in) visibility.
+      for (const key of summaryRowKeys().filter((k) => k !== 'pinnedMetrics')) {
+        expect(
+          screen.getByTestId(`dashboard-summary-card-switch-${key}`).props.value
+        ).toBe(true);
+      }
+      // Every other card can be added from the list under it.
+      expect(
+        screen.getByTestId('dashboard-summary-add-hydration')
+      ).toBeTruthy();
+      expect(screen.queryByTestId('dashboard-summary-add-macros')).toBeNull();
       // Every card but Ask Sparky and At a Glance has a home tab section.
       expect(orderedRowKeys()).toHaveLength(DASHBOARD_CARD_KEYS.length - 2);
       expect(orderedRowKeys()).not.toContain('askSparky');
@@ -176,11 +187,7 @@ describe('DashboardSettingsScreen', () => {
     test('adding a card to Summary keeps it on its own tab', () => {
       renderScreen();
 
-      fireEvent(
-        screen.getByTestId('dashboard-summary-card-switch-hydration'),
-        'valueChange',
-        true
-      );
+      fireEvent.press(screen.getByTestId('dashboard-summary-add-hydration'));
 
       const state = useAppPreferencesStore.getState();
       expect(state.dashboardSummaryCards).toContain('hydration');
