@@ -10039,5 +10039,24 @@
       "arms": "Arms",
       "legs": "Legs"
     }
+  },
+  "workoutPrograms": {
+    "share": {
+      "action": "Share as file",
+      "named": "Share {{name}} as a file",
+      "error": "Could not share the workout"
+    },
+    "import": {
+      "open": "Add from a file",
+      "screenTitle": "Add workouts",
+      "message": "Its exercises are added to your library and its workouts become your own presets and plan, which you can change afterwards.",
+      "presetLine_one": "{{name}} ({{count}} exercise)",
+      "presetLine_other": "{{name}} ({{count}} exercises)",
+      "add": "Add workouts",
+      "success": "Workouts added. Find them under your presets and plans.",
+      "error": "Could not add the workouts",
+      "invalid": "This is not a SparkyFitness workout file.",
+      "readFailed": "Could not open the file"
+    }
   }
 }

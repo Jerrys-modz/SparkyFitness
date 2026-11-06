@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Toast from 'react-native-toast-message';
 import {
   splitFitsVenue,
   WORKOUT_SPLITS,
@@ -13,6 +14,10 @@ import {
 import SegmentedControl, { type Segment } from '../components/SegmentedControl';
 import Button from '../components/ui/Button';
 import { useScreenHeader } from '../hooks/useScreenHeader';
+import {
+  InvalidWorkoutProgramFileError,
+  pickWorkoutProgramFile,
+} from '../services/workoutProgramFiles';
 import type { RootStackScreenProps } from '../types/navigation';
 import {
   exerciseLabel,
@@ -49,9 +54,39 @@ const WorkoutSplitsScreen: React.FC<Props> = ({ navigation }) => {
   const [days, setDays] = useState<string>(ANY);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
+  const addFromFile = async () => {
+    try {
+      const program = await pickWorkoutProgramFile();
+      if (program) navigation.navigate('WorkoutProgramImport', { program });
+    } catch (error: unknown) {
+      Toast.show({
+        type: 'error',
+        text1:
+          error instanceof InvalidWorkoutProgramFileError
+            ? t('workoutPrograms.import.invalid', {
+                defaultValue: 'This is not a SparkyFitness workout file.',
+              })
+            : t('workoutPrograms.import.readFailed', {
+                defaultValue: 'Could not open the file',
+              }),
+      });
+    }
+  };
+
   const header = useScreenHeader({
     title: t('screens.workoutSplits', { defaultValue: 'Workout programs' }),
     left: { kind: 'back' },
+    right: {
+      kind: 'icon',
+      sfSymbol: 'square.and.arrow.down',
+      ionicon: 'download-outline',
+      role: 'secondary',
+      onPress: () => void addFromFile(),
+      accessibilityLabel: t('workoutPrograms.import.open', {
+        defaultValue: 'Add from a file',
+      }),
+      identifier: 'workout-programs-add-from-file',
+    },
   });
 
   const any: Segment<string> = {
