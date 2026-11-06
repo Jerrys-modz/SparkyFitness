@@ -2,13 +2,21 @@ import type { TFunction } from 'i18next';
 
 export const DASHBOARD_CARD_KEYS = [
   'calorieRing',
+  'pinnedMetrics',
   'askSparky',
   'macros',
   'exercise',
+  'activityRings',
   'trainingLoad',
+  'workouts',
+  'steps',
+  'heartRate',
   'hydration',
   'caffeine',
+  'meals',
   'fasting',
+  'sleep',
+  'readiness',
   'cycle',
   'medications',
   'symptoms',
@@ -27,11 +35,15 @@ export const DASHBOARD_CARD_TITLES: Record<
 > = {
   calorieRing: (t) =>
     t('dashboardSettings.calorieRing', { defaultValue: 'Calorie Summary' }),
+  pinnedMetrics: (t) =>
+    t('dashboardSettings.pinnedMetrics', { defaultValue: 'At a Glance' }),
   askSparky: (t) =>
     t('dashboardSettings.askSparky', { defaultValue: 'Ask Sparky' }),
   macros: (t) => t('dashboardSettings.macros', { defaultValue: 'Nutrients' }),
   exercise: (t) =>
     t('dashboardSettings.exercise', { defaultValue: 'Exercise Progress' }),
+  activityRings: (t) =>
+    t('dashboardSettings.activityRings', { defaultValue: 'Activity Rings' }),
   trainingLoad: (t) =>
     t('dashboardSettings.trainingLoad', { defaultValue: 'Training Load' }),
   hydration: (t) =>
@@ -58,6 +70,15 @@ export const DASHBOARD_CARD_TITLES: Record<
     t('dashboardSettings.mindfulness', { defaultValue: 'Mindfulness' }),
   labResults: (t) =>
     t('dashboardSettings.labResults', { defaultValue: 'Lab Results' }),
+  workouts: (t) =>
+    t('dashboardSettings.workouts', { defaultValue: 'Workouts' }),
+  meals: (t) => t('dashboardSettings.meals', { defaultValue: 'Meals' }),
+  sleep: (t) => t('dashboardSettings.sleep', { defaultValue: 'Sleep' }),
+  readiness: (t) =>
+    t('dashboardSettings.readiness', { defaultValue: 'Readiness' }),
+  steps: (t) => t('dashboardSettings.steps', { defaultValue: 'Steps' }),
+  heartRate: (t) =>
+    t('dashboardSettings.heartRate', { defaultValue: 'Heart Rate' }),
 };
 
 export const DASHBOARD_CARD_SUBTITLES: Record<
@@ -67,6 +88,10 @@ export const DASHBOARD_CARD_SUBTITLES: Record<
   calorieRing: (t) =>
     t('dashboardSettings.calorieRingSubtitle', {
       defaultValue: 'Show daily calorie balance and progress ring',
+    }),
+  pinnedMetrics: (t) =>
+    t('dashboardSettings.pinnedMetricsSubtitle', {
+      defaultValue: 'A slim row of the numbers worth seeing first',
     }),
   askSparky: (t) =>
     t('dashboardSettings.askSparkySubtitle', {
@@ -79,6 +104,10 @@ export const DASHBOARD_CARD_SUBTITLES: Record<
   exercise: (t) =>
     t('dashboardSettings.exerciseSubtitle', {
       defaultValue: 'Show exercise minutes and calorie burn targets',
+    }),
+  activityRings: (t) =>
+    t('dashboardSettings.activityRingsSubtitle', {
+      defaultValue: 'Show Move, Exercise, Stand and Steps rings for the day',
     }),
   trainingLoad: (t) =>
     t('dashboardSettings.trainingLoadSubtitle', {
@@ -129,5 +158,32 @@ export const DASHBOARD_CARD_SUBTITLES: Record<
   labResults: (t) =>
     t('dashboardSettings.labResultsSubtitle', {
       defaultValue: 'Show your latest lab results and which are out of range',
+    }),
+  workouts: (t) =>
+    t('dashboardSettings.workoutsSubtitle', {
+      defaultValue: "Show today's logged and planned workouts",
+    }),
+  meals: (t) =>
+    t('dashboardSettings.mealsSubtitle', {
+      defaultValue:
+        "Show each meal's foods and calories, with a quick way to add more",
+    }),
+  sleep: (t) =>
+    t('dashboardSettings.sleepSubtitle', {
+      defaultValue: "Show last night's sleep, its stages and overnight vitals",
+    }),
+  readiness: (t) =>
+    t('dashboardSettings.readinessSubtitle', {
+      defaultValue: "Show today's readiness score and what is holding it back",
+    }),
+  steps: (t) =>
+    t('dashboardSettings.stepsSubtitle', {
+      defaultValue:
+        "Show the day's steps against your goal and the last seven days",
+    }),
+  heartRate: (t) =>
+    t('dashboardSettings.heartRateSubtitle', {
+      defaultValue:
+        "Show resting heart rate and today's time in each heart rate zone",
     }),
 };

@@ -88,7 +88,8 @@ describe('DashboardSettingsScreen', () => {
       { nativeEvent: { actionName } }
     );
 
-  test('renders every dashboard card in the order from the store', () => {
+  test('with tabs off, renders every dashboard card in the order from the store', () => {
+    useAppPreferencesStore.getState().setDashboardTabsEnabled(false);
     renderScreen();
 
     expect(orderedRowKeys()).toEqual([...DASHBOARD_CARD_KEYS]);
@@ -121,13 +122,115 @@ describe('DashboardSettingsScreen', () => {
     expect(useAppPreferencesStore.getState().hydrationCardVisible).toBe(true);
   });
 
-  test('reordering cards updates dashboardCardOrder in the store', () => {
+  test('with tabs off, reordering cards updates dashboardCardOrder in the store', () => {
+    useAppPreferencesStore.getState().setDashboardTabsEnabled(false);
     renderScreen();
 
     moveRow('calorieRing', 'increment');
 
     const state = useAppPreferencesStore.getState();
-    expect(state.dashboardCardOrder[0]).toBe('askSparky');
+    expect(state.dashboardCardOrder[0]).toBe('pinnedMetrics');
     expect(state.dashboardCardOrder[1]).toBe('calorieRing');
+  });
+
+  test('the tabs switch turns the Dashboard tabs off and on', () => {
+    renderScreen();
+
+    const tabsSwitch = screen.getByTestId('dashboard-tabs-switch');
+    expect(tabsSwitch.props.value).toBe(true);
+
+    fireEvent(tabsSwitch, 'valueChange', false);
+    expect(useAppPreferencesStore.getState().dashboardTabsEnabled).toBe(false);
+
+    fireEvent(tabsSwitch, 'valueChange', true);
+    expect(useAppPreferencesStore.getState().dashboardTabsEnabled).toBe(true);
+  });
+
+  describe('with tabs on', () => {
+    const summaryRowKeys = (): string[] =>
+      screen
+        .queryAllByTestId(/^dashboard-summary-card-row-/)
+        .map((row) =>
+          String(row.props.testID).replace('dashboard-summary-card-row-', '')
+        );
+
+    test('shows one section per tab, each card once under its own tab', () => {
+      renderScreen();
+
+      for (const tab of ['summary', 'nutrition', 'activity', 'wellness']) {
+        expect(screen.getByTestId(`dashboard-tab-section-${tab}`)).toBeTruthy();
+      }
+      // Summary lists only its own cards, all switched on.
+      expect(summaryRowKeys()).toEqual([
+        'calorieRing',
+        'pinnedMetrics',
+        'medications',
+        'macros',
+        'trainingLoad',
+      ]);
+      // At a Glance lives on Summary, so its switch is its (opt-in) visibility.
+      for (const key of summaryRowKeys().filter((k) => k !== 'pinnedMetrics')) {
+        expect(
+          screen.getByTestId(`dashboard-summary-card-switch-${key}`).props.value
+        ).toBe(true);
+      }
+      // Every other card can be added from the list under it.
+      expect(
+        screen.getByTestId('dashboard-summary-add-hydration')
+      ).toBeTruthy();
+      expect(screen.queryByTestId('dashboard-summary-add-macros')).toBeNull();
+      // Every card but Ask Sparky and At a Glance has a home tab section.
+      expect(orderedRowKeys()).toHaveLength(DASHBOARD_CARD_KEYS.length - 2);
+      expect(orderedRowKeys()).not.toContain('askSparky');
+    });
+
+    test('adding a card to Summary keeps it on its own tab', () => {
+      renderScreen();
+
+      fireEvent.press(screen.getByTestId('dashboard-summary-add-hydration'));
+
+      const state = useAppPreferencesStore.getState();
+      expect(state.dashboardSummaryCards).toContain('hydration');
+      expect(state.hydrationCardVisible).toBe(true);
+    });
+
+    test('taking a card off Summary does not hide it on its own tab', () => {
+      renderScreen();
+
+      fireEvent(
+        screen.getByTestId('dashboard-summary-card-switch-calorieRing'),
+        'valueChange',
+        false
+      );
+
+      const state = useAppPreferencesStore.getState();
+      expect(state.dashboardSummaryCards).not.toContain('calorieRing');
+      expect(state.calorieRingCardVisible).toBe(true);
+    });
+
+    test('reordering a tab saves that tab’s own order', () => {
+      renderScreen();
+
+      moveRow('calorieRing', 'increment');
+
+      const state = useAppPreferencesStore.getState();
+      expect(state.dashboardTabCardOrders.nutrition?.slice(0, 2)).toEqual([
+        'macros',
+        'calorieRing',
+      ]);
+      expect(state.dashboardCardOrder[0]).toBe('calorieRing');
+    });
+
+    test('Ask Sparky has one switch for every tab', () => {
+      renderScreen();
+
+      fireEvent(
+        screen.getByTestId('dashboard-ask-sparky-switch'),
+        'valueChange',
+        false
+      );
+
+      expect(useAppPreferencesStore.getState().askSparkyVisible).toBe(false);
+    });
   });
 });

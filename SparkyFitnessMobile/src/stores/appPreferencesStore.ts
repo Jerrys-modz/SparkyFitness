@@ -35,8 +35,24 @@ import {
   type DashboardCardKey,
 } from '../constants/dashboardCards';
 import {
+  DEFAULT_DASHBOARD_TAB,
+  type DashboardTab,
+} from '../constants/dashboardTabs';
+import {
+  DEFAULT_PINNED_METRICS,
+  MAX_PINNED_METRICS,
+  type PinnedMetricKey,
+} from '../constants/pinnedMetrics';
+import {
+  ACTIVITY_RING_KEYS,
+  type ActivityRingKey,
+  type ActivityRingStyle,
+} from '../constants/activityRings';
+import {
+  MAX_HEALTH_TREND_TILES,
   HEALTH_TREND_KEYS,
   type HealthTrendKey,
+  type HealthTrendsLayout,
 } from '../constants/healthTrends';
 import {
   DEFAULT_WATCH_NUTRIENTS,
@@ -53,6 +69,7 @@ import {
 } from '../constants/reports';
 import type { LanguagePreference } from '../localization';
 import type { TrendRange } from '../utils/trendRange';
+import type { HealthTrendDateRange } from '../types/healthTrends';
 import type { OwnershipFilter } from '../utils/shareStatus';
 import { newUuid } from '../utils/ids';
 
@@ -81,6 +98,10 @@ export type ActiveWorkoutView = 'list' | 'focus';
 export type FocusMediaDefault = 'expanded' | 'minimized';
 
 /** Which stat the active-workout log shows in its per-set metric column. */
+export type HealthTrendRanges = Partial<
+  Record<HealthTrendKey, HealthTrendDateRange>
+>;
+
 export type ActiveWorkoutMetricColumn =
   'rpe' | 'rir' | 'volume' | 'e1rm' | 'tenrm';
 
@@ -106,6 +127,16 @@ export const PREFERENCE_DEFAULTS = {
   calorieRingCardVisible: true,
   macrosCardVisible: true,
   exerciseCardVisible: true,
+  // Opt-in: the rings card is new, so existing dashboards look the same until it is turned on.
+  activityRingsCardVisible: false,
+  // Opt-in, like the rings card.
+  pinnedMetricsCardVisible: false,
+  pinnedMetrics: [...DEFAULT_PINNED_METRICS] as PinnedMetricKey[],
+  pinnedAuto: true,
+  activityRingStyle: 'apple' as ActivityRingStyle,
+  standGoalHours: 12,
+  activityRingsCompact: false,
+  activityRingCustom: [...ACTIVITY_RING_KEYS] as ActivityRingKey[],
   hydrationCardVisible: true,
   caffeineCardVisible: true,
   fastingCardVisible: true,
@@ -120,7 +151,19 @@ export const PREFERENCE_DEFAULTS = {
   mindfulnessCardVisible: true,
   labResultsCardVisible: true,
   trainingLoadCardVisible: true,
+  workoutsCardVisible: true,
+  mealsCardVisible: true,
+  sleepCardVisible: true,
+  readinessCardVisible: true,
+  stepsCardVisible: true,
+  heartRateCardVisible: true,
   dashboardCardOrder: [...DASHBOARD_CARD_KEYS] as DashboardCardKey[],
+  dashboardTabsEnabled: true,
+  dashboardTab: DEFAULT_DASHBOARD_TAB as DashboardTab,
+  dashboardTabCardOrders: {} as Partial<
+    Record<DashboardTab, DashboardCardKey[]>
+  >,
+  dashboardSummaryCards: null as DashboardCardKey[] | null,
   medicationRemindersEnabled: true,
   medicationReminderRepeats: true,
   medicationReminderHideNames: false,
@@ -154,6 +197,11 @@ export const PREFERENCE_DEFAULTS = {
   languagePreference: 'system' as LanguagePreference,
   healthTrendOrder: [...HEALTH_TREND_KEYS] as HealthTrendKey[],
   hiddenHealthTrends: [] as HealthTrendKey[],
+  healthTrendRanges: {} as HealthTrendRanges,
+  healthTrendsLayout: 'pager' as HealthTrendsLayout,
+  healthTrendTiles: [] as HealthTrendKey[],
+  healthTrendsShowReportsLink: true,
+  healthTrendsShowRangeControl: true,
   addMenuCards: [...DEFAULT_ADD_MENU_CARDS] as AddMenuItemKey[],
   addMenuOrder: [...ADD_MENU_ITEM_KEYS] as AddMenuItemKey[],
   hiddenAddMenuItems: [] as AddMenuItemKey[],
@@ -199,6 +247,19 @@ export type AppPreferencesData = {
   calorieRingCardVisible: boolean;
   macrosCardVisible: boolean;
   exerciseCardVisible: boolean;
+  activityRingsCardVisible: boolean;
+  pinnedMetricsCardVisible: boolean;
+  /** The metrics on the Pinned Metrics card, at most `MAX_PINNED_METRICS`. */
+  pinnedMetrics: PinnedMetricKey[];
+  /** Let the At a Glance strip choose its metrics; off uses `pinnedMetrics`. */
+  pinnedAuto: boolean;
+  activityRingStyle: ActivityRingStyle;
+  /** Hours stood in per day the Stand ring fills toward, 1 to 24. */
+  standGoalHours: number;
+  /** Smaller rings with a one-line legend. */
+  activityRingsCompact: boolean;
+  /** The rings drawn in the custom style; an empty list falls back to the Apple pair. */
+  activityRingCustom: ActivityRingKey[];
   hydrationCardVisible: boolean;
   caffeineCardVisible: boolean;
   fastingCardVisible: boolean;
@@ -213,7 +274,21 @@ export type AppPreferencesData = {
   mindfulnessCardVisible: boolean;
   labResultsCardVisible: boolean;
   trainingLoadCardVisible: boolean;
+  workoutsCardVisible: boolean;
+  mealsCardVisible: boolean;
+  sleepCardVisible: boolean;
+  readinessCardVisible: boolean;
+  stepsCardVisible: boolean;
+  heartRateCardVisible: boolean;
   dashboardCardOrder: DashboardCardKey[];
+  /** Split the Dashboard into Summary, Nutrition, Activity and Wellness tabs. */
+  dashboardTabsEnabled: boolean;
+  /** The Dashboard tab last open, so the app returns to it. */
+  dashboardTab: DashboardTab;
+  /** Card order within Nutrition, Activity and Wellness; a tab not listed follows `dashboardCardOrder`. */
+  dashboardTabCardOrders: Partial<Record<DashboardTab, DashboardCardKey[]>>;
+  /** The cards Summary repeats, in order; null until chosen, so the default can evolve. */
+  dashboardSummaryCards: DashboardCardKey[] | null;
   medicationRemindersEnabled: boolean;
   medicationReminderRepeats: boolean;
   medicationReminderHideNames: boolean;
@@ -267,6 +342,13 @@ export type AppPreferencesData = {
   languagePreference: LanguagePreference;
   healthTrendOrder: HealthTrendKey[];
   hiddenHealthTrends: HealthTrendKey[];
+  /** Each graph's own window; a graph with no entry uses the default. */
+  healthTrendRanges: HealthTrendRanges;
+  healthTrendsLayout: HealthTrendsLayout;
+  /** The graphs shown as tiles in the tiles layout, at most `MAX_HEALTH_TREND_TILES`. */
+  healthTrendTiles: HealthTrendKey[];
+  healthTrendsShowReportsLink: boolean;
+  healthTrendsShowRangeControl: boolean;
   /** The four items in the + sheet's big card slots, in order. */
   addMenuCards: AddMenuItemKey[];
   /** Order of the rows under the cards in the + sheet. */
@@ -347,6 +429,14 @@ export interface AppPreferencesState extends AppPreferencesData {
   setCalorieRingCardVisible: (value: boolean) => void;
   setMacrosCardVisible: (value: boolean) => void;
   setExerciseCardVisible: (value: boolean) => void;
+  setActivityRingsCardVisible: (value: boolean) => void;
+  setPinnedMetricsCardVisible: (value: boolean) => void;
+  setPinnedMetric: (key: PinnedMetricKey, isPinned: boolean) => void;
+  setPinnedAuto: (value: boolean) => void;
+  setActivityRingStyle: (style: ActivityRingStyle) => void;
+  setStandGoalHours: (hours: number) => void;
+  setActivityRingsCompact: (value: boolean) => void;
+  setActivityRingCustom: (key: ActivityRingKey, isShown: boolean) => void;
   setHydrationCardVisible: (value: boolean) => void;
   setCaffeineCardVisible: (value: boolean) => void;
   setFastingCardVisible: (value: boolean) => void;
@@ -361,7 +451,20 @@ export interface AppPreferencesState extends AppPreferencesData {
   setMindfulnessCardVisible: (value: boolean) => void;
   setLabResultsCardVisible: (value: boolean) => void;
   setTrainingLoadCardVisible: (value: boolean) => void;
+  setWorkoutsCardVisible: (value: boolean) => void;
+  setMealsCardVisible: (value: boolean) => void;
+  setSleepCardVisible: (value: boolean) => void;
+  setReadinessCardVisible: (value: boolean) => void;
+  setStepsCardVisible: (value: boolean) => void;
+  setHeartRateCardVisible: (value: boolean) => void;
   setDashboardCardOrder: (order: DashboardCardKey[]) => void;
+  setDashboardTabsEnabled: (value: boolean) => void;
+  setDashboardTab: (tab: DashboardTab) => void;
+  setDashboardTabCardOrder: (
+    tab: DashboardTab,
+    order: DashboardCardKey[]
+  ) => void;
+  setDashboardSummaryCards: (cards: DashboardCardKey[]) => void;
   setMedicationRemindersEnabled: (value: boolean) => void;
   setMedicationReminderRepeats: (value: boolean) => void;
   setMedicationReminderHideNames: (value: boolean) => void;
@@ -396,6 +499,14 @@ export interface AppPreferencesState extends AppPreferencesData {
   setLanguagePreference: (value: LanguagePreference) => void;
   setHealthTrendOrder: (order: HealthTrendKey[]) => void;
   setHealthTrendHidden: (key: HealthTrendKey, isHidden: boolean) => void;
+  setHealthTrendRange: (
+    key: HealthTrendKey,
+    range: HealthTrendDateRange
+  ) => void;
+  setHealthTrendsLayout: (layout: HealthTrendsLayout) => void;
+  setHealthTrendTile: (key: HealthTrendKey, isTile: boolean) => void;
+  setHealthTrendsShowReportsLink: (value: boolean) => void;
+  setHealthTrendsShowRangeControl: (value: boolean) => void;
   setAddMenuCards: (cards: AddMenuItemKey[]) => void;
   setAddMenuOrder: (order: AddMenuItemKey[]) => void;
   setAddMenuItemHidden: (key: AddMenuItemKey, isHidden: boolean) => void;
@@ -497,6 +608,31 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         set({ calorieRingCardVisible: value }),
       setMacrosCardVisible: (value) => set({ macrosCardVisible: value }),
       setExerciseCardVisible: (value) => set({ exerciseCardVisible: value }),
+      setActivityRingsCardVisible: (value) =>
+        set({ activityRingsCardVisible: value }),
+      setPinnedMetricsCardVisible: (value) =>
+        set({ pinnedMetricsCardVisible: value }),
+      setPinnedAuto: (value) => set({ pinnedAuto: value }),
+      setPinnedMetric: (key, isPinned) =>
+        set((state) => {
+          const without = state.pinnedMetrics.filter((k) => k !== key);
+          if (!isPinned) return { pinnedMetrics: without };
+          if (state.pinnedMetrics.includes(key)) return {};
+          if (without.length >= MAX_PINNED_METRICS) return {};
+          return { pinnedMetrics: [...without, key] };
+        }),
+      setActivityRingStyle: (style) => set({ activityRingStyle: style }),
+      setActivityRingsCompact: (value) => set({ activityRingsCompact: value }),
+      setStandGoalHours: (hours) =>
+        set({ standGoalHours: Math.min(24, Math.max(1, Math.round(hours))) }),
+      setActivityRingCustom: (key, isShown) =>
+        set((state) => ({
+          activityRingCustom: withMembership(
+            state.activityRingCustom,
+            key,
+            isShown
+          ),
+        })),
       setHydrationCardVisible: (value) => set({ hydrationCardVisible: value }),
       setCaffeineCardVisible: (value) => set({ caffeineCardVisible: value }),
       setFastingCardVisible: (value) => set({ fastingCardVisible: value }),
@@ -518,7 +654,24 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         set({ labResultsCardVisible: value }),
       setTrainingLoadCardVisible: (value) =>
         set({ trainingLoadCardVisible: value }),
+      setWorkoutsCardVisible: (value) => set({ workoutsCardVisible: value }),
+      setMealsCardVisible: (value) => set({ mealsCardVisible: value }),
+      setSleepCardVisible: (value) => set({ sleepCardVisible: value }),
+      setReadinessCardVisible: (value) => set({ readinessCardVisible: value }),
+      setStepsCardVisible: (value) => set({ stepsCardVisible: value }),
+      setHeartRateCardVisible: (value) => set({ heartRateCardVisible: value }),
       setDashboardCardOrder: (order) => set({ dashboardCardOrder: order }),
+      setDashboardTabsEnabled: (value) => set({ dashboardTabsEnabled: value }),
+      setDashboardTab: (tab) => set({ dashboardTab: tab }),
+      setDashboardTabCardOrder: (tab, order) =>
+        set((state) => ({
+          dashboardTabCardOrders: {
+            ...state.dashboardTabCardOrders,
+            [tab]: order,
+          },
+        })),
+      setDashboardSummaryCards: (cards) =>
+        set({ dashboardSummaryCards: cards }),
       setMedicationRemindersEnabled: (value) =>
         set({ medicationRemindersEnabled: value }),
       setMedicationReminderRepeats: (value) =>
@@ -585,6 +738,23 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
             isHidden
           ),
         })),
+      setHealthTrendRange: (key, range) =>
+        set((state) => ({
+          healthTrendRanges: { ...state.healthTrendRanges, [key]: range },
+        })),
+      setHealthTrendsShowReportsLink: (value) =>
+        set({ healthTrendsShowReportsLink: value }),
+      setHealthTrendsShowRangeControl: (value) =>
+        set({ healthTrendsShowRangeControl: value }),
+      setHealthTrendsLayout: (layout) => set({ healthTrendsLayout: layout }),
+      setHealthTrendTile: (key, isTile) =>
+        set((state) => {
+          const withoutKey = state.healthTrendTiles.filter((k) => k !== key);
+          if (!isTile) return { healthTrendTiles: withoutKey };
+          if (state.healthTrendTiles.includes(key)) return {};
+          if (withoutKey.length >= MAX_HEALTH_TREND_TILES) return {};
+          return { healthTrendTiles: [...withoutKey, key] };
+        }),
       setAddMenuCards: (cards) =>
         set((state) => {
           const resolved = resolveAddMenuCards(cards);
@@ -724,6 +894,14 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         calorieRingCardVisible: state.calorieRingCardVisible,
         macrosCardVisible: state.macrosCardVisible,
         exerciseCardVisible: state.exerciseCardVisible,
+        activityRingsCardVisible: state.activityRingsCardVisible,
+        pinnedMetricsCardVisible: state.pinnedMetricsCardVisible,
+        pinnedMetrics: state.pinnedMetrics,
+        pinnedAuto: state.pinnedAuto,
+        activityRingStyle: state.activityRingStyle,
+        standGoalHours: state.standGoalHours,
+        activityRingsCompact: state.activityRingsCompact,
+        activityRingCustom: state.activityRingCustom,
         hydrationCardVisible: state.hydrationCardVisible,
         caffeineCardVisible: state.caffeineCardVisible,
         fastingCardVisible: state.fastingCardVisible,
@@ -738,7 +916,17 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         mindfulnessCardVisible: state.mindfulnessCardVisible,
         labResultsCardVisible: state.labResultsCardVisible,
         trainingLoadCardVisible: state.trainingLoadCardVisible,
+        workoutsCardVisible: state.workoutsCardVisible,
+        mealsCardVisible: state.mealsCardVisible,
+        sleepCardVisible: state.sleepCardVisible,
+        readinessCardVisible: state.readinessCardVisible,
+        stepsCardVisible: state.stepsCardVisible,
+        heartRateCardVisible: state.heartRateCardVisible,
         dashboardCardOrder: state.dashboardCardOrder,
+        dashboardTabsEnabled: state.dashboardTabsEnabled,
+        dashboardTab: state.dashboardTab,
+        dashboardTabCardOrders: state.dashboardTabCardOrders,
+        dashboardSummaryCards: state.dashboardSummaryCards,
         medicationRemindersEnabled: state.medicationRemindersEnabled,
         medicationReminderRepeats: state.medicationReminderRepeats,
         medicationReminderHideNames: state.medicationReminderHideNames,
@@ -774,6 +962,11 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         languagePreference: state.languagePreference,
         healthTrendOrder: state.healthTrendOrder,
         hiddenHealthTrends: state.hiddenHealthTrends,
+        healthTrendRanges: state.healthTrendRanges,
+        healthTrendsLayout: state.healthTrendsLayout,
+        healthTrendTiles: state.healthTrendTiles,
+        healthTrendsShowReportsLink: state.healthTrendsShowReportsLink,
+        healthTrendsShowRangeControl: state.healthTrendsShowRangeControl,
         addMenuCards: state.addMenuCards,
         addMenuOrder: state.addMenuOrder,
         hiddenAddMenuItems: state.hiddenAddMenuItems,

@@ -98,7 +98,155 @@ describe('appPreferencesStore', () => {
     });
   });
 
+  describe('pinned metric preferences', () => {
+    it('defaults to the card hidden with four metrics chosen', () => {
+      const state = useAppPreferencesStore.getState();
+      expect(state.pinnedMetricsCardVisible).toBe(false);
+      expect(state.pinnedMetrics).toEqual([
+        'ring:move',
+        'ring:exercise',
+        'trend:weight',
+        'trend:sleep',
+      ]);
+    });
+
+    it('chooses its metrics automatically until told otherwise', () => {
+      expect(useAppPreferencesStore.getState().pinnedAuto).toBe(true);
+      useAppPreferencesStore.getState().setPinnedAuto(false);
+      expect(useAppPreferencesStore.getState().pinnedAuto).toBe(false);
+    });
+
+    it('refuses a seventh metric until one is removed', () => {
+      const store = useAppPreferencesStore.getState();
+      store.setPinnedMetric('ring:steps', true);
+      store.setPinnedMetric('goal:water', true);
+      expect(useAppPreferencesStore.getState().pinnedMetrics).toHaveLength(6);
+
+      store.setPinnedMetric('goal:calories', true);
+      expect(useAppPreferencesStore.getState().pinnedMetrics).toHaveLength(6);
+
+      store.setPinnedMetric('trend:sleep', false);
+      store.setPinnedMetric('goal:calories', true);
+      expect(useAppPreferencesStore.getState().pinnedMetrics).toEqual([
+        'ring:move',
+        'ring:exercise',
+        'trend:weight',
+        'ring:steps',
+        'goal:water',
+        'goal:calories',
+      ]);
+    });
+  });
+
+  describe('card appearance preferences', () => {
+    it('defaults every card to its current look', () => {
+      const state = useAppPreferencesStore.getState();
+      expect(state.activityRingsCompact).toBe(false);
+      expect(state.healthTrendsShowReportsLink).toBe(true);
+      expect(state.healthTrendsShowRangeControl).toBe(true);
+    });
+
+    it('writes each appearance setting on its own', () => {
+      const store = useAppPreferencesStore.getState();
+      store.setActivityRingsCompact(true);
+      store.setHealthTrendsShowReportsLink(false);
+      store.setHealthTrendsShowRangeControl(false);
+
+      const state = useAppPreferencesStore.getState();
+      expect(state.activityRingsCompact).toBe(true);
+      expect(state.healthTrendsShowReportsLink).toBe(false);
+      expect(state.healthTrendsShowRangeControl).toBe(false);
+    });
+  });
+
+  describe('activity ring preferences', () => {
+    it('defaults to the card hidden, apple style and every ring chosen', () => {
+      const state = useAppPreferencesStore.getState();
+
+      expect(state.activityRingsCardVisible).toBe(false);
+      expect(state.activityRingStyle).toBe('apple');
+      expect(state.activityRingCustom).toEqual([
+        'move',
+        'exercise',
+        'stand',
+        'steps',
+        'points',
+      ]);
+    });
+
+    it('clamps the stand goal to 1 to 24 hours', () => {
+      const store = useAppPreferencesStore.getState();
+      expect(useAppPreferencesStore.getState().standGoalHours).toBe(12);
+      store.setStandGoalHours(30);
+      expect(useAppPreferencesStore.getState().standGoalHours).toBe(24);
+      store.setStandGoalHours(0);
+      expect(useAppPreferencesStore.getState().standGoalHours).toBe(1);
+    });
+
+    it('adds and removes custom rings without duplicating', () => {
+      const store = useAppPreferencesStore.getState();
+      store.setActivityRingCustom('steps', false);
+      expect(useAppPreferencesStore.getState().activityRingCustom).toEqual([
+        'move',
+        'exercise',
+        'stand',
+        'points',
+      ]);
+
+      store.setActivityRingCustom('steps', true);
+      store.setActivityRingCustom('steps', true);
+      expect(
+        useAppPreferencesStore
+          .getState()
+          .activityRingCustom.filter((key) => key === 'steps')
+      ).toHaveLength(1);
+    });
+  });
+
   describe('health trend preferences', () => {
+    it('defaults to the swipe layout with no tiles and no custom ranges', () => {
+      const state = useAppPreferencesStore.getState();
+
+      expect(state.healthTrendsLayout).toBe('pager');
+      expect(state.healthTrendTiles).toEqual([]);
+      expect(state.healthTrendRanges).toEqual({});
+    });
+
+    it('stores a range per graph without touching the others', () => {
+      const store = useAppPreferencesStore.getState();
+      store.setHealthTrendRange('weight', '90d');
+      store.setHealthTrendRange('steps', '30d');
+
+      expect(useAppPreferencesStore.getState().healthTrendRanges).toEqual({
+        weight: '90d',
+        steps: '30d',
+      });
+    });
+
+    it('caps tiles at the maximum and lets one be removed to make room', () => {
+      const store = useAppPreferencesStore.getState();
+      (['steps', 'weight', 'sleep', 'hydration'] as const).forEach((key) =>
+        store.setHealthTrendTile(key, true)
+      );
+      store.setHealthTrendTile('calories', true);
+
+      expect(useAppPreferencesStore.getState().healthTrendTiles).toEqual([
+        'steps',
+        'weight',
+        'sleep',
+        'hydration',
+      ]);
+
+      store.setHealthTrendTile('weight', false);
+      store.setHealthTrendTile('calories', true);
+      expect(useAppPreferencesStore.getState().healthTrendTiles).toEqual([
+        'steps',
+        'sleep',
+        'hydration',
+        'calories',
+      ]);
+    });
+
     it('defaults to the full registry order with nothing hidden', () => {
       const state = useAppPreferencesStore.getState();
 
@@ -263,13 +411,21 @@ describe('appPreferencesStore', () => {
       const state = useAppPreferencesStore.getState();
       expect(state.dashboardCardOrder).toEqual([
         'calorieRing',
+        'pinnedMetrics',
         'askSparky',
         'macros',
         'exercise',
+        'activityRings',
         'trainingLoad',
+        'workouts',
+        'steps',
+        'heartRate',
         'hydration',
         'caffeine',
+        'meals',
         'fasting',
+        'sleep',
+        'readiness',
         'cycle',
         'medications',
         'symptoms',

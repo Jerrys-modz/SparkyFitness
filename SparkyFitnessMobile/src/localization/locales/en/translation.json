@@ -759,7 +759,9 @@
     "labResults": "Lab results",
     "labResultDetail": "Lab result",
     "labResultAdd": "Add lab result",
-    "labReportImport": "Import report"
+    "labReportImport": "Import report",
+    "activityRingsSettings": "Activity Rings",
+    "pinnedMetricsSettings": "At a Glance"
   },
   "activityShare": {
     "title": "Share Activity",
@@ -1004,7 +1006,80 @@
     "perPress": "{{value}} {{unit}}",
     "logDrinkFailed": "Could not log that drink",
     "exerciseStatistics": "Statistics",
-    "reportsLink": "Reports"
+    "reportsLink": "Reports",
+    "activityRings": "Activity Rings",
+    "activityRingsSettings": "Settings",
+    "pinnedMetrics": "At a Glance",
+    "pinnedMetricsSettings": "Settings",
+    "tabs": {
+      "summary": "Summary",
+      "nutrition": "Nutrition",
+      "activity": "Activity",
+      "wellness": "Wellness"
+    },
+    "askSparkyTabs": {
+      "summary": "Ask Sparky about today's progress…",
+      "nutrition": "Ask Sparky about today's meals or macros…",
+      "activity": "Ask Sparky about workouts, pacing or load…",
+      "wellness": "Ask Sparky about sleep, meds or recovery…"
+    },
+    "tabEmpty": "All the cards on this tab are hidden. Tap to choose cards in Dashboard Settings.",
+    "sleepCard": {
+      "title": "Sleep",
+      "score": "Score {{score}}",
+      "timeAsleep": "Time asleep",
+      "restingHr": "Resting HR",
+      "hrv": "HRV",
+      "bpm": "{{value}} bpm",
+      "ms": "{{value}} ms",
+      "stages": "Sleep stages"
+    },
+    "readinessCard": {
+      "title": "Readiness",
+      "score": "Readiness score",
+      "levelHigh": "Ready",
+      "levelModerate": "Fine",
+      "levelLow": "Take it easy",
+      "weakest": "Held back most by {{factor}}"
+    },
+    "mealsCard": {
+      "title": "Meals",
+      "logMeal": "Log Meal",
+      "foodsMore": "{{names}} +{{more}}",
+      "target": "Target: ~{{calories}} Cal",
+      "nothingYet": "Nothing logged yet",
+      "calories": "{{calories}} Cal",
+      "add": "+ Add"
+    },
+    "workoutsCard": {
+      "title": "Workouts",
+      "log": "Log",
+      "record": "Record",
+      "empty": "No workouts logged yet.",
+      "planned": "Planned · {{plan}}",
+      "start": "Start"
+    },
+    "stepsCard": {
+      "title": "Steps",
+      "trends": "Trends",
+      "ofGoal": "/ {{goal}} steps ({{percent}}%)",
+      "lastSevenDays": "Last 7 days"
+    },
+    "heartRateCard": {
+      "title": "Heart Rate",
+      "restingBpm": "bpm resting",
+      "vsAverage": "{{delta}} bpm vs 7d avg",
+      "zone": "Zone {{zone}}",
+      "share": "{{percent}}%"
+    },
+    "status": {
+      "readyHard": "Ready for a hard session",
+      "readyNormal": "Ready for a normal session",
+      "takeItEasy": "Take it easy today",
+      "dosesDue_one": "{{count}} dose still due",
+      "dosesDue_other": "{{count}} doses still due",
+      "dosesDone": "All doses taken"
+    }
   },
   "syncScreen": {
     "healthConnectSettings": "Health Connect settings",
@@ -1278,7 +1353,33 @@
     "trainingLoad": "Training Load",
     "trainingLoadSubtitle": "Show this week against your usual training, with a nudge to rest",
     "labResults": "Lab Results",
-    "labResultsSubtitle": "Show your latest lab results and which are out of range"
+    "labResultsSubtitle": "Show your latest lab results and which are out of range",
+    "activityRings": "Activity Rings",
+    "activityRingsSubtitle": "Show Move, Exercise, Stand and Steps rings for the day",
+    "pinnedMetrics": "At a Glance",
+    "pinnedMetricsSubtitle": "A slim row of the numbers worth seeing first",
+    "tabs": "Dashboard tabs",
+    "tabsSubtitle": "Split the Dashboard into Summary, Nutrition, Activity and Wellness",
+    "workouts": "Workouts",
+    "workoutsSubtitle": "Show today's logged and planned workouts",
+    "meals": "Meals",
+    "mealsSubtitle": "Show each meal's foods and calories, with a quick way to add more",
+    "sleep": "Sleep",
+    "sleepSubtitle": "Show last night's sleep, its stages and overnight vitals",
+    "readiness": "Readiness",
+    "readinessSubtitle": "Show today's readiness score and what is holding it back",
+    "steps": "Steps",
+    "stepsSubtitle": "Show the day's steps against your goal and the last seven days",
+    "heartRate": "Heart Rate",
+    "heartRateSubtitle": "Show resting heart rate and today's time in each heart rate zone",
+    "askSparkyOnEveryTab": "At the top of every tab",
+    "tabsDescription": "Drag a card by its handle to reorder its tab. A card's own switch hides it everywhere; Summary has its own list of cards it repeats from the other tabs.",
+    "turnedOffOnTab": "Turned off on {{tab}}",
+    "alsoOnTab": "Also on {{tab}}",
+    "addToSummary": "Add to Summary",
+    "fromTab": "From {{tab}}",
+    "addCardToSummary": "Add {{name}} to Summary",
+    "add": "Add"
   },
   "diarySettings": {
     "updateFailed": "Failed to update setting.",
@@ -5401,6 +5502,14 @@
     },
     "allTrendsHidden": "All graphs are hidden. Choose which to show in Dashboard Settings.",
     "noTrendData": "No data to graph yet.",
+    "noTiles": "No tiles chosen. Pick up to 4 graphs in Dashboard Settings.",
+    "tiles": {
+      "stepsUnit": "steps/day",
+      "hoursUnit": "h/night",
+      "caloriesUnit": "kcal/day",
+      "bpmUnit": "bpm",
+      "vo2Unit": "ml/kg/min"
+    },
     "heartRate": {
       "title": "Resting Heart Rate",
       "avgLabel": "AVG",
@@ -6792,13 +6901,23 @@
     "photoUnavailable": "Photo unavailable"
   },
   "healthTrendsSettings": {
+    "layout": "Layout",
+    "layoutPager": "Swipe",
+    "layoutTiles": "Tiles",
+    "tilesDescription": "Choose up to {{max}} graphs to show as tiles.",
+    "graphs": "Graphs",
     "description": "Drag a graph by its handle to reorder it. Toggle off to hide it from your Dashboard.",
     "reorder": "Reorder {{name}}",
     "reorderHint": "Reorder this graph in your Dashboard health trends",
     "moveUp": "Move up",
     "moveDown": "Move down",
     "stateShown": "Shown",
-    "stateHidden": "Hidden"
+    "stateHidden": "Hidden",
+    "display": "Display",
+    "showRangeControl": "Range selector",
+    "showRangeControlSubtitle": "Show 7d, 30d and 90d above the graphs",
+    "showReportsLink": "Reports link",
+    "showReportsLinkSubtitle": "Show a Reports link beside the heading"
   },
   "quickActions": {
     "scanFood": "Scan food",
@@ -9915,5 +10034,48 @@
     "loadFailedSubtitle": "Check your connection and try again.",
     "emptyTitle": "No drinks logged",
     "emptySubtitle": "Drinks you log with the water buttons, a drink preset, the watch or a synced app show up here."
+  },
+  "activityRings": {
+    "move": "Move",
+    "exercise": "Exercise",
+    "steps": "Steps",
+    "minutesUnit": "min",
+    "stepsUnit": "steps",
+    "style": "Style",
+    "styleApple": "Move",
+    "styleCustom": "Custom",
+    "customDescription": "Choose which rings to show.",
+    "settingsDescription": "Rings fill toward your daily goals. Move and Exercise use your exercise goals, Stand and Active points have their own goals, and Steps uses your steps goal.",
+    "styleAppleDescription": "Move (calories), Exercise (minutes) and Stand (hours) rings. Stand shows on iPhone only.",
+    "points": "Active points",
+    "pointsUnit": "pts",
+    "styleGoogle": "Points",
+    "styleGoogleDescription": "Exercise minutes and Active points rings.",
+    "stand": "Stand",
+    "standUnit": "hr",
+    "standGoal": "Stand goal",
+    "standGoalUnit": "hours a day",
+    "standGoalDecrease": "Decrease stand goal",
+    "standGoalIncrease": "Increase stand goal",
+    "standDescription": "Stand hours are read from Apple Health on this device and are not uploaded.",
+    "size": "Size",
+    "sizeStandard": "Standard",
+    "sizeCompact": "Compact"
+  },
+  "pinnedMetrics": {
+    "settingsDescription": "Pick up to {{max}} metrics to show in the strip at the top of your Dashboard. Rings and goals show today against your target; trends show the latest reading or average.",
+    "rings": "Rings",
+    "trends": "Trends",
+    "empty": "No metrics pinned. Choose some in Pinned Metrics settings.",
+    "ofGoal": "of {{goal}} {{unit}}",
+    "limitReached": "You have pinned {{max}} metrics. Unpin one to choose another.",
+    "calories": "Calories",
+    "protein": "Protein",
+    "carbs": "Carbs",
+    "fat": "Fat",
+    "water": "Water",
+    "goals": "Nutrition & hydration",
+    "auto": "Choose for me",
+    "autoSubtitle": "Show a few useful metrics, skipping anything another card already shows"
   }
 }

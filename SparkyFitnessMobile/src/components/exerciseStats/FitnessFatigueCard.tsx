@@ -9,6 +9,11 @@ import type {
 } from '@workspace/shared';
 import StatusView from '../StatusView';
 import { formatLocalizedNumber } from '../../localization';
+import {
+  READINESS_LEVEL_COLOR,
+  readinessFactorLabel,
+  readinessLevelText,
+} from '../../utils/readinessCopy';
 
 interface FitnessFatigueCardProps {
   data: FitnessFatigueResponse | undefined;
@@ -19,13 +24,6 @@ interface FitnessFatigueCardProps {
 const BAR_AREA_HEIGHT = 64;
 /** Days of form shown as bars. */
 const FORM_DAYS = 28;
-
-const LEVEL_COLOR: Record<ReadinessLevel, string> = {
-  noData: 'text-text-secondary',
-  low: 'text-text-danger-subtle',
-  moderate: 'text-text-warning',
-  high: 'text-text-success',
-};
 
 /**
  * Today's readiness to train hard and the fitness / fatigue / form numbers
@@ -40,28 +38,7 @@ const FitnessFatigueCard: React.FC<FitnessFatigueCardProps> = ({
 }) => {
   const { t } = useTranslation();
 
-  const levelText = (level: ReadinessLevel): string => {
-    switch (level) {
-      case 'high':
-        return t('exerciseStatistics.fitness.level.high', {
-          defaultValue: 'Ready for a hard session.',
-        });
-      case 'moderate':
-        return t('exerciseStatistics.fitness.level.moderate', {
-          defaultValue: 'Fine for a normal session, but not your hardest.',
-        });
-      case 'low':
-        return t('exerciseStatistics.fitness.level.low', {
-          defaultValue:
-            'Not recovered. An easy day or rest is the better call.',
-        });
-      default:
-        return t('exerciseStatistics.fitness.level.noData', {
-          defaultValue:
-            'Not enough to go on yet. Log workouts and sleep to see your readiness.',
-        });
-    }
-  };
+  const levelText = (level: ReadinessLevel) => readinessLevelText(level, t);
 
   const statusText = (status: FormStatus): string | null => {
     switch (status) {
@@ -89,26 +66,8 @@ const FitnessFatigueCard: React.FC<FitnessFatigueCardProps> = ({
     }
   };
 
-  const factorLabel = (factor: ReadinessFactor): string => {
-    switch (factor) {
-      case 'form':
-        return t('exerciseStatistics.fitness.factor.form', {
-          defaultValue: 'Training form',
-        });
-      case 'sleep':
-        return t('exerciseStatistics.fitness.factor.sleep', {
-          defaultValue: 'Sleep',
-        });
-      case 'restingHeartRate':
-        return t('exerciseStatistics.fitness.factor.restingHeartRate', {
-          defaultValue: 'Resting heart rate',
-        });
-      default:
-        return t('exerciseStatistics.fitness.factor.hrv', {
-          defaultValue: 'HRV',
-        });
-    }
-  };
+  const factorLabel = (factor: ReadinessFactor) =>
+    readinessFactorLabel(factor, t);
 
   /** "41 ms against your usual 68 ms (median of 9 nights)" under a watch factor. */
   const vitalText = (
@@ -187,7 +146,9 @@ const FitnessFatigueCard: React.FC<FitnessFatigueCardProps> = ({
             })}
           </Text>
         </View>
-        <Text className={`text-sm mb-3 ${LEVEL_COLOR[readiness.level]}`}>
+        <Text
+          className={`text-sm mb-3 ${READINESS_LEVEL_COLOR[readiness.level]}`}
+        >
           {levelText(readiness.level)}
         </Text>
         {factors.map(([factor, score]) => {
