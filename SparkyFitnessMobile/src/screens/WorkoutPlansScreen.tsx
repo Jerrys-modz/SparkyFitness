@@ -22,6 +22,10 @@ import {
   useWorkoutPlans,
 } from '../hooks';
 import { useScreenHeader } from '../hooks/useScreenHeader';
+import {
+  usePickWorkoutProgramFile,
+  useShareWorkoutProgram,
+} from '../hooks/useWorkoutProgramSharing';
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import type { RootStackScreenProps } from '../types/navigation';
 import type {
@@ -50,6 +54,7 @@ const WorkoutPlansScreen: React.FC<WorkoutPlansScreenProps> = ({
   });
   const { deleteWorkoutPlanAsync, isPending: isDeleting } =
     useDeleteWorkoutPlan();
+  const { shareProgram, isSharing } = useShareWorkoutProgram();
   const dateLocale = i18n.language.startsWith('pl') ? 'pl-PL' : 'en-US';
   const weekdays = useMemo(
     () => [
@@ -137,18 +142,37 @@ const WorkoutPlansScreen: React.FC<WorkoutPlansScreenProps> = ({
     setRefreshing(false);
   }, [refetch]);
 
+  const pickProgramFile = usePickWorkoutProgramFile();
+  const addFromFile = async () => {
+    const program = await pickProgramFile();
+    if (program) navigation.navigate('WorkoutProgramImport', { program });
+  };
+
   const header = useScreenHeader({
     title: t('workoutPlans.title', { defaultValue: 'Workout plans' }),
     left: { kind: 'back' },
-    right: {
-      kind: 'icon',
-      sfSymbol: 'plus',
-      ionicon: 'add',
-      accessibilityLabel: t('workoutPlans.create', {
-        defaultValue: 'Create workout plan',
-      }),
-      onPress: () => navigation.navigate('WorkoutPlanForm'),
-    },
+    right: [
+      {
+        kind: 'icon',
+        sfSymbol: 'square.and.arrow.down',
+        ionicon: 'download-outline',
+        role: 'secondary',
+        onPress: () => void addFromFile(),
+        accessibilityLabel: t('workoutPrograms.import.fromFile', {
+          defaultValue: 'Import from file',
+        }),
+        identifier: 'workout-plans-import',
+      },
+      {
+        kind: 'icon',
+        sfSymbol: 'plus',
+        ionicon: 'add',
+        accessibilityLabel: t('workoutPlans.create', {
+          defaultValue: 'Create workout plan',
+        }),
+        onPress: () => navigation.navigate('WorkoutPlanForm'),
+      },
+    ],
   });
 
   const renderPlan = ({ item }: { item: WorkoutPlanTemplate }) => {
@@ -242,6 +266,20 @@ const WorkoutPlansScreen: React.FC<WorkoutPlansScreenProps> = ({
           </View>
         </Pressable>
         <View className="flex-row justify-end mt-2 border-t border-border-subtle pt-2">
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('workoutPrograms.share.named', {
+              defaultValue: 'Share {{name}} as a file',
+              name: item.plan_name,
+            })}
+            disabled={isSharing}
+            className="p-3"
+            onPress={() =>
+              shareProgram({ kind: 'plan', id: item.id, name: item.plan_name })
+            }
+          >
+            <Icon name="share" size={20} color={accentColor} />
+          </Pressable>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t('workoutPlans.deleteNamed', {

@@ -27,6 +27,16 @@ const ALLOWED: Record<string, { count: number; reason: string }> = {
     count: 2,
     reason: 'admin only; a rejected OIDC provider has to say why',
   },
+  'routes/v2/workoutProgramRoutes.ts': {
+    count: 1,
+    reason:
+      'the 502 lists the exercise ids from the uploaded file that could not be added, never database or system text',
+  },
+  'routes/v2/workoutSplitRoutes.ts': {
+    count: 1,
+    reason:
+      'the 502 lists the built-in catalog exercise ids that could not be added, never database or system text',
+  },
 };
 
 const LITERAL_VALUES = new Set(['true', 'false', 'null', 'undefined']);

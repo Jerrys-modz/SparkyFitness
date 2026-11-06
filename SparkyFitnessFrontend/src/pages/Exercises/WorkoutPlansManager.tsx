@@ -12,6 +12,8 @@ import {
   X,
   MoreHorizontal,
   Repeat,
+  Share2,
+  Upload,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -23,6 +25,9 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { useExportWorkoutProgramMutation } from '@/hooks/Exercises/useWorkoutPrograms';
+import { useActiveUser } from '@/contexts/ActiveUserContext';
+import ImportWorkoutProgramDialog from './ImportWorkoutProgramDialog';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import { error } from '@/utils/logging';
 import type { WorkoutPlanTemplate } from '@/types/workout';
@@ -48,6 +53,12 @@ import { Badge } from '@/components/ui/badge';
 
 const WorkoutPlansManager = () => {
   const { t } = useTranslation();
+  const { mutate: exportProgram, isPending: isExporting } =
+    useExportWorkoutProgramMutation();
+  // Importing adds to the person's own library, so it is off while acting
+  // on behalf of someone (the server route is owner-only).
+  const { isActingOnBehalf } = useActiveUser();
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const { user } = useAuth();
   const { loggingLevel } = usePreferences();
   const isMobile = useIsMobile();
@@ -341,6 +352,19 @@ const WorkoutPlansManager = () => {
                     </>
                   )}
                 </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={isExporting}
+                  onClick={() =>
+                    exportProgram({
+                      kind: 'plan',
+                      id: plan.id,
+                      name: plan.plan_name,
+                    })
+                  }
+                >
+                  <Share2 className="mr-2 h-4 w-4" />
+                  {t('workoutPrograms.export.action', 'Share as file')}
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className="text-destructive focus:text-destructive"
@@ -355,7 +379,7 @@ const WorkoutPlansManager = () => {
         },
       },
     ],
-    [t, handleTogglePlanActive, handleDeletePlan]
+    [t, handleTogglePlanActive, handleDeletePlan, exportProgram, isExporting]
   );
 
   if (!plans) return null;
@@ -452,6 +476,22 @@ const WorkoutPlansManager = () => {
                 t('common.select', 'Select')
               )}
             </Button>
+            {!isActingOnBehalf && (
+              <Button
+                variant="outline"
+                size={isMobile ? 'icon' : 'default'}
+                onClick={() => setIsImportDialogOpen(true)}
+                className="shrink-0"
+                title={t('workoutPrograms.import.fromFile', 'Import from file')}
+              >
+                <Upload className={isMobile ? 'w-5 h-5' : 'h-4 w-4 mr-2'} />
+                {!isMobile && (
+                  <span>
+                    {t('workoutPrograms.import.fromFile', 'Import from file')}
+                  </span>
+                )}
+              </Button>
+            )}
             <Button
               onClick={() => setIsAddPlanDialogOpen(true)}
               size={isMobile ? 'icon' : 'default'}
@@ -491,6 +531,11 @@ const WorkoutPlansManager = () => {
             />
           )}
         </CardContent>
+        <ImportWorkoutProgramDialog
+          open={isImportDialogOpen}
+          onClose={() => setIsImportDialogOpen(false)}
+          onImported={() => setIsImportDialogOpen(false)}
+        />
       </Card>
 
       <BulkActionToolbar

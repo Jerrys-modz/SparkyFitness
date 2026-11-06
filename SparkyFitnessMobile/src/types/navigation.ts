@@ -16,6 +16,7 @@ import type {
   RaceDistance,
   SharedPregnancy,
   WorkoutFormat,
+  WorkoutProgramFile,
 } from '@workspace/shared';
 import type { FoodFormData } from '../components/FoodForm';
 import type { NutritionLabelScan } from '../utils/labelScanFood';
@@ -123,6 +124,10 @@ export type RootStackParamList = {
   WorkoutPlans: undefined;
   WorkoutPlanForm: { template?: WorkoutPlanTemplate } | undefined;
   RunPrograms: undefined;
+  WorkoutSplits: undefined;
+  WorkoutSplitImport: { splitId: string };
+  /** A shared workout file, already checked against the shared schema. */
+  WorkoutProgramImport: { program: WorkoutProgramFile };
   RunProgramCalendar: undefined;
   RunProgramWorkout: { index: number };
   RunProgramRace: { distance?: RaceDistance; raceDay?: string } | undefined;
