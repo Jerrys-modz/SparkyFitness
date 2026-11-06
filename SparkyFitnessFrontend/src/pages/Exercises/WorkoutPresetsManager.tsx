@@ -23,6 +23,7 @@ import {
   MoreHorizontal,
   CopyPlus,
   Share2,
+  Upload,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -35,6 +36,8 @@ import {
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useExportWorkoutProgramMutation } from '@/hooks/Exercises/useWorkoutPrograms';
+import { useActiveUser } from '@/contexts/ActiveUserContext';
+import ImportWorkoutProgramDialog from './ImportWorkoutProgramDialog';
 import type { WorkoutPreset } from '@/types/workout';
 import WorkoutPresetForm from './WorkoutPresetForm';
 import {
@@ -66,6 +69,10 @@ const WorkoutPresetsManager = () => {
   const { t } = useTranslation();
   const { mutate: exportProgram, isPending: isExporting } =
     useExportWorkoutProgramMutation();
+  // Importing adds to the person's own library, so it is off while acting
+  // on behalf of someone (the server route is owner-only).
+  const { isActingOnBehalf } = useActiveUser();
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
@@ -508,6 +515,22 @@ const WorkoutPresetsManager = () => {
                 </span>
               )}
             </Button>
+            {!isActingOnBehalf && (
+              <Button
+                variant="outline"
+                size={isMobile ? 'icon' : 'default'}
+                onClick={() => setIsImportDialogOpen(true)}
+                className="shrink-0"
+                title={t('workoutPrograms.import.fromFile', 'Import from file')}
+              >
+                <Upload className={isMobile ? 'w-5 h-5' : 'h-4 w-4 mr-2'} />
+                {!isMobile && (
+                  <span>
+                    {t('workoutPrograms.import.fromFile', 'Import from file')}
+                  </span>
+                )}
+              </Button>
+            )}
             <Button
               onClick={() => setIsAddPresetDialogOpen(true)}
               size={isMobile ? 'icon' : 'default'}
@@ -565,6 +588,11 @@ const WorkoutPresetsManager = () => {
             />
           )}
         </CardContent>
+        <ImportWorkoutProgramDialog
+          open={isImportDialogOpen}
+          onClose={() => setIsImportDialogOpen(false)}
+          onImported={() => setIsImportDialogOpen(false)}
+        />
       </Card>
 
       <Dialog

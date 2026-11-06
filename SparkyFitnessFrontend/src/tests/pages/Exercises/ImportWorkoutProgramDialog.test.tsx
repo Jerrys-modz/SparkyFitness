@@ -4,7 +4,7 @@ import {
   WORKOUT_PROGRAM_FILE_FORMAT,
   WORKOUT_PROGRAM_FILE_VERSION,
 } from '@workspace/shared';
-import ImportWorkoutProgramDialog from '@/pages/Exercises/WorkoutSplits/ImportWorkoutProgramDialog';
+import ImportWorkoutProgramDialog from '@/pages/Exercises/ImportWorkoutProgramDialog';
 import { useImportWorkoutProgramMutation } from '@/hooks/Exercises/useWorkoutPrograms';
 
 jest.mock('react-i18next', () =>

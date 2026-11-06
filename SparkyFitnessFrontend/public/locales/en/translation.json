@@ -10395,7 +10395,8 @@
       "invalid": "This is not a SparkyFitness workout file.",
       "presetLine": "{{name}} ({{count}} exercises)",
       "add": "Add workouts",
-      "success": "Workouts added. Find them under your presets and plans."
+      "success": "Workouts added. Find them under your presets and plans.",
+      "fromFile": "Import from file"
     }
   }
 }

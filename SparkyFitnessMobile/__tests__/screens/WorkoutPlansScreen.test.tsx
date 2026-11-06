@@ -19,6 +19,7 @@ jest.mock('../../src/hooks', () => ({
 
 const mockShareProgram = jest.fn();
 jest.mock('../../src/hooks/useWorkoutProgramSharing', () => ({
+  usePickWorkoutProgramFile: () => jest.fn(),
   useShareWorkoutProgram: () => ({
     shareProgram: mockShareProgram,
     isSharing: false,

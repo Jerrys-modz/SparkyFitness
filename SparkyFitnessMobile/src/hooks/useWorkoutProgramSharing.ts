@@ -1,13 +1,22 @@
+import { useCallback } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import Toast from 'react-native-toast-message';
-import type { ImportWorkoutProgramRequest } from '@workspace/shared';
+import type {
+  ImportWorkoutProgramRequest,
+  WorkoutProgramFile,
+} from '@workspace/shared';
 import i18n from '../localization/i18n';
 import {
   exportWorkoutPlan,
   exportWorkoutPreset,
   importWorkoutProgram,
 } from '../services/api/workoutProgramsApi';
-import { shareWorkoutProgramFile } from '../services/workoutProgramFiles';
+import {
+  InvalidWorkoutProgramFileError,
+  pickWorkoutProgramFile,
+  shareWorkoutProgramFile,
+} from '../services/workoutProgramFiles';
 import { invalidateWorkoutPresetCaches } from './useWorkoutPresetMutations';
 import { useInvalidateWorkoutPlans } from './useWorkoutPlans';
 
@@ -74,4 +83,31 @@ export function useImportWorkoutProgram() {
     importProgramAsync: mutation.mutateAsync,
     isPending: mutation.isPending,
   };
+}
+
+/**
+ * Lets the person pick a shared workout file and checks it. Resolves to the
+ * file, or null when the picker was closed or the file was refused (the
+ * reason is toasted). The presets, plans and programs screens all offer it.
+ */
+export function usePickWorkoutProgramFile(): () => Promise<WorkoutProgramFile | null> {
+  const { t } = useTranslation();
+  return useCallback(async () => {
+    try {
+      return await pickWorkoutProgramFile();
+    } catch (error: unknown) {
+      Toast.show({
+        type: 'error',
+        text1:
+          error instanceof InvalidWorkoutProgramFileError
+            ? t('workoutPrograms.import.invalid', {
+                defaultValue: 'This is not a SparkyFitness workout file.',
+              })
+            : t('workoutPrograms.import.readFailed', {
+                defaultValue: 'Could not open the file',
+              }),
+      });
+      return null;
+    }
+  }, [t]);
 }

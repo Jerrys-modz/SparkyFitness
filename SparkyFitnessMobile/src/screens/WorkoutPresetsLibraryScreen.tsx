@@ -28,6 +28,7 @@ import {
 import ShareStatusBadge from '../components/ShareStatusBadge';
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import { useScreenHeader } from '../hooks/useScreenHeader';
+import { usePickWorkoutProgramFile } from '../hooks/useWorkoutProgramSharing';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import type { WorkoutPreset } from '../types/workoutPresets';
 import type { RootStackScreenProps } from '../types/navigation';
@@ -245,25 +246,44 @@ const WorkoutPresetsLibraryScreen: React.FC<
     );
   };
 
+  const pickProgramFile = usePickWorkoutProgramFile();
+  const addFromFile = async () => {
+    const program = await pickProgramFile();
+    if (program) navigation.navigate('WorkoutProgramImport', { program });
+  };
+
   const header = useScreenHeader({
     title: t('presetLibrary.title', { defaultValue: 'Workout presets' }),
     left: { kind: 'back' },
-    right: ownershipFilterHeaderMenu({
-      noun: t('presetLibrary.noun', { defaultValue: 'workout presets' }),
-      labels: {
-        all: t('ownership.all', { defaultValue: 'All' }),
-        mine: t('ownership.mine', { defaultValue: 'Mine' }),
-        family: t('ownership.family', { defaultValue: 'Family' }),
-        public: t('ownership.public', { defaultValue: 'Public' }),
+    right: [
+      {
+        kind: 'icon',
+        sfSymbol: 'square.and.arrow.down',
+        ionicon: 'download-outline',
+        role: 'secondary',
+        onPress: () => void addFromFile(),
+        accessibilityLabel: t('workoutPrograms.import.fromFile', {
+          defaultValue: 'Import from file',
+        }),
+        identifier: 'workout-presets-library-import',
       },
-      showLabel: t('ownership.show', { defaultValue: 'Show' }),
-      filterAccessibilityLabel: t('ownership.filter', {
-        defaultValue: 'Filter {{noun}}, filtered to {{filter}}',
+      ownershipFilterHeaderMenu({
+        noun: t('presetLibrary.noun', { defaultValue: 'workout presets' }),
+        labels: {
+          all: t('ownership.all', { defaultValue: 'All' }),
+          mine: t('ownership.mine', { defaultValue: 'Mine' }),
+          family: t('ownership.family', { defaultValue: 'Family' }),
+          public: t('ownership.public', { defaultValue: 'Public' }),
+        },
+        showLabel: t('ownership.show', { defaultValue: 'Show' }),
+        filterAccessibilityLabel: t('ownership.filter', {
+          defaultValue: 'Filter {{noun}}, filtered to {{filter}}',
+        }),
+        identifier: 'workout-presets-library-filter',
+        filter: ownershipFilter,
+        onSelect: setOwnershipFilter,
       }),
-      identifier: 'workout-presets-library-filter',
-      filter: ownershipFilter,
-      onSelect: setOwnershipFilter,
-    }),
+    ],
   });
 
   return (
