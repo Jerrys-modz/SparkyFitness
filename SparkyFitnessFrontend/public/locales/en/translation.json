@@ -10619,20 +10619,5 @@
     "valueInvalid": "Enter a marker and a numeric result.",
     "historyCutOff": "History shows at most the newest {{count}} results.",
     "dateInvalid": "Enter the date of the test."
-  "workoutPrograms": {
-    "export": {
-      "action": "Share as file",
-      "success": "Saved as a file. Send it to anyone with SparkyFitness to add it to their workouts."
-    },
-    "import": {
-      "open": "Add from a file",
-      "title": "Add workouts from a file",
-      "message": "Choose a workout file someone shared with you. Its exercises are added to your library and its workouts become your own presets and plan, which you can change afterwards.",
-      "file": "Workout file",
-      "invalid": "This is not a SparkyFitness workout file.",
-      "presetLine": "{{name}} ({{count}} exercises)",
-      "add": "Add workouts",
-      "success": "Workouts added. Find them under your presets and plans."
-    }
   }
 }
