@@ -1470,7 +1470,11 @@
     "alsoOnTab": "Also on {{tab}}",
     "onTabOnly": "On {{tab}} only",
     "oralCare": "Oral care",
-    "oralCareSubtitle": "Show brushing against your goal and your streak"
+    "oralCareSubtitle": "Show brushing against your goal and your streak",
+    "addToSummary": "Add to Summary",
+    "fromTab": "From {{tab}}",
+    "addCardToSummary": "Add {{name}} to Summary",
+    "add": "Add"
   },
   "diarySettings": {
     "updateFailed": "Failed to update setting.",

@@ -134,7 +134,6 @@ import {
   cardsForTab,
   resolveDashboardTab,
   resolveSummaryCards,
-  type DashboardTab,
 } from '../constants/dashboardTabs';
 import type { RootStackParamList, TabParamList } from '../types/navigation';
 import { formatDateLabel, getDateRelationToToday } from '../utils/dateUtils';
@@ -383,13 +382,6 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
     (key: DashboardCardKey) =>
       !dashboardTabsEnabled || cardShowsOnTab(key, dashboardTab, summaryCards),
     [dashboardTabsEnabled, dashboardTab, summaryCards]
-  );
-  const selectDashboardTab = useCallback(
-    (tab: DashboardTab) => {
-      setDashboardTab(tab);
-      scrollViewRef.current?.scrollTo({ y: 0, animated: false });
-    },
-    [setDashboardTab]
   );
   const tabSegments = useMemo(
     () =>
@@ -895,6 +887,9 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
 
     return (
       <ScrollView
+        // A new list per tab, so a tab opens at the top. Scrolling to y = 0 instead
+        // lands under the iOS large-title header, whose resting offset is above 0.
+        key={dashboardTabsEnabled ? `tab-${dashboardTab}` : 'all-cards'}
         ref={scrollViewRef}
         className="flex-1 bg-background"
         style={{ flex: 1 }}
@@ -928,7 +923,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
               tone="accent"
               segments={tabSegments}
               activeKey={dashboardTab}
-              onSelect={selectDashboardTab}
+              onSelect={setDashboardTab}
             />
           </View>
         )}
