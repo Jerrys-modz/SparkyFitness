@@ -25,7 +25,7 @@ import {
 import { useActiveUser } from '@/contexts/ActiveUserContext';
 import { useImportWorkoutSplitMutation } from '@/hooks/Exercises/useWorkoutSplits';
 import { goalLabel, levelLabel, venueLabel } from '@/utils/workoutSplits';
-import ImportWorkoutProgramDialog from './ImportWorkoutProgramDialog';
+import ImportWorkoutProgramDialog from '../ImportWorkoutProgramDialog';
 import ImportWorkoutSplitDialog from './ImportWorkoutSplitDialog';
 import WorkoutSplitCard from './WorkoutSplitCard';
 

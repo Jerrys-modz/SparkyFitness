@@ -11182,7 +11182,8 @@
       "success": "Workouts added. Find them under your presets and plans.",
       "error": "Could not add the workouts",
       "invalid": "This is not a SparkyFitness workout file.",
-      "readFailed": "Could not open the file"
+      "readFailed": "Could not open the file",
+      "fromFile": "Import from file"
     }
   },
   "measurementTimeline": {

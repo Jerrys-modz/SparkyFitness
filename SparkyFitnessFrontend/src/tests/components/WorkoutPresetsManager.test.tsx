@@ -59,6 +59,13 @@ jest.mock('@/hooks/Exercises/useWorkoutPrograms', () => ({
     mutate: jest.fn(),
     isPending: false,
   }),
+  useImportWorkoutProgramMutation: () => ({
+    mutate: jest.fn(),
+    isPending: false,
+  }),
+}));
+jest.mock('@/contexts/ActiveUserContext', () => ({
+  useActiveUser: () => ({ isActingOnBehalf: false }),
 }));
 jest.mock('@/hooks/Exercises/useExerciseEntries', () => ({
   useLogWorkoutPresetMutation: () => ({ mutateAsync: jest.fn() }),
@@ -198,6 +205,28 @@ describe('WorkoutPresetsManager duplicate preset', () => {
     } finally {
       presetFixture.name = originalName;
     }
+  });
+});
+
+describe('WorkoutPresetsManager import', () => {
+  beforeEach(() => {
+    mockUseWorkoutPresets.mockReset();
+    mockUseWorkoutPresets.mockReturnValue({
+      data: { presets: [presetFixture], total: 1, page: 1, limit: 10 },
+      isLoading: false,
+      isFetching: false,
+    });
+  });
+
+  it('opens the workout file import from the presets header', async () => {
+    render(<WorkoutPresetsManager />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Import from file' }));
+
+    expect(
+      await screen.findByText('Add workouts from a file')
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText('Workout file')).toBeInTheDocument();
   });
 });
 

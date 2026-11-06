@@ -84,7 +84,7 @@ You can send a workout preset or a whole plan to a friend, a client or another S
 
 **To share (web):** on the **Exercises** page, open the menu on a preset or a plan and choose **Share as file**. A `.sparkyfitness.json` file downloads. A plan's file includes every preset it runs. You can share anything you can see, including presets and plans a family member shares with you.
 
-**To add a shared file (web):** go to **Workout programs**, choose **Add from a file** and pick the file. The dialog lists the presets in it; for a plan you can rename it and make it your active plan. Accept the medical disclaimer and choose **Add workouts**.
+**To add a shared file (web):** on the **Exercises** page choose **Import from file** in the **Workout Presets** or **Workout Plans** section (or **Add from a file** on **Workout programs**) and pick the file. The dialog lists the presets in it; for a plan you can rename it and make it your active plan. Accept the medical disclaimer and choose **Add workouts**.
 
 What happens when you add a file:
 
@@ -92,7 +92,7 @@ What happens when you add a file:
 - Other exercises reuse one of your own with the same name, or are added as your own custom exercises from the details in the file (category, muscles, equipment, instructions).
 - Every preset becomes your own private preset, and the plan becomes your own plan. Nothing in the file links back to the person who shared it, and changing your copy does not change theirs.
 
-**On mobile:** open a preset (**Library > Workout presets**) and tap the document button at the top to share it, or tap the share button on a plan in **Library > Workout plans**. The phone's share sheet opens, so you can send the file by message or mail, AirDrop it or save it to Files. To add one, go to **Library > Workout programs**, tap the download button at the top and pick the file.
+**On mobile:** open a preset (**Library > Workout presets**) and tap the document button at the top to share it, or tap the share button on a plan in **Library > Workout plans**. The phone's share sheet opens, so you can send the file by message or mail, AirDrop it or save it to Files. To add one, tap the import button at the top of **Library > Workout presets** or **Library > Workout plans** (or **Library > Workout programs**) and pick the file.
 
 Files hold no account or database ids, only the workouts themselves. Weights are in kilograms and distances in kilometres, whatever units the sender uses.
 

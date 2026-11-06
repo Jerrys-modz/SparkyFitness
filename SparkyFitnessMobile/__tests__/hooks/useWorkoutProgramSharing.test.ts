@@ -7,6 +7,7 @@ import {
 } from '@workspace/shared';
 import {
   useImportWorkoutProgram,
+  usePickWorkoutProgramFile,
   useShareWorkoutProgram,
 } from '../../src/hooks/useWorkoutProgramSharing';
 import {
@@ -14,7 +15,10 @@ import {
   exportWorkoutPreset,
   importWorkoutProgram,
 } from '../../src/services/api/workoutProgramsApi';
-import { shareWorkoutProgramFile } from '../../src/services/workoutProgramFiles';
+import {
+  pickWorkoutProgramFile,
+  shareWorkoutProgramFile,
+} from '../../src/services/workoutProgramFiles';
 import {
   createTestQueryClient,
   createQueryWrapper,
@@ -26,9 +30,14 @@ jest.mock('../../src/services/api/workoutProgramsApi', () => ({
   exportWorkoutPreset: jest.fn(),
   importWorkoutProgram: jest.fn(),
 }));
-jest.mock('../../src/services/workoutProgramFiles', () => ({
-  shareWorkoutProgramFile: jest.fn(),
-}));
+jest.mock('../../src/services/workoutProgramFiles', () => {
+  class InvalidWorkoutProgramFileError extends Error {}
+  return {
+    InvalidWorkoutProgramFileError,
+    pickWorkoutProgramFile: jest.fn(),
+    shareWorkoutProgramFile: jest.fn(),
+  };
+});
 
 const program: WorkoutProgramFile = {
   format: WORKOUT_PROGRAM_FILE_FORMAT,
@@ -112,5 +121,33 @@ describe('useWorkoutProgramSharing', () => {
     const keys = invalidate.mock.calls.map((call) => call[0]?.queryKey);
     expect(keys).toContainEqual(['workoutPresets']);
     expect(keys).toContainEqual(['workoutPlanTemplates']);
+  });
+
+  it('returns the picked file', async () => {
+    jest.mocked(pickWorkoutProgramFile).mockResolvedValue(program);
+    const { result } = renderHook(() => usePickWorkoutProgramFile(), {
+      wrapper,
+    });
+    await expect(result.current()).resolves.toEqual(program);
+    expect(Toast.show).not.toHaveBeenCalled();
+  });
+
+  it('explains a file that is not a workout file', async () => {
+    const { InvalidWorkoutProgramFileError } = jest.requireMock(
+      '../../src/services/workoutProgramFiles'
+    );
+    jest
+      .mocked(pickWorkoutProgramFile)
+      .mockRejectedValue(new InvalidWorkoutProgramFileError());
+    const { result } = renderHook(() => usePickWorkoutProgramFile(), {
+      wrapper,
+    });
+    await expect(result.current()).resolves.toBeNull();
+    expect(Toast.show).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'error',
+        text1: 'This is not a SparkyFitness workout file.',
+      })
+    );
   });
 });
