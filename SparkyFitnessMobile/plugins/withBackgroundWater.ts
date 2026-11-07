@@ -36,6 +36,43 @@ const IOS_SOURCES = [
   },
 ] as const;
 
+// Siri AI Developer Preview (iOS 27.3 beta SDK). Off unless the build sets
+// SIRI_AI_PREVIEW=1, because the `@AppIntent(.tool)` macro does not exist in
+// the SDKs production builds use (EAS images up to Xcode 27.1), so the
+// attribute is added to the app target's copy of ShortcutIntents.swift only
+// while this is on. The same switch copies the skills bundle into the app
+// target. Apple only enables the preview for development-signed builds and
+// internal TestFlight. API names may change during the preview.
+const SIRI_AI_PREVIEW = process.env.SIRI_AI_PREVIEW === '1';
+const SIRI_SKILLS_BUNDLE = 'Skills.skillsbundle';
+const SIRI_SKILLS_SOURCE = 'plugins/ios/Skills.skillsbundle';
+// The intents that do something Siri can use as a tool. The widget-only
+// RemoveWaterIntent and the three control intents that only open the app stay out.
+const SIRI_TOOL_INTENTS = [
+  'LogWaterIntent',
+  'LogWeightIntent',
+  'StartFastIntent',
+  'EndFastIntent',
+  'CaloriesLeftIntent',
+  'MacrosTodayIntent',
+  'OpenWorkoutPresetIntent',
+  'LogMealIntent',
+];
+
+function addSiriToolMacro(contents: string): string {
+  let patched = contents;
+  for (const name of SIRI_TOOL_INTENTS) {
+    const declaration = `struct ${name}: AppIntent {`;
+    if (!patched.includes(declaration)) {
+      throw new Error(
+        `withBackgroundWater: ${name} not found in ShortcutIntents.swift; update SIRI_TOOL_INTENTS.`
+      );
+    }
+    patched = patched.replace(declaration, `@AppIntent(.tool)\n${declaration}`);
+  }
+  return patched;
+}
+
 // Left behind by builds from before these intents moved. A non-clean prebuild
 // keeps the file and its app-target membership, which redeclares the same
 // symbols as ShortcutIntents.swift.
@@ -72,9 +109,23 @@ const withBackgroundWater: ConfigPlugin = (config) => {
         force: true,
       });
       for (const source of IOS_SOURCES) {
-        await fs.promises.copyFile(
-          path.join(config.modRequest.projectRoot, ...source.from),
-          path.join(sourceRoot, source.name)
+        const from = path.join(config.modRequest.projectRoot, ...source.from);
+        const to = path.join(sourceRoot, source.name);
+        if (SIRI_AI_PREVIEW && source.name === 'ShortcutIntents.swift') {
+          // Only the app target's copy gets the tool macro. The widget
+          // extension compiles the untouched file.
+          const contents = await fs.promises.readFile(from, 'utf8');
+          await fs.promises.writeFile(to, addSiriToolMacro(contents));
+        } else {
+          await fs.promises.copyFile(from, to);
+        }
+      }
+      const skillsDest = path.join(sourceRoot, SIRI_SKILLS_BUNDLE);
+      await fs.promises.rm(skillsDest, { recursive: true, force: true });
+      if (SIRI_AI_PREVIEW) {
+        await copyTree(
+          path.join(config.modRequest.projectRoot, SIRI_SKILLS_SOURCE),
+          skillsDest
         );
       }
       return config;
@@ -86,6 +137,17 @@ const withBackgroundWater: ConfigPlugin = (config) => {
       config.modRequest.projectRoot
     );
     removeLegacyIosSource(config.modResults, projectName);
+    if (SIRI_AI_PREVIEW) {
+      const skillsPath = `${projectName}/${SIRI_SKILLS_BUNDLE}`;
+      if (!config.modResults.hasFile(skillsPath)) {
+        IOSConfig.XcodeUtils.addResourceFileToGroup({
+          filepath: skillsPath,
+          groupName: projectName,
+          isBuildFile: true,
+          project: config.modResults,
+        });
+      }
+    }
     for (const source of IOS_SOURCES) {
       const filepath = `${projectName}/${source.name}`;
       if (!config.modResults.hasFile(filepath)) {

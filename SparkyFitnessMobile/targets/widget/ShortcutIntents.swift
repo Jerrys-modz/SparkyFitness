@@ -4,7 +4,8 @@ import Security
 import WidgetKit
 
 // Siri and Shortcuts actions that log without opening the app, then say what
-// happened on screen: Log water, Log weight, Start fast and End fast. They also
+// happened on screen: Log water, Log weight, Start fast and End fast, plus the
+// read-only Calories left and Macros today. They also
 // show up in Spotlight and can be put on the Action button.
 //
 // They need the login the app keeps in the Keychain item read below (written by
@@ -19,7 +20,32 @@ import WidgetKit
 
 private let backgroundWaterService = "com.sparkyapps.sparkyfitness.backgroundWater"
 private let backgroundWaterAccount = "config"
-private let setupMessage = "Open SparkyFitness and sign in to a server first."
+/// Looks a spoken reply up in the app's own bundle, then in the widget
+/// extension embedded in it, then falls back to the English text passed in.
+/// The strings live once, in the widget's `Localizable.strings` (the same files
+/// the Lock Screen controls read), and an app Shortcut finds them through the
+/// extension bundle, so the app target needs no resources of its own. A key with
+/// no translation yet reads in English.
+private func intentText(_ key: String, _ english: String, _ args: [CVarArg] = []) -> String {
+    var bundles: [Bundle] = [Bundle.main]
+    if let plugIns = Bundle.main.builtInPlugInsURL,
+       let urls = try? FileManager.default.contentsOfDirectory(at: plugIns, includingPropertiesForKeys: nil) {
+        bundles += urls.filter { $0.pathExtension == "appex" }.compactMap { Bundle(url: $0) }
+    }
+    var format = english
+    for bundle in bundles {
+        let value = bundle.localizedString(forKey: key, value: nil, table: nil)
+        if value != key, !value.isEmpty {
+            format = value
+            break
+        }
+    }
+    return args.isEmpty ? format : String(format: format, arguments: args)
+}
+
+private func intentDialog(_ key: String, _ english: String, _ args: CVarArg...) -> IntentDialog {
+    IntentDialog(stringLiteral: intentText(key, english, args))
+}
 
 /// The Keychain group the app and the widget extension share, filled in at
 /// build time. Nil means a build without it, where only the app can read it.
@@ -212,10 +238,10 @@ private enum ShortcutCall {
 
         var message: String {
             switch self {
-            case .notSetUp: return setupMessage
-            case .expired: return "Your SparkyFitness login expired. Open the app once to sign in again."
-            case .server(let status): return "SparkyFitness could not do that (error \(status))."
-            case .unreachable: return "SparkyFitness could not reach your server."
+            case .notSetUp: return intentText("intent.setup", "Open SparkyFitness and sign in to a server first.")
+            case .expired: return intentText("intent.expired", "Your SparkyFitness login expired. Open the app once to sign in again.")
+            case .server(let status): return intentText("intent.server_error", "SparkyFitness could not do that (error %lld).", [status])
+            case .unreachable: return intentText("intent.unreachable", "SparkyFitness could not reach your server.")
             }
         }
     }
@@ -256,6 +282,48 @@ private enum ShortcutCall {
     }
 }
 
+/// One of the person's water containers, so "Log water" can name which one
+/// ("a bottle", "a glass") instead of always using the dashboard's.
+@available(iOS 16.0, *)
+struct WaterContainerEntity: AppEntity {
+    static var typeDisplayRepresentation = TypeDisplayRepresentation(name: "Water container")
+    static var defaultQuery = WaterContainerQuery()
+
+    var id: Int
+    var name: String
+
+    var displayRepresentation: DisplayRepresentation {
+        DisplayRepresentation(title: LocalizedStringResource(stringLiteral: name))
+    }
+}
+
+/// Reads the containers from the server each time, so a container added or
+/// renamed in the app shows up without any sync. A failed read gives an empty
+/// list; the action then falls back to the dashboard's container.
+@available(iOS 16.0, *)
+struct WaterContainerQuery: EntityQuery {
+    private func fetchAll() async -> [WaterContainerEntity] {
+        guard
+            let config = try? ShortcutCall.config(),
+            let data = try? await ShortcutCall.send(config, method: "GET", path: "/api/water-containers"),
+            let rows = (try? JSONSerialization.jsonObject(with: data)) as? [[String: Any]]
+        else { return [] }
+        return rows.compactMap { row in
+            guard let id = (row["id"] as? NSNumber)?.intValue,
+                  let name = row["name"] as? String else { return nil }
+            return WaterContainerEntity(id: id, name: name)
+        }
+    }
+
+    func entities(for identifiers: [Int]) async throws -> [WaterContainerEntity] {
+        await fetchAll().filter { identifiers.contains($0.id) }
+    }
+
+    func suggestedEntities() async throws -> [WaterContainerEntity] {
+        await fetchAll()
+    }
+}
+
 @available(iOS 16.0, *)
 struct LogWaterIntent: AppIntent {
     static var title: LocalizedStringResource = "Log water"
@@ -264,30 +332,49 @@ struct LogWaterIntent: AppIntent {
     )
     static var openAppWhenRun: Bool = false
 
-    @Parameter(title: "Drinks", default: 1, inclusiveRange: (1, 20))
+    @Parameter(
+        title: "Drinks",
+        description: "How many drinks of the current water container to log",
+        default: 1,
+        inclusiveRange: (1, 20)
+    )
     var drinks: Int
 
+    @Parameter(
+        title: "Container",
+        description: "Which water container to log. Leave empty to use the one picked in SparkyFitness"
+    )
+    var container: WaterContainerEntity?
+
     static var parameterSummary: some ParameterSummary {
-        Summary("Log \(\.$drinks) water")
+        Summary("Log \(\.$drinks) water") {
+            \.$container
+        }
     }
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
         do {
             let config = try ShortcutCall.config()
-            guard let containerId = config.containerId, let name = config.containerName else {
-                return .result(dialog: "Pick a water container in SparkyFitness first.")
+            // A container named in the request wins; its volume is not known
+            // here, so the reply gives only its name.
+            let chosen = container.map { (id: $0.id, name: $0.name, label: nil as String?) }
+            let fallback = config.containerId.flatMap { id in
+                config.containerName.map { (id: id, name: $0, label: config.volumeLabel) }
+            }
+            guard let target = chosen ?? fallback else {
+                return .result(dialog: intentDialog("intent.water.pick_container", "Pick a water container in SparkyFitness first."))
             }
             let response = try await ShortcutCall.send(
                 config, method: "POST", path: "/api/measurements/water-intake",
                 body: [
                     "entry_date": localDateString(),
                     "change_drinks": drinks,
-                    "container_id": containerId,
+                    "container_id": target.id,
                 ]
             )
             WaterSnapshotWriter.apply(response: response, fallbackDrinks: drinks)
-            let what = config.volumeLabel.map { "\(name) (\($0))" } ?? name
-            return .result(dialog: "Logged \(drinks) × \(what).")
+            let what = target.label.map { "\(target.name) (\($0))" } ?? target.name
+            return .result(dialog: intentDialog("intent.water.logged", "Logged %lld × %@.", drinks, what))
         } catch let failure as ShortcutCall.Failure {
             return .result(dialog: IntentDialog(stringLiteral: failure.message))
         }
@@ -310,7 +397,7 @@ struct RemoveWaterIntent: AppIntent {
         do {
             let config = try ShortcutCall.config()
             guard let containerId = config.containerId, let name = config.containerName else {
-                return .result(dialog: "Pick a water container in SparkyFitness first.")
+                return .result(dialog: intentDialog("intent.water.pick_container", "Pick a water container in SparkyFitness first."))
             }
             let before = WaterSnapshotWriter.currentTotal()
             let response = try await ShortcutCall.send(
@@ -325,9 +412,9 @@ struct RemoveWaterIntent: AppIntent {
             // Only drinks logged with the drink button come off. Water logged
             // another way is left alone, and the widget keeps showing it.
             if let before, let after, after >= before {
-                return .result(dialog: "There was no drink to remove. Water logged another way stays.")
+                return .result(dialog: intentDialog("intent.water.nothing_to_remove", "There was no drink to remove. Water logged another way stays."))
             }
-            return .result(dialog: "Removed 1 × \(name).")
+            return .result(dialog: intentDialog("intent.water.removed", "Removed 1 × %@.", name))
         } catch let failure as ShortcutCall.Failure {
             return .result(dialog: IntentDialog(stringLiteral: failure.message))
         }
@@ -342,7 +429,11 @@ struct LogWeightIntent: AppIntent {
     )
     static var openAppWhenRun: Bool = false
 
-    @Parameter(title: "Weight", inclusiveRange: (20, 700))
+    @Parameter(
+        title: "Weight",
+        description: "Today's body weight, in the unit set in SparkyFitness",
+        inclusiveRange: (20, 700)
+    )
     var weight: Double
 
     static var parameterSummary: some ParameterSummary {
@@ -359,7 +450,8 @@ struct LogWeightIntent: AppIntent {
                 body: ["entry_date": localDateString(), "weight": kg]
             )
             let shown = String(format: "%.1f", weight)
-            return .result(dialog: "Logged \(shown) \(usesPounds ? "lb" : "kg").")
+            let unitLabel = usesPounds ? "lb" : "kg"
+            return .result(dialog: intentDialog("intent.weight.logged", "Logged %@ %@.", shown, unitLabel))
         } catch let failure as ShortcutCall.Failure {
             return .result(dialog: IntentDialog(stringLiteral: failure.message))
         }
@@ -374,7 +466,12 @@ struct StartFastIntent: AppIntent {
     )
     static var openAppWhenRun: Bool = false
 
-    @Parameter(title: "Hours", default: 16, inclusiveRange: (1, 72))
+    @Parameter(
+        title: "Hours",
+        description: "How many hours the fast should last",
+        default: 16,
+        inclusiveRange: (1, 72)
+    )
     var hours: Int
 
     static var parameterSummary: some ParameterSummary {
@@ -397,7 +494,7 @@ struct StartFastIntent: AppIntent {
                     "fasting_type": label,
                 ]
             )
-            return .result(dialog: "Started a \(hours) hour fast.")
+            return .result(dialog: intentDialog("intent.fast.started", "Started a %lld hour fast.", hours))
         } catch let failure as ShortcutCall.Failure {
             return .result(dialog: IntentDialog(stringLiteral: failure.message))
         }
@@ -421,25 +518,95 @@ struct EndFastIntent: AppIntent {
                 let id = fast["id"] as? String,
                 let startedAt = fast["start_time"] as? String
             else {
-                return .result(dialog: "You are not fasting right now.")
+                return .result(dialog: intentDialog("intent.fast.not_fasting", "You are not fasting right now."))
             }
             // With auto-calculation on, /current also answers with a fast worked
             // out from the user's meals. During its eating window that is the
             // opposite of fasting, and a calculated fast has no row to end.
             if fast["is_eating_window"] as? Bool == true {
-                return .result(dialog: "You are not fasting right now.")
+                return .result(dialog: intentDialog("intent.fast.not_fasting", "You are not fasting right now."))
             }
             if fast["is_auto_calculated"] as? Bool == true {
-                return .result(dialog: "Your fast is worked out from your meals, so there is nothing to end. It ends when you log your next meal.")
+                return .result(dialog: intentDialog("intent.fast.auto_calculated", "Your fast is worked out from your meals, so there is nothing to end. It ends when you log your next meal."))
             }
             _ = try await ShortcutCall.send(
                 config, method: "POST", path: "/api/fasting/end",
                 body: ["id": id, "start_time": startedAt, "end_time": isoString(Date())]
             )
-            return .result(dialog: "Ended your fast.")
+            return .result(dialog: intentDialog("intent.fast.ended", "Ended your fast."))
         } catch let failure as ShortcutCall.Failure {
             return .result(dialog: IntentDialog(stringLiteral: failure.message))
         }
+    }
+}
+
+/// Today's figures the app last wrote to the shared app group for the widgets
+/// (`calorieSnapshot`, `macroSnapshot`). Reading them needs no network call and
+/// no login, so a question answers at once, even offline. Nil when the app has
+/// not written one for today yet.
+private func todaysSnapshot(key: String) -> [String: Any]? {
+    guard
+        let group = Bundle.main.object(forInfoDictionaryKey: "APP_GROUP_IDENTIFIER") as? String,
+        !group.isEmpty,
+        let defaults = UserDefaults(suiteName: group),
+        let data = defaults.data(forKey: key),
+        let snapshot = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+        snapshot["date"] as? String == localDateString()
+    else { return nil }
+    return snapshot
+}
+
+private func snapshotMissingDialog() -> IntentDialog {
+    intentDialog("intent.snapshot_missing", "I do not have today's numbers yet. Open SparkyFitness once to refresh them.")
+}
+
+/// Answers "how many calories do I have left?" from the calorie widget's snapshot.
+@available(iOS 16.0, *)
+struct CaloriesLeftIntent: AppIntent {
+    static var title: LocalizedStringResource = "Calories left"
+    static var description = IntentDescription(
+        "Tells you how many calories you have left today, without opening SparkyFitness."
+    )
+    static var openAppWhenRun: Bool = false
+
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        guard
+            let snapshot = todaysSnapshot(key: "calorieSnapshot"),
+            let goal = (snapshot["goal"] as? NSNumber)?.doubleValue,
+            let remaining = (snapshot["remaining"] as? NSNumber)?.doubleValue,
+            goal > 0
+        else {
+            return .result(dialog: snapshotMissingDialog())
+        }
+        let eaten = Int(((snapshot["food"] as? NSNumber)?.doubleValue ?? 0).rounded())
+        if remaining < 0 {
+            let over = Int((-remaining).rounded())
+            return .result(dialog: intentDialog("intent.calories.over", "You are %lld calories over your goal. You have eaten %lld.", over, eaten))
+        }
+        let left = Int(remaining.rounded())
+        return .result(dialog: intentDialog("intent.calories.left", "You have %lld calories left. You have eaten %lld of %lld.", left, eaten, Int(goal.rounded())))
+    }
+}
+
+/// Answers "how much protein have I had?" from the macro widget's snapshot.
+@available(iOS 16.0, *)
+struct MacrosTodayIntent: AppIntent {
+    static var title: LocalizedStringResource = "Macros today"
+    static var description = IntentDescription(
+        "Tells you today's protein, carbs and fat, without opening SparkyFitness."
+    )
+    static var openAppWhenRun: Bool = false
+
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        guard let snapshot = todaysSnapshot(key: "macroSnapshot") else {
+            return .result(dialog: snapshotMissingDialog())
+        }
+        func grams(_ key: String) -> Int {
+            Int(((snapshot[key] as? NSNumber)?.doubleValue ?? 0).rounded())
+        }
+        return .result(
+            dialog: intentDialog("intent.macros.today", "Today you have had %lld grams of protein, %lld of carbs and %lld of fat.", grams("protein"), grams("carbs"), grams("fat"))
+        )
     }
 }
 
@@ -456,6 +623,227 @@ private func leaveControlRoute(_ route: String) {
     if let group = Bundle.main.object(forInfoDictionaryKey: "APP_GROUP_IDENTIFIER") as? String,
        let defaults = UserDefaults(suiteName: group) {
         defaults.set(route, forKey: "pendingControlRoute")
+    }
+}
+
+/// One of the person's saved meals, so a request can name it.
+@available(iOS 16.0, *)
+struct MealEntity: AppEntity {
+    static var typeDisplayRepresentation = TypeDisplayRepresentation(name: "Meal")
+    static var defaultQuery = MealQuery()
+
+    var id: String
+    var name: String
+
+    var displayRepresentation: DisplayRepresentation {
+        DisplayRepresentation(title: LocalizedStringResource(stringLiteral: name))
+    }
+}
+
+/// Reads the saved meals from the server each time. A failed read gives an
+/// empty list.
+@available(iOS 16.0, *)
+struct MealQuery: EntityQuery {
+    private func fetchAll() async -> [MealEntity] {
+        guard
+            let config = try? ShortcutCall.config(),
+            let data = try? await ShortcutCall.send(config, method: "GET", path: "/api/meals"),
+            let rows = (try? JSONSerialization.jsonObject(with: data)) as? [[String: Any]]
+        else { return [] }
+        return rows.compactMap { row in
+            guard let id = row["id"] as? String, let name = row["name"] as? String else { return nil }
+            return MealEntity(id: id, name: name)
+        }
+    }
+
+    func entities(for identifiers: [String]) async throws -> [MealEntity] {
+        await fetchAll().filter { identifiers.contains($0.id) }
+    }
+
+    func suggestedEntities() async throws -> [MealEntity] {
+        await fetchAll()
+    }
+}
+
+/// One of the person's visible meal types (Breakfast, Lunch, or their own).
+@available(iOS 16.0, *)
+struct MealTypeEntity: AppEntity {
+    static var typeDisplayRepresentation = TypeDisplayRepresentation(name: "Meal type")
+    static var defaultQuery = MealTypeQuery()
+
+    var id: String
+    var name: String
+    /// Minutes after midnight of the type's usual time, if it has one.
+    var defaultMinutes: Int?
+
+    var displayRepresentation: DisplayRepresentation {
+        DisplayRepresentation(title: LocalizedStringResource(stringLiteral: name))
+    }
+}
+
+private func fetchMealTypes() async -> [MealTypeEntity] {
+    guard
+        let config = try? ShortcutCall.config(),
+        let data = try? await ShortcutCall.send(config, method: "GET", path: "/api/meal-types"),
+        let rows = (try? JSONSerialization.jsonObject(with: data)) as? [[String: Any]]
+    else { return [] }
+    return rows
+        .filter { ($0["is_visible"] as? Bool) != false }
+        .sorted { (($0["sort_order"] as? NSNumber)?.intValue ?? 0) < (($1["sort_order"] as? NSNumber)?.intValue ?? 0) }
+        .compactMap { row in
+            guard let id = row["id"] as? String, let name = row["name"] as? String else { return nil }
+            // "HH:MM" or "HH:MM:SS".
+            let parts = (row["default_time"] as? String)?.split(separator: ":").compactMap { Int($0) }
+            let minutes = parts.flatMap { $0.count >= 2 ? $0[0] * 60 + $0[1] : nil }
+            return MealTypeEntity(id: id, name: name, defaultMinutes: minutes)
+        }
+}
+
+@available(iOS 16.0, *)
+struct MealTypeQuery: EntityQuery {
+    func entities(for identifiers: [String]) async throws -> [MealTypeEntity] {
+        await fetchMealTypes().filter { identifiers.contains($0.id) }
+    }
+
+    func suggestedEntities() async throws -> [MealTypeEntity] {
+        await fetchMealTypes()
+    }
+}
+
+/// The meal type whose usual time is closest to now, else the first one.
+private func mealTypeForNow(_ types: [MealTypeEntity]) -> MealTypeEntity? {
+    let parts = Calendar.current.dateComponents([.hour, .minute], from: Date())
+    let now = (parts.hour ?? 0) * 60 + (parts.minute ?? 0)
+    let timed = types.compactMap { type in type.defaultMinutes.map { (type, abs($0 - now)) } }
+    return timed.min { $0.1 < $1.1 }?.0 ?? types.first
+}
+
+/// Logs a saved meal to today's diary. The server expands the meal's foods
+/// itself (`POST /api/food-entry-meals` with only `meal_template_id`), the same
+/// call the app makes, so nothing about the meal is worked out here.
+@available(iOS 16.0, *)
+struct LogMealIntent: AppIntent {
+    static var title: LocalizedStringResource = "Log meal"
+    static var description = IntentDescription(
+        "Logs one of your saved meals to today's food diary without opening SparkyFitness."
+    )
+    static var openAppWhenRun: Bool = false
+
+    @Parameter(title: "Meal", description: "Which saved meal to log")
+    var meal: MealEntity
+
+    @Parameter(
+        title: "Meal type",
+        description: "Breakfast, lunch, dinner or one of your own. Leave empty to use the one closest to the current time"
+    )
+    var mealType: MealTypeEntity?
+
+    @Parameter(
+        title: "Servings",
+        description: "How many servings of the meal to log",
+        default: 1,
+        inclusiveRange: (0.25, 20)
+    )
+    var servings: Double
+
+    static var parameterSummary: some ParameterSummary {
+        Summary("Log \(\.$servings) of \(\.$meal)") {
+            \.$mealType
+        }
+    }
+
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        do {
+            let config = try ShortcutCall.config()
+            let chosen: MealTypeEntity?
+            if let mealType {
+                chosen = mealType
+            } else {
+                chosen = mealTypeForNow(await fetchMealTypes())
+            }
+            guard let type = chosen else {
+                return .result(dialog: intentDialog("intent.meal.no_type", "I could not find a meal type to log it under. Open SparkyFitness and check your meal types."))
+            }
+            _ = try await ShortcutCall.send(
+                config, method: "POST", path: "/api/food-entry-meals",
+                body: [
+                    "meal_template_id": meal.id,
+                    "meal_type_id": type.id,
+                    "meal_type": type.name,
+                    "entry_date": localDateString(),
+                    "quantity": servings,
+                    "unit": "serving",
+                ]
+            )
+            return .result(dialog: intentDialog("intent.meal.logged", "Logged %@ × %@ as %@.", servings.formatted(), meal.name, type.name))
+        } catch let failure as ShortcutCall.Failure {
+            return .result(dialog: IntentDialog(stringLiteral: failure.message))
+        }
+    }
+}
+
+/// One of the person's saved workouts (presets), so a request can name it.
+@available(iOS 16.0, *)
+struct WorkoutPresetEntity: AppEntity {
+    static var typeDisplayRepresentation = TypeDisplayRepresentation(name: "Workout")
+    static var defaultQuery = WorkoutPresetQuery()
+
+    var id: Int
+    var name: String
+
+    var displayRepresentation: DisplayRepresentation {
+        DisplayRepresentation(title: LocalizedStringResource(stringLiteral: name))
+    }
+}
+
+/// Reads the saved workouts from the server each time (the newest 50, the same
+/// page the app's own list loads first). A failed read gives an empty list.
+@available(iOS 16.0, *)
+struct WorkoutPresetQuery: EntityQuery {
+    private func fetchAll() async -> [WorkoutPresetEntity] {
+        guard
+            let config = try? ShortcutCall.config(),
+            let data = try? await ShortcutCall.send(config, method: "GET", path: "/api/workout-presets?limit=50"),
+            let object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+            let rows = object["presets"] as? [[String: Any]]
+        else { return [] }
+        return rows.compactMap { row in
+            guard let id = (row["id"] as? NSNumber)?.intValue,
+                  let name = row["name"] as? String else { return nil }
+            return WorkoutPresetEntity(id: id, name: name)
+        }
+    }
+
+    func entities(for identifiers: [Int]) async throws -> [WorkoutPresetEntity] {
+        await fetchAll().filter { identifiers.contains($0.id) }
+    }
+
+    func suggestedEntities() async throws -> [WorkoutPresetEntity] {
+        await fetchAll()
+    }
+}
+
+/// Opens a saved workout in SparkyFitness, ready to start. It leaves
+/// `preset:<id>` for the app to pick up, the same handoff the food controls use
+/// (`useControlRouteHandoff`), because a workout is started on screen.
+@available(iOS 16.0, *)
+struct OpenWorkoutPresetIntent: AppIntent {
+    static var title: LocalizedStringResource = "Open workout"
+    static var description = IntentDescription(
+        "Opens one of your saved workouts in SparkyFitness, ready to start."
+    )
+    static var openAppWhenRun: Bool = true
+
+    @Parameter(title: "Workout", description: "Which saved workout to open")
+    var workout: WorkoutPresetEntity
+
+    static var parameterSummary: some ParameterSummary {
+        Summary("Open \(\.$workout)")
+    }
+
+    func perform() async throws -> some IntentResult {
+        leaveControlRoute("preset:\(workout.id)")
+        return .result()
     }
 }
 
