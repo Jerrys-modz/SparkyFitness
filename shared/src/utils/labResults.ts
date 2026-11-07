@@ -128,6 +128,15 @@ const UNIT_EQUIVALENTS: Readonly<Record<string, string>> = {
   // eGFR is per 1.73 m2 of body surface whether or not the report prints it.
   'ml/min/1.73': 'ml/min/1.73m2',
   'ml/min/1.73m^2': 'ml/min/1.73m2',
+  // UCUM, the unit spelling FHIR records and LOINC use.
+  '10*3/ul': '103/ul',
+  '10*6/ul': '106/ul',
+  '[iu]/l': 'u/l',
+  'u[iu]/ml': 'miu/l',
+  'm[iu]/l': 'miu/l',
+  'm[iu]/ml': 'miu/ml',
+  'ml/min/{1.73_m2}': 'ml/min/1.73m2',
+  'mm/h': 'mm/hr',
 };
 
 /**

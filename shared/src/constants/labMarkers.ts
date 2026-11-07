@@ -7,7 +7,13 @@
 // `labPresetRange` prefers when the profile's sex is known. Markers with no
 // sensible single default have no range. Age is not used. `aliases` are the
 // other names a lab report may print, used to match scanned results to a
-// marker.
+// marker. `loinc` holds the marker's LOINC codes.
+//
+// The LOINC codes are content from LOINC (https://loinc.org): LOINC® is
+// copyright © 1995 Regenstrief Institute, Inc. and the LOINC Committee, and
+// available at no cost under the license at https://loinc.org/license. Only
+// the code numbers of laboratory tests are used here, none of the LOINC
+// content that carries third-party copyright.
 export interface LabMarkerPreset {
   /** Stable key. Built-in markers store it in `lab_results.marker_key`. */
   key: string;
@@ -16,6 +22,14 @@ export interface LabMarkerPreset {
   refRangeLow: number | null;
   refRangeHigh: number | null;
   aliases: readonly string[];
+  /**
+   * LOINC codes for this marker, the most common first. A result coded with
+   * any of them (from a FHIR record or a report that prints codes) is this
+   * marker. Codes for another specimen or method of the same test are listed
+   * when the value means the same thing; a code that changes the meaning,
+   * such as non-fasting glucose for fasting glucose, is not.
+   */
+  loinc: readonly string[];
 }
 
 export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
@@ -31,6 +45,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
       'glycohemoglobin',
       'a1c',
     ],
+    loinc: ['4548-4', '17856-6', '4549-2'],
   },
   {
     key: 'fasting_glucose',
@@ -39,6 +54,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 70,
     refRangeHigh: 99,
     aliases: ['glucose', 'glucose, fasting', 'fasting blood sugar', 'fbs'],
+    loinc: ['1558-6'],
   },
   {
     key: 'total_cholesterol',
@@ -47,6 +63,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: null,
     refRangeHigh: 200,
     aliases: ['cholesterol', 'cholesterol, total'],
+    loinc: ['2093-3'],
   },
   {
     key: 'hdl',
@@ -55,6 +72,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 40,
     refRangeHigh: null,
     aliases: ['hdl', 'hdl-c', 'hdl cholesterol'],
+    loinc: ['2085-9'],
   },
   {
     key: 'ldl',
@@ -63,6 +81,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: null,
     refRangeHigh: 100,
     aliases: ['ldl', 'ldl-c', 'ldl cholesterol', 'ldl cholesterol calc'],
+    loinc: ['13457-7', '18262-6', '2089-1'],
   },
   {
     key: 'triglycerides',
@@ -71,6 +90,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: null,
     refRangeHigh: 150,
     aliases: ['trigs', 'tg'],
+    loinc: ['2571-8'],
   },
   {
     key: 'vitamin_d',
@@ -79,6 +99,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 30,
     refRangeHigh: 100,
     aliases: ['vitamin d', '25-hydroxyvitamin d', '25-oh vitamin d', 'vit d'],
+    loinc: ['62292-8', '83070-3', '68438-1'],
   },
   {
     key: 'tsh',
@@ -87,6 +108,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 0.4,
     refRangeHigh: 4.0,
     aliases: ['thyroid stimulating hormone', 'thyrotropin'],
+    loinc: ['3016-3', '11580-8'],
   },
   {
     key: 'ferritin',
@@ -95,6 +117,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 30,
     refRangeHigh: 400,
     aliases: [],
+    loinc: ['2276-4'],
   },
   {
     key: 'vitamin_b12',
@@ -103,6 +126,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 200,
     refRangeHigh: 900,
     aliases: ['b12', 'cobalamin'],
+    loinc: ['2132-9'],
   },
   {
     key: 'creatinine',
@@ -111,6 +135,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 0.6,
     refRangeHigh: 1.3,
     aliases: [],
+    loinc: ['2160-0'],
   },
   {
     key: 'egfr',
@@ -119,6 +144,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 60,
     refRangeHigh: null,
     aliases: ['estimated gfr', 'gfr'],
+    loinc: ['33914-3', '62238-1', '98979-8'],
   },
   {
     key: 'alt',
@@ -127,6 +153,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 7,
     refRangeHigh: 56,
     aliases: ['alanine aminotransferase', 'sgpt'],
+    loinc: ['1742-6', '1743-4'],
   },
   {
     key: 'ast',
@@ -135,6 +162,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 10,
     refRangeHigh: 40,
     aliases: ['aspartate aminotransferase', 'sgot'],
+    loinc: ['1920-8'],
   },
   {
     key: 'non_hdl',
@@ -143,6 +171,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: null,
     refRangeHigh: 130,
     aliases: ['non-hdl', 'non hdl', 'non-hdl cholesterol'],
+    loinc: ['43396-1'],
   },
   {
     key: 'apob',
@@ -151,6 +180,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: null,
     refRangeHigh: 90,
     aliases: ['apo b', 'apob', 'apolipoprotein b'],
+    loinc: ['1884-6'],
   },
   {
     key: 'vldl',
@@ -159,6 +189,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 5,
     refRangeHigh: 40,
     aliases: ['vldl', 'vldl cholesterol', 'vldl cholesterol cal'],
+    loinc: ['13458-5', '2091-7'],
   },
   {
     key: 'fasting_insulin',
@@ -167,6 +198,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 2,
     refRangeHigh: 25,
     aliases: ['insulin', 'insulin, fasting'],
+    loinc: ['20448-7', '27873-9'],
   },
   {
     key: 'wbc',
@@ -175,6 +207,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 4.0,
     refRangeHigh: 11.0,
     aliases: ['wbc', 'white blood cell count', 'leukocytes'],
+    loinc: ['6690-2', '26464-8'],
   },
   {
     key: 'rbc',
@@ -183,6 +216,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 4.2,
     refRangeHigh: 5.9,
     aliases: ['rbc', 'red blood cell count', 'erythrocytes'],
+    loinc: ['789-8', '26453-1'],
   },
   {
     key: 'hemoglobin',
@@ -191,6 +225,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 12.0,
     refRangeHigh: 17.5,
     aliases: ['hgb', 'hb'],
+    loinc: ['718-7'],
   },
   {
     key: 'hematocrit',
@@ -199,6 +234,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 36,
     refRangeHigh: 52,
     aliases: ['hct'],
+    loinc: ['4544-3', '20570-8'],
   },
   {
     key: 'mcv',
@@ -207,6 +243,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 80,
     refRangeHigh: 100,
     aliases: ['mean corpuscular volume'],
+    loinc: ['787-2', '30428-7'],
   },
   {
     key: 'platelets',
@@ -215,6 +252,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 150,
     refRangeHigh: 450,
     aliases: ['plt', 'platelet count'],
+    loinc: ['777-3', '26515-7'],
   },
   {
     key: 'sodium',
@@ -223,6 +261,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 135,
     refRangeHigh: 145,
     aliases: ['na'],
+    loinc: ['2951-2', '2947-0'],
   },
   {
     key: 'potassium',
@@ -231,6 +270,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 3.5,
     refRangeHigh: 5.1,
     aliases: ['k'],
+    loinc: ['2823-3', '6298-4'],
   },
   {
     key: 'chloride',
@@ -239,6 +279,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 98,
     refRangeHigh: 107,
     aliases: ['cl'],
+    loinc: ['2075-0'],
   },
   {
     key: 'bicarbonate',
@@ -247,6 +288,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 22,
     refRangeHigh: 29,
     aliases: ['co2', 'carbon dioxide', 'bicarb', 'co2, total'],
+    loinc: ['2028-9', '1963-8'],
   },
   {
     key: 'calcium',
@@ -255,6 +297,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 8.5,
     refRangeHigh: 10.5,
     aliases: ['ca'],
+    loinc: ['17861-6'],
   },
   {
     key: 'magnesium',
@@ -263,6 +306,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 1.7,
     refRangeHigh: 2.2,
     aliases: ['mg'],
+    loinc: ['19123-9', '2601-3'],
   },
   {
     key: 'phosphorus',
@@ -271,6 +315,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 2.5,
     refRangeHigh: 4.5,
     aliases: ['phosphate', 'phos'],
+    loinc: ['2777-1'],
   },
   {
     key: 'bun',
@@ -279,6 +324,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 7,
     refRangeHigh: 20,
     aliases: ['blood urea nitrogen', 'urea nitrogen'],
+    loinc: ['3094-0', '6299-2'],
   },
   {
     key: 'uric_acid',
@@ -287,6 +333,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 3.5,
     refRangeHigh: 7.2,
     aliases: ['urate'],
+    loinc: ['3084-1'],
   },
   {
     key: 'albumin',
@@ -295,6 +342,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 3.5,
     refRangeHigh: 5.0,
     aliases: [],
+    loinc: ['1751-7'],
   },
   {
     key: 'total_protein',
@@ -303,6 +351,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 6.0,
     refRangeHigh: 8.3,
     aliases: ['protein, total'],
+    loinc: ['2885-2'],
   },
   {
     key: 'alp',
@@ -311,6 +360,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 44,
     refRangeHigh: 147,
     aliases: ['alp', 'alk phos', 'alkaline phosphatase'],
+    loinc: ['6768-6'],
   },
   {
     key: 'total_bilirubin',
@@ -319,6 +369,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 0.1,
     refRangeHigh: 1.2,
     aliases: ['bilirubin', 'bilirubin, total'],
+    loinc: ['1975-2'],
   },
   {
     key: 'ggt',
@@ -327,6 +378,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 9,
     refRangeHigh: 60,
     aliases: ['gamma-glutamyl transferase', 'gamma gt'],
+    loinc: ['2324-2'],
   },
   {
     key: 'free_t4',
@@ -335,6 +387,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 0.8,
     refRangeHigh: 1.8,
     aliases: ['ft4', 't4, free', 'thyroxine, free'],
+    loinc: ['3024-7'],
   },
   {
     key: 'free_t3',
@@ -343,6 +396,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 2.3,
     refRangeHigh: 4.2,
     aliases: ['ft3', 't3, free', 'triiodothyronine, free'],
+    loinc: ['3051-0'],
   },
   {
     key: 'iron',
@@ -351,6 +405,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 60,
     refRangeHigh: 170,
     aliases: ['iron, serum', 'serum iron'],
+    loinc: ['2498-4'],
   },
   {
     key: 'tibc',
@@ -359,6 +414,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 250,
     refRangeHigh: 450,
     aliases: ['total iron binding capacity', 'iron binding capacity'],
+    loinc: ['2500-7'],
   },
   {
     key: 'transferrin_saturation',
@@ -367,6 +423,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 20,
     refRangeHigh: 50,
     aliases: ['iron saturation', 'tsat', '% saturation'],
+    loinc: ['2502-3'],
   },
   {
     key: 'folate',
@@ -375,6 +432,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 4,
     refRangeHigh: 20,
     aliases: ['folic acid', 'vitamin b9'],
+    loinc: ['2284-8'],
   },
   {
     key: 'crp',
@@ -383,6 +441,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: null,
     refRangeHigh: 3.0,
     aliases: ['crp', 'c-reactive protein', 'hs-crp', 'high sensitivity crp'],
+    loinc: ['30522-7', '1988-5'],
   },
   {
     key: 'esr',
@@ -395,6 +454,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
       'sedimentation rate',
       'erythrocyte sedimentation rate',
     ],
+    loinc: ['4537-7', '30341-2'],
   },
   {
     key: 'homocysteine',
@@ -403,6 +463,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 5,
     refRangeHigh: 15,
     aliases: [],
+    loinc: ['13965-9'],
   },
   {
     key: 'cortisol',
@@ -411,6 +472,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 6,
     refRangeHigh: 23,
     aliases: ['cortisol, am', 'cortisol, total'],
+    loinc: ['2143-6', '9813-7'],
   },
   {
     key: 'psa',
@@ -419,6 +481,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: null,
     refRangeHigh: 4.0,
     aliases: ['prostate specific antigen', 'psa, total'],
+    loinc: ['2857-1', '35741-8', '83112-3'],
   },
   {
     key: 'testosterone',
@@ -427,6 +490,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: null,
     refRangeHigh: null,
     aliases: ['testosterone', 'testosterone, total'],
+    loinc: ['2986-8'],
   },
   {
     key: 'estradiol',
@@ -435,6 +499,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: null,
     refRangeHigh: null,
     aliases: ['e2', 'estradiol, serum'],
+    loinc: ['2243-4'],
   },
   {
     key: 'lipoprotein_a',
@@ -443,6 +508,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: null,
     refRangeHigh: 75,
     aliases: ['lp(a)', 'lp a', 'lipoprotein a'],
+    loinc: ['43583-4', '10835-7'],
   },
   {
     key: 'ketones',
@@ -451,6 +517,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: null,
     refRangeHigh: 0.5,
     aliases: ['bhb', 'beta-hydroxybutyrate', 'ketones, blood'],
+    loinc: ['6873-4', '29512-1'],
   },
   {
     key: 'c_peptide',
@@ -459,6 +526,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 0.8,
     refRangeHigh: 3.1,
     aliases: ['c peptide'],
+    loinc: ['1986-9'],
   },
   {
     key: 'fructosamine',
@@ -467,6 +535,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 200,
     refRangeHigh: 285,
     aliases: [],
+    loinc: ['15069-8'],
   },
   {
     key: 'neutrophils',
@@ -475,6 +544,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 1.5,
     refRangeHigh: 8.0,
     aliases: ['neutrophils, absolute', 'absolute neutrophils', 'anc'],
+    loinc: ['751-8', '26499-4'],
   },
   {
     key: 'lymphocytes',
@@ -483,6 +553,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 1.0,
     refRangeHigh: 4.8,
     aliases: ['lymphocytes, absolute', 'absolute lymphocytes'],
+    loinc: ['731-0', '26474-7'],
   },
   {
     key: 'monocytes',
@@ -491,6 +562,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 0.2,
     refRangeHigh: 1.0,
     aliases: ['monocytes, absolute', 'absolute monocytes'],
+    loinc: ['742-7', '26484-6'],
   },
   {
     key: 'eosinophils',
@@ -499,6 +571,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: null,
     refRangeHigh: 0.5,
     aliases: ['eosinophils, absolute', 'absolute eosinophils'],
+    loinc: ['711-2', '26449-9'],
   },
   {
     key: 'mch',
@@ -507,6 +580,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 27,
     refRangeHigh: 33,
     aliases: ['mean corpuscular hemoglobin'],
+    loinc: ['785-6'],
   },
   {
     key: 'mchc',
@@ -515,6 +589,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 32,
     refRangeHigh: 36,
     aliases: ['mean corpuscular hemoglobin concentration'],
+    loinc: ['786-4'],
   },
   {
     key: 'rdw',
@@ -523,6 +598,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 11.5,
     refRangeHigh: 14.5,
     aliases: ['red cell distribution width'],
+    loinc: ['788-0'],
   },
   {
     key: 'mpv',
@@ -531,6 +607,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 7.5,
     refRangeHigh: 12.5,
     aliases: ['mean platelet volume'],
+    loinc: ['32623-1'],
   },
   {
     key: 'globulin',
@@ -539,6 +616,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 2.0,
     refRangeHigh: 3.5,
     aliases: ['globulin, total'],
+    loinc: ['10834-0'],
   },
   {
     key: 'direct_bilirubin',
@@ -547,6 +625,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: null,
     refRangeHigh: 0.3,
     aliases: ['bilirubin, direct', 'conjugated bilirubin'],
+    loinc: ['1968-7'],
   },
   {
     key: 'anion_gap',
@@ -555,6 +634,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 4,
     refRangeHigh: 12,
     aliases: [],
+    loinc: ['33037-3', '1863-0'],
   },
   {
     key: 'bun_creatinine_ratio',
@@ -563,6 +643,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 10,
     refRangeHigh: 20,
     aliases: ['bun/creatinine', 'bun creatinine ratio'],
+    loinc: ['3097-3'],
   },
   {
     key: 'cystatin_c',
@@ -571,6 +652,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 0.5,
     refRangeHigh: 1.0,
     aliases: ['cystatin-c'],
+    loinc: ['33863-2'],
   },
   {
     key: 'urine_albumin_creatinine',
@@ -584,6 +666,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
       'microalbumin/creatinine ratio',
       'albumin/creatinine ratio, urine',
     ],
+    loinc: ['9318-7', '14959-1'],
   },
   {
     key: 'amylase',
@@ -592,6 +675,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 30,
     refRangeHigh: 110,
     aliases: [],
+    loinc: ['1798-8'],
   },
   {
     key: 'lipase',
@@ -600,6 +684,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: null,
     refRangeHigh: 60,
     aliases: [],
+    loinc: ['3040-3'],
   },
   {
     key: 'ldh',
@@ -608,6 +693,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 120,
     refRangeHigh: 246,
     aliases: ['lactate dehydrogenase'],
+    loinc: ['2532-0', '14804-9'],
   },
   {
     key: 'ck',
@@ -616,6 +702,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 30,
     refRangeHigh: 200,
     aliases: ['ck, total', 'cpk', 'creatine phosphokinase'],
+    loinc: ['2157-6'],
   },
   {
     key: 'ammonia',
@@ -624,6 +711,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 15,
     refRangeHigh: 45,
     aliases: [],
+    loinc: ['16362-6', '1841-6'],
   },
   {
     key: 'zinc',
@@ -632,6 +720,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 60,
     refRangeHigh: 120,
     aliases: ['zinc, serum'],
+    loinc: ['5763-8'],
   },
   {
     key: 'copper',
@@ -640,6 +729,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 70,
     refRangeHigh: 140,
     aliases: ['copper, serum'],
+    loinc: ['5631-7'],
   },
   {
     key: 'selenium',
@@ -648,6 +738,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 70,
     refRangeHigh: 150,
     aliases: ['selenium, serum'],
+    loinc: ['5724-0'],
   },
   {
     key: 'vitamin_b6',
@@ -656,6 +747,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 5,
     refRangeHigh: 50,
     aliases: ['pyridoxal 5-phosphate', 'b6', 'pyridoxine'],
+    loinc: ['30552-4', '62236-5'],
   },
   {
     key: 'vitamin_a',
@@ -664,6 +756,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 30,
     refRangeHigh: 95,
     aliases: ['retinol'],
+    loinc: ['2923-1'],
   },
   {
     key: 'vitamin_e',
@@ -672,6 +765,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 5.5,
     refRangeHigh: 17,
     aliases: ['alpha-tocopherol', 'tocopherol'],
+    loinc: ['1823-4'],
   },
   {
     key: 'pth',
@@ -680,6 +774,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: 15,
     refRangeHigh: 65,
     aliases: ['parathyroid hormone', 'pth, intact'],
+    loinc: ['2731-8'],
   },
   {
     key: 'igf_1',
@@ -688,6 +783,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: null,
     refRangeHigh: null,
     aliases: ['igf1', 'insulin-like growth factor 1', 'somatomedin c'],
+    loinc: ['2484-4'],
   },
   {
     key: 'dhea_s',
@@ -696,6 +792,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: null,
     refRangeHigh: null,
     aliases: ['dheas', 'dhea sulfate', 'dehydroepiandrosterone sulfate'],
+    loinc: ['2191-5'],
   },
   {
     key: 'free_testosterone',
@@ -704,6 +801,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: null,
     refRangeHigh: null,
     aliases: ['testosterone, free'],
+    loinc: ['2991-8'],
   },
   {
     key: 'shbg',
@@ -712,6 +810,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: null,
     refRangeHigh: null,
     aliases: ['sex hormone binding globulin'],
+    loinc: ['13967-5'],
   },
   {
     key: 'fsh',
@@ -720,6 +819,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: null,
     refRangeHigh: null,
     aliases: ['follicle stimulating hormone'],
+    loinc: ['15067-2'],
   },
   {
     key: 'lh',
@@ -728,6 +828,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: null,
     refRangeHigh: null,
     aliases: ['luteinizing hormone'],
+    loinc: ['10501-5'],
   },
   {
     key: 'progesterone',
@@ -736,6 +837,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: null,
     refRangeHigh: null,
     aliases: [],
+    loinc: ['2839-9'],
   },
   {
     key: 'prolactin',
@@ -744,6 +846,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: null,
     refRangeHigh: 25,
     aliases: ['prl'],
+    loinc: ['2842-3'],
   },
   {
     key: 'tpo_antibodies',
@@ -752,6 +855,7 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     refRangeLow: null,
     refRangeHigh: 35,
     aliases: ['tpo', 'thyroid peroxidase antibodies', 'anti-tpo'],
+    loinc: ['8099-4'],
   },
 ];
 
@@ -822,6 +926,19 @@ export function labRangeStatus(
   if (low !== null && value < low) return 'low';
   if (high !== null && value > high) return 'high';
   return 'in_range';
+}
+
+const PRESET_BY_LOINC: ReadonlyMap<string, LabMarkerPreset> = new Map(
+  LAB_MARKER_PRESETS.flatMap((preset) =>
+    preset.loinc.map((code) => [code, preset] as const)
+  )
+);
+
+/** The preset a LOINC code belongs to, if any built-in marker uses it. */
+export function findLabMarkerPresetByLoinc(
+  code: string
+): LabMarkerPreset | undefined {
+  return PRESET_BY_LOINC.get(code.trim());
 }
 
 /** Finds the preset a printed marker name refers to (case-insensitive). */

@@ -30,3 +30,7 @@ The whole report is saved in one step: if it fails, nothing is stored. If the co
 - **Delete imported results** (in the page menu) removes everything that came from imported reports, and any marker of your own left empty. Results you entered yourself are kept.
 
 Lab results are private to your account and follow the same sharing rules as check-in data.
+
+## Codes
+
+Each built-in marker carries its [LOINC](https://loinc.org) codes, the standard codes labs and health records use for each test, so a coded result can be matched to the right marker exactly rather than by its printed name. LOINC® is copyright © 1995 Regenstrief Institute, Inc. and the LOINC Committee, and available at no cost under the license at https://loinc.org/license.

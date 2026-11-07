@@ -5,6 +5,8 @@ import {
   hasSexSpecificRange,
   labPresetRange,
   findLabMarkerPreset,
+  findLabMarkerPresetByLoinc,
+  sameLabUnit,
   labRangeStatus,
 } from '@workspace/shared';
 
@@ -106,5 +108,85 @@ describe('sex-specific ranges', () => {
       low: 4,
       high: 5.6,
     });
+  });
+});
+
+describe('LOINC codes', () => {
+  it('gives every built-in marker at least one well-formed code', () => {
+    for (const preset of LAB_MARKER_PRESETS) {
+      expect(preset.loinc.length, preset.key).toBeGreaterThan(0);
+      for (const code of preset.loinc) {
+        expect(code, preset.key).toMatch(/^\d{1,7}-\d$/);
+      }
+    }
+  });
+
+  it('never gives one code to two markers', () => {
+    const seen = new Map<string, string>();
+    for (const preset of LAB_MARKER_PRESETS) {
+      for (const code of preset.loinc) {
+        expect(seen.get(code), `${code} in ${preset.key}`).toBeUndefined();
+        seen.set(code, preset.key);
+      }
+    }
+  });
+
+  it('has valid check digits (LOINC mod 10)', () => {
+    // LOINC check digit: Luhn-style mod 10 over the part before the dash.
+    const checkDigit = (body: string): number => {
+      let sum = 0;
+      const digits = body.split('').reverse().map(Number);
+      digits.forEach((d, i) => {
+        if (i % 2 === 0) {
+          const doubled = d * 2;
+          sum += doubled > 9 ? doubled - 9 : doubled;
+        } else {
+          sum += d;
+        }
+      });
+      return (10 - (sum % 10)) % 10;
+    };
+    for (const preset of LAB_MARKER_PRESETS) {
+      for (const code of preset.loinc) {
+        const [body, check] = code.split('-');
+        expect(checkDigit(body ?? ''), `${code} in ${preset.key}`).toBe(
+          Number(check)
+        );
+      }
+    }
+  });
+
+  it('finds a marker by any of its codes', () => {
+    expect(findLabMarkerPresetByLoinc('4548-4')?.key).toBe('hba1c');
+    expect(findLabMarkerPresetByLoinc('17856-6')?.key).toBe('hba1c');
+    expect(findLabMarkerPresetByLoinc(' 13457-7 ')?.key).toBe('ldl');
+    expect(findLabMarkerPresetByLoinc('62292-8')?.key).toBe('vitamin_d');
+  });
+
+  it('does not map plain serum glucose to fasting glucose', () => {
+    expect(findLabMarkerPresetByLoinc('1558-6')?.key).toBe('fasting_glucose');
+    expect(findLabMarkerPresetByLoinc('2345-7')).toBeUndefined();
+  });
+
+  it('returns undefined for an unknown code', () => {
+    expect(findLabMarkerPresetByLoinc('99999-9')).toBeUndefined();
+  });
+});
+
+describe('UCUM unit spellings', () => {
+  it('treats the FHIR spellings as the same unit as the printed ones', () => {
+    expect(sameLabUnit('10*3/uL', '10³/µL')).toBe(true);
+    expect(sameLabUnit('10*6/uL', '10⁶/µL')).toBe(true);
+    expect(sameLabUnit('[IU]/L', 'U/L')).toBe(true);
+    expect(sameLabUnit('u[IU]/mL', 'µIU/mL')).toBe(true);
+    expect(sameLabUnit('m[IU]/L', 'mIU/L')).toBe(true);
+    expect(sameLabUnit('m[IU]/mL', 'mIU/mL')).toBe(true);
+    expect(sameLabUnit('mL/min/{1.73_m2}', 'mL/min/1.73m²')).toBe(true);
+    expect(sameLabUnit('mm/h', 'mm/hr')).toBe(true);
+  });
+
+  it('still keeps different units apart', () => {
+    expect(sameLabUnit('10*3/uL', '10*6/uL')).toBe(false);
+    expect(sameLabUnit('mm/h', 'mm')).toBe(false);
   });
 });
