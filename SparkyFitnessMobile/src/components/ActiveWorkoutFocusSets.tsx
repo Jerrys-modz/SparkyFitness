@@ -11,7 +11,10 @@ import { useCSSVariable } from 'uniwind';
 import {
   DEFAULT_WARMUP_PLATE_ROUNDING,
   isBodyweightModality,
+  type ExerciseRecentSessionSet,
 } from '@workspace/shared';
+import CardioEffortForm from './CardioEffortForm';
+import { formatLocalizedNumber } from '../localization';
 import { useBodyWeightKg } from '../hooks/useBodyWeightKg';
 import { measureAnchoredMenuTrigger, type AnchorRect } from './AnchoredMenu';
 import ActiveWorkoutSetDetail from './ActiveWorkoutSetDetail';
@@ -36,7 +39,11 @@ import {
   parseDecimalInput,
   parseSignedDecimalInput,
 } from '../utils/numericInput';
-import { storedWeightInUnit, weightToKg } from '../utils/unitConversions';
+import {
+  storedWeightInUnit,
+  weightFromKg,
+  weightToKg,
+} from '../utils/unitConversions';
 import {
   buildWorkingSetNumbers,
   getRpeTone,
@@ -44,7 +51,9 @@ import {
   isMetricClampedToRpe,
   isWeightDistanceModality,
   isWeightDurationModality,
+  formatRecentSessionSet,
   quantizeSetWeightKg,
+  rendersCardioEffortForm,
   resolveSnapshotModality,
   setDistanceUnitLabel,
   setTypeLetter,
@@ -76,6 +85,11 @@ interface Props {
    * `exercise.sets`; from `resolveLiveAssumedSetValues`, as in the list.
    */
   assumedSetValues?: (AssumedSetValues | null)[] | null;
+  /**
+   * Last session's sets paired with `exercise.sets` by index (`alignPreviousSets`),
+   * for the Previous column. Omitted hides the column.
+   */
+  previousSets?: (ExerciseRecentSessionSet | null | undefined)[];
   onCompleteSet: (setId: string) => void;
   onUncomplete: (setId: string) => void;
   onCommitField: (setId: string, patch: ActiveSetPatch) => void;
@@ -192,6 +206,9 @@ interface FocusSetRowProps {
   weightUnit: 'kg' | 'lbs';
   /** +/- step for weight, in the display unit. */
   weightStep: number;
+  /** Last session's matching set; `undefined` hides the Previous cell. */
+  previousSet?: ExerciseRecentSessionSet | null;
+  distanceUnit: 'km' | 'miles';
   onCompleteSet: (setId: string) => void;
   onUncomplete: (setId: string) => void;
   onCommitField: (setId: string, patch: ActiveSetPatch) => void;
@@ -226,6 +243,8 @@ const FocusSetRow = React.memo(function FocusSetRow({
   metricColumn,
   weightUnit,
   weightStep,
+  previousSet,
+  distanceUnit,
   onCompleteSet,
   onUncomplete,
   onCommitField,
@@ -313,6 +332,19 @@ const FocusSetRow = React.memo(function FocusSetRow({
         effortField === 'rir' ? { rir: next } : { rpe: next }
       ),
   });
+
+  // Tap-to-fill replaces the row's weight and reps with last time's. A field
+  // the previous set lacks is left alone. The commit re-seeds the steppers
+  // (their drafts clear on commit), so no local state needs mirroring.
+  const handleFillFromPrevious = () => {
+    if (previousSet == null) return;
+    const patch: ActiveSetPatch = {};
+    if (showWeight && previousSet.weight != null) {
+      patch.weight = previousSet.weight;
+    }
+    if (previousSet.reps != null) patch.reps = previousSet.reps;
+    if (Object.keys(patch).length > 0) onCommitField(setId, patch);
+  };
 
   const handleComplete = () => {
     if (showWeight) weight.flush();
@@ -461,6 +493,41 @@ const FocusSetRow = React.memo(function FocusSetRow({
         className="flex-1 flex-row items-center gap-2"
         style={isDone ? { opacity: 0.62 } : undefined}
       >
+        {previousSet !== undefined && (
+          <Pressable
+            testID="focus-previous-cell"
+            className="w-14 items-center py-1"
+            onPress={handleFillFromPrevious}
+            disabled={previousSet == null}
+            accessibilityRole={previousSet != null ? 'button' : undefined}
+            accessibilityLabel={
+              previousSet != null
+                ? t('activeWorkout.setRow.fillFromPrevious', {
+                    defaultValue: 'Fill set {{setNumber}} from previous',
+                    setNumber,
+                  })
+                : undefined
+            }
+          >
+            <Text
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.7}
+              className="text-center text-xs text-text-secondary"
+              style={{ fontVariant: ['tabular-nums'] }}
+            >
+              {previousSet != null
+                ? formatRecentSessionSet(
+                    previousSet,
+                    weightUnit,
+                    t,
+                    modality,
+                    distanceUnit
+                  )
+                : '-'}
+            </Text>
+          </Pressable>
+        )}
         {showWeight && (
           <View className="flex-[3] flex-row">
             <StepperInput
@@ -584,6 +651,7 @@ function ActiveWorkoutFocusSets({
   weightUnit,
   distanceUnit,
   assumedSetValues,
+  previousSets,
   onCompleteSet,
   onUncomplete,
   onCommitField,
@@ -602,7 +670,12 @@ function ActiveWorkoutFocusSets({
   const { t } = useTranslation();
   const accentPrimary = String(useCSSVariable('--color-accent-primary'));
   const modality = resolveSnapshotModality(exercise.exercise_snapshot);
+  const cardioForm = rendersCardioEffortForm(
+    exercise.exercise_snapshot,
+    exercise.sets.length
+  );
   const stepperRows =
+    !cardioForm &&
     !isDurationModality(modality) &&
     !isWeightDurationModality(modality) &&
     !isWeightDistanceModality(modality);
@@ -690,13 +763,50 @@ function ActiveWorkoutFocusSets({
   );
   const headerClass =
     'text-center text-xs font-medium uppercase text-text-muted';
+  const unitLabel =
+    weightUnit === 'kg'
+      ? t('workout.kg', { defaultValue: 'kg' })
+      : t('workout.lbs', { defaultValue: 'lbs' });
+  // Same explainer as the list card, shown above the table.
+  const bodyweightBanner =
+    stepperRows && isBodyweightModality(modality) ? (
+      <View
+        className="mx-1 mb-2 flex-row items-start gap-2 rounded-lg bg-surface-secondary px-3 py-2"
+        accessibilityRole="text"
+        testID="bodyweight-banner"
+      >
+        <Icon name="info-circle" size={14} color={accentPrimary} />
+        <Text className="flex-1 text-xs text-text-secondary">
+          {bodyWeightKg != null
+            ? t('workout.bodyweightBanner', {
+                defaultValue:
+                  'Bodyweight exercise: counts your body weight ({{bodyWeight}} {{unit}}) plus the weight you enter. Use a minus sign for assistance.',
+                bodyWeight: formatLocalizedNumber(
+                  weightFromKg(bodyWeightKg, weightUnit),
+                  { maximumFractionDigits: 1 }
+                ),
+                unit: unitLabel,
+              })
+            : t('workout.bodyweightBannerNoWeight', {
+                defaultValue:
+                  'Bodyweight exercise: counts your body weight plus the weight you enter. Use a minus sign for assistance. Log a body weight so volume can be calculated.',
+              })}
+        </Text>
+      </View>
+    ) : null;
 
   return (
     <View className="rounded-2xl bg-surface p-2">
+      {bodyweightBanner}
       {stepperRows && (
         <View className="flex-row items-center gap-2 px-2 pb-1">
           <View className="w-9" />
           <View className="flex-1 flex-row items-center gap-2">
+            {previousSets !== undefined && (
+              <Text className={`w-14 ${headerClass}`}>
+                {t('workout.prev', { defaultValue: 'Prev' })}
+              </Text>
+            )}
             {modality !== 'reps_only' && (
               <Text className={`flex-[3] ${headerClass}`}>
                 {t('activeWorkout.focus.sets.weightHeader', {
@@ -716,12 +826,19 @@ function ActiveWorkoutFocusSets({
           <View className="w-9" />
         </View>
       )}
-      {!stepperRows && exercise.sets.length > 0 && (
+      {!stepperRows && !cardioForm && exercise.sets.length > 0 && (
         // Same columns as the list card's header for these tables.
         <View className="flex-row items-center px-1 py-1.5">
           <Text className={`w-9 ${headerClass}`}>
             {t('workout.set', { defaultValue: 'Set' })}
           </Text>
+          {previousSets !== undefined && (
+            <Text
+              className={`${isDurationModality(modality) ? 'flex-1' : 'w-20'} ${headerClass}`}
+            >
+              {t('workout.prev', { defaultValue: 'Prev' })}
+            </Text>
+          )}
           {isDurationModality(modality) ? (
             <Text className={`flex-1 ${headerClass}`}>
               {t('workout.sec', { defaultValue: 'Sec' })}
@@ -744,7 +861,37 @@ function ActiveWorkoutFocusSets({
           <View className="w-10" />
         </View>
       )}
+      {cardioForm && (
+        <CardioEffortForm
+          set={exercise.sets[0] ?? null}
+          exerciseName={
+            exercise.exercise_snapshot?.name ??
+            t('workout.exercise', { defaultValue: 'Exercise' })
+          }
+          mode="live"
+          distanceUnit={distanceUnit}
+          assumed={assumedSetValues?.[0] ?? null}
+          state={(() => {
+            const first = exercise.sets[0];
+            if (first == null) return 'upcoming';
+            if (completedSetIds[String(first.id)]) return 'done';
+            return String(first.id) === activeSetId ? 'current' : 'upcoming';
+          })()}
+          renderKey={
+            exercise.sets[0] != null
+              ? (setRenderKeys[String(exercise.sets[0].id)] ??
+                String(exercise.sets[0].id))
+              : undefined
+          }
+          onCommitField={onCommitField}
+          onComplete={onCompleteSet}
+          onUncomplete={onUncomplete}
+          onActivateSet={activateSetById}
+          onRegisterAccessoryHandle={onRegisterAccessoryHandle}
+        />
+      )}
       {exercise.sets.map((set, index) => {
+        if (cardioForm) return null;
         const setId = String(set.id);
         const renderKey = setRenderKeys[setId] ?? setId;
         const nextSet = exercise.sets[index + 1];
@@ -768,6 +915,12 @@ function ActiveWorkoutFocusSets({
             metricColumn={effectiveMetricColumn}
             weightUnit={weightUnit}
             weightStep={weightStep}
+            previousSet={
+              previousSets !== undefined
+                ? (previousSets[index] ?? null)
+                : undefined
+            }
+            distanceUnit={distanceUnit}
             bodyWeightKg={bodyWeightKg}
             onPressSetType={onPressSetType}
             onToggleSetDetail={onToggleSetDetail}
@@ -798,6 +951,11 @@ function ActiveWorkoutFocusSets({
             metricColumn={metricColumn === 'rir' ? 'rir' : 'rpe'}
             weightUnit={weightUnit}
             assumed={assumed}
+            previousSet={
+              previousSets !== undefined
+                ? (previousSets[index] ?? null)
+                : undefined
+            }
             onComplete={onCompleteSet}
             onUncomplete={onUncomplete}
             onCommitField={onCommitField}
