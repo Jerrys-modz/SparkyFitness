@@ -163,6 +163,14 @@ export interface ChartDataPoint {
   heartRate: number | null;
   runCadence: number;
   elevation: number | null;
+  /** Watts. */
+  power?: number;
+  /** Milliseconds. */
+  groundContactTime?: number;
+  /** Millimetres. */
+  verticalOscillation?: number;
+  /** Centimetres. */
+  strideLength?: number;
 }
 
 import {

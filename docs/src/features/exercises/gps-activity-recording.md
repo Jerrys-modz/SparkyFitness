@@ -291,6 +291,28 @@ If your Apple Watch or Health Connect source records **VO2 max**, turn on VO2 ma
 
 After a program workout is saved, the summary asks how hard it was, from 1 (very easy) to 10 (all out), and keeps your answer with the program. A rating of 8 or more offers to repeat the workout, and 3 or less offers to skip the next one. Two hard or two easy workouts in a row get a note, and Sparky can see your recent ratings when you ask how your program is going. Nothing in the program changes unless you tap the button or agree to something Sparky suggests.
 
+## Running power and running dynamics
+
+When a run carries them, the cardio session screen (mobile) and the activity report (web) add two sections. They need a watch or sensor that records them: with an Apple Watch the app reads running power, ground contact time, vertical oscillation and stride length from Apple Health when the run syncs. Nothing shows for a run without these readings, and nothing needs setting up.
+
+### Running power
+
+- **Average and max** power in watts.
+- **Normalized power** is a 30 second rolling average, each value raised to the fourth power, averaged and rooted. It weighs surges more than a plain average, so a hilly or interval run scores above its average power.
+- **Variability index** is normalized power divided by average power. 1.00 is a perfectly even effort; higher means a surgier one.
+- **Power to heart rate drift** compares watts per heartbeat in the first half of the run with the second. A positive figure means your heart worked harder for the same power. It needs heart rate and a run of at least 20 minutes.
+- **Power zones** (five, as a share of critical power: under 80%, 80-90%, 90-100%, 100-115% and over 115%) appear when the run holds a 20 minute stretch. Critical power is estimated as 95% of the run's best 20 minutes, so it is only as good as the effort in that run. An easy run under-estimates it and its time-in-zone looks too high; read zones from a hard effort or a race.
+
+A chart of power over the run sits under the figures.
+
+### Running dynamics
+
+- **Ground contact time** (ms), **vertical oscillation** (mm) and **stride length** (cm), averaged over the run. Readings outside a human range are ignored as sensor glitches.
+- **Vertical ratio** is vertical oscillation as a percent of stride length. Lower means less of each step goes up instead of forward; most runners sit between about 6% and 10%.
+- **Ground contact change** compares the first third of the run with the last third (runs of 10 minutes or more). A steady rise is a sign of tiring.
+
+Each reading has its own chart over the run.
+
 ## Cadence and stride length
 
 For a run, the app also works out your **cadence** (steps per minute while you were moving) and **stride length** (distance divided by steps) from your phone's step count, so you can check your form. They show on the activity in your diary and on the summary screen after you save, in steps per minute (spm) and metres, or feet with the miles setting. Treadmill runs count as well as outdoor ones.
