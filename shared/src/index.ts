@@ -386,3 +386,4 @@ export {
   type GlucoseContextEvent,
   type GlucoseContextData,
 } from './glucose/context.ts';
+export * from './utils/widgetLayout.ts';

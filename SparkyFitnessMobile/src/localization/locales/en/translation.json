@@ -180,7 +180,8 @@
       "goals": "Goals",
       "reports": "Reports",
       "heartRateZones": "Heart Rate Zones",
-      "heartRateZonesSubtitle": "Max and resting heart rate, zone method"
+      "heartRateZonesSubtitle": "Max and resting heart rate, zone method",
+      "widgets": "Widgets"
     },
     "theme": {
       "title": "Theme",
@@ -810,7 +811,9 @@
     "labReportImport": "Import report",
     "activityRingsSettings": "Activity Rings",
     "pinnedMetricsSettings": "At a Glance",
-    "treadmillSettings": "Treadmill & Stride"
+    "treadmillSettings": "Treadmill & Stride",
+    "widgets": "Widgets",
+    "widgetEditor": "Widget"
   },
   "activityShare": {
     "title": "Share Activity",
@@ -11374,5 +11377,83 @@
     "daysCount_one": "{{count}} day",
     "daysCount_other": "{{count}} days",
     "otherCare": "Flossing, mouthwash and other"
+  },
+  "widgets": {
+    "metrics": {
+      "calories_remaining": "Calories left",
+      "calories_eaten": "Calories eaten",
+      "calories_burned": "Calories burned",
+      "calorie_goal": "Calorie goal",
+      "protein": "Protein",
+      "carbs": "Carbs",
+      "fat": "Fat",
+      "water": "Water",
+      "weight": "Weight",
+      "steps": "Steps",
+      "sleep_duration": "Sleep",
+      "resting_heart_rate": "Resting heart rate",
+      "heart_rate": "Heart rate",
+      "exercise_minutes": "Exercise minutes",
+      "fasting_elapsed": "Fasting timer",
+      "logging_streak": "Logging streak"
+    },
+    "families": {
+      "small": "Small",
+      "medium": "Medium",
+      "large": "Large",
+      "lockCircular": "Lock Screen circle",
+      "lockRectangular": "Lock Screen rectangle",
+      "lockInline": "Lock Screen line"
+    },
+    "styles": {
+      "ring": "Ring",
+      "bars": "Bars",
+      "list": "List",
+      "grid": "Grid",
+      "value": "Big number"
+    },
+    "accents": {
+      "blue": "Blue",
+      "green": "Green",
+      "orange": "Orange",
+      "red": "Red",
+      "purple": "Purple",
+      "teal": "Teal",
+      "pink": "Pink",
+      "gray": "Gray"
+    },
+    "title": "Widgets",
+    "add": "New widget",
+    "deleteTitle": "Delete widget?",
+    "deleteMessage": "\"{{name}}\" will stop showing on any Home Screen or Lock Screen widget that uses it.",
+    "editNamed": "Edit {{name}}",
+    "deleteNamed": "Delete {{name}}",
+    "howTo": "Build a widget here, then touch and hold your Home Screen or Lock Screen, tap Add, choose SparkyFitness and add \"Custom widget\". Touch and hold it, tap Edit Widget and pick yours.",
+    "emptyTitle": "No widgets yet",
+    "emptySubtitle": "Choose the numbers, the size and the look of your own Home Screen or Lock Screen widget.",
+    "editor": {
+      "nameRequired": "Name your widget",
+      "nameRequiredHelp": "It is how you find it when you place the widget.",
+      "limitReached": "You have reached the widget limit",
+      "limitReachedHelp": "Delete one you no longer use to make room.",
+      "saved": "Widget saved",
+      "editTitle": "Edit widget",
+      "createTitle": "New widget",
+      "previewNote": "A preview with sample numbers. Your real widget uses your data.",
+      "name": "Name",
+      "namePlaceholder": "e.g. Morning macros",
+      "size": "Size",
+      "style": "Style",
+      "numbers": "Numbers",
+      "numbersHelp": "Pick up to {{max}} for this size. {{selected}} chosen.",
+      "color": "Color",
+      "showTitle": "Show name",
+      "standBy": "Easy to read in StandBy",
+      "standByHelp": "Larger numbers and no name, for a charging iPhone on its side."
+    },
+    "preview": {
+      "untitled": "New widget",
+      "a11y": "Widget preview: {{summary}}"
+    }
   }
 }

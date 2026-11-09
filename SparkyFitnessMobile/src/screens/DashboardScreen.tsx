@@ -77,6 +77,7 @@ import {
   useWidgetSync,
 } from '../hooks';
 import { useCheckInPhotoDates } from '../hooks/useCheckInPhotos';
+import { useWidgetExtras } from '../hooks/useWidgetExtras';
 import {
   moodEntriesRootQueryKey,
   labLatestQueryKey,
@@ -475,11 +476,20 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
   // The hydration card and the hydration trend must agree on the unit, so both read it
   // from here rather than each resolving the fallback chain themselves.
   const waterDisplayUnit = waterUnit || preferences?.water_display_unit || 'ml';
-  useWidgetSync(summary, {
-    drinkMl: servingVolume,
-    unit: waterDisplayUnit,
-    canLog: true,
+  const widgetExtras = useWidgetExtras({
+    measurements,
+    date: summary?.date,
+    enabled: isConnected,
   });
+  useWidgetSync(
+    summary,
+    {
+      drinkMl: servingVolume,
+      unit: waterDisplayUnit,
+      canLog: true,
+    },
+    widgetExtras
+  );
 
   // The chart is a single-axis line graph; if the user picked stones+lbs, plot lbs.
   const weightUnit: 'kg' | 'lbs' =

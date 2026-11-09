@@ -8,11 +8,12 @@ jest.mock('expo-constants', () => ({
   },
 }));
 
-import { renderHook } from '@testing-library/react-native';
+import { act, renderHook } from '@testing-library/react-native';
 import { Platform } from 'react-native';
 
 import { ExtensionStorage } from '@bacons/apple-targets';
 import { useWidgetSync } from '../../src/hooks/useWidgetSync';
+import { useWidgetLayoutStore } from '../../src/stores/widgetLayoutStore';
 import { addLog } from '../../src/services/LogService';
 import { getTodayDate } from '../../src/utils/dateUtils';
 import type { DailySummary } from '../../src/types/dailySummary';
@@ -222,19 +223,95 @@ describe('useWidgetSync', () => {
     });
     renderHook(() => useWidgetSync(summary));
 
+    // The empty layout list is always written; no custom widget data is.
     const keys = setMock.mock.calls.map((call) => call[0]);
-    expect(keys).toEqual(['macroSnapshot']);
+    expect(keys).toEqual(['customWidgetLayouts', 'macroSnapshot']);
 
     const reloadedKinds = reloadMock.mock.calls.map((call) => call[0]);
     expect(reloadedKinds).toEqual(['macroWidget']);
     expect(mockAddLog).not.toHaveBeenCalled();
   });
 
-  it('writes nothing when the summary date is not today', () => {
+  it('writes nothing but the empty layout list when the summary date is not today', () => {
     renderHook(() => useWidgetSync(makeSummary({ date: '2000-01-01' })));
 
-    expect(setMock).not.toHaveBeenCalled();
+    expect(setMock.mock.calls).toEqual([['customWidgetLayouts', '[]']]);
     expect(reloadMock).not.toHaveBeenCalled();
+  });
+
+  describe('custom widget', () => {
+    const layout = {
+      id: 'w1',
+      name: 'Protein',
+      family: 'small' as const,
+      style: 'ring' as const,
+      metrics: [{ metric: 'protein' as const }],
+      accent: 'blue' as const,
+      showTitle: true,
+      standByFriendly: false,
+      version: 1 as const,
+      updatedAt: 1,
+    };
+
+    afterEach(() => {
+      useWidgetLayoutStore.setState({ layouts: [] });
+    });
+
+    it('writes and reloads saved layouts even without a summary', () => {
+      useWidgetLayoutStore.setState({ layouts: [layout] });
+      renderHook(() => useWidgetSync(undefined));
+
+      expect(setMock).toHaveBeenCalledWith(
+        'customWidgetLayouts',
+        JSON.stringify([layout])
+      );
+      expect(reloadMock.mock.calls.map((call) => call[0])).toEqual([
+        'customWidget',
+      ]);
+    });
+
+    it('writes the metric snapshot and reloads the widget when layouts exist', () => {
+      useWidgetLayoutStore.setState({ layouts: [layout] });
+      renderHook(() =>
+        useWidgetSync(makeSummary(), undefined, { weightKg: 80 })
+      );
+
+      const dataCall = setMock.mock.calls.find(
+        (call) => call[0] === 'customWidgetData'
+      );
+      const data = JSON.parse(dataCall?.[1] as string);
+      expect(data.metrics.protein).toBeDefined();
+      expect(data.metrics.weight).toEqual({ value: 80, unit: 'kg' });
+      expect(reloadMock.mock.calls.map((call) => call[0])).toContain(
+        'customWidget'
+      );
+    });
+
+    it('writes the metric snapshot as soon as the first layout is saved', () => {
+      renderHook(() => useWidgetSync(makeSummary()));
+      expect(
+        setMock.mock.calls.some((call) => call[0] === 'customWidgetData')
+      ).toBe(false);
+
+      act(() => {
+        useWidgetLayoutStore.setState({ layouts: [layout] });
+      });
+
+      expect(
+        setMock.mock.calls.some((call) => call[0] === 'customWidgetData')
+      ).toBe(true);
+    });
+
+    it('skips the metric snapshot and reload when there are no layouts', () => {
+      renderHook(() => useWidgetSync(makeSummary()));
+
+      expect(
+        setMock.mock.calls.some((call) => call[0] === 'customWidgetData')
+      ).toBe(false);
+      expect(reloadMock.mock.calls.map((call) => call[0])).not.toContain(
+        'customWidget'
+      );
+    });
   });
 
   it('pushes calorie and macro snapshots to Android bridge and does not touch iOS ExtensionStorage', async () => {

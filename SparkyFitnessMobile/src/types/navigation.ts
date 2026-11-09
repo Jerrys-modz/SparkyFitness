@@ -513,6 +513,8 @@ export type RootStackParamList = {
   WatchComplications: undefined;
   WatchComplicationEdit: { complicationId?: string } | undefined;
   AddMenuSettings: undefined;
+  Widgets: undefined;
+  WidgetEditor: { layoutId?: string } | undefined;
   DiarySettings: undefined;
   CustomCategories: undefined;
   CustomCategoryEdit: { categoryId?: string } | undefined;
