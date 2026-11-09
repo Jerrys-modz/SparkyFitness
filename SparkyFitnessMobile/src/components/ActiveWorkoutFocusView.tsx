@@ -26,6 +26,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useCSSVariable } from 'uniwind';
 import { usesBarbell, type PresetSessionResponse } from '@workspace/shared';
+import { useLiveHeartRate } from '../stores/liveHeartRateStore';
 import ActiveWorkoutFocusChips from './ActiveWorkoutFocusChips';
 import ActiveWorkoutFocusMedia from './ActiveWorkoutFocusMedia';
 import ActiveWorkoutFocusSets from './ActiveWorkoutFocusSets';
@@ -61,6 +62,7 @@ import {
   type ActiveWorkoutMetricColumn,
 } from '../stores/appPreferencesStore';
 import {
+  alignPreviousSets,
   plateTargetKg,
   resolveSnapshotModality,
 } from '../utils/workoutSession';
@@ -201,12 +203,14 @@ const FocusExercisePage = React.memo(function FocusExercisePage({
   ...setEditorProps
 }: PageProps) {
   const { t } = useTranslation();
-  const [textMuted, textSecondary, prColor, accent] = useCSSVariable([
-    '--color-text-muted',
-    '--color-text-secondary',
-    '--color-pr',
-    '--color-accent-primary',
-  ]) as [string, string, string, string];
+  const [textMuted, textSecondary, prColor, accent, heartRateColor] =
+    useCSSVariable([
+      '--color-text-muted',
+      '--color-text-secondary',
+      '--color-pr',
+      '--color-accent-primary',
+      '--color-heart-rate',
+    ]) as [string, string, string, string, string];
   const plannedSetValues = useActiveWorkoutStore((s) => s.plannedSetValues);
 
   const snapshot = exercise.exercise_snapshot;
@@ -218,6 +222,12 @@ const FocusExercisePage = React.memo(function FocusExercisePage({
     verifiedSourcePresetId
   );
   const previousSessionSets = (stats?.recentSessions ?? [])[0]?.sets;
+  // Last session's sets by position, warm-ups with warm-ups, as the list card.
+  const alignedPreviousSets = useMemo(
+    () => alignPreviousSets(exercise.sets, previousSessionSets),
+    [exercise.sets, previousSessionSets]
+  );
+  const liveBpm = useLiveHeartRate(String(exercise.id));
   const progressionResult = useLiveProgression(
     exercise,
     previousSessionSets,
@@ -320,7 +330,10 @@ const FocusExercisePage = React.memo(function FocusExercisePage({
           <Icon name="ellipsis-horizontal" size={20} color={textMuted} />
         </Pressable>
       </View>
-      {(muscle !== '' || equipment !== '' || bestDisplay != null) && (
+      {(muscle !== '' ||
+        equipment !== '' ||
+        bestDisplay != null ||
+        liveBpm != null) && (
         <View className="mt-1 flex-row flex-wrap gap-2">
           {muscle !== '' && (
             <View className={pillClass}>
@@ -330,6 +343,26 @@ const FocusExercisePage = React.memo(function FocusExercisePage({
           {equipment !== '' && (
             <View className={pillClass}>
               <Text className="text-xs text-text-secondary">{equipment}</Text>
+            </View>
+          )}
+          {liveBpm != null && (
+            <View
+              className={pillClass}
+              accessibilityLabel={t('activeWorkout.exercise.liveHeartRateFor', {
+                defaultValue: 'Current heart rate for {{name}}',
+                name,
+              })}
+            >
+              <Icon name="heart-rate" size={12} color={heartRateColor} />
+              <Text
+                className="text-xs text-text-secondary"
+                style={{ fontVariant: ['tabular-nums'] }}
+              >
+                {liveBpm}{' '}
+                {t('activeWorkout.exercise.heartRateUnit', {
+                  defaultValue: 'bpm',
+                })}
+              </Text>
             </View>
           )}
           {bestDisplay != null && (
@@ -468,6 +501,7 @@ const FocusExercisePage = React.memo(function FocusExercisePage({
         exercise={exercise}
         weightUnit={weightUnit}
         assumedSetValues={assumedSetValues}
+        previousSets={alignedPreviousSets}
         {...setEditorProps}
       />
     </View>
