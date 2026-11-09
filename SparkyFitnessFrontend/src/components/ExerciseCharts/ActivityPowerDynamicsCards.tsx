@@ -1,15 +1,20 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   HEART_RATE_ZONE_COLORS,
   computeTimeInPowerZones,
-  estimateCriticalPower,
+  MAX_CRITICAL_POWER_WATTS,
+  MIN_CRITICAL_POWER_WATTS,
+  resolveCriticalPower,
   runningPowerZoneFloors,
   summarizeRunningDynamics,
   summarizeRunningPower,
   type RunSensorPoint,
 } from '@workspace/shared';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { useRunningCriticalPower } from '@/hooks/Settings/usePreferences';
 
 interface Props {
   points: readonly RunSensorPoint[];
@@ -29,7 +34,21 @@ const formatMinutes = (seconds: number) =>
 export const ActivityPowerCard = ({ points }: Props) => {
   const { t } = useTranslation();
   const summary = useMemo(() => summarizeRunningPower(points), [points]);
-  const criticalPower = useMemo(() => estimateCriticalPower(points), [points]);
+  const { watts: setWatts, isSaving, save } = useRunningCriticalPower();
+  const resolved = useMemo(
+    () => resolveCriticalPower(setWatts, points),
+    [setWatts, points]
+  );
+  const criticalPower = resolved?.watts ?? null;
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
+  const parsed = Number(draft);
+  const draftValid =
+    Number.isInteger(parsed) &&
+    parsed >= MIN_CRITICAL_POWER_WATTS &&
+    parsed <= MAX_CRITICAL_POWER_WATTS;
+  const saveWatts = (watts: number | null) =>
+    save(watts, () => setEditing(false));
   const zones = useMemo(
     () =>
       criticalPower ? computeTimeInPowerZones(points, criticalPower) : null,
@@ -81,9 +100,13 @@ export const ActivityPowerCard = ({ points }: Props) => {
               {t('reports.activityReport.runPower.zones')}
             </div>
             <p className="text-xs text-muted-foreground mb-3">
-              {t('reports.activityReport.runPower.zonesBasis', {
-                watts: criticalPower,
-              })}
+              {resolved?.source === 'set'
+                ? t('reports.activityReport.runPower.zonesBasisSet', {
+                    watts: criticalPower,
+                  })
+                : t('reports.activityReport.runPower.zonesBasis', {
+                    watts: criticalPower,
+                  })}
             </p>
             {zones.map((seconds, index) => (
               <div key={index} className="mb-2">
@@ -113,6 +136,63 @@ export const ActivityPowerCard = ({ points }: Props) => {
             ))}
           </div>
         )}
+        <div className="mt-4" data-testid="activity-critical-power">
+          {editing ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <Input
+                type="number"
+                inputMode="numeric"
+                className="w-32"
+                value={draft}
+                min={MIN_CRITICAL_POWER_WATTS}
+                max={MAX_CRITICAL_POWER_WATTS}
+                aria-label={t('reports.activityReport.runPower.criticalPower')}
+                data-testid="activity-critical-power-input"
+                onChange={(event) => setDraft(event.target.value)}
+              />
+              <Button
+                size="sm"
+                disabled={!draftValid || isSaving}
+                data-testid="activity-critical-power-save"
+                onClick={() => saveWatts(parsed)}
+              >
+                {t('common.save')}
+              </Button>
+              {setWatts !== null && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={isSaving}
+                  data-testid="activity-critical-power-clear"
+                  onClick={() => saveWatts(null)}
+                >
+                  {t('reports.activityReport.runPower.useEstimate')}
+                </Button>
+              )}
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setEditing(false)}
+              >
+                {t('common.cancel')}
+              </Button>
+            </div>
+          ) : (
+            <Button
+              size="sm"
+              variant="outline"
+              data-testid="activity-critical-power-edit"
+              onClick={() => {
+                setDraft(setWatts !== null ? String(setWatts) : '');
+                setEditing(true);
+              }}
+            >
+              {setWatts !== null
+                ? t('reports.activityReport.runPower.changeCriticalPower')
+                : t('reports.activityReport.runPower.setCriticalPower')}
+            </Button>
+          )}
+        </div>
       </CardContent>
     </Card>
   );

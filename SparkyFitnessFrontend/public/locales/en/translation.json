@@ -5198,6 +5198,11 @@
         "decoupling": "Power to heart rate drift",
         "zones": "Power zones",
         "zoneFrom": "from {{watts}} W",
+        "zonesBasisSet": "Zones from your critical power of {{watts}} W.",
+        "criticalPower": "Critical power",
+        "useEstimate": "Use the estimate",
+        "changeCriticalPower": "Change my critical power",
+        "setCriticalPower": "Set my critical power",
         "zonesBasis": "Zones from a critical power of {{watts}} W, estimated as 95% of this run’s best 20 minutes. An easy run under-estimates it, so read zones from a hard effort."
       },
       "runDynamics": {

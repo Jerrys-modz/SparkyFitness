@@ -10,6 +10,8 @@ import {
   MAX_CALORIE_SAFETY_FLOOR,
   DEFAULT_CUSTOM_CALORIE_SAFETY_FLOOR,
   CHART_SCALE_MODES,
+  MAX_CRITICAL_POWER_WATTS,
+  MIN_CRITICAL_POWER_WATTS,
   TEMPERATURE_UNITS,
   DEFAULT_GLUCOSE_UNIT,
   isGlucoseUnit,
@@ -276,6 +278,25 @@ function assertValidGlucoseUnit(
     );
   }
 }
+/** Rejects a critical power outside the supported range; null clears it. */
+function assertValidRunningCriticalPower(
+  preferenceData: Pick<UserPreferencesMutator, 'running_critical_power_watts'>
+) {
+  const watts = preferenceData.running_critical_power_watts;
+  if (watts === undefined || watts === null) return;
+  if (
+    !Number.isInteger(watts) ||
+    watts < MIN_CRITICAL_POWER_WATTS ||
+    watts > MAX_CRITICAL_POWER_WATTS
+  ) {
+    throw Object.assign(
+      new Error(
+        `Invalid running_critical_power_watts. Must be a whole number from ${MIN_CRITICAL_POWER_WATTS} to ${MAX_CRITICAL_POWER_WATTS}, or null.`
+      ),
+      { status: 400 }
+    );
+  }
+}
 function getDefaultPreferences() {
   return {
     voice_input_enabled: true,
@@ -291,6 +312,7 @@ function getDefaultPreferences() {
     calorie_safety_floor_value: DEFAULT_CUSTOM_CALORIE_SAFETY_FLOOR,
     chart_scale_mode: DEFAULT_CHART_SCALE_MODE,
     default_temperature_unit: DEFAULT_TEMPERATURE_UNIT,
+    running_critical_power_watts: null,
     default_glucose_unit: DEFAULT_GLUCOSE_UNIT,
     goal_mode_weekly_change_kg: 0,
     calorie_cycling_mode: 'off',
@@ -312,6 +334,7 @@ async function updateUserPreferences(
     await validateChartScaleMode(preferenceData);
     assertValidTemperatureUnit(preferenceData);
     assertValidGlucoseUnit(preferenceData);
+    assertValidRunningCriticalPower(preferenceData);
     const updatedPreferences = await preferenceRepository.updateUserPreferences(
       targetUserId,
       preferenceData
@@ -436,6 +459,7 @@ async function upsertUserPreferences(
     await validateChartScaleMode(preferenceData);
     assertValidTemperatureUnit(preferenceData);
     assertValidGlucoseUnit(preferenceData);
+    assertValidRunningCriticalPower(preferenceData);
     // Provide a default for calorie_goal_adjustment_mode if it's not present
     if (!preferenceData.calorie_goal_adjustment_mode) {
       preferenceData.calorie_goal_adjustment_mode = 'dynamic';

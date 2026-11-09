@@ -288,6 +288,8 @@ export interface DefaultPreferences {
   chart_scale_mode: ChartScaleMode;
   default_glucose_unit?: GlucoseUnit;
   default_temperature_unit?: TemperatureUnit;
+  /** The runner's own critical power in watts (50 to 600); null = estimate from the run. */
+  running_critical_power_watts?: number | null;
   goal_mode: GoalMode;
   goal_mode_calculation_method: GoalModeCalculationMethod;
   adaptive_activity_separate?: boolean;
