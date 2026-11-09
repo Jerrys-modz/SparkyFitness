@@ -1,4 +1,5 @@
 import type {
+  ExerciseActivityQueryItem,
   ExerciseActivityQueryResponse,
   ExercisePRMatrixResponse,
   ExerciseEntryGpsPoints,
@@ -113,3 +114,27 @@ export const fetchPersonalRecords = (
     serviceName: SERVICE,
     operation: 'fetch personal records',
   });
+
+const WINDOW_PAGE_SIZE = 100;
+/** A safety stop; a few months of workouts is a few pages at most. */
+const WINDOW_MAX_PAGES = 10;
+
+/** Every cardio session between two days (YYYY-MM-DD), newest first, in metric units. */
+export async function fetchCardioSessionsWindow(
+  startDate: string,
+  endDate: string
+): Promise<ExerciseActivityQueryItem[]> {
+  const items: ExerciseActivityQueryItem[] = [];
+  for (let page = 1; page <= WINDOW_MAX_PAGES; page++) {
+    const result = await fetchCardioSessionsPage({
+      startDate,
+      endDate,
+      page,
+      pageSize: WINDOW_PAGE_SIZE,
+      unitSystem: 'metric',
+    });
+    items.push(...result.items);
+    if (page >= result.totalPages) break;
+  }
+  return items;
+}
