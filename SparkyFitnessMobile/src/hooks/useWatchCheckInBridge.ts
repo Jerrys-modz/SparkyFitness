@@ -102,6 +102,7 @@ import {
 import { presetName } from '../components/recording/IntervalSetup';
 import { programWorkoutLabel } from '../components/recording/RunProgramCard';
 import { getAppLocale } from '../localization';
+import { normalizeEnergyUnit } from '@workspace/shared';
 
 /** Saved workouts the watch may start. Presets with no exercises are omitted:
  * the server rejects a session that has none. */
@@ -338,6 +339,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
   // A weighted carry's distance follows the phone's distance unit: the watch
   // shows metres, or yards when the phone is set to miles.
   const distanceUnit = watchDistanceUnit(preferences?.default_distance_unit);
+  const energyUnit = normalizeEnergyUnit(preferences?.energy_unit);
   const { status: programStatus, enabled: programEnabled } = useRunProgram();
   // Zone floors for the zone bar on the watch's cardio screens.
   const { zones: heartRateZones } = useHeartRateZones(enabled);
@@ -924,6 +926,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         failedClientIds: failedClientIdsRef.current.slice(-20),
         weightUnit,
         distanceUnit,
+        energyUnit,
         containers: watchContainers,
         // Goal and display unit ride outside the day gate: the watch treats
         // both as account configuration and carries them forward, which is
@@ -1006,6 +1009,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
   }, [
     weightUnit,
     distanceUnit,
+    energyUnit,
     hapticsEnabled,
     restAlertsEnabled,
     watchDoubleTapEnabled,

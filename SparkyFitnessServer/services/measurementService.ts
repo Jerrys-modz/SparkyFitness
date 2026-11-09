@@ -7,6 +7,7 @@ import measurementRepository, {
 import { isUniqueViolationOn } from '../utils/uniqueViolation.js';
 import { loadUserTimezone } from '../utils/timezoneLoader.js';
 import {
+  dayToUtcRange,
   pickMealTypeForTime,
   userHourMinute,
   clockInZone,
@@ -1381,6 +1382,22 @@ async function getCustomMeasurementEntries(
     throw error;
   }
 }
+/** Projects the requested day in the account timezone, independent of imported bucket dates. */
+async function getCustomMeasurementTimelineEntries(
+  authenticatedUserId: string,
+  targetUserId: string,
+  date: string
+) {
+  const timezone = await loadUserTimezone(targetUserId);
+  const { start, end } = dayToUtcRange(date, timezone);
+  return measurementRepository.getCustomMeasurementTimelineEntries(
+    targetUserId,
+    authenticatedUserId,
+    start,
+    end
+  );
+}
+
 async function getCustomMeasurementEntriesByDate(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   authenticatedUserId: any,
@@ -2291,6 +2308,7 @@ export default {
   deleteCustomCategory,
   getCustomMeasurementEntries,
   getCustomMeasurementEntriesByDate,
+  getCustomMeasurementTimelineEntries,
   getCustomMeasurementEntriesByDateRange,
   getLatestManualCustomEntriesOnOrBeforeDate,
   getCheckInMeasurementsByDateRange,

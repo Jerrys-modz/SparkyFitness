@@ -12,6 +12,8 @@ import type {
   IndividualSessionResponse,
   MedicationEntry,
   MindfulnessSessionResponse,
+  OralCareSessionResponse,
+  OralCareType,
   PresetSessionResponse,
   RaceDistance,
   SharedPregnancy,
@@ -280,6 +282,7 @@ export type RootStackParamList = {
   RunSummary: RunSummaryParams;
   Reports: undefined;
   HydrationReport: undefined;
+  OralCareReport: undefined;
   SubstancesReport: undefined;
   MeasurementsReport: undefined;
   ReportsSettings: undefined;
@@ -312,6 +315,8 @@ export type RootStackParamList = {
         pendingScannedBarcode?: string;
         scannedBarcodeNonce?: number;
         mealPlanTarget?: MealPlanPickerTarget;
+        mealTypeId?: string;
+        entryTime?: string;
       }
     | {
         mode: 'adjust-entry-nutrition';
@@ -450,6 +455,20 @@ export type RootStackParamList = {
   /** Logs a mindful session for `date`, or edits `session` when one is passed. */
   MindfulnessLog:
     { date?: string; session?: MindfulnessSessionResponse } | undefined;
+  /** A day of oral care (#1862): the goal, streak and sessions. */
+  OralCare: { date?: string } | undefined;
+  /**
+   * Logs an oral care session for `date`, or edits `session`. `careType`
+   * preselects a type and `startTimer` opens the brushing timer at once.
+   */
+  OralCareLog:
+    | {
+        date?: string;
+        session?: OralCareSessionResponse;
+        careType?: OralCareType;
+        startTimer?: boolean;
+      }
+    | undefined;
   SleepDetail: { entryId: string; day: string };
   Chat: undefined;
   ChatSettings: undefined;

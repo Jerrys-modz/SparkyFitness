@@ -433,6 +433,7 @@ describe('appPreferencesStore', () => {
         'progressPhotos',
         'healthTrends',
         'mindfulness',
+        'oralCare',
         'labResults',
       ]);
     });

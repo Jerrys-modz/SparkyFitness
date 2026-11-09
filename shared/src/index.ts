@@ -37,6 +37,7 @@ export * from './schemas/api/OpenFoodFactsAutomaticSync.api.zod.ts';
 export * from './schemas/api/OpenFoodFactsContribution.api.zod.ts';
 export * from './schemas/api/Pagination.api.zod.ts';
 export * from './schemas/api/SleepScience.api.zod.ts';
+export * from './schemas/api/SleepEntries.api.zod.ts';
 export * from './schemas/api/Symptoms.api.zod.ts';
 export * from './schemas/api/WorkoutPresets.api.zod.ts';
 export * from './schemas/api/WorkoutSplits.api.zod.ts';
@@ -48,6 +49,7 @@ export * from './schemas/api/WorkoutDays.api.zod.ts';
 export * from './schemas/api/LabReportScan.api.zod.ts';
 export * from './schemas/api/LabResults.api.zod.ts';
 export * from './schemas/api/Mindfulness.api.zod.ts';
+export * from './schemas/api/OralCare.api.zod.ts';
 export * from './schemas/api/Mood.api.zod.ts';
 export * from './schemas/api/RunProgram.api.zod.ts';
 export * from './schemas/api/FitnessTest.api.zod.ts';
@@ -182,8 +184,11 @@ export * from './utils/calendar.ts';
 export * from './utils/entryTime.ts';
 export * from './utils/hydrationExample.ts';
 export * from './utils/calorieCalculations.ts';
+export * from './utils/energyUnit.ts';
 export * from './utils/sleepSameNight.ts';
+export * from './utils/oralCare.ts';
 export * from './utils/calorieRuleDefaults.ts';
+export * from './utils/calorieCycling.ts';
 export * from './utils/exerciseCalorieLink.ts';
 export * from './utils/servingSizeConversions.ts';
 export * from './utils/saltSodium.ts';
@@ -257,6 +262,7 @@ export * from './schemas/database/LabMarkers.zod.ts';
 export * from './schemas/database/LabReports.zod.ts';
 export * from './schemas/database/LabResults.zod.ts';
 export * from './schemas/database/MindfulnessSessions.zod.ts';
+export * from './schemas/database/OralCareSessions.zod.ts';
 export * from './schemas/database/RunPrograms.zod.ts';
 export * from './schemas/database/RunGoals.zod.ts';
 export * from './schemas/database/Shoes.zod.ts';
@@ -358,3 +364,24 @@ export * from './utils/workoutEmojis.ts';
 export * from './utils/stretchRoutines.ts';
 export * from './schemas/api/ClientRequestId.api.zod.ts';
 export * from './utils/temperatureUnit.ts';
+
+export {
+  BLOOD_GLUCOSE_MG_DL_PER_MMOL_L,
+  GLUCOSE_UNITS,
+  DEFAULT_GLUCOSE_UNIT,
+  isGlucoseUnit,
+  type GlucoseUnit,
+} from './constants/bloodGlucose.ts';
+
+export {
+  measurementDayPoints,
+  type MeasurementReading,
+} from './utils/measurementTimeline.ts';
+export {
+  GLUCOSE_CONTEXT_KINDS,
+  loadGlucoseContext,
+  glucoseContextForDay,
+  type GlucoseContextKind,
+  type GlucoseContextEvent,
+  type GlucoseContextData,
+} from './glucose/context.ts';

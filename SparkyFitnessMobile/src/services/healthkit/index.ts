@@ -178,6 +178,7 @@ const SUPPORTED_HK_TYPES = new Set<string>([
   'HKQuantityTypeIdentifierLeanBodyMass',
   'HKCategoryTypeIdentifierSleepAnalysis',
   'HKCategoryTypeIdentifierMindfulSession', // For Stress
+  'HKCategoryTypeIdentifierToothbrushingEvent',
   'HKWorkoutTypeIdentifier', // For Workouts
   'HKCategoryTypeIdentifierCervicalMucusQuality',
   'HKCategoryTypeIdentifierIntermenstrualBleeding',
@@ -283,6 +284,7 @@ export const HEALTHKIT_TYPE_MAP: Record<string, string> = {
   SleepSession: 'HKCategoryTypeIdentifierSleepAnalysis',
   Stress: 'HKCategoryTypeIdentifierMindfulSession', // Map Stress to MindfulSession for HealthKit
   MindfulnessSession: 'HKCategoryTypeIdentifierMindfulSession',
+  Toothbrushing: 'HKCategoryTypeIdentifierToothbrushingEvent',
   Workout: 'HKWorkoutTypeIdentifier', // Map Workout to HKWorkoutTypeIdentifier for HealthKit
   CervicalMucus: 'HKCategoryTypeIdentifierCervicalMucusQuality',
   // The route is its own HealthKit type; mapping it to the workout type would
@@ -1266,9 +1268,10 @@ const handleStress: RecordHandler = async (identifier, startDate, endDate) => {
   }));
 };
 
-// Handler for MindfulnessSession records. Unlike Stress (presence only), each
-// sample keeps its uuid and source so the server can upsert it by id.
-const handleMindfulnessSession: RecordHandler = async (
+// Handler for category samples that are sessions (mindful minutes, toothbrushing).
+// Unlike Stress (presence only), each sample keeps its uuid and source so the
+// server can upsert it by id.
+const handleCategorySession: RecordHandler = async (
   identifier,
   startDate,
   endDate
@@ -2281,7 +2284,8 @@ const RECORD_HANDLERS: Record<string, RecordHandler> = {
   SleepSession: handleSleepSession,
   OvernightBodyTemperature: handleOvernightBodyTemperature,
   Stress: handleStress,
-  MindfulnessSession: handleMindfulnessSession,
+  MindfulnessSession: handleCategorySession,
+  Toothbrushing: handleCategorySession,
   IntermenstrualBleeding: handleReproductiveHealth,
   MenstruationFlow: handleReproductiveHealth,
   OvulationTest: handleReproductiveHealth,
@@ -2395,6 +2399,7 @@ const CATEGORY_PROBE_TYPES = new Set([
   'SleepSession',
   'Stress',
   'MindfulnessSession',
+  'Toothbrushing',
   'IntermenstrualBleeding',
   'MenstruationFlow',
   'OvulationTest',

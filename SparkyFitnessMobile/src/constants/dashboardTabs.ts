@@ -39,6 +39,7 @@ const HOME_TAB: Record<DashboardCardKey, DashboardTab | null> = {
   symptoms: 'wellness',
   mood: 'wellness',
   mindfulness: 'wellness',
+  oralCare: 'wellness',
   cycle: 'wellness',
   healthTrends: 'wellness',
   labResults: 'wellness',

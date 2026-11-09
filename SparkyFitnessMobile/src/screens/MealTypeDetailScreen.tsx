@@ -24,6 +24,8 @@ import { usePreferences } from '../hooks/usePreferences';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import { formatDateLabel } from '../utils/dateUtils';
+import { useEnergyUnit } from '../hooks/useEnergyUnit';
+import { energyUnitLabel, formatEnergyNumber } from '../utils/energyUnit';
 import {
   calculateEntryNutrition,
   calculateMealNutrition,
@@ -41,6 +43,7 @@ const MealTypeDetailScreen: React.FC<MealTypeDetailScreenProps> = ({
   route,
 }) => {
   const { t, i18n: translationI18n } = useTranslation();
+  const energyUnit = useEnergyUnit();
   const dateLocale = translationI18n.language.startsWith('pl')
     ? 'pl-PL'
     : 'en-US';
@@ -201,7 +204,7 @@ const MealTypeDetailScreen: React.FC<MealTypeDetailScreenProps> = ({
           name={label}
           brand={
             targetCalories > 0
-              ? `${formatDateLabel(date, t, dateLocale)} · ${t('mealTypeDetail.targetCalories', { defaultValue: 'Target: {{calories}} kcal', calories: targetCalories })}`
+              ? `${formatDateLabel(date, t, dateLocale)} · ${t('mealTypeDetail.targetCaloriesWithUnit', { defaultValue: 'Target: {{calories}} {{unit}}', calories: formatEnergyNumber(targetCalories, energyUnit), unit: energyUnitLabel(energyUnit, t) })}`
               : formatDateLabel(date, t, dateLocale)
           }
           values={nutrition.values}

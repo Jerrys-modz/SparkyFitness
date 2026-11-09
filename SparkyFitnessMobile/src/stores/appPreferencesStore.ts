@@ -1,7 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   DEFAULT_CHECKIN_REMINDER_TIME,
+  DEFAULT_ORAL_CARE_REMINDER_TIMES,
   normalizeCheckinReminderTimes,
+  normalizeOralCareReminderTimes,
 } from '../utils/checkinReminderTimes';
 import {
   normalizeMealReminders,
@@ -162,6 +164,7 @@ export const PREFERENCE_DEFAULTS = {
   onDeviceFoodPhotoEnabled: false,
   healthTrendsCardVisible: true,
   mindfulnessCardVisible: true,
+  oralCareCardVisible: false,
   labResultsCardVisible: true,
   trainingLoadCardVisible: true,
   workoutsCardVisible: true,
@@ -192,6 +195,8 @@ export const PREFERENCE_DEFAULTS = {
   mealReminders: [] as MealReminder[],
   macroAlertsEnabled: false,
   macroAlertRules: [] as MacroAlertRule[],
+  oralCareRemindersEnabled: false,
+  oralCareReminderTimes: [...DEFAULT_ORAL_CARE_REMINDER_TIMES] as string[],
   liquidGlassTabBarEnabled: false,
   activeWorkoutMetricColumn: 'rpe' as ActiveWorkoutMetricColumn,
   diarySummaryVisible: false,
@@ -293,6 +298,7 @@ export type AppPreferencesData = {
   onDeviceFoodPhotoEnabled: boolean;
   healthTrendsCardVisible: boolean;
   mindfulnessCardVisible: boolean;
+  oralCareCardVisible: boolean;
   labResultsCardVisible: boolean;
   trainingLoadCardVisible: boolean;
   workoutsCardVisible: boolean;
@@ -325,6 +331,8 @@ export type AppPreferencesData = {
   mealReminders: MealReminder[];
   macroAlertsEnabled: boolean;
   macroAlertRules: MacroAlertRule[];
+  oralCareRemindersEnabled: boolean;
+  oralCareReminderTimes: string[];
   liquidGlassTabBarEnabled: boolean;
   activeWorkoutMetricColumn: ActiveWorkoutMetricColumn;
   diarySummaryVisible: boolean;
@@ -484,6 +492,7 @@ export interface AppPreferencesState extends AppPreferencesData {
   setOnDeviceFoodPhotoEnabled: (value: boolean) => void;
   setHealthTrendsCardVisible: (value: boolean) => void;
   setMindfulnessCardVisible: (value: boolean) => void;
+  setOralCareCardVisible: (value: boolean) => void;
   setLabResultsCardVisible: (value: boolean) => void;
   setTrainingLoadCardVisible: (value: boolean) => void;
   setWorkoutsCardVisible: (value: boolean) => void;
@@ -516,6 +525,8 @@ export interface AppPreferencesState extends AppPreferencesData {
   setMealReminders: (reminders: MealReminder[]) => void;
   setMacroAlertsEnabled: (enabled: boolean) => void;
   setMacroAlertRules: (rules: MacroAlertRule[]) => void;
+  setOralCareRemindersEnabled: (enabled: boolean) => void;
+  setOralCareReminderTimes: (times: string[]) => void;
   setLiquidGlassTabBarEnabled: (value: boolean) => void;
   setActiveWorkoutMetricColumn: (value: ActiveWorkoutMetricColumn) => void;
   setDiarySummaryVisible: (value: boolean) => void;
@@ -710,6 +721,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         set({ healthTrendsCardVisible: value }),
       setMindfulnessCardVisible: (value) =>
         set({ mindfulnessCardVisible: value }),
+      setOralCareCardVisible: (value) => set({ oralCareCardVisible: value }),
       setLabResultsCardVisible: (value) =>
         set({ labResultsCardVisible: value }),
       setTrainingLoadCardVisible: (value) =>
@@ -758,6 +770,10 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
       setMacroAlertsEnabled: (enabled) => set({ macroAlertsEnabled: enabled }),
       setMacroAlertRules: (rules) =>
         set({ macroAlertRules: normalizeMacroAlertRules(rules) }),
+      setOralCareRemindersEnabled: (enabled) =>
+        set({ oralCareRemindersEnabled: enabled }),
+      setOralCareReminderTimes: (times) =>
+        set({ oralCareReminderTimes: normalizeOralCareReminderTimes(times) }),
       setLiquidGlassTabBarEnabled: (value) =>
         set({ liquidGlassTabBarEnabled: value }),
       setActiveWorkoutMetricColumn: (value) =>
@@ -993,6 +1009,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         onDeviceFoodPhotoEnabled: state.onDeviceFoodPhotoEnabled,
         healthTrendsCardVisible: state.healthTrendsCardVisible,
         mindfulnessCardVisible: state.mindfulnessCardVisible,
+        oralCareCardVisible: state.oralCareCardVisible,
         labResultsCardVisible: state.labResultsCardVisible,
         trainingLoadCardVisible: state.trainingLoadCardVisible,
         workoutsCardVisible: state.workoutsCardVisible,
@@ -1021,6 +1038,8 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         mealReminders: state.mealReminders,
         macroAlertsEnabled: state.macroAlertsEnabled,
         macroAlertRules: state.macroAlertRules,
+        oralCareRemindersEnabled: state.oralCareRemindersEnabled,
+        oralCareReminderTimes: state.oralCareReminderTimes,
         liquidGlassTabBarEnabled: state.liquidGlassTabBarEnabled,
         // Older persisted blobs without these keys backfill via the default
         // shallow merge — no version bump needed.

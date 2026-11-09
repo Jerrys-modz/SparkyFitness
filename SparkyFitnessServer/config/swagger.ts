@@ -3,6 +3,8 @@ import swaggerJsdoc from 'swagger-jsdoc';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import {
+  CALORIE_CYCLING_MAX_OFFSET,
+  CALORIE_CYCLING_MODES,
   CHART_SCALE_MODES,
   MAX_CALORIE_SAFETY_FLOOR,
   MIN_CALORIE_SAFETY_FLOOR,
@@ -124,7 +126,7 @@ const options = {
           additionalProperties: false,
           required: ['entry_date'],
           description:
-            'Exactly one of marker_key or custom_marker_id is non-null, and at least one of value_numeric or value_text is non-null. A null counts as not sent, as on the server.',
+            'Exactly one of marker_key, custom_marker_id or custom_marker_name is non-null, and at least one of value_numeric or value_text is non-null. A null counts as not sent, as on the server.',
           oneOf: [
             {
               required: ['marker_key'],
@@ -134,6 +136,12 @@ const options = {
               required: ['custom_marker_id'],
               properties: {
                 custom_marker_id: { type: 'string', format: 'uuid' },
+              },
+            },
+            {
+              required: ['custom_marker_name'],
+              properties: {
+                custom_marker_name: { type: 'string', minLength: 1 },
               },
             },
           ],
@@ -158,6 +166,13 @@ const options = {
               format: 'uuid',
               nullable: true,
             },
+            custom_marker_name: {
+              type: 'string',
+              nullable: true,
+              maxLength: 120,
+              description:
+                "One of the user's own markers by name: reused when one has that name (any case), otherwise created with this result's unit and range, in the same transaction as the result.",
+            },
             entry_date: { type: 'string', format: 'date' },
             value_numeric: { type: 'number', nullable: true },
             value_text: {
@@ -181,6 +196,13 @@ const options = {
           additionalProperties: false,
           required: ['entry_date', 'results'],
           properties: {
+            client_request_id: {
+              type: 'string',
+              format: 'uuid',
+              nullable: true,
+              description:
+                'A key made once per reviewed report and sent again on a retry. A key this user already used returns the report it saved, instead of saving the results again.',
+            },
             lab_name: { type: 'string', nullable: true },
             entry_date: { type: 'string', format: 'date' },
             results: {
@@ -1498,6 +1520,25 @@ const options = {
               description:
                 'Custom calorie safety floor in kcal/day. Used when calorie_safety_floor_mode is custom.',
             },
+            calorie_cycling_mode: {
+              type: 'string',
+              enum: [...CALORIE_CYCLING_MODES],
+              default: 'off',
+              description:
+                'Calorie cycling (#2327): off keeps the same calorie goal every day; training_rest and custom spread the weekly budget over the weekdays with calorie_cycling_offsets. Applies only while exercise calories are not added back (fixed, adaptive, or adaptive full-day targets) and pauses on days a weekly goal plan sets.',
+            },
+            calorie_cycling_offsets: {
+              type: 'array',
+              items: {
+                type: 'integer',
+                minimum: -CALORIE_CYCLING_MAX_OFFSET,
+                maximum: CALORIE_CYCLING_MAX_OFFSET,
+              },
+              minItems: 7,
+              maxItems: 7,
+              description:
+                'One raw percentage per weekday, index 0 = Sunday. The server scales the pattern so the week totals the daily goal x 7 while that goal is steady, keeps cycled days at or above the safety floor, and moves carbs (fat only once a low day uses up all of its carbs). When the daily goal is already at or below the safety floor (or the floor is disabled and the pattern is even), every day stays at the daily goal.',
+            },
             chart_scale_mode: {
               type: 'string',
               enum: [...CHART_SCALE_MODES],
@@ -1542,12 +1583,31 @@ const options = {
         GarminStatus: {
           type: 'object',
           properties: {
-            is_connected: { type: 'boolean' },
-            last_sync_at: {
+            isLinked: { type: 'boolean' },
+            lastUpdated: {
+              type: 'string',
+              format: 'date-time',
+              nullable: true,
+              description:
+                'When the provider row last changed. Kept for older clients; use lastSyncAt.',
+            },
+            lastSyncAt: {
+              type: 'string',
+              format: 'date-time',
+              nullable: true,
+              description: 'Last completed sync; null if it never synced.',
+            },
+            tokenExpiresAt: {
               type: 'string',
               format: 'date-time',
               nullable: true,
             },
+            serviceReachable: {
+              type: 'boolean',
+              description:
+                'Whether the Garmin microservice answered; only sent while Garmin is linked.',
+            },
+            message: { type: 'string' },
           },
         },
         WithingsStatus: {
@@ -1752,7 +1812,7 @@ const options = {
             bestTimeSeconds: {
               type: 'number',
               description:
-                'Time for the standard distance itself, never a longer activity total.',
+                'Time for the standard distance itself, never a longer activity total. A time faster than the sport allows (12 m/s running, 7 walking, 30 cycling, 5 swimming) never holds a record: it comes from a wrong duration or distance.',
             },
             formattedTime: {
               type: 'string',

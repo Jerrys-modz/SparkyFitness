@@ -1,5 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query';
 import {
+  glucoseContextQueryKeyRoot,
   exerciseHistoryQueryKey,
   exerciseHistoryResetQueryKey,
   exerciseStatsQueryKeyRoot,
@@ -16,6 +17,7 @@ export function invalidateExerciseCache(
   queryClient: QueryClient,
   entryDate: string
 ) {
+  void queryClient.invalidateQueries({ queryKey: glucoseContextQueryKeyRoot });
   void queryClient.invalidateQueries({
     queryKey: [...workoutLocationsQueryKey],
   });

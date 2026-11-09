@@ -12,8 +12,8 @@
     "providerError": "Source unavailable",
     "noMatch": "No match",
     "basis": "Per {{size}} {{unit}}",
-    "macros": "{{calories}} kcal · Protein {{protein}} g · Carbs {{carbs}} g · Fat {{fat}} g",
-    "unknown": "—"
+    "unknown": "—",
+    "macrosWithUnit": "{{calories}} {{unit}} · Protein {{protein}} g · Carbs {{carbs}} g · Fat {{fat}} g"
   },
   "muscles": {
     "abdominals": "Abdominals",
@@ -114,7 +114,10 @@
     "notNow": "Not now",
     "undo": "Undo",
     "all": "All",
-    "builtIn": "Built-in"
+    "builtIn": "Built-in",
+    "kcalUnit": "kcal",
+    "kJUnit": "kJ",
+    "energy": "Energy"
   },
   "settings": {
     "app": "App Settings",
@@ -201,6 +204,12 @@
     "cameraShutter": {
       "title": "Camera shutter",
       "subtitle": "Play a sound when capturing photos."
+    },
+    "glucoseUnit": {
+      "title": "Glucose unit",
+      "subtitle": "For glucose charts.",
+      "saveFailed": "Could not save glucose unit.",
+      "loadFailed": "Could not load preference. Tap to retry."
     }
   },
   "languageSettings": {
@@ -235,7 +244,6 @@
     "emptyForDate": "No food entries for this date",
     "diaryForDate": "Family diary · {{date}}",
     "openMeal": "Open {{meal}} meal",
-    "mealCalories": "{{calories}} kcal",
     "unnamedFood": "Unnamed food",
     "selectAll": "Select all",
     "deselectAll": "Deselect all",
@@ -243,8 +251,6 @@
     "selectFood": "Select {{food}}",
     "deselectFood": "Deselect {{food}}",
     "continue": "Continue",
-    "nutritionSummary": "{{calories}} kcal · P {{protein}} g · C {{carbs}} g · F {{fat}} g",
-    "selectedNutrition": "Selected: {{calories}} kcal · P {{protein}} g · C {{carbs}} g · F {{fat}} g",
     "copyReview": "Review copy",
     "copyFrom": "Copying from {{name}}",
     "copyTo": "Copying to {{name}}",
@@ -265,7 +271,6 @@
     "quantityForFood": "Quantity for {{food}}",
     "quantityMustBePositive": "Enter a quantity greater than zero.",
     "copyNutrition": "Copy nutrition",
-    "copyCalories": "{{calories}} kcal",
     "copyProtein": "{{protein}} g protein",
     "copyCarbs": "{{carbs}} g carbs",
     "copyFat": "{{fat}} g fat",
@@ -291,7 +296,11 @@
     "chooseDate": "Choose date",
     "chooseDateHint": "Opens the date picker",
     "goToToday": "Go to today",
-    "goToTodayHint": "Returns to today"
+    "goToTodayHint": "Returns to today",
+    "mealCaloriesWithUnit": "{{calories}} {{unit}}",
+    "nutritionSummaryWithUnit": "{{calories}} {{unit}} · P {{protein}} g · C {{carbs}} g · F {{fat}} g",
+    "selectedNutritionWithUnit": "Selected: {{calories}} {{unit}} · P {{protein}} g · C {{carbs}} g · F {{fat}} g",
+    "copyCaloriesWithUnit": "{{calories}} {{unit}}"
   },
   "notifications": {
     "title": "Notifications",
@@ -304,7 +313,8 @@
       "fueling": "Fueling reminders",
       "moodCheckin": "Mood check-ins",
       "mealReminders": "Meal reminders",
-      "macroAlerts": "Macro alerts"
+      "macroAlerts": "Macro alerts",
+      "oralCare": "Brushing reminders"
     },
     "moodCheckin": {
       "title": "How are you feeling?",
@@ -365,6 +375,14 @@
       "title": "{{macro}} is at {{percent}}% of your target",
       "bodyGrams": "{{remaining}} g to go today.",
       "bodyCalories": "{{remaining}} kcal to go today."
+    },
+    "oralCare": {
+      "title": "Time to brush",
+      "body": "Two minutes for your teeth, then log it."
+    },
+    "brushingTimer": {
+      "title": "Brushing done",
+      "body": "Open SparkyFitness to save the brush."
     }
   },
   "activeWorkout": {
@@ -542,7 +560,6 @@
       "changeMetric": "Change metric column",
       "notesForSet": "Notes for set {{number}}",
       "addSet": "Add set to {{name}}",
-      "caloriesUnit": "kcal",
       "addSetLabel": "Add set",
       "heartRateFor": "Average heart rate for {{name}}",
       "liveHeartRateFor": "Current heart rate for {{name}}",
@@ -628,7 +645,9 @@
     "recordActivity": "Record Activity",
     "recordActivityHint": "Track a walk, run or ride with GPS",
     "checkIn": "Daily Check-In",
-    "checkInHint": "Habits"
+    "checkInHint": "Habits",
+    "oralCare": "Oral care",
+    "oralCareHint": "Brush, floss"
   },
   "screens": {
     "foods": "Foods",
@@ -875,7 +894,8 @@
     "appleMoveTime": "Apple Move Time",
     "appleExerciseTime": "Apple Exercise Time",
     "appleStandTime": "Apple Stand Time",
-    "unknown": "Health metric"
+    "unknown": "Health metric",
+    "toothbrushing": "Toothbrushing"
   },
   "healthCategories": {
     "Common": "Common",
@@ -889,7 +909,8 @@
     "Cycling": "Cycling",
     "Environment": "Environment",
     "Apple": "Apple",
-    "unknown": "Other"
+    "unknown": "Other",
+    "Hygiene": "Hygiene"
   },
   "healthSync": {
     "appleHealth": "Apple Health",
@@ -1017,7 +1038,6 @@
     "healthTrends": "Health Trends",
     "consumed": "Consumed",
     "remaining": "remaining",
-    "ofCalories": "of {{value}} kcal",
     "burned": "Burned",
     "hydration": "Hydration",
     "ofVolume": "of {{value}} {{unit}}",
@@ -1110,7 +1130,8 @@
       "dosesDue_one": "{{count}} dose still due",
       "dosesDue_other": "{{count}} doses still due",
       "dosesDone": "All doses taken"
-    }
+    },
+    "ofCaloriesWithUnit": "of {{value}} {{unit}}"
   },
   "syncScreen": {
     "healthConnectSettings": "Health Connect settings",
@@ -1232,7 +1253,6 @@
     "exerciseCaloriesDescription": "How much of your exercise calories are added back to your daily goal.",
     "activityLevel": "Activity Level",
     "activityBaseline": "Used as a baseline for TDEE.",
-    "adaptiveFallback": "The fallback estimate until you have enough tracking data — and it keeps setting the plausibility limits afterwards. Your measured TDEE is capped to within ±500 kcal of BMR × this multiplier.",
     "allowNegative": "Allow Lower Fallback Projection",
     "negativeDescription": "When a device total is unavailable, let the BMR + active calories fallback lower your target.",
     "includeResting": "Include Resting Calories",
@@ -1337,7 +1357,47 @@
     "adjustMacrosWithExercise": "Adjust percentage macro goals with exercise calories",
     "adjustMacrosWithExerciseHint": "Increase protein, carbohydrate and fat targets using your saved percentages when exercise adds calories to your daily budget. Respects exercise earn-back settings. Goals entered in grams stay unchanged. Changes apply from today; earlier days keep their setting.",
     "useMoveRingActiveCalories": "Use Move ring for active calories",
-    "useMoveRingActiveCaloriesHint": "Off by default, active calories come from the Apple Health Active Energy total. When on, they come from your Move ring, so they match the Fitness app. The ring counts what your Apple Watch and iPhone measure, and workouts other apps save to Apple Health can add to it too. A day with no ring, such as when Activity access is off, uses the Active Energy total. Applies to days synced after the change."
+    "useMoveRingActiveCaloriesHint": "Off by default, active calories come from the Apple Health Active Energy total. When on, they come from your Move ring, so they match the Fitness app. The ring counts what your Apple Watch and iPhone measure, and workouts other apps save to Apple Health can add to it too. A day with no ring, such as when Activity access is off, uses the Active Energy total. Applies to days synced after the change.",
+    "adaptiveFallbackWithUnit": "The fallback estimate until you have enough tracking data — and it keeps setting the plausibility limits afterwards. Your measured TDEE is capped to within ±{{amount}} {{unit}} of BMR × this multiplier.",
+    "energyUnitLabel": "Energy Unit",
+    "energyUnitKcal": "Calories (kcal)",
+    "energyUnitKj": "Kilojoules (kJ)",
+    "energyUnitDescription": "How energy is shown and entered across the app, widgets and watch. Also changes the web app.",
+    "cycling": {
+      "title": "Calorie Cycling",
+      "description": "Eat more on training days and less on rest days. Your weekly total stays the same: your daily target x 7.",
+      "unavailable": "Not available while exercise calories are added back to your goal: your target already rises on the days you log a workout. Choose Adaptive or Fixed, or use full-day adaptive targets, to cycle calories.",
+      "off": "Off",
+      "pausedByWeeklyPlan": "A weekly goal plan is active, so calorie cycling is paused on the days the plan sets.",
+      "trainingPercent": "Extra on training days",
+      "needTrainingDays": "Choose between 1 and 6 training days and a percentage above 0, or every day stays the same.",
+      "needDifferentDays": "Give at least two days different percentages, or every day stays the same.",
+      "atFloor": "safety floor",
+      "previewNote": "Based on today's target. Carbs take the change and protein stays the same.",
+      "replaceCustomTitle": "Replace your custom days?",
+      "replaceCustomMessage": "Training / rest sets every day from the training days and one percentage, so your custom percentages are replaced.",
+      "replaceCustomConfirm": "Replace",
+      "waitingForTarget": "Your days show here once today's calorie target has loaded.",
+      "baseAtFloorWithUnit": "Your daily target ({{target}} {{unit}}) is at or below your safety floor ({{floor}} {{unit}}), so no day can go lower and every day stays the same. Cycling starts working once your target is above the floor, or with a lower custom floor.",
+      "weekTotalWithBase": "Week: {{total}} of {{budget}} {{unit}} (your daily target {{target}} × 7)",
+      "decrease": "Lower by 1%",
+      "increase": "Raise by 1%",
+      "dayPercent": "{{day}}: percentage before balancing the week",
+      "trainingDay": "Training",
+      "restDay": "Rest",
+      "today": "Today",
+      "vsTargetWithUnit": "{{change}} {{unit}} ({{percent}}) vs your daily target",
+      "chartTarget": "Daily target {{value}}",
+      "chartFloor": "Safety floor {{value}}",
+      "chartBarLabel": "{{day}}: {{target}}, {{change}}",
+      "atFloorShort": "floor",
+      "markRest": "Make {{day}} a rest day",
+      "markTraining": "Make {{day}} a training day",
+      "trainingRestShort": "Training / rest",
+      "customShort": "Custom",
+      "chartHintTrainingShort": "Tap a bar to see that day. Tap a day below to switch training and rest.",
+      "chartHintCustomHandle": "Tap a bar to see that day. Drag the handle on top of a bar to change it."
+    }
   },
   "dashboardSettings": {
     "updateFailed": "Failed to update setting.",
@@ -1408,7 +1468,9 @@
     "tabsDescription": "Drag a card by its handle to reorder its tab. A card's own switch hides it everywhere; Summary has its own list of cards it repeats from the other tabs.",
     "turnedOffOnTab": "Turned off on {{tab}}",
     "alsoOnTab": "Also on {{tab}}",
-    "onTabOnly": "On {{tab}} only"
+    "onTabOnly": "On {{tab}} only",
+    "oralCare": "Oral care",
+    "oralCareSubtitle": "Show brushing against your goal and your streak"
   },
   "diarySettings": {
     "updateFailed": "Failed to update setting.",
@@ -1497,7 +1559,14 @@
     "macroAlertRemove": "Remove {{macro}} alert",
     "macroAlertAdd": "Add macro alert",
     "macroAlertPicker": "Alert me about",
-    "macroAlertShareLabel": "Alert if under this share of the target"
+    "macroAlertShareLabel": "Alert if under this share of the target",
+    "oralCare": "Oral care",
+    "oralCareReminders": "Brushing reminders",
+    "oralCareRemindersSubtitle": "A daily nudge to brush your teeth",
+    "oralCareReminderTime": "Reminder {{number}}",
+    "oralCareReminderTimeAccessibility": "Brushing reminder {{number}}, {{time}}",
+    "oralCareRemoveReminder": "Remove brushing reminder {{number}}",
+    "oralCareAddReminder": "Add reminder"
   },
   "workoutSettings": {
     "title": "Workout Settings",
@@ -2454,7 +2523,6 @@
     "forceStatic": "Static",
     "mechanicCompound": "Compound",
     "mechanicIsolation": "Isolation",
-    "caloriesPerHour": "Calories per Hour",
     "muscles": "Muscles",
     "classification": "Classification",
     "selectValue": "Select…",
@@ -2535,7 +2603,6 @@
     "setCount_one": "{{formattedCount}} set",
     "setCount_other": "{{formattedCount}} sets",
     "caloriesShort": "kcal",
-    "caloriesUnit": "Cal",
     "unknownExercise": "Unknown exercise",
     "addNotePlaceholder": "Add a note…",
     "setOf_one": "Set {{number}} of {{count}}",
@@ -2549,7 +2616,8 @@
     "doAnotherFirst": "Do another exercise first…",
     "swapTitle": "Swap {{name}}",
     "doNowSets_one": "Do now · {{count}} set",
-    "doNowSets_other": "Do now · {{count}} sets"
+    "doNowSets_other": "Do now · {{count}} sets",
+    "caloriesPerHourWithUnit": "Calories per Hour ({{unit}})"
   },
   "cycleCard": {
     "mode": {
@@ -2791,8 +2859,6 @@
     "protein": "protein",
     "carbs": "carbs",
     "fat": "fat",
-    "caloriesShort": "kcal",
-    "caloriesUnit": "Cal",
     "proteinAmount": "protein",
     "carbsAmount": "carbs",
     "fatAmount": "fat",
@@ -2806,7 +2872,6 @@
   "foodSummary": {
     "tapToAddFood": "Tap to add food",
     "caloriesShort": "kcal",
-    "caloriesUnit": "Cal",
     "nutritionBreakdown": "{{label}} nutrition breakdown"
   },
   "exerciseSummary": {
@@ -2826,7 +2891,6 @@
     "unknownFood": "Unknown food",
     "adjustServing": "Adjust serving",
     "caloriesShort": "kcal",
-    "caloriesUnit": "Cal",
     "deleteFood": "Delete food"
   },
   "exerciseRow": {
@@ -2940,11 +3004,11 @@
       "weightWithUnit": "Weight ({{unit}})",
       "muscleMassWithUnit": "Muscle mass ({{unit}})",
       "boneMassWithUnit": "Bone mass ({{unit}})",
-      "bmrWithUnit": "BMR (kcal)",
       "weightStones": "Weight in stones",
       "weightPounds": "Weight in pounds",
       "heightFeet": "Height in feet",
-      "heightInches": "Height in inches"
+      "heightInches": "Height in inches",
+      "bmrWithUnitInUnit": "BMR ({{unit}})"
     },
     "validation": {
       "invalid": "Invalid {{label}}",
@@ -2959,7 +3023,7 @@
       "feetInchesNumber": "Enter a number for feet and inches.",
       "bodyFatRange": "Body fat % must be between 0 and 100.",
       "bodyWaterRange": "Body water % must be between 0 and 100.",
-      "bmrRange": "BMR must be between 600 and 6000 kcal."
+      "bmrRangeWithUnit": "BMR must be between {{min}} and {{max}} {{unit}}."
     },
     "nothingToSave": "Nothing to save",
     "enterValue": "Enter or clear at least one value.",
@@ -3033,14 +3097,27 @@
     "label": {
       "analyzing": "Analyzing label...",
       "retake": "Retake",
-      "usePhoto": "Use Photo"
+      "usePhoto": "Use Photo",
+      "cropHelp": "Drag the corners to frame the nutrition label.",
+      "cropPhoto": "Nutrition label photo",
+      "cropMove": "Move label crop",
+      "cropTopLeft": "Top left crop handle",
+      "cropTopRight": "Top right crop handle",
+      "cropBottomLeft": "Bottom left crop handle",
+      "cropBottomRight": "Bottom right crop handle",
+      "cropLeft": "Move left",
+      "cropRight": "Move right",
+      "cropUp": "Move up",
+      "cropDown": "Move down"
     },
     "lookup": {
       "failed": "Lookup failed",
       "noMatch": "No match for barcode",
-      "nextSteps": "You can scan the nutrition label or enter it manually.",
+      "nextSteps": "Try scanning again, scan the nutrition label, or enter the food manually.",
       "scanLabel": "Scan Nutrition Label",
-      "addManually": "Add Food Manually"
+      "addManually": "Add Food Manually",
+      "searching": "Looking up barcode…",
+      "retry": "Retry lookup"
     },
     "photo": {
       "frameMeal": "Frame the whole meal",
@@ -3049,7 +3126,9 @@
       "logManually": "Log manually"
     },
     "barcode": {
-      "typeInstead": "Type Barcode Instead"
+      "typeInstead": "Type Barcode Instead",
+      "scanAgain": "Scan again",
+      "restartCamera": "Restart camera"
     },
     "manual": {
       "title": "Enter Barcode",
@@ -3069,7 +3148,11 @@
       "takeMealPhoto": "Take meal photo"
     },
     "retryWithServer": "Read again with the server AI",
-    "retryOnDevice": "Read again on this iPhone"
+    "retryOnDevice": "Read again on this iPhone",
+    "camera": {
+      "unavailable": "Camera unavailable",
+      "restartHelp": "Restart the camera to try again."
+    }
   },
   "cycleToday": {
     "menstrualFlow": "Menstrual Flow",
@@ -3313,13 +3396,17 @@
     "remaining": "remaining",
     "over": "over",
     "title": "Summary",
-    "projectedTdee": "Projected TDEE: {{value}} kcal",
-    "goalModeTarget": "Goal Mode target: {{value}} kcal",
     "healthConnectProjectionSource": "Device total calories",
     "fallbackProjectionSource": "BMR + active calories fallback",
     "legacyProjectionSource": "Device projection",
     "collapse": "Collapse this section",
-    "expand": "Expand this section"
+    "expand": "Expand this section",
+    "projectedTdeeWithUnit": "Projected TDEE: {{value}} {{unit}}",
+    "goalModeTargetWithUnit": "Goal Mode target: {{value}} {{unit}}",
+    "cycling": {
+      "highDay": "High day +{{amount}} {{unit}}",
+      "lowDay": "Low day −{{amount}} {{unit}}"
+    }
   },
   "dateRange": {
     "removeTitle": "Select a date range to remove",
@@ -3364,7 +3451,6 @@
     "servingSize": "Serving Size",
     "servingUnit": "Serving Unit",
     "autoScaleNutrition": "Auto Scale Nutrition",
-    "caloriesRequired": "Calories (kcal) *",
     "saltG": "Salt (g)",
     "sodiumEntryUnit": "Enter sodium as",
     "sodiumShort": "sodium",
@@ -3406,7 +3492,8 @@
     "equivalentUnitsUpdated_one": "Saved · {{formattedCount}} equivalent unit updated",
     "equivalentUnitsUpdated_other": "Saved · {{formattedCount}} equivalent units updated",
     "notes": "Notes",
-    "notesPlaceholder": "e.g. White rice, double chicken, no beans (supports markdown)"
+    "notesPlaceholder": "e.g. White rice, double chicken, no beans (supports markdown)",
+    "caloriesRequiredWithUnit": "Calories ({{unit}}) *"
   },
   "exerciseEffort": {
     "title": "Effort",
@@ -3631,7 +3718,15 @@
       "weeklyGoal": "Weekly goal",
       "weeklyRate": "−0.5 kg",
       "dailyTarget": "Daily target",
-      "dailyAdjustment": "≈ −550 kcal"
+      "dailyAdjustment": "≈ −550 kcal",
+      "vitaminD": "Vitamin D",
+      "labLow": "Low",
+      "labValue": "18 ng/mL",
+      "labRange": "Range 30–100",
+      "deskTag": "Desk tag",
+      "tapped": "Tapped",
+      "tagWater": "Water • 500 mL",
+      "logged": "Logged"
     },
     "features": {
       "running": {
@@ -3720,6 +3815,18 @@
         "headline": "Snap a meal, log the macros",
         "body": "Estimate nutrition from a photo when you're short on time.",
         "cta": "Try it out"
+      },
+      "labResults": {
+        "eyebrow": "LAB RESULTS",
+        "headline": "Keep your lab results in one place",
+        "body": "Add blood test results by hand or import a lab report from a PDF or photo. See each marker against its reference range, chart it over time, and spot what is out of range from the dashboard.",
+        "cta": "Open lab results"
+      },
+      "nfcTags": {
+        "eyebrow": "NFC TAGS",
+        "headline": "Log with a tap",
+        "body": "Stick an NFC tag on your water bottle, desk or kitchen cupboard and set it to log a drink, a food or a saved meal. Tap your phone on it to log, with Undo if you did not mean to.",
+        "cta": "Set up NFC tags"
       }
     }
   },
@@ -3920,7 +4027,9 @@
         "description": "A stage often associated with increased autophagy"
       }
     },
-    "settings": "Fasting settings"
+    "settings": "Fasting settings",
+    "logMealToEnd": "Log Meal to End Fast",
+    "autoFastEndsWithMeal": "Your fast is auto-calculated from meals and will end when you log food."
   },
   "exerciseDetail": {
     "duplicate": "Duplicate exercise",
@@ -3943,7 +4052,6 @@
     "showMore": "Show more",
     "best": "Best ({{unit}})",
     "last": "Last ({{unit}})",
-    "caloriesPerHour": "Cal / hour",
     "equipment": "Equipment",
     "primaryMuscles": "Primary muscles",
     "secondaryMuscles": "Secondary muscles",
@@ -3960,7 +4068,8 @@
     "deleteExercise": "Delete Exercise",
     "makePrivate": "Make private",
     "shareWithPublic": "Share with public",
-    "deleteSheetTitle": "Delete exercise"
+    "deleteSheetTitle": "Delete exercise",
+    "caloriesPerHourWithUnit": "{{unit}} / hour"
   },
   "mealTypeSettings": {
     "reorder": "Reorder {{name}}",
@@ -4152,11 +4261,8 @@
     "proteinLabel": "Protein",
     "carbsLabel": "Carbs",
     "fatLabel": "Fat",
-    "nutritionLine": "{{calories}} kcal · {{protein}} g P · {{carbs}} g C · {{fat}} g F",
     "dailyNutritionAccessibility": "Daily {{nutrient}} {{value}} {{unit}}",
-    "mealTypeNutritionAccessibility": "{{mealType}} total {{calories}} kcal, {{protein}} g protein, {{carbs}} g carbs, {{fat}} g fat",
     "mealTypeMacros": "{{protein}} g P · {{carbs}} g C · {{fat}} g F",
-    "caloriesValue": "{{value}} kcal",
     "nutritionLoading": "Loading missing nutrition details. Totals may be incomplete.",
     "nutritionLoadFailed": "Some nutrition details couldn't be loaded. Totals may be incomplete.",
     "assignmentRequired": "Add at least one complete meal assignment.",
@@ -4178,7 +4284,10 @@
       "thursday": "Thu",
       "friday": "Fri",
       "saturday": "Sat"
-    }
+    },
+    "nutritionLineWithUnit": "{{calories}} {{unit}} · {{protein}} g P · {{carbs}} g C · {{fat}} g F",
+    "mealTypeNutritionAccessibilityWithUnit": "{{mealType}} total {{calories}} {{unit}}, {{protein}} g protein, {{carbs}} g carbs, {{fat}} g fat",
+    "caloriesValueWithUnit": "{{value}} {{unit}}"
   },
   "mealDetail": {
     "sharedPublicly": "Meal shared publicly",
@@ -4204,7 +4313,6 @@
     "protein": "protein",
     "carbs": "carbs",
     "fat": "fat",
-    "calories": "cal",
     "viewLinkedMeal": "View linked meal {{name}}",
     "logMeal": "Log Meal",
     "planMeal": "Plan Meal",
@@ -4245,7 +4353,9 @@
       "selectFoodInstead": "Select a food instead of another meal.",
       "savedFoodUnitFailed": "Saved food, but not the new unit",
       "savedFoodUnitFailedDetails": "You can still add the food, then try saving that unit again.",
-      "chooseDifferentServing": "Choose a different serving."
+      "chooseDifferentServing": "Choose a different serving.",
+      "tagNeedsSavedServing": "Choose one of this food's servings",
+      "tagNeedsSavedServingDetails": "A tag logs a saved serving each time, so a serving changed here cannot be used."
     },
     "actions": {
       "adjustNutrition": "Adjust nutrition",
@@ -4476,7 +4586,6 @@
     },
     "labels": {
       "caloriesShort": "kcal",
-      "caloriesUnit": "cal",
       "foods": "foods",
       "meals": "meals",
       "meal": "Meal",
@@ -4527,7 +4636,8 @@
       "calories": "Calories",
       "avgHeartRate": "Avg HR",
       "maxHeartRate": "Max HR",
-      "effort": "Effort"
+      "effort": "Effort",
+      "energy": "Energy"
     },
     "errors": {
       "needsExercise": "Workout needs an exercise",
@@ -4568,7 +4678,6 @@
     "none": "No synced workouts found for this day.",
     "workoutFallback": "Workout",
     "minutes": "{{value}} min",
-    "calories": "{{value}} cal",
     "sameSession": "Same session",
     "sameTime": "Overlaps in time",
     "countHeading": "Count in the daily total",
@@ -4578,11 +4687,12 @@
     "lower": "The lower of the two ({{value}})",
     "average": "The average ({{value}})",
     "custom": "A custom total",
-    "customLabel": "Total for the session (cal)",
     "link": "Link workouts",
     "unlink": "Unlink",
     "linkError": "Failed to link the workouts.",
-    "unlinkError": "Failed to unlink the workouts."
+    "unlinkError": "Failed to unlink the workouts.",
+    "caloriesWithUnit": "{{value}} {{unit}}",
+    "customLabelWithUnit": "Total for the session ({{unit}})"
   },
   "activityDetail": {
     "errors": {
@@ -4746,7 +4856,9 @@
       "invalidAmount": "Invalid amount",
       "amountRequired": "Amount must be greater than zero.",
       "noMealType": "No meal type",
-      "noMealTypesAvailable": "No meal types are available. Please check your account settings."
+      "noMealTypesAvailable": "No meal types are available. Please check your account settings.",
+      "loadingMealTypes": "Meal types are still loading. Please try again in a moment.",
+      "mealTypesLoadFailed": "Failed to load meal types. Please try again."
     }
   },
   "foodDetail": {
@@ -5148,12 +5260,12 @@
       "count_one": "{{count}} ingredient",
       "count_other": "{{count}} ingredients",
       "totals": "Total",
-      "rowSummary": "{{grams}} g · {{calories}} kcal",
-      "macroSummary": "{{calories}} kcal · {{protein}}P · {{carbs}}C · {{fat}}F",
       "addFood": "Add Food",
       "addedFood": "Food",
-      "pickedRowSummary": "{{quantity}} {{unit}} · {{calories}} kcal",
-      "pickedFoodNote": "Added from your foods. Remove it and add it again to change the amount."
+      "pickedFoodNote": "Added from your foods. Remove it and add it again to change the amount.",
+      "rowSummaryWithUnit": "{{grams}} g · {{calories}} {{energyUnit}}",
+      "macroSummaryWithUnit": "{{calories}} {{unit}} · {{protein}}P · {{carbs}}C · {{fat}}F",
+      "pickedRowSummaryWithUnit": "{{quantity}} {{unit}} · {{calories}} {{energyUnit}}"
     },
     "match": {
       "useYourFood": "From your foods: {{name}} · tap to use it",
@@ -5214,10 +5326,10 @@
       "activity": "Activity",
       "duration": "Duration (min)",
       "distance": "Distance ({{unit}})",
-      "calories": "Calories",
       "avgHeartRate": "Avg Heart Rate (bpm)",
       "notes": "Notes",
-      "notesPlaceholder": "Optional notes..."
+      "notesPlaceholder": "Optional notes...",
+      "caloriesWithUnit": "Calories ({{unit}})"
     },
     "actions": {
       "useYesterday": "Use Yesterday",
@@ -5259,7 +5371,7 @@
       "copyMeal": "Copy meal to another day",
       "convertToMeal": "Save as meal"
     },
-    "targetCalories": "Target: {{calories}} kcal"
+    "targetCaloriesWithUnit": "Target: {{calories}} {{unit}}"
   },
   "nutrientTrends": {
     "title": "{{nutrient}} Trends",
@@ -5556,12 +5668,12 @@
       "title": "Calories",
       "loadFailed": "Failed to load calorie data",
       "empty": "No calorie data for this period",
-      "tooltip": "{{formattedCount}} kcal consumed",
       "tooltipMacro": "{{percent}}% {{macroLabel}}",
       "otherMacro": "Other",
       "avgCalories": "Avg",
-      "avgCaloriesValue": "{{formattedCount}} kcal",
-      "noAverage": "—"
+      "noAverage": "—",
+      "tooltipWithUnit": "{{formattedCount}} {{unit}} consumed",
+      "avgCaloriesValueWithUnit": "{{formattedCount}} {{unit}}"
     },
     "loading": "Loading chart...",
     "weightLoadFailed": "Failed to load weight data",
@@ -6901,7 +7013,6 @@
   },
   "healthDataDisplay": {
     "distance": "{{value}} km",
-    "kcal": "{{value}} kcal",
     "bpm": "{{value}} bpm",
     "kg": "{{value}} kg",
     "percent": "{{value}}%",
@@ -6923,7 +7034,10 @@
     "workouts_one": "{{count}} workout",
     "workouts_other": "{{count}} workouts",
     "records_one": "{{count}} record",
-    "records_other": "{{count}} records"
+    "records_other": "{{count}} records",
+    "energy": "{{value}} {{unit}}",
+    "brushes_one": "{{count}} brush",
+    "brushes_other": "{{count}} brushes"
   },
   "sleep": {
     "wakeUp": "Wake Up",
@@ -7457,7 +7571,6 @@
       "cadence": "Avg cadence",
       "spm": "{{value}} spm",
       "strideLength": "Stride length",
-      "calories": "{{value}} Cal",
       "minutes_one": "{{formattedCount}} min",
       "minutes_other": "{{formattedCount}} min",
       "bpm": "{{value}} bpm",
@@ -7526,7 +7639,8 @@
       "exportGpx": "Export GPX",
       "exportGpxFailed": "Could not export the route",
       "shareImage": "Share as image",
-      "effort": "Effort"
+      "effort": "Effort",
+      "caloriesWithUnit": "{{value}} {{unit}}"
     },
     "load": {
       "title": "Training Load",
@@ -7851,9 +7965,7 @@
     "targetEatingHours": "Target eating hours",
     "fastingHoursRange": "Enter 0.5 to 168 hours.",
     "eatingHoursRange": "Enter 0 to 24 hours.",
-    "calorieThreshold": "Calorie threshold (kcal)",
     "calorieThresholdHint": "Snacks or drinks below this value (black coffee, water, electrolytes) will not break your fast.",
-    "calorieThresholdRange": "Enter a whole number from 0 to 500.",
     "preEndAlert": "Pre-goal warning (minutes)",
     "preEndAlertHint": "How long before your fasting goal to send a reminder. Use 0 to turn it off.",
     "preEndAlertRange": "Enter a whole number from 0 to 180.",
@@ -7861,7 +7973,9 @@
     "eatingWindowAlertHint": "Alert when your fasting goal is reached and when your eating window opens.",
     "save": "Save fasting settings",
     "saved": "Fasting settings saved",
-    "saveFailed": "Failed to save fasting settings"
+    "saveFailed": "Failed to save fasting settings",
+    "calorieThresholdWithUnit": "Calorie threshold ({{unit}})",
+    "calorieThresholdRangeWithUnit": "Enter a whole number from 0 to {{max}}."
   },
   "fastingReport": {
     "range": {
@@ -8539,12 +8653,12 @@
     "invalidValue": "Enter a valid number for every goal.",
     "fields": {
       "water": "Water ({{unit}})",
-      "exerciseCalories": "Exercise calories (kcal)",
       "exerciseMinutes": "Exercise duration (min)",
       "steps": "Daily steps",
-      "baselineCalories": "Baseline calories (kcal)"
+      "exerciseCaloriesWithUnit": "Exercise calories ({{unit}})",
+      "baselineCaloriesWithUnit": "Baseline calories ({{unit}})",
+      "calories": "Calories ({{unit}})"
     },
-    "adaptiveNoteToday": "Adaptive mode is on, so your calorie goal changes daily. Today it is {{calories}} kcal. The baseline below sets how far above or below your estimated maintenance you aim to be; it is not a fixed daily target.",
     "adaptiveNote": "Adaptive mode is on, so your calorie goal changes daily. The baseline below sets how far above or below your estimated maintenance you aim to be; it is not a fixed daily target.",
     "customNutrients": {
       "notSet": "No goal"
@@ -8572,11 +8686,11 @@
       "mustBe100": "Meal percentages must total 100%.",
       "total": "Total: {{total}}% (must be 100% to save)",
       "totalOk": "Total: {{total}}%",
-      "mealCalories": "{{meal}} ({{calories}} kcal)",
       "distributeRemaining": "Distribute remaining evenly",
       "lock": "Lock {{meal}}",
       "unlock": "Unlock {{meal}}",
-      "mealPercent": "{{meal}} (%)"
+      "mealPercent": "{{meal}} (%)",
+      "mealCaloriesWithUnit": "{{meal}} ({{calories}} {{unit}})"
     },
     "directions": {
       "minimum": "Min",
@@ -8641,7 +8755,6 @@
       "description": "A preset is a saved set of goals. Apply fills the form above with it (tap Save to make it your goals); Edit changes the preset itself.",
       "namePlaceholder": "Preset name",
       "empty": "No goal presets yet.",
-      "summary": "{{calories}} kcal, {{protein}}g P, {{carbs}}g C, {{fat}}g F",
       "apply": "Apply",
       "deleteTitle": "Delete preset?",
       "deleteMessage": "Delete \"{{name}}\"? Weekly plan days that use it will have no preset.",
@@ -8654,7 +8767,8 @@
       "nameLabel": "Preset name",
       "nameRequired": "Give the preset a name.",
       "editDescription": "A preset is a saved set of goals. Apply it to your goals, or assign it to days of the week in a weekly plan.",
-      "notFound": "Could not find this preset."
+      "notFound": "Could not find this preset.",
+      "summaryWithUnit": "{{calories}} {{unit}}, {{protein}}g P, {{carbs}}g C, {{fat}}g F"
     },
     "weekly": {
       "sectionDescription": "Use a different goal preset on each day of the week, for example higher calories on training days.",
@@ -8693,7 +8807,11 @@
         "saturday": "Saturday",
         "sunday": "Sunday"
       }
-    }
+    },
+    "adaptiveNoteTodayWithUnit": "Adaptive mode is on, so your calorie goal changes daily. Today it is {{calories}} {{unit}}. The baseline below sets how far above or below your estimated maintenance you aim to be; it is not a fixed daily target.",
+    "cyclingNoteTodayWithUnit": "Calorie cycling is on, so the calories below are your base target and each day is higher or lower. Today it is {{calories}} {{unit}}.",
+    "cyclingPausedWeeklyPlan": "Calorie cycling is paused today by an active weekly goal plan. The calories below set today’s plan target directly.",
+    "adjustedGoalFailed": "Could not load today’s adjusted goal target."
   },
   "reports": {
     "title": "Reports",
@@ -8757,7 +8875,9 @@
     "heartRateSummary": "Heart Rate Summary",
     "heartRateInsights": "Resting Heart Rate Insights",
     "insightAthletic": "Your average resting heart rate is in the athletic range (<60 bpm), reflecting strong cardiovascular efficiency.",
-    "insightNormal": "A typical healthy adult resting heart rate ranges from 60 to 100 bpm. Lower rates generally reflect higher cardiovascular fitness."
+    "insightNormal": "A typical healthy adult resting heart rate ranges from 60 to 100 bpm. Lower rates generally reflect higher cardiovascular fitness.",
+    "oralCare": "Oral care",
+    "oralCareSubtitle": "Brushing against your goal, streaks and time"
   },
   "nutritionReport": {
     "title": "Nutrition",
@@ -8766,7 +8886,6 @@
     "dailyAverages": "Daily averages",
     "loadFailed": "Failed to load nutrition data",
     "empty": "No food logged in this period",
-    "kcal": "{{value}} kcal",
     "grams": "{{value}} g",
     "changeHint": "{{change}} vs previous {{days}} days",
     "onTarget": "Within 10% of goal",
@@ -8806,7 +8925,8 @@
     "insightDown": "Your average calories are down {{pct}}% on the previous period.",
     "insightWeekday": "{{weekday}} is your highest-calorie day, averaging {{kcal}}.",
     "insightStreak_one": "Your longest logging streak was {{count}} day.",
-    "insightStreak_other": "Your longest logging streak was {{count}} days."
+    "insightStreak_other": "Your longest logging streak was {{count}} days.",
+    "kcalWithUnit": "{{value}} {{unit}}"
   },
   "moodReport": {
     "title": "Mood",
@@ -9025,7 +9145,11 @@
       "heartRateZones": "Intensity zones",
       "strengthVolume": "Weekly muscle volume",
       "heartRateRangeTimeline": "Average heart rate by day",
-      "heartRateDayTimeline": "Heart rate through the day"
+      "heartRateDayTimeline": "Heart rate through the day",
+      "measurementTimeline": "Measurement timeline",
+      "oralCareBrushesChart": "Brushes per day chart",
+      "oralCareMinutesChart": "Minutes brushing chart",
+      "oralCareSummary": "Streaks and other care"
     },
     "hydrationSections": "Hydration report",
     "measurementsSections": "Measurements report",
@@ -9034,7 +9158,8 @@
     "nutrientReorderHint": "Changes where this nutrient sits in the report",
     "substancesSections": "Caffeine and alcohol report",
     "exerciseSections": "Exercise report",
-    "heartRateSections": "Heart rate report"
+    "heartRateSections": "Heart rate report",
+    "oralCareSections": "Oral care report"
   },
   "hydrationReport": {
     "title": "Hydration",
@@ -9674,7 +9799,6 @@
     "jumpingRope": "Jumping rope on your watch",
     "next": "Next: {{step}}",
     "calories": "Calories",
-    "kcal": "kcal",
     "ended": "The workout on your watch has ended or is out of range. A finished workout is added to your diary.",
     "indoorNote": "Indoors the distance is the watch’s estimate. You can correct it to the treadmill’s figure when you finish.",
     "starting": "Starting on your watch…",
@@ -10727,7 +10851,9 @@
       "saved_one": "Saved {{count}} result",
       "saved_other": "Saved {{count}} results",
       "deleted_one": "Deleted {{count}} imported result",
-      "deleted_other": "Deleted {{count}} imported results"
+      "deleted_other": "Deleted {{count}} imported results",
+      "saveUnconfirmed": "Could not confirm the report was saved. Save again: it is stored only once.",
+      "lockedAfterFailedSave": "Saving did not finish, so this review is locked: Save again sends exactly the same report, and it is stored only once. To change values, choose the report again."
     },
     "moreActions": "More actions"
   },
@@ -11053,5 +11179,160 @@
       "invalid": "This is not a SparkyFitness workout file.",
       "readFailed": "Could not open the file"
     }
+  },
+  "measurementTimeline": {
+    "glucose": "Blood glucose (CGM)",
+    "title": "Measurement timeline",
+    "category": "Measurement",
+    "previous": "Previous day",
+    "next": "Next day",
+    "source": "Source",
+    "unit": "Unit",
+    "error": "Could not load measurement readings.",
+    "loading": "Loading readings…",
+    "empty": "No timestamped readings for this day. Choose a custom category to view imported/API readings, or sync Blood Glucose from Apple Health.",
+    "meals": "Logged foods · meal markers",
+    "foodError": "Could not load logged foods.",
+    "food": "Food",
+    "noTime": "Time not recorded",
+    "note": "These are recorded events, not proven causes. Exercise end times use logged duration. Untimed entries and daily totals are not placed on the curve. Use your sensor app for live readings and alarms.",
+    "layerMeal": "Food",
+    "layerExercise": "Exercise",
+    "layerSleep": "Sleep",
+    "layerMedication": "Medications",
+    "layerStress": "Stress",
+    "layerCaffeine": "Caffeine",
+    "layerAlcohol": "Alcohol",
+    "layerHydration": "Hydration",
+    "context": "Recorded context · display layers",
+    "contextLoading": "Loading recorded context…",
+    "contextError": "Could not load recorded context.",
+    "carbs": "Carbs",
+    "unavailable": "Some context is unavailable: {{layers}}",
+    "dailyTotal": "Daily total",
+    "dailyAverage": "Daily average",
+    "noBodyMeasurements": "No body measurements in this period",
+    "options": "Chart options",
+    "resetZoom": "Reset zoom",
+    "explore": "Zoom & pan",
+    "inspect": "Inspect readings",
+    "inspectHint": "Hold a reading to inspect its value.",
+    "zoomHint": "Pinch to zoom · drag horizontally to pan",
+    "layerOptions": "Context layers",
+    "events": "Event details",
+    "eventsInView": "Events in view",
+    "noEventsInView": "No timed events in this window."
+  },
+  "oralCare": {
+    "title": "Oral care",
+    "loading": "Loading oral care...",
+    "loadFailed": "Could not load oral care",
+    "sessions": "Sessions",
+    "empty": "Nothing logged for this day",
+    "coveredBySync": "Also recorded by Apple Health · counted once",
+    "types": {
+      "brushing": "Brushing",
+      "flossing": "Flossing",
+      "mouthwash": "Mouthwash",
+      "tongueCleaning": "Tongue cleaning",
+      "other": "Other"
+    },
+    "actions": {
+      "log": "Log",
+      "startTimer": "Start timer"
+    },
+    "card": {
+      "a11y": "Oral care, brushed {{brushed}} of {{target}}"
+    },
+    "delete": {
+      "title": "Delete this session?",
+      "synced": "It comes back on the next sync unless you delete it in the Health app too."
+    },
+    "errors": {
+      "save": "Could not save the session.",
+      "delete": "Could not delete the session.",
+      "goal": "Could not save the goal."
+    },
+    "goal": {
+      "title": "Brushing goal",
+      "dailyTarget": "Brushes per day",
+      "targetTime": "Time per brush",
+      "hint": "Dentists usually recommend brushing twice a day for 2 minutes.",
+      "perDay_one": "{{count}} time a day",
+      "perDay_other": "{{count}} times a day"
+    },
+    "log": {
+      "addTitle": "Log oral care",
+      "editTitle": "Edit session",
+      "type": "Type",
+      "name": "Name",
+      "namePlaceholder": "e.g. Water flosser",
+      "time": "Time",
+      "duration": "Duration (optional)",
+      "minutes": "Minutes",
+      "minutesShort": "min",
+      "seconds": "Seconds",
+      "secondsShort": "sec",
+      "tooLong": "A session can be at most 60 minutes.",
+      "notes": "Notes (optional)",
+      "notesA11y": "Notes",
+      "timerHint": "{{time}}, a quarter of your mouth at a time. Saves the brush for you.",
+      "timerTitle": "Brush with the timer",
+      "startTimerA11y": "Start the {{time}} brushing timer"
+    },
+    "source": {
+      "timer": "Timer",
+      "health": "Apple Health"
+    },
+    "stats": {
+      "brushed": "Brushed",
+      "ofTarget": "{{brushed}} of {{target}}",
+      "time": "Time brushing",
+      "streak_one": "Streak: {{count}} day",
+      "streak_other": "Streak: {{count}} days",
+      "best_one": "Best: {{count}} day",
+      "best_other": "Best: {{count}} days",
+      "weekA11y_one": "Goal met on {{count}} of the last 7 days",
+      "weekA11y_other": "Goal met on {{count}} of the last 7 days"
+    },
+    "timer": {
+      "title": "Brushing timer",
+      "subtitle": "{{time}}, a quarter of your mouth at a time",
+      "upperLeft": "Upper left",
+      "upperRight": "Upper right",
+      "lowerRight": "Lower right",
+      "lowerLeft": "Lower left",
+      "done": "Done! Tap Save",
+      "ready": "Ready",
+      "start": "Start",
+      "pause": "Pause",
+      "resume": "Resume",
+      "save": "Save",
+      "doneShort": "Done!",
+      "paused": "Paused"
+    }
+  },
+  "oralCareReport": {
+    "title": "Oral care",
+    "loadFailed": "Failed to load oral care data",
+    "empty": "No oral care logged in this period",
+    "brushesTooltip_one": "{{count}} brush · {{date}}",
+    "brushesTooltip_other": "{{count}} brushes · {{date}}",
+    "minutesTooltip": "{{time}} · {{date}}",
+    "goalDays": "Goal met",
+    "goalDaysValue": "{{met}} of {{total}} days",
+    "brushesPerDay": "Brushes per day",
+    "minutesPerDay": "Brushing per day",
+    "insightGoal": "You brushed {{target}} times a day on {{percent}}% of days.",
+    "insightStreak_one": "Your longest streak is {{count}} day.",
+    "insightStreak_other": "Your longest streak is {{count}} days.",
+    "brushesChart": "Brushes per day",
+    "minutesChart": "Minutes brushing per day",
+    "summaryTitle": "Streaks and other care",
+    "currentStreak": "Current streak",
+    "longestStreak": "Longest streak",
+    "daysCount_one": "{{count}} day",
+    "daysCount_other": "{{count}} days",
+    "otherCare": "Flossing, mouthwash and other"
   }
 }

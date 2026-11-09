@@ -150,9 +150,10 @@ These tables are managed by Better Auth and are not exposed through family shari
 | `user_fasting_preferences` | Intermittent fasting targets, auto-calculation config, and alert timing |
 | `mood_entries` | Logged mood check-ins, several per day: optional mood, energy and focus ratings, tags and journal notes, with a timestamp and a `source` (`manual`, `garmin` or `import`) |
 | `mindfulness_sessions` | Logged mindfulness, meditation, and breathwork sessions |
+| `oral_care_sessions` | Brushing, flossing, mouthwash, tongue cleaning and custom ("other") oral care sessions, logged in Sparky (`manual`, `timer`) or synced from Apple Health; a synced sample upserts on `(user_id, provider, external_id)`. The daily brushing goal is `user_preferences.oral_care_daily_target` / `oral_care_target_seconds` |
 | `lab_markers` | A user's own lab markers with optional default reference range (built-in markers are defined in `@workspace/shared`) |
 | `lab_results` | Lab results with their own unit and reference range, for built-in or custom markers |
-| `lab_reports` | One imported lab report (a PDF or photo read into results); results link to it with `report_id`, and the report itself is not stored |
+| `lab_reports` | One imported lab report (a PDF or photo read into results); results link to it with `report_id`, and the report itself is not stored. `client_request_id` makes a retried import save once |
 | `user_custom_moods` | User-defined mood tags (icon/color) |
 | `medications` | Custom medication inventory lists |
 | `medication_schedules` | Reminders and schedules for medications |
@@ -351,7 +352,7 @@ Example: `20240315103000_add_exercise_tracking.sql`
 
 2. **Write the migration SQL** — see the migration checklist in the repo's agent-docs folder (for developers and AI tools)
 
-3. **`db_schema_backup.sql` updates itself** — after merge, CI regenerates it from the migrations and opens an automated sync PR; never edit it by hand
+3. **`db_schema_backup.sql` updates itself** — after merge, CI regenerates it from the migrations and opens a sync PR that merges itself; never edit it by hand
 
 4. **Apply RLS policies** (startup applies `db/rls_policies.sql` again whenever the file or the policies in the database changed; it records what it applied in `system.rls_policy_state`)
 
