@@ -29,6 +29,8 @@ import HeartRateChart from '../components/exerciseStats/HeartRateChart';
 import PaceChart from '../components/exerciseStats/PaceChart';
 import SplitsTable from '../components/recording/SplitsTable';
 import HeartRateZones from '../components/exerciseStats/HeartRateZones';
+import RunningPowerCard from '../components/exerciseStats/RunningPowerCard';
+import RunningDynamicsCard from '../components/exerciseStats/RunningDynamicsCard';
 import ProgramWorkoutBadge from '../components/recording/ProgramWorkoutBadge';
 import FitnessTestBadge from '../components/recording/FitnessTestBadge';
 import ShoePickerCard from '../components/ShoePickerCard';
@@ -365,6 +367,9 @@ const CardioSessionScreen: React.FC<CardioSessionScreenProps> = ({
             <HeartRateZones zones={detail.zones} />
           </Card>
         ) : null}
+
+        <RunningPowerCard points={detail.route} />
+        <RunningDynamicsCard points={detail.route} />
       </ScrollView>
     </View>
   );

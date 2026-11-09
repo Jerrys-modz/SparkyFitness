@@ -393,6 +393,15 @@ export async function collectWorkoutTelemetry(
         speed: series.speed ? downsampleSeries(series.speed) : undefined,
         cad: series.cad ? downsampleSeries(series.cad) : undefined,
         power: series.power ? downsampleSeries(series.power) : undefined,
+        gct: series.gct ? downsampleSeries(series.gct) : undefined,
+        // Queried in centimetres and metres, stored per point in millimetres
+        // and centimetres, as the summary values are.
+        vo: series.vo
+          ? downsampleSeries(series.vo).map((p) => ({ ...p, v: p.v * 10 }))
+          : undefined,
+        stride: series.stride
+          ? downsampleSeries(series.stride).map((p) => ({ ...p, v: p.v * 100 }))
+          : undefined,
       });
     }
 
