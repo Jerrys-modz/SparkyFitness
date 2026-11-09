@@ -5,6 +5,7 @@ import type {
   WidgetMetricValue,
 } from '@workspace/shared';
 import type { DailySummary } from '../types/dailySummary';
+import { weightFromKg, type WeightDisplayMode } from '../utils/unitConversions';
 
 /**
  * Figures the daily summary does not carry. Each comes from its own query, so
@@ -14,8 +15,13 @@ import type { DailySummary } from '../types/dailySummary';
 export interface WidgetMetricExtras {
   steps?: number;
   stepsGoal?: number;
-  /** Latest weight in kg. */
+  /** Latest weight in kg (storage). */
   weightKg?: number;
+  /**
+   * How the person sees weight. The widget shows weight in this unit; kg when
+   * absent.
+   */
+  weightUnit?: WeightDisplayMode;
   /** Last night's main sleep, in minutes. */
   sleepMinutes?: number;
   restingHeartRate?: number;
@@ -35,6 +41,18 @@ function withGoal(value: number, goal: number | undefined, unit: string) {
     metric.progress = clamp01(value / goal);
   }
   return metric;
+}
+
+/**
+ * Weight in the unit the person reads it in. Unit tokens: `kg`; `lb`; and
+ * `st_lb`, a pound value the widget splits into stones and pounds.
+ */
+function weightMetric(kg: number, mode: WeightDisplayMode): WidgetMetricValue {
+  if (mode === 'lbs') return { value: weightFromKg(kg, 'lbs'), unit: 'lb' };
+  if (mode === 'st_lbs') {
+    return { value: weightFromKg(kg, 'lbs'), unit: 'st_lb' };
+  }
+  return { value: kg, unit: 'kg' };
 }
 
 function isFiniteNumber(n: number | undefined): n is number {
@@ -90,7 +108,7 @@ export function buildWidgetDataSnapshot(
     );
   }
   if (isFiniteNumber(extras.weightKg)) {
-    metrics.weight = { value: extras.weightKg, unit: 'kg' };
+    metrics.weight = weightMetric(extras.weightKg, extras.weightUnit ?? 'kg');
   }
   if (isFiniteNumber(extras.sleepMinutes)) {
     metrics.sleep_duration = { value: extras.sleepMinutes, unit: 'min' };

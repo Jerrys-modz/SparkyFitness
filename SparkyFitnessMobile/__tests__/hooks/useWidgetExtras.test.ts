@@ -77,6 +77,14 @@ describe('useWidgetExtras', () => {
       expect(result.current).toMatchObject({ steps: 6420, weightKg: 80.5 });
     });
 
+    it('carry the account weight unit through for the widget', () => {
+      const { result } = run({
+        measurements: checkIn(),
+        weightUnit: 'st_lbs',
+      });
+      expect(result.current.weightUnit).toBe('st_lbs');
+    });
+
     it('ignore a check-in from another day', () => {
       const { result } = run({
         measurements: checkIn({ entry_date: '2026-11-08' }),

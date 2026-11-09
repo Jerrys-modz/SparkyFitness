@@ -150,6 +150,8 @@ private func fallbackWidgetString(_ key: String) -> String {
     case "widget.custom.metric.logging_streak": return "Streak"
     case "widget.custom.unit.g": return "g"
     case "widget.custom.unit.kg": return "kg"
+    case "widget.custom.unit.lb": return "lb"
+    case "widget.custom.weight_st_lb": return "%@st %@lb"
     case "widget.custom.unit.ml": return "ml"
     case "widget.custom.unit.l": return "L"
     case "widget.custom.unit.bpm": return "bpm"

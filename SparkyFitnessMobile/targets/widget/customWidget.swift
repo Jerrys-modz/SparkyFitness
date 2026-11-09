@@ -273,6 +273,19 @@ func customFormat(metric: String, value: CustomMetricValue, energy: WidgetEnergy
             number: customDecimalString(value.value, maxFraction: 1),
             unit: localizedWidgetString("widget.custom.unit.kg")
         )
+    case "lb":
+        return CustomFormatted(
+            number: customDecimalString(value.value, maxFraction: 1),
+            unit: localizedWidgetString("widget.custom.unit.lb")
+        )
+    case "st_lb":
+        // Pounds split into stones and pounds. Rounded to a tenth of a pound
+        // first so 139.96 lb reads "10st 0lb", never "9st 14lb".
+        let tenths = max(0, Int((value.value * 10).rounded()))
+        let stones = localizedNumberString(Double(tenths / 140))
+        let pounds = customDecimalString(Double(tenths % 140) / 10, maxFraction: 1)
+        let text = String(format: localizedWidgetString("widget.custom.weight_st_lb"), stones, pounds)
+        return CustomFormatted(number: text, unit: nil)
     case "bpm":
         return CustomFormatted(number: localizedNumberString(value.value), unit: localizedWidgetString("widget.custom.unit.bpm"))
     case "min":
