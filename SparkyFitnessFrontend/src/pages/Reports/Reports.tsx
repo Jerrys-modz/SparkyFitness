@@ -257,7 +257,7 @@ const Reports = () => {
           <div className="space-y-12">
             <ChartErrorBoundary>
               <NutrientInsightsCard
-                nutritionData={reportsData?.nutritionData}
+                nutritionData={reportsData?.nutritionData ?? []}
                 customNutrients={customNutrients}
                 goals={goalData}
               />
