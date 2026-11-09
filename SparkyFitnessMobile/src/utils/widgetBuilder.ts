@@ -129,7 +129,7 @@ export function widgetMetricLabels(t: TFunction): Record<WidgetMetric, string> {
       defaultValue: 'Resting heart rate',
     }),
     heart_rate: t('widgets.metrics.heart_rate', {
-      defaultValue: 'Heart rate',
+      defaultValue: 'Average heart rate',
     }),
     exercise_minutes: t('widgets.metrics.exercise_minutes', {
       defaultValue: 'Exercise minutes',

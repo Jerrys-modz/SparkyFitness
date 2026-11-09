@@ -72,7 +72,7 @@
 "widget.custom.metric.steps" = "Steps";
 "widget.custom.metric.sleep_duration" = "Sleep";
 "widget.custom.metric.resting_heart_rate" = "Resting HR";
-"widget.custom.metric.heart_rate" = "Heart rate";
+"widget.custom.metric.heart_rate" = "Avg heart rate";
 "widget.custom.metric.exercise_minutes" = "Exercise";
 "widget.custom.metric.fasting_elapsed" = "Fasting";
 "widget.custom.metric.logging_streak" = "Streak";

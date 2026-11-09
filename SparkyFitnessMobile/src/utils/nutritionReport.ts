@@ -180,8 +180,18 @@ const weekdayCalories = (logged: NutritionTrendPoint[]) => {
     }));
 };
 
-const loggingStreaks = (current: NutritionTrendPoint[]): LoggingStreaks => {
-  const flags = current.map((point) => numeric(point, 'calories') > 0);
+const loggingStreaks = (current: NutritionTrendPoint[]): LoggingStreaks =>
+  streaksFromLoggedFlags(
+    current.map((point) => numeric(point, 'calories') > 0)
+  );
+
+/**
+ * Streaks from one flag per day, oldest first (true = something was logged).
+ * Shared with the custom widget's logging streak so both count the same way.
+ */
+export const streaksFromLoggedFlags = (
+  flags: readonly boolean[]
+): LoggingStreaks => {
   let longest = 0;
   let run = 0;
   for (const logged of flags) {

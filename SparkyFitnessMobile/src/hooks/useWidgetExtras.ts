@@ -1,10 +1,16 @@
 import { useMemo } from 'react';
+import { dailyHeartRateAverages, type WidgetMetric } from '@workspace/shared';
 
 import { useWidgetLayoutStore } from '../stores/widgetLayoutStore';
 import type { WidgetMetricExtras } from '../services/widgetMetricSnapshot';
 import type { CheckInMeasurement } from '../types/measurements';
 import { toWatchFast } from '../utils/watchFast';
+import { sleepMinutesForWidget } from '../utils/widgetExtras';
 import { useCurrentFast } from './useFasting';
+import { useHeartRateRange } from './useHeartRateRange';
+import { useHeartRateSamples } from './useHeartRateTimelines';
+import { useLoggingStreak } from './useLoggingStreak';
+import { useSleepDay } from './useSleepDay';
 
 interface UseWidgetExtrasOptions {
   /** The day's check-in, already loaded by the caller. */
@@ -20,26 +26,44 @@ const positive = (n: number | null | undefined): number | undefined =>
 /**
  * The widget figures the daily summary does not carry, for `useWidgetSync`.
  * Steps and weight come from the check-in the caller already has, so they
- * cost nothing. The running fast is fetched only while a saved widget actually
- * shows the fasting timer, so a person without such a widget makes no extra
- * request.
+ * cost nothing. Everything else is fetched only while a saved widget actually
+ * shows it (the fasting timer, sleep, either heart rate, the logging streak),
+ * so a person without such a widget makes no extra request.
  *
- * Sleep, heart rate and the logging streak are not wired yet: those metrics
- * show their empty state on the widget until they are.
+ * A figure that is missing is left undefined, never zero, and the widget
+ * draws a dash for it.
  */
 export function useWidgetExtras({
   measurements,
   date,
   enabled,
 }: UseWidgetExtrasOptions): WidgetMetricExtras {
-  const needsFast = useWidgetLayoutStore((state) =>
-    state.layouts.some((layout) =>
-      layout.metrics.some((m) => m.metric === 'fasting_elapsed')
-    )
+  const layouts = useWidgetLayoutStore((state) => state.layouts);
+  const used = useMemo(
+    () =>
+      new Set<WidgetMetric>(
+        layouts.flatMap((layout) => layout.metrics.map((m) => m.metric))
+      ),
+    [layouts]
   );
+  const on = (metric: WidgetMetric) => enabled && !!date && used.has(metric);
+
+  const needsFast = used.has('fasting_elapsed');
   const { data: currentFast } = useCurrentFast({
     enabled: enabled && needsFast,
   });
+
+  const { wakeUp } = useSleepDay(date ?? '', { enabled: on('sleep_duration') });
+  const { heartRateData } = useHeartRateRange({
+    range: '7d',
+    enabled: on('resting_heart_rate'),
+  });
+  const { data: heartRateRows } = useHeartRateSamples(
+    date ?? '',
+    date ?? '',
+    on('heart_rate')
+  );
+  const loggingStreakDays = useLoggingStreak(date, on('logging_streak'));
 
   const checkIn =
     measurements && measurements.entry_date === date ? measurements : undefined;
@@ -48,9 +72,43 @@ export function useWidgetExtras({
   const fastStartedAt = needsFast
     ? toWatchFast(currentFast)?.startedAt
     : undefined;
+  const sleepMinutes = on('sleep_duration')
+    ? (sleepMinutesForWidget(wakeUp) ?? undefined)
+    : undefined;
+  // The newest reading in the window: a resting rate is not logged every day.
+  const restingHeartRate = on('resting_heart_rate')
+    ? positive(
+        [...heartRateData].reverse().find((point) => point.restingHr > 0)
+          ?.restingHr
+      )
+    : undefined;
+  const heartRate = on('heart_rate')
+    ? positive(
+        dailyHeartRateAverages(heartRateRows).find((d) => d.day === date)
+          ?.avgBpm
+      )
+    : undefined;
+
+  const streakDays = on('logging_streak') ? loggingStreakDays : undefined;
 
   return useMemo(
-    () => ({ steps, weightKg, fastStartedAt }),
-    [steps, weightKg, fastStartedAt]
+    () => ({
+      steps,
+      weightKg,
+      fastStartedAt,
+      sleepMinutes,
+      restingHeartRate,
+      heartRate,
+      loggingStreakDays: streakDays,
+    }),
+    [
+      steps,
+      weightKg,
+      fastStartedAt,
+      sleepMinutes,
+      restingHeartRate,
+      heartRate,
+      streakDays,
+    ]
   );
 }
