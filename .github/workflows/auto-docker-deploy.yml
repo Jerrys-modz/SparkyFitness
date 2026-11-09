@@ -21,9 +21,10 @@ jobs:
     # main and v* tags can use and which waits for a maintainer's approval, so a
     # workflow pushed on another branch or tag cannot read them.
     environment: release
-    # Pushes to GHCR with GHCR_TOKEN, not GITHUB_TOKEN. The attestations are
-    # pushed with the same login.
+    # Pushes to GHCR with GHCR_TOKEN when it is set, else with GITHUB_TOKEN (the
+    # fork has no GHCR_TOKEN). The attestations are pushed with the same login.
     permissions:
+      packages: write
       contents: read
       attestations: write
       id-token: write
@@ -88,7 +89,7 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
-          password: ${{ secrets.GHCR_TOKEN }}
+          password: ${{ secrets.GHCR_TOKEN || secrets.GITHUB_TOKEN }}
 
       - name: Set lowercase repository name
         id: repo
