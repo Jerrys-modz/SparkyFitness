@@ -1,6 +1,6 @@
 # AGENTS.md
 
-_Last updated: 2026-11-08_
+_Last updated: 2026-11-09_
 
 SparkyFitness Mobile is a React Native 0.86 + Expo SDK 57 app for syncing Apple Health / Health Connect data with the SparkyFitness backend, tracking nutrition, hydration, fasting, measurements, exercise, saved foods, meal templates, custom exercises, workout presets, iOS / Android widgets, the active workout HUD, and the Sparky AI chat.
 
@@ -342,7 +342,7 @@ npx expo prebuild --clean
 
 - iOS launches through the UIScene life cycle, which the iOS 27 SDK (Xcode 27) requires — a build that still creates its window in `AppDelegate` is killed at launch in `_UIApplicationEvaluateRuntimeIssueForNoSceneLifecycleAdoption`. The SDK 57 prebuild template predates this, so `plugins/withSceneLifecycle.ts` applies the SDK 58 template's changes: `AppDelegate` conforms to `ExpoReactNativeFactoryProvider` and stops starting React Native, a `SceneDelegate.swift` subclassing expo's `ExpoAppSceneDelegate` (needs `expo` >= 57.0.25) is added to the app target, and `Info.plist` gets `UIApplicationSceneManifest`. The plugin throws if `AppDelegate.swift` no longer matches the template; delete it when moving to SDK 58, whose template already does all three.
 - iOS widgets live under `targets/widget/`, share data through the app group from `app.identifiers.js`, and reload through `ExtensionStorage` in `useWidgetSync`.
-- Current iOS widgets are calorie, macro and water widgets; Android has the same three. When changing display, update Swift views, shared helpers, TS snapshot shape, and reload kind handling together.
+- Current iOS widgets are calorie, macro and water widgets, plus the generic `customWidget` the in-app builder feeds (Settings > Widgets, iOS only, layouts device-local); Android has the same three fixed widgets. Custom widgets: see [widgets-and-native-config.md](agent-docs/widgets-and-native-config.md#custom-widgets-ios-builder). When changing display, update Swift views, shared helpers, TS snapshot shape, and reload kind handling together.
 - Widget string keys are derived from the Swift sources, not tracked by hand: `__tests__/config/helpers/widgetSwiftKeys.ts` discovers every `.swift` file under `targets/widget/` (recursively) and extracts the literal keys passed to `localizedWidgetString`, `configurationDisplayName` and `.description`. A new key must therefore be added to `targets/widget/en.lproj/Localizable.strings`, and — for `localizedWidgetString` keys — to the `fallbackWidgetString` map, or the contract tests fail. Target-language files stay optional and fall back to EN.
 - Android widgets live under `targets/android-widget/`. `plugins/withCalorieWidget.ts` copies Kotlin/templates/resources, registers receivers, wires the native module package, and documents the pattern for adding another widget.
 - Resizable Android widgets: see [widgets-and-native-config.md](agent-docs/widgets-and-native-config.md#resizable-android-widgets).
@@ -467,6 +467,7 @@ const androidService = require('../../src/services/healthConnectService.ts');
 - Fasting bug: inspect `FastingDetailScreen`, `FastingCard`, `FastingGoalReconciler`, `useFasting`, `useFastingTimer`, `fastingApi`, `notifications`, and card visibility preferences.
 - Measurements/hydration bug: inspect dashboard/diary/measurements screens, summaries/gauges, measurement/water/check-in hooks, API, date helpers, widget sync, writeback, and unit conversions.
 - Scan/photo bug: inspect food scan/search, `FoodPhotoFlow`, photo screens, AI setting hook/API, estimate hook/API, intro persistence, haptics, icon usage, and route params.
+- Custom widget (builder) bug: inspect `WidgetEditorScreen`, `WidgetsScreen`, `stores/widgetLayoutStore.ts`, `services/widgetMetricSnapshot.ts`, `useWidgetSync`, `targets/widget/customWidget.swift` and the contract `../shared/src/utils/widgetLayout.ts`.
 - Widget/deep-link bug: inspect `useWidgetSync`, `CalorieWidgetBridge`, widget targets, widget plugins, `app.config.ts`, `app.identifiers.js`, `App.tsx`, and dashboard.
 - Widget string shows as a raw key: inspect `targets/widget/en.lproj/Localizable.strings`, the `fallbackWidgetString` map in `SharedHelpers.swift`, and the derived-key contract in `__tests__/config/helpers/widgetSwiftKeys.ts`.
 - Chat/voice settings bug: inspect `ChatScreen`, `ChatSettingsScreen`, `components/chat/`, `useVoicePreferencesRefresh`, `aiSettingsApi`, `preferencesApi`, and `voiceTranscriptionApi`; settings and contracts also have web/server consumers.

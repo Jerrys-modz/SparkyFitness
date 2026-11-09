@@ -501,6 +501,8 @@ export type RootStackParamList = {
   HealthTrendsSettings: undefined;
   WatchSettings: undefined;
   AddMenuSettings: undefined;
+  Widgets: undefined;
+  WidgetEditor: { layoutId?: string } | undefined;
   DiarySettings: undefined;
   CustomCategories: undefined;
   CustomCategoryEdit: { categoryId?: string } | undefined;

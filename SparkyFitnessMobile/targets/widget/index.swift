@@ -7,6 +7,9 @@ struct exportWidgets: WidgetBundle {
         widget()
         macroWidget()
         waterWidget()
+        if #available(iOS 17.0, *) {
+            customWidget()
+        }
         if #available(iOS 18.0, *) {
             LogWaterControl()
             RemoveWaterControl()

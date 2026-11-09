@@ -130,6 +130,8 @@ import {
   SafeHealthTrendsSettings,
   SafeWatchSettings,
   SafeAddMenuSettings,
+  SafeWidgets,
+  SafeWidgetEditor,
   SafeDiarySettings,
   SafeCustomCategories,
   SafeCustomCategoryEdit,
@@ -1271,6 +1273,16 @@ function AppContent() {
             name="AddMenuSettings"
             component={SafeAddMenuSettings}
             options={createStackScreenOptions(t('screens.addMenuSettings', { defaultValue: 'Quick Actions' }), { headerBackTitle: t('navigation.settings', { defaultValue: 'Settings' }) })}
+          />
+          <Stack.Screen
+            name="Widgets"
+            component={SafeWidgets}
+            options={createStackScreenOptions(t('screens.widgets', { defaultValue: 'Widgets' }), { headerBackTitle: t('navigation.settings', { defaultValue: 'Settings' }) })}
+          />
+          <Stack.Screen
+            name="WidgetEditor"
+            component={SafeWidgetEditor}
+            options={createStackScreenOptions(t('screens.widgetEditor', { defaultValue: 'Widget' }), { headerBackTitle: t('screens.widgets', { defaultValue: 'Widgets' }) })}
           />
           <Stack.Screen
             name="WorkoutSettings"
