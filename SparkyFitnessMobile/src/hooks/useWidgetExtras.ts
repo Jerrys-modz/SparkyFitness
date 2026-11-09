@@ -4,6 +4,7 @@ import { dailyHeartRateAverages, type WidgetMetric } from '@workspace/shared';
 import { useWidgetLayoutStore } from '../stores/widgetLayoutStore';
 import type { WidgetMetricExtras } from '../services/widgetMetricSnapshot';
 import type { CheckInMeasurement } from '../types/measurements';
+import type { WeightDisplayMode } from '../utils/unitConversions';
 import { toWatchFast } from '../utils/watchFast';
 import { sleepMinutesForWidget } from '../utils/widgetExtras';
 import { useCurrentFast } from './useFasting';
@@ -18,6 +19,8 @@ interface UseWidgetExtrasOptions {
   /** The day the widget numbers are for; a check-in from another day is ignored. */
   date: string | undefined;
   enabled: boolean;
+  /** The account's weight unit, so the widget shows weight the way the app does. */
+  weightUnit?: WeightDisplayMode;
 }
 
 const positive = (n: number | null | undefined): number | undefined =>
@@ -37,6 +40,7 @@ export function useWidgetExtras({
   measurements,
   date,
   enabled,
+  weightUnit,
 }: UseWidgetExtrasOptions): WidgetMetricExtras {
   const layouts = useWidgetLayoutStore((state) => state.layouts);
   const used = useMemo(
@@ -95,6 +99,7 @@ export function useWidgetExtras({
     () => ({
       steps,
       weightKg,
+      weightUnit,
       fastStartedAt,
       sleepMinutes,
       restingHeartRate,
@@ -104,6 +109,7 @@ export function useWidgetExtras({
     [
       steps,
       weightKg,
+      weightUnit,
       fastStartedAt,
       sleepMinutes,
       restingHeartRate,

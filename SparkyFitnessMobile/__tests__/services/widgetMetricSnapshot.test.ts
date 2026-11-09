@@ -92,6 +92,29 @@ describe('buildWidgetDataSnapshot', () => {
     });
   });
 
+  describe('weight unit', () => {
+    const build = (weightUnit?: 'kg' | 'lbs' | 'st_lbs') =>
+      buildWidgetDataSnapshot(summary, { weightKg: 80, weightUnit }, 'kcal', 0)
+        .metrics.weight;
+
+    it('is kg by default and when the account uses kg', () => {
+      expect(build()).toEqual({ value: 80, unit: 'kg' });
+      expect(build('kg')).toEqual({ value: 80, unit: 'kg' });
+    });
+
+    it('is pounds for an account that uses pounds', () => {
+      const weight = build('lbs');
+      expect(weight?.unit).toBe('lb');
+      expect(weight?.value).toBeCloseTo(176.37, 1);
+    });
+
+    it('is a pound value the widget splits, for stones and pounds', () => {
+      const weight = build('st_lbs');
+      expect(weight?.unit).toBe('st_lb');
+      expect(weight?.value).toBeCloseTo(176.37, 1);
+    });
+  });
+
   it('ignores non-finite extras', () => {
     const { metrics } = buildWidgetDataSnapshot(
       summary,
