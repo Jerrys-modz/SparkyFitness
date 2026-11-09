@@ -7,6 +7,7 @@ import { reportKeys } from '@/api/keys/reports';
 import {
   useQueryClient,
   useMutation,
+  useQuery,
   queryOptions,
 } from '@tanstack/react-query';
 
@@ -61,4 +62,22 @@ export const useUpdatePreferencesMutation = () => {
       }
     },
   });
+};
+
+/** The runner's own critical power (watts) and a way to save or clear it. */
+export const useRunningCriticalPower = () => {
+  const { data } = useQuery(preferencesOptions.user());
+  const mutation = useUpdatePreferencesMutation();
+  const watts =
+    (data as { running_critical_power_watts?: number | null } | null)
+      ?.running_critical_power_watts ?? null;
+  return {
+    watts,
+    isSaving: mutation.isPending,
+    save: (value: number | null, onSaved?: () => void) =>
+      mutation.mutate(
+        { running_critical_power_watts: value },
+        { onSuccess: onSaved }
+      ),
+  };
 };

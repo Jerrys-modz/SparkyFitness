@@ -1,9 +1,26 @@
 import React from 'react';
-import { render } from '@testing-library/react-native';
+import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { RunSensorPoint } from '@workspace/shared';
 import RunningPowerCard from '../../../src/components/exerciseStats/RunningPowerCard';
 import RunningDynamicsCard from '../../../src/components/exerciseStats/RunningDynamicsCard';
 import { initializeI18n } from '../../../src/localization';
+
+const mockPreferences: { running_critical_power_watts?: number | null } = {};
+jest.mock('../../../src/hooks/usePreferences', () => ({
+  usePreferences: () => ({ preferences: mockPreferences }),
+}));
+const mockUpdatePreferences = jest.fn().mockResolvedValue({});
+jest.mock('../../../src/services/api/preferencesApi', () => ({
+  updatePreferences: (...args: unknown[]) => mockUpdatePreferences(...args),
+}));
+
+const renderPower = (points: RunSensorPoint[]) =>
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      <RunningPowerCard points={points} />
+    </QueryClientProvider>
+  );
 
 jest.mock('../../../src/components/exerciseStats/RunSeriesChart', () => ({
   __esModule: true,
@@ -26,27 +43,70 @@ describe('RunningPowerCard', () => {
   });
 
   it('renders nothing without power', () => {
-    const screen = render(
-      <RunningPowerCard points={track(600, () => ({ hr: 150 }))} />
-    );
+    const screen = renderPower(track(600, () => ({ hr: 150 })));
     expect(screen.queryByTestId('running-power-card')).toBeNull();
   });
 
   it('shows average, max and normalized power, but no zones for a short run', () => {
-    const screen = render(
-      <RunningPowerCard points={track(600, () => ({ power: 250 }))} />
-    );
+    const screen = renderPower(track(600, () => ({ power: 250 })));
     expect(screen.getByTestId('run-power-average')).toBeTruthy();
     expect(screen.getAllByText('250 W').length).toBeGreaterThan(1);
     expect(screen.queryByTestId('run-power-zones')).toBeNull();
   });
 
   it('shows power zones once the run holds a 20 minute effort', () => {
-    const screen = render(
-      <RunningPowerCard points={track(30 * 60, () => ({ power: 300 }))} />
-    );
+    const screen = renderPower(track(30 * 60, () => ({ power: 300 })));
     expect(screen.getByTestId('run-power-zones')).toBeTruthy();
     expect(screen.getByText(/critical power of 285 W/)).toBeTruthy();
+  });
+
+  describe('critical power setting', () => {
+    afterEach(() => {
+      delete mockPreferences.running_critical_power_watts;
+      mockUpdatePreferences.mockClear();
+    });
+
+    it('draws zones from the saved value even on a short run', () => {
+      mockPreferences.running_critical_power_watts = 250;
+      const screen = renderPower(track(600, () => ({ power: 200 })));
+      expect(screen.getByTestId('run-power-zones')).toBeTruthy();
+      expect(
+        screen.getByText('Zones from your critical power of 250 W.')
+      ).toBeTruthy();
+    });
+
+    it('saves a valid value and rejects one out of range', async () => {
+      const screen = renderPower(track(600, () => ({ power: 200 })));
+      fireEvent.press(screen.getByTestId('run-power-critical-power-edit'));
+      fireEvent.changeText(
+        screen.getByTestId('run-power-critical-power-input'),
+        '20'
+      );
+      fireEvent.press(screen.getByTestId('run-power-critical-power-save'));
+      expect(mockUpdatePreferences).not.toHaveBeenCalled();
+      fireEvent.changeText(
+        screen.getByTestId('run-power-critical-power-input'),
+        '280'
+      );
+      fireEvent.press(screen.getByTestId('run-power-critical-power-save'));
+      await waitFor(() =>
+        expect(mockUpdatePreferences).toHaveBeenCalledWith({
+          running_critical_power_watts: 280,
+        })
+      );
+    });
+
+    it('clears the saved value back to the estimate', async () => {
+      mockPreferences.running_critical_power_watts = 250;
+      const screen = renderPower(track(600, () => ({ power: 200 })));
+      fireEvent.press(screen.getByTestId('run-power-critical-power-edit'));
+      fireEvent.press(screen.getByTestId('run-power-critical-power-clear'));
+      await waitFor(() =>
+        expect(mockUpdatePreferences).toHaveBeenCalledWith({
+          running_critical_power_watts: null,
+        })
+      );
+    });
   });
 });
 

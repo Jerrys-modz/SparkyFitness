@@ -350,3 +350,25 @@ export function runSensorSeries(
   }
   return out;
 }
+
+export type CriticalPowerSource = 'set' | 'estimated';
+
+/**
+ * The critical power zones are drawn from: the runner's own value when it is
+ * set and in range, else an estimate from the run.
+ */
+export function resolveCriticalPower(
+  setWatts: number | null | undefined,
+  points: readonly RunSensorPoint[]
+): { watts: number; source: CriticalPowerSource } | null {
+  if (
+    typeof setWatts === 'number' &&
+    Number.isFinite(setWatts) &&
+    setWatts >= MIN_CRITICAL_POWER_WATTS &&
+    setWatts <= MAX_CRITICAL_POWER_WATTS
+  ) {
+    return { watts: Math.round(setWatts), source: 'set' };
+  }
+  const estimate = estimateCriticalPower(points);
+  return estimate === null ? null : { watts: estimate, source: 'estimated' };
+}

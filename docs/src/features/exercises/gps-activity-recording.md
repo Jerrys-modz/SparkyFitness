@@ -301,7 +301,9 @@ When a run carries them, the cardio session screen (mobile) and the activity rep
 - **Normalized power** is a 30 second rolling average, each value raised to the fourth power, averaged and rooted. It weighs surges more than a plain average, so a hilly or interval run scores above its average power.
 - **Variability index** is normalized power divided by average power. 1.00 is a perfectly even effort; higher means a surgier one.
 - **Power to heart rate drift** compares watts per heartbeat in the first half of the run with the second. A positive figure means your heart worked harder for the same power. It needs heart rate and a run of at least 20 minutes.
-- **Power zones** (five, as a share of critical power: under 80%, 80-90%, 90-100%, 100-115% and over 115%) appear when the run holds a 20 minute stretch. Critical power is estimated as 95% of the run's best 20 minutes, so it is only as good as the effort in that run. An easy run under-estimates it and its time-in-zone looks too high; read zones from a hard effort or a race.
+- **Power zones** (five, as a share of critical power: under 80%, 80-90%, 90-100%, 100-115% and over 115%). Zones use your own **critical power** when you have set it, and otherwise an estimate: 95% of the run's best 20 minutes, which only works for a run that holds a 20 minute effort. The estimate is only as good as the effort in that run: an easy run under-estimates it and its time-in-zone looks too high. Set your own value for steady zones across runs.
+
+To set it, tap **Set my critical power** under the power figures (mobile cardio session screen, or the web activity report) and enter whole watts from 50 to 600. **Use the estimate** clears it. It is one setting on your account, so a change on one device shows on the other. If you do not know your critical power, a recent hard 20 minute effort or race gives a good start: use 95% of its average power.
 
 A chart of power over the run sits under the figures.
 
