@@ -9678,7 +9678,6 @@
     "result": {
       "missing": "Ten test nie jest już zapisany.",
       "when": "{{date}} · {{test}}",
-      "derived": "Tempo progowe {{pace}}. Jako 5 km to około {{time}}.",
       "changeTitle": "Od Twojego testu {{date}}",
       "changeThreshold": "Tempo progowe: {{change}}.",
       "pacesTitle": "Twoje tempa treningowe",

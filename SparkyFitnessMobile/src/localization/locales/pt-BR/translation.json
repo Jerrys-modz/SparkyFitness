@@ -9520,7 +9520,6 @@
     "result": {
       "missing": "Este teste não está mais salvo.",
       "when": "{{date}} · {{test}}",
-      "derived": "Ritmo de limiar {{pace}}. Em 5 km, isso dá cerca de {{time}}.",
       "changeTitle": "Desde o seu teste em {{date}}",
       "changeThreshold": "Ritmo de limiar: {{change}}.",
       "pacesTitle": "Os seus ritmos de treino",

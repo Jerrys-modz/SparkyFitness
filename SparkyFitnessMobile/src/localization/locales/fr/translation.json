@@ -9181,7 +9181,6 @@
     "result": {
       "missing": "Ce test n'est plus enregistré.",
       "when": "{{date}} · {{test}}",
-      "derived": "Allure seuil {{pace}}. Sur 5 km, cela donne environ {{time}}.",
       "changeTitle": "Depuis votre test du {{date}}",
       "changeThreshold": "Allure seuil : {{change}}.",
       "pacesTitle": "Vos allures d'entraînement",

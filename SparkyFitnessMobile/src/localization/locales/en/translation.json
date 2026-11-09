@@ -2867,7 +2867,8 @@
     "remaining": "{{value}}g left",
     "over": "{{value}}g over",
     "met": "met",
-    "goalSeparator": " / {{value}}"
+    "goalSeparator": " / {{value}}",
+    "caloriesUnit": "Cal"
   },
   "foodSummary": {
     "tapToAddFood": "Tap to add food",

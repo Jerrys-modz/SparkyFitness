@@ -9520,7 +9520,6 @@
     "result": {
       "missing": "Esta prueba ya no está guardada.",
       "when": "{{date}} · {{test}}",
-      "derived": "Ritmo de umbral {{pace}}. En un 5K equivale a unos {{time}}.",
       "changeTitle": "Desde tu prueba del {{date}}",
       "changeThreshold": "Ritmo de umbral: {{change}}.",
       "pacesTitle": "Tus ritmos de entrenamiento",

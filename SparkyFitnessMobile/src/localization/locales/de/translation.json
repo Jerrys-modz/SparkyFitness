@@ -9436,7 +9436,6 @@
     "result": {
       "missing": "Dieser Test ist nicht mehr gespeichert.",
       "when": "{{date}} · {{test}}",
-      "derived": "Schwellentempo {{pace}}. Über 5 km sind das etwa {{time}}.",
       "changeTitle": "Seit deinem Test am {{date}}",
       "changeThreshold": "Schwellentempo: {{change}}.",
       "pacesTitle": "Deine Trainingstempos",
