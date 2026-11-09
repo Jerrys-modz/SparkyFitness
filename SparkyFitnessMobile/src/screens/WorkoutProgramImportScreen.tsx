@@ -9,6 +9,7 @@ import Button from '../components/ui/Button';
 import Switch from '../components/ui/Switch';
 import { useImportWorkoutProgram } from '../hooks/useWorkoutProgramSharing';
 import { useScreenHeader } from '../hooks/useScreenHeader';
+import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import type { RootStackScreenProps } from '../types/navigation';
 
 type Props = RootStackScreenProps<'WorkoutProgramImport'>;
@@ -22,6 +23,7 @@ type Props = RootStackScreenProps<'WorkoutProgramImport'>;
 const WorkoutProgramImportScreen: React.FC<Props> = ({ navigation, route }) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  const usesNativeHeader = useNativeIOSHeadersActive();
   const { program } = route.params;
   const { importProgramAsync, isPending } = useImportWorkoutProgram();
   const [planName, setPlanName] = useState(program.plan?.name ?? '');
@@ -63,7 +65,10 @@ const WorkoutProgramImportScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   return (
-    <>
+    <View
+      className="flex-1 bg-background"
+      style={usesNativeHeader ? undefined : { paddingTop: insets.top }}
+    >
       {header}
       <KeyboardAwareScrollView
         className="flex-1 bg-background"
@@ -159,7 +164,7 @@ const WorkoutProgramImportScreen: React.FC<Props> = ({ navigation, route }) => {
           </Button>
         </View>
       </KeyboardAwareScrollView>
-    </>
+    </View>
   );
 };
 
