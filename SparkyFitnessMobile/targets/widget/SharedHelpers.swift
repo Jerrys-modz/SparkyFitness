@@ -144,7 +144,7 @@ private func fallbackWidgetString(_ key: String) -> String {
     case "widget.custom.metric.steps": return "Steps"
     case "widget.custom.metric.sleep_duration": return "Sleep"
     case "widget.custom.metric.resting_heart_rate": return "Resting HR"
-    case "widget.custom.metric.heart_rate": return "Heart rate"
+    case "widget.custom.metric.heart_rate": return "Avg heart rate"
     case "widget.custom.metric.exercise_minutes": return "Exercise"
     case "widget.custom.metric.fasting_elapsed": return "Fasting"
     case "widget.custom.metric.logging_streak": return "Streak"

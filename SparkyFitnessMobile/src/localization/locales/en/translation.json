@@ -10214,7 +10214,7 @@
       "steps": "Steps",
       "sleep_duration": "Sleep",
       "resting_heart_rate": "Resting heart rate",
-      "heart_rate": "Heart rate",
+      "heart_rate": "Average heart rate",
       "exercise_minutes": "Exercise minutes",
       "fasting_elapsed": "Fasting timer",
       "logging_streak": "Logging streak"
