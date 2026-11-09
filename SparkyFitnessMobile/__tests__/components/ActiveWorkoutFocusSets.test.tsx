@@ -73,6 +73,12 @@ interface RenderOptions {
   focusedField?: 'weight' | 'reps' | 'distance' | 'rpe';
   expandedSetKey?: string | null;
   withDetail?: boolean;
+  previousSets?: ({
+    setNumber: number;
+    setType: string | null;
+    weight: number | null;
+    reps: number | null;
+  } | null)[];
 }
 
 function renderSets(options: RenderOptions = {}) {
@@ -104,6 +110,7 @@ function renderSets(options: RenderOptions = {}) {
       weightUnit={options.weightUnit ?? 'kg'}
       distanceUnit="km"
       assumedSetValues={options.assumed}
+      previousSets={options.previousSets}
       focusedSetKey={options.focusedSetKey ?? null}
       focusedField={options.focusedField ?? 'weight'}
       {...rest}
@@ -705,5 +712,53 @@ describe('ActiveWorkoutFocusSets', () => {
     expect(queryByTestId('focus-set-row')).toBeNull();
     expect(queryByLabelText('Increase weight for set 1')).toBeNull();
     expect(queryByTestId('set-row')).toBeTruthy();
+  });
+  it('shows the previous session in a column and fills the row from it', () => {
+    const { getByText, getByLabelText, callbacks } = renderSets({
+      sets: [makeSet({ weight: null, reps: null })],
+      previousSets: [{ setNumber: 1, setType: 'normal', weight: 50, reps: 8 }],
+    });
+    expect(getByText('Prev')).toBeTruthy();
+    fireEvent.press(getByLabelText('Fill set 1 from previous'));
+    expect(callbacks.onCommitField).toHaveBeenCalledWith('101', {
+      weight: 50,
+      reps: 8,
+    });
+  });
+
+  it('shows a dash and no fill when there is no matching previous set', () => {
+    const { getByTestId, queryByLabelText } = renderSets({
+      previousSets: [null],
+    });
+    expect(getByTestId('focus-previous-cell')).toBeTruthy();
+    expect(queryByLabelText('Fill set 1 from previous')).toBeNull();
+  });
+
+  it('hides the previous column when no history is passed', () => {
+    const { queryByText, queryByTestId } = renderSets();
+    expect(queryByText('Prev')).toBeNull();
+    expect(queryByTestId('focus-previous-cell')).toBeNull();
+  });
+
+  it('explains bodyweight exercises', () => {
+    const { getByTestId } = renderSets({ modality: 'bodyweight_reps' });
+    expect(getByTestId('bodyweight-banner')).toBeTruthy();
+  });
+
+  it('has no bodyweight banner for weighted exercises', () => {
+    const { queryByTestId } = renderSets();
+    expect(queryByTestId('bodyweight-banner')).toBeNull();
+  });
+
+  it('renders the cardio form with distance for a one-set cardio exercise', () => {
+    const { queryByTestId, queryByLabelText } = renderSets({
+      modality: 'duration_distance',
+      sets: [
+        makeSet({ weight: null, reps: null, duration: 1800, distance: 5 }),
+      ],
+    });
+    expect(queryByTestId('focus-set-row')).toBeNull();
+    expect(queryByTestId('set-row')).toBeNull();
+    expect(queryByLabelText(/distance/i)).toBeTruthy();
   });
 });
