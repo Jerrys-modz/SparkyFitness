@@ -72,8 +72,12 @@ struct CustomWidgetData: Decodable {
     let lastUpdated: Double?
     let energyUnit: String?
     let metrics: [String: CustomMetricValue]
+    /// Where tapping each number opens the app: a path under the app's link
+    /// scheme, sent by the app (WIDGET_METRIC_LINK_PATHS). Absent from a
+    /// snapshot written by an older app.
+    let links: [String: String]?
 
-    static let empty = CustomWidgetData(date: nil, lastUpdated: nil, energyUnit: nil, metrics: [:])
+    static let empty = CustomWidgetData(date: nil, lastUpdated: nil, energyUnit: nil, metrics: [:], links: nil)
 }
 
 /// Decodes one array element without failing the whole array when it is bad.
@@ -261,13 +265,17 @@ func customFormat(metric: String, value: CustomMetricValue, energy: WidgetEnergy
     case "g":
         return CustomFormatted(number: localizedNumberString(value.value), unit: localizedWidgetString("widget.custom.unit.g"))
     case "ml":
-        if value.value >= 1000 {
-            return CustomFormatted(
-                number: customDecimalString(value.value / 1000, maxFraction: 1),
-                unit: localizedWidgetString("widget.custom.unit.l")
-            )
-        }
         return CustomFormatted(number: localizedNumberString(value.value), unit: localizedWidgetString("widget.custom.unit.ml"))
+    case "oz":
+        return CustomFormatted(
+            number: customDecimalString(value.value, maxFraction: 1),
+            unit: localizedWidgetString("widget.custom.unit.oz")
+        )
+    case "liter":
+        return CustomFormatted(
+            number: customDecimalString(value.value, maxFraction: 2),
+            unit: localizedWidgetString("widget.custom.unit.l")
+        )
     case "kg":
         return CustomFormatted(
             number: customDecimalString(value.value, maxFraction: 1),
@@ -317,6 +325,9 @@ struct CustomRenderPlan {
     let standBy: Bool
     let items: [CustomMetricItem]
     let energy: WidgetEnergyUnit
+    /// Medium and large widgets can link each number; the others have one tap target.
+    let linkable: Bool
+    private let links: [String: String]
 
     init?(layout: CustomWidgetLayout, data: CustomWidgetData, family: WidgetFamily) {
         guard let familyKey = customFamilyKey(family) else { return nil }
@@ -348,6 +359,29 @@ struct CustomRenderPlan {
         title = layout.showTitle && !layout.standByFriendly ? layout.name : nil
         items = built
         energy = WidgetEnergyUnit(data.energyUnit)
+        linkable = familyKey == "medium" || familyKey == "large"
+        links = data.links ?? [:]
+    }
+
+    /// Where a tap on this number opens the app, or nil when the app sent no link for it.
+    func url(for item: CustomMetricItem) -> URL? {
+        guard let path = links[item.key], !path.isEmpty else { return nil }
+        return URL(string: "sparkyfitnessmobile://" + path)
+    }
+}
+
+/// Wraps one number in a link to its screen where the family allows it.
+struct CustomItemLink<Content: View>: View {
+    let plan: CustomRenderPlan
+    let item: CustomMetricItem
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        if plan.linkable, let url = plan.url(for: item) {
+            Link(destination: url) { content() }
+        } else {
+            content()
+        }
     }
 }
 
@@ -428,7 +462,8 @@ enum CustomWidgetSamples {
 
     static let data = CustomWidgetData(
         date: nil, lastUpdated: nil, energyUnit: nil,
-        metrics: ["protein": CustomMetricValue(value: 92, goal: 160, progress: 0.57, unit: "g")]
+        metrics: ["protein": CustomMetricValue(value: 92, goal: 160, progress: 0.57, unit: "g")],
+        links: nil
     )
 }
 
@@ -463,10 +498,9 @@ struct CustomWidgetView: View {
     @Environment(\.widgetFamily) private var family
 
     var body: some View {
+        let plan = entry.layout.flatMap { CustomRenderPlan(layout: $0, data: entry.data, family: family) }
         Group {
-            if let layout = entry.layout,
-                let plan = CustomRenderPlan(layout: layout, data: entry.data, family: family)
-            {
+            if let plan = plan {
                 switch family {
                 case .accessoryCircular: CustomLockCircularView(plan: plan)
                 case .accessoryRectangular: CustomLockRectangularView(plan: plan)
@@ -477,7 +511,16 @@ struct CustomWidgetView: View {
                 CustomEmptyView()
             }
         }
-        .widgetURL(URL(string: "sparkyfitnessmobile://"))
+        .widgetURL(tapURL(for: plan))
+    }
+
+    /// One tap target for a small or Lock Screen widget: its first number's
+    /// screen. Medium and large link each number themselves, so a tap on the
+    /// background just opens the app.
+    private func tapURL(for plan: CustomRenderPlan?) -> URL? {
+        let root = URL(string: "sparkyfitnessmobile://")
+        guard let plan = plan, !plan.linkable, let first = plan.items.first else { return root }
+        return plan.url(for: first) ?? root
     }
 }
 
@@ -648,20 +691,22 @@ struct CustomBarsStyleView: View {
         VStack(alignment: .leading, spacing: 8) {
             CustomTitleView(plan: plan)
             ForEach(plan.items) { item in
-                VStack(alignment: .leading, spacing: 3) {
-                    HStack(alignment: .firstTextBaseline) {
-                        Text(verbatim: item.label)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                        Spacer(minLength: 4)
-                        CustomFigureView(item: item, energy: plan.energy, size: 15)
+                CustomItemLink(plan: plan, item: item) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        HStack(alignment: .firstTextBaseline) {
+                            Text(verbatim: item.label)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                            Spacer(minLength: 4)
+                            CustomFigureView(item: item, energy: plan.energy, size: 15)
+                        }
+                        if let progress = item.value?.progress {
+                            CustomBarView(progress: progress, color: plan.accent)
+                        }
                     }
-                    if let progress = item.value?.progress {
-                        CustomBarView(progress: progress, color: plan.accent)
-                    }
+                    .accessibilityElement(children: .combine)
                 }
-                .accessibilityElement(children: .combine)
             }
             Spacer(minLength: 0)
         }
@@ -676,18 +721,20 @@ struct CustomListStyleView: View {
         VStack(alignment: .leading, spacing: 6) {
             CustomTitleView(plan: plan)
             ForEach(plan.items) { item in
-                HStack(spacing: 8) {
-                    Image(systemName: item.symbol)
-                        .foregroundStyle(plan.accent)
-                        .frame(width: 18)
-                        .widgetAccentable()
-                    Text(verbatim: item.label)
-                        .font(.subheadline)
-                        .lineLimit(1)
-                    Spacer(minLength: 4)
-                    CustomFigureView(item: item, energy: plan.energy, size: 17)
+                CustomItemLink(plan: plan, item: item) {
+                    HStack(spacing: 8) {
+                        Image(systemName: item.symbol)
+                            .foregroundStyle(plan.accent)
+                            .frame(width: 18)
+                            .widgetAccentable()
+                        Text(verbatim: item.label)
+                            .font(.subheadline)
+                            .lineLimit(1)
+                        Spacer(minLength: 4)
+                        CustomFigureView(item: item, energy: plan.energy, size: 17)
+                    }
+                    .accessibilityElement(children: .combine)
                 }
-                .accessibilityElement(children: .combine)
             }
             Spacer(minLength: 0)
         }
@@ -703,21 +750,23 @@ struct CustomGridStyleView: View {
             CustomTitleView(plan: plan)
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], alignment: .leading, spacing: 10) {
                 ForEach(plan.items) { item in
-                    VStack(alignment: .leading, spacing: 2) {
-                        HStack(spacing: 4) {
-                            Image(systemName: item.symbol)
-                                .font(.caption2)
-                                .foregroundStyle(plan.accent)
-                                .widgetAccentable()
-                            Text(verbatim: item.label)
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
+                    CustomItemLink(plan: plan, item: item) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            HStack(spacing: 4) {
+                                Image(systemName: item.symbol)
+                                    .font(.caption2)
+                                    .foregroundStyle(plan.accent)
+                                    .widgetAccentable()
+                                Text(verbatim: item.label)
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
+                            CustomFigureView(item: item, energy: plan.energy, size: 22)
                         }
-                        CustomFigureView(item: item, energy: plan.energy, size: 22)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .accessibilityElement(children: .combine)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .accessibilityElement(children: .combine)
                 }
             }
             Spacer(minLength: 0)

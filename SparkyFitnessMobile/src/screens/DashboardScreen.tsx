@@ -481,6 +481,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
     date: summary?.date,
     enabled: isConnected,
     weightUnit: preferences?.default_weight_unit,
+    waterUnit: waterDisplayUnit,
   });
   useWidgetSync(
     summary,

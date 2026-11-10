@@ -75,6 +75,24 @@ describe('WidgetsScreen', () => {
     });
   });
 
+  it('duplicates a widget and opens the copy to edit', () => {
+    useWidgetLayoutStore.getState().addLayout({
+      name: 'Macros',
+      family: 'small',
+      style: 'ring',
+      metrics: [{ metric: 'protein' }],
+    });
+    renderScreen();
+
+    fireEvent.press(screen.getByRole('button', { name: 'Duplicate Macros' }));
+
+    const { layouts } = useWidgetLayoutStore.getState();
+    expect(layouts.map((l) => l.name)).toEqual(['Macros', 'Macros copy']);
+    expect(navigation.navigate).toHaveBeenCalledWith('WidgetEditor', {
+      layoutId: layouts[1].id,
+    });
+  });
+
   it('deletes only after confirming', () => {
     const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
     useWidgetLayoutStore.getState().addLayout({

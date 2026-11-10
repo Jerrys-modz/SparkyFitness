@@ -81,6 +81,7 @@
 "widget.custom.unit.lb" = "lb";
 "widget.custom.weight_st_lb" = "%@st %@lb";
 "widget.custom.unit.ml" = "ml";
+"widget.custom.unit.oz" = "oz";
 "widget.custom.unit.l" = "L";
 "widget.custom.unit.bpm" = "bpm";
 "widget.custom.unit.min" = "min";

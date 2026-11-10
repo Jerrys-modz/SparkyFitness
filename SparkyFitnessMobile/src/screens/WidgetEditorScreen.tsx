@@ -7,6 +7,8 @@ import Toast from 'react-native-toast-message';
 import { useCSSVariable } from 'uniwind';
 import {
   WIDGET_ACCENTS,
+  WIDGET_LABEL_MAX_LENGTH,
+  WIDGET_NAME_MAX_LENGTH,
   WIDGET_FAMILIES,
   WIDGET_FAMILY_MAX_METRICS,
   WIDGET_FAMILY_STYLES,
@@ -16,29 +18,33 @@ import {
 import FormInput from '../components/FormInput';
 import { FooterSaveBar } from '../components/FormScreenChrome';
 import WidgetPreview from '../components/widgets/WidgetPreview';
-import { WIDGET_ACCENT_COLORS } from '../constants/widgetBuilder';
+import {
+  WIDGET_ACCENT_COLORS,
+  WIDGET_TEMPLATES,
+} from '../constants/widgetBuilder';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import { useWidgetLayoutStore } from '../stores/widgetLayoutStore';
 import type { RootStackScreenProps } from '../types/navigation';
 import {
+  applyWidgetTemplate,
   draftFromLayout,
   draftIsValid,
   draftToInput,
   emptyWidgetDraft,
   reconcileWidgetDraft,
   setDraftFamily,
+  setDraftMetricLabel,
   toggleDraftMetric,
   widgetAccentLabels,
   widgetFamilyLabels,
   widgetMetricLabels,
   widgetStyleLabels,
+  widgetTemplateLabels,
   type WidgetDraft,
 } from '../utils/widgetBuilder';
 
 type WidgetEditorScreenProps = RootStackScreenProps<'WidgetEditor'>;
-
-const NAME_MAX = 40;
 
 const Chip: React.FC<{
   label: string;
@@ -108,6 +114,7 @@ const WidgetEditorScreen: React.FC<WidgetEditorScreenProps> = ({
   const familyLabels = widgetFamilyLabels(t);
   const styleLabels = widgetStyleLabels(t);
   const accentLabels = widgetAccentLabels(t);
+  const templateLabels = widgetTemplateLabels(t);
 
   const maxMetrics = WIDGET_FAMILY_MAX_METRICS[draft.family];
   const isLock = draft.family.startsWith('lock');
@@ -180,12 +187,41 @@ const WidgetEditorScreen: React.FC<WidgetEditorScreenProps> = ({
           })}
         </Text>
 
+        {!isEditing ? (
+          <>
+            <SectionTitle>
+              {t('widgets.editor.template', {
+                defaultValue: 'Start from a template',
+              })}
+            </SectionTitle>
+            <View className="flex-row flex-wrap gap-2">
+              {WIDGET_TEMPLATES.map((template) => (
+                <Chip
+                  key={template.key}
+                  label={templateLabels[template.key]}
+                  selected={false}
+                  accent={accentColor}
+                  onPress={() =>
+                    setDraft((current) =>
+                      applyWidgetTemplate(
+                        current,
+                        template,
+                        templateLabels[template.key]
+                      )
+                    )
+                  }
+                />
+              ))}
+            </View>
+          </>
+        ) : null}
+
         <SectionTitle>
           {t('widgets.editor.name', { defaultValue: 'Name' })}
         </SectionTitle>
         <FormInput
           value={draft.name}
-          maxLength={NAME_MAX}
+          maxLength={WIDGET_NAME_MAX_LENGTH}
           placeholder={t('widgets.editor.namePlaceholder', {
             defaultValue: 'e.g. Morning macros',
           })}
@@ -251,6 +287,35 @@ const WidgetEditorScreen: React.FC<WidgetEditorScreenProps> = ({
               />
             );
           })}
+        </View>
+
+        <SectionTitle>
+          {t('widgets.editor.labels', { defaultValue: 'Number names' })}
+        </SectionTitle>
+        <Text className="text-xs text-text-muted mb-2">
+          {t('widgets.editor.labelsHelp', {
+            defaultValue:
+              'Optional. Rename a number to fit your widget, for example "Protein" to "P".',
+          })}
+        </Text>
+        <View className="gap-2">
+          {draft.metrics.map((m) => (
+            <FormInput
+              key={m.metric}
+              value={m.label ?? ''}
+              maxLength={WIDGET_LABEL_MAX_LENGTH}
+              placeholder={metricLabels[m.metric]}
+              accessibilityLabel={t('widgets.editor.labelFor', {
+                defaultValue: 'Name for {{metric}}',
+                metric: metricLabels[m.metric],
+              })}
+              onChangeText={(label) =>
+                setDraft((current) =>
+                  setDraftMetricLabel(current, m.metric, label)
+                )
+              }
+            />
+          ))}
         </View>
 
         <SectionTitle>

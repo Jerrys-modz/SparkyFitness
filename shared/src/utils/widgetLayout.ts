@@ -18,6 +18,10 @@ export const WIDGET_LAYOUT_VERSION = 1;
 /** Most layouts a person can save. Keeps the app-group payload small. */
 export const MAX_WIDGET_LAYOUTS = 20;
 
+/** Longest widget name and number label, in characters. */
+export const WIDGET_NAME_MAX_LENGTH = 40;
+export const WIDGET_LABEL_MAX_LENGTH = 24;
+
 /** Every number a custom widget can show. Values are produced by the app. */
 export const WIDGET_METRICS = [
   'calories_remaining',
@@ -92,17 +96,43 @@ export const WIDGET_FAMILY_STYLES: Record<
   lockInline: ['value'],
 };
 
+/**
+ * Where tapping a number opens the app: a path under the app's link scheme
+ * (`sparkyfitnessmobile://<path>`), each one a screen that needs no params.
+ * The app sends these in the snapshot, so the widget never repeats the table;
+ * every path must be registered in the mobile app's linking config (a test
+ * checks it).
+ */
+export const WIDGET_METRIC_LINK_PATHS: Record<WidgetMetric, string> = {
+  calories_remaining: 'diary',
+  calories_eaten: 'diary',
+  calories_burned: 'diary',
+  calorie_goal: 'diary',
+  protein: 'reports/nutrition',
+  carbs: 'reports/nutrition',
+  fat: 'reports/nutrition',
+  water: 'reports/hydration',
+  weight: 'reports/measurements',
+  steps: 'reports/measurements',
+  sleep_duration: 'reports/sleep',
+  resting_heart_rate: 'reports/heart-rate',
+  heart_rate: 'reports/heart-rate',
+  exercise_minutes: 'exercise-statistics',
+  fasting_elapsed: 'fasting',
+  logging_streak: 'reports/nutrition',
+};
+
 export const widgetLayoutMetricSchema = z.object({
   metric: z.enum(WIDGET_METRICS),
   /** Overrides the metric's built-in label. User text, shown as typed. */
-  label: z.string().trim().max(24).optional(),
+  label: z.string().trim().max(WIDGET_LABEL_MAX_LENGTH).optional(),
 });
 export type WidgetLayoutMetric = z.infer<typeof widgetLayoutMetricSchema>;
 
 export const widgetLayoutSchema = z.object({
   version: z.literal(WIDGET_LAYOUT_VERSION).default(WIDGET_LAYOUT_VERSION),
   id: z.string().min(1).max(64),
-  name: z.string().trim().min(1).max(40),
+  name: z.string().trim().min(1).max(WIDGET_NAME_MAX_LENGTH),
   family: z.enum(WIDGET_FAMILIES),
   style: z.enum(WIDGET_STYLES),
   metrics: z.array(widgetLayoutMetricSchema).min(1).max(8),
@@ -148,6 +178,11 @@ export const widgetDataSnapshotSchema = z.object({
    * itself between refreshes.
    */
   metrics: z.record(z.string(), widgetMetricValueSchema),
+  /**
+   * `WIDGET_METRIC_LINK_PATHS`, keyed by metric. Absent from a snapshot
+   * written by an older app, in which case a tap opens the app.
+   */
+  links: z.record(z.string(), z.string()).optional(),
 });
 export type WidgetDataSnapshot = z.infer<typeof widgetDataSnapshotSchema>;
 

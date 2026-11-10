@@ -115,6 +115,54 @@ describe('WidgetEditorScreen', () => {
     expect(selected('Calories left')).toBe(true);
   });
 
+  it('saves a renamed number and ignores a blank one', () => {
+    renderEditor();
+    fireEvent.changeText(
+      screen.getByPlaceholderText('e.g. Morning macros'),
+      'Macros'
+    );
+    press('Medium');
+    press('Protein');
+    fireEvent.changeText(screen.getByLabelText('Name for Protein'), '  P  ');
+    fireEvent.changeText(screen.getByLabelText('Name for Calories left'), '  ');
+    press('Save');
+
+    const [layout] = useWidgetLayoutStore.getState().layouts;
+    expect(layout.metrics).toEqual([
+      { metric: 'calories_remaining' },
+      { metric: 'protein', label: 'P' },
+    ]);
+  });
+
+  it('starts a new widget from a template', () => {
+    renderEditor();
+    press('Macros');
+    press('Save');
+
+    const [layout] = useWidgetLayoutStore.getState().layouts;
+    expect(layout).toMatchObject({
+      name: 'Macros',
+      family: 'medium',
+      style: 'bars',
+    });
+    expect(layout.metrics.map((m) => m.metric)).toEqual([
+      'protein',
+      'carbs',
+      'fat',
+    ]);
+  });
+
+  it('does not offer templates when editing an existing widget', () => {
+    const id = useWidgetLayoutStore.getState().addLayout({
+      name: 'Old',
+      family: 'small',
+      style: 'ring',
+      metrics: [{ metric: 'water' }],
+    })!;
+    renderEditor({ layoutId: id });
+    expect(screen.queryByText('Start from a template')).toBeNull();
+  });
+
   it('edits an existing widget in place', () => {
     const id = useWidgetLayoutStore.getState().addLayout({
       name: 'Old',

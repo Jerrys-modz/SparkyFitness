@@ -153,6 +153,7 @@ private func fallbackWidgetString(_ key: String) -> String {
     case "widget.custom.unit.lb": return "lb"
     case "widget.custom.weight_st_lb": return "%@st %@lb"
     case "widget.custom.unit.ml": return "ml"
+    case "widget.custom.unit.oz": return "oz"
     case "widget.custom.unit.l": return "L"
     case "widget.custom.unit.bpm": return "bpm"
     case "widget.custom.unit.min": return "min"

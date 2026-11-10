@@ -11449,11 +11449,27 @@
       "color": "Color",
       "showTitle": "Show name",
       "standBy": "Easy to read in StandBy",
-      "standByHelp": "Larger numbers and no name, for a charging iPhone on its side."
+      "standByHelp": "Larger numbers and no name, for a charging iPhone on its side.",
+      "labels": "Number names",
+      "labelsHelp": "Optional. Rename a number to fit your widget, for example \"Protein\" to \"P\".",
+      "labelFor": "Name for {{metric}}",
+      "template": "Start from a template"
     },
     "preview": {
       "untitled": "New widget",
       "a11y": "Widget preview: {{summary}}"
+    },
+    "copyName": "{{name}} copy",
+    "duplicateNamed": "Duplicate {{name}}",
+    "templates": {
+      "caloriesLeft": "Calories ring",
+      "macros": "Macros",
+      "dailySummary": "Daily summary",
+      "hydration": "Hydration",
+      "fasting": "Fasting clock",
+      "activity": "Activity",
+      "lockCalories": "Lock Screen calories",
+      "lockGlance": "Lock Screen glance"
     }
   }
 }
