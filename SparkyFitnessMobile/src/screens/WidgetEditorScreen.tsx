@@ -66,8 +66,8 @@ const Chip: React.FC<{
     })}
   >
     <Text
-      className="text-sm"
-      style={{ color: selected ? '#ffffff' : undefined }}
+      className="text-sm text-text-primary"
+      style={selected ? { color: '#ffffff' } : undefined}
     >
       {label}
     </Text>
@@ -178,6 +178,9 @@ const WidgetEditorScreen: React.FC<WidgetEditorScreenProps> = ({
           paddingBottom: insets.bottom + 96,
         }}
         keyboardShouldPersistTaps="handled"
+        contentInsetAdjustmentBehavior={
+          usesNativeHeader ? 'automatic' : 'never'
+        }
       >
         <WidgetPreview draft={draft} />
         <Text className="text-xs text-text-muted text-center mt-2">

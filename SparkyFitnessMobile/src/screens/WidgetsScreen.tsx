@@ -158,6 +158,9 @@ const WidgetsScreen: React.FC<WidgetsScreenProps> = ({ navigation }) => {
         data={layouts}
         keyExtractor={(item) => item.id}
         renderItem={renderLayout}
+        contentInsetAdjustmentBehavior={
+          usesNativeHeader ? 'automatic' : 'never'
+        }
         contentContainerStyle={{
           paddingHorizontal: 16,
           paddingTop: 16,
