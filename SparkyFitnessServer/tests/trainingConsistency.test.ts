@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { buildTrainingConsistency } from '@workspace/shared';
+import {
+  buildTrainingConsistency,
+  filterTrainingConsistencyEntries,
+  isStrengthTrainingEntry,
+} from '@workspace/shared';
 import reportService from '../services/reportService.js';
 import reportRepository from '../models/reportRepository.js';
 import preferenceRepository from '../models/preferenceRepository.js';
@@ -140,6 +144,70 @@ describe('buildTrainingConsistency', () => {
   });
 });
 
+function walk(date: string) {
+  // A synced walk: category Other, no sets.
+  return {
+    entry_date: date,
+    exercise_name: 'Walking',
+    exercise_category: 'Other',
+    sets: [],
+  };
+}
+
+describe('isStrengthTrainingEntry', () => {
+  it('counts an entry with working sets on a lifting exercise', () => {
+    expect(isStrengthTrainingEntry(entry(TODAY, ['Chest']))).toBe(true);
+  });
+
+  it('does not count an entry without sets, whatever its category', () => {
+    expect(isStrengthTrainingEntry(walk(TODAY))).toBe(false);
+    expect(
+      isStrengthTrainingEntry({ ...walk(TODAY), exercise_category: 'Strength' })
+    ).toBe(false);
+  });
+
+  it('does not count warm-up sets only', () => {
+    expect(isStrengthTrainingEntry(entry(TODAY, ['Chest'], 0, 2))).toBe(false);
+  });
+
+  it('does not count cardio logged with sets', () => {
+    const cardio = {
+      entry_date: TODAY,
+      exercise_category: 'Cardio',
+      sets: [{ set_type: 'normal', duration: 30 }],
+    };
+    expect(isStrengthTrainingEntry(cardio)).toBe(false);
+    expect(
+      isStrengthTrainingEntry({
+        ...cardio,
+        exercise_category: 'Other',
+        exercise_modality: 'duration_distance',
+      })
+    ).toBe(false);
+  });
+});
+
+describe('filterTrainingConsistencyEntries', () => {
+  const entries = [entry('2026-10-01', ['Chest']), walk('2026-09-27')];
+
+  it('keeps every entry for all', () => {
+    expect(filterTrainingConsistencyEntries(entries, 'all')).toHaveLength(2);
+  });
+
+  it('splits strength and cardio days', () => {
+    expect(
+      filterTrainingConsistencyEntries(entries, 'strength').map(
+        (e) => e.entry_date
+      )
+    ).toEqual(['2026-10-01']);
+    expect(
+      filterTrainingConsistencyEntries(entries, 'cardio').map(
+        (e) => e.entry_date
+      )
+    ).toEqual(['2026-09-27']);
+  });
+});
+
 describe('reportService.getTrainingConsistency', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -186,5 +254,26 @@ describe('reportService.getTrainingConsistency', () => {
     );
     expect(result.firstDayOfWeek).toBe(0);
     expect(result.weeks[result.weeks.length - 1]!.weekStart).toBe('2026-09-27');
+  });
+
+  it('counts only strength days when asked for strength', async () => {
+    vi.mocked(preferenceRepository.getUserPreferences).mockResolvedValue({
+      first_day_of_week: 1,
+    } as never);
+    vi.mocked(reportRepository.getExerciseEntries).mockResolvedValue([
+      entry('2026-10-01', ['Chest']),
+      walk('2026-09-27'),
+    ]);
+
+    const all = await reportService.getTrainingConsistency(USER, USER);
+    expect(all.trainingDays).toEqual(['2026-09-27', '2026-10-01']);
+
+    const strength = await reportService.getTrainingConsistency(
+      USER,
+      USER,
+      'strength'
+    );
+    expect(strength.trainingDays).toEqual(['2026-10-01']);
+    expect(strength.weeklyStreak.current).toBe(1);
   });
 });

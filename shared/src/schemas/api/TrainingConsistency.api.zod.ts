@@ -1,6 +1,19 @@
 import { z } from 'zod';
 
 /**
+ * `?modality=` on GET /api/reports/training-consistency. `strength` counts
+ * only days with a strength workout (working sets on a non-cardio exercise),
+ * `cardio` every other activity, `all` (the default) every logged entry.
+ */
+export const trainingConsistencyModalitySchema = z
+  .enum(['all', 'strength', 'cardio'])
+  .default('all');
+
+export type TrainingConsistencyModality = z.infer<
+  typeof trainingConsistencyModalitySchema
+>;
+
+/**
  * GET /api/reports/training-consistency: how regularly the user trains.
  * Everything is computed from logged exercise entries by
  * `buildTrainingConsistency`; weeks start on the account's first day of the

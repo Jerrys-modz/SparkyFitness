@@ -3,6 +3,7 @@ import type {
   RunningEstimatesResponse,
   FitnessFatigueResponse,
   TrainingConsistency,
+  TrainingConsistencyModality,
   TrainingLoad,
 } from '@workspace/shared';
 import { apiFetch } from './apiClient';
@@ -56,9 +57,17 @@ export const fetchExerciseDashboard = (
     operation: 'fetch exercise dashboard',
   });
 
-export const fetchTrainingConsistency = (): Promise<TrainingConsistency> =>
+/**
+ * `modality` picks which entries count as training days. A server that
+ * predates the parameter ignores it and counts every entry.
+ */
+export const fetchTrainingConsistency = (
+  modality: TrainingConsistencyModality = 'all'
+): Promise<TrainingConsistency> =>
   apiFetch<TrainingConsistency>({
-    endpoint: '/api/reports/training-consistency',
+    endpoint: `/api/reports/training-consistency?modality=${encodeURIComponent(
+      modality
+    )}`,
     serviceName: 'Reports API',
     operation: 'fetch training consistency',
   });

@@ -30,6 +30,7 @@ import {
   epleyOneRepMaxKg,
   resolveExerciseModality,
   buildTrainingConsistency,
+  filterTrainingConsistencyEntries,
   computeTrainingLoad,
   computeFitnessFatigue,
   computeRunningEstimates,
@@ -46,6 +47,7 @@ import {
   weekStartOf,
   TRAINING_CONSISTENCY_WEEKS,
   type TrainingConsistency,
+  type TrainingConsistencyModality,
 } from '@workspace/shared';
 import { ageOnDay } from '../utils/dateHelpers.js';
 import { loadUserTimezone } from '../utils/timezoneLoader.js';
@@ -956,7 +958,8 @@ async function getExerciseDashboardData(
  */
 async function getTrainingConsistency(
   authenticatedUserId: string,
-  targetUserId: string
+  targetUserId: string,
+  modality: TrainingConsistencyModality = 'all'
 ): Promise<TrainingConsistency> {
   try {
     const timezone = await loadUserTimezone(targetUserId);
@@ -973,11 +976,12 @@ async function getTrainingConsistency(
     );
     // Synced calorie summaries are logged as exercise entries but are not
     // workouts, the same exclusion the exercise dashboard makes.
+    const workouts = entries.filter(
+      (entry: { exercise_name?: string }) =>
+        entry.exercise_name !== 'Active Calories'
+    );
     return buildTrainingConsistency(
-      entries.filter(
-        (entry: { exercise_name?: string }) =>
-          entry.exercise_name !== 'Active Calories'
-      ),
+      filterTrainingConsistencyEntries(workouts, modality),
       today,
       TRAINING_CONSISTENCY_WEEKS,
       firstDayOfWeek

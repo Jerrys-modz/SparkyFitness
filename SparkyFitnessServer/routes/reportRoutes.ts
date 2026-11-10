@@ -6,6 +6,7 @@ import express, {
 import { authenticate } from '../middleware/authMiddleware.js';
 import reportService from '../services/reportService.js';
 import { canAccessUserData } from '../utils/permissionUtils.js';
+import { trainingConsistencyModalitySchema } from '@workspace/shared';
 const router = express.Router();
 /**
  * @swagger
@@ -304,15 +305,29 @@ router.get('/exercise-dashboard', authenticate, async (req, res, next) => {
  *       - in: query
  *         name: userId
  *         schema: { type: 'string', format: 'uuid' }
+ *       - in: query
+ *         name: modality
+ *         description: Which entries count as training days. `strength` keeps workouts with working sets on a non-cardio exercise, `cardio` every other activity.
+ *         schema: { type: 'string', enum: [all, strength, cardio], default: all }
  *     responses:
  *       200:
  *         description: Training consistency over the last 26 weeks.
+ *       400:
+ *         description: Unknown modality.
  */
 router.get('/training-consistency', authenticate, async (req, res, next) => {
   const { userId } = req.query;
   const targetUserId = userId || req.userId;
   if (!targetUserId) {
     return res.status(400).json({ error: 'Target User ID is required.' });
+  }
+  const modality = trainingConsistencyModalitySchema.safeParse(
+    req.query.modality
+  );
+  if (!modality.success) {
+    return res
+      .status(400)
+      .json({ error: 'modality must be all, strength or cardio.' });
   }
   if (userId && userId !== req.userId) {
     const hasPermission = await canAccessUserData(
@@ -330,7 +345,8 @@ router.get('/training-consistency', authenticate, async (req, res, next) => {
   try {
     const data = await reportService.getTrainingConsistency(
       req.userId,
-      String(targetUserId)
+      String(targetUserId),
+      modality.data
     );
     res.status(200).json(data);
   } catch (error) {
