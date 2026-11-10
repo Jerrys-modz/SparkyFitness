@@ -62,7 +62,9 @@ router.post('/daily-summary', async (req, res, next) => {
     );
   } catch (error) {
     if (error instanceof DailySummaryProviderError) {
-      return res.status(502).json({ error: error.message });
+      return res
+        .status(502)
+        .json({ error: 'The AI service could not write a summary.' });
     }
     next(error);
   }
