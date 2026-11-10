@@ -2,7 +2,9 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, FlatList, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useCSSVariable } from 'uniwind';
 import type { WidgetLayout } from '@workspace/shared';
+import Toast from 'react-native-toast-message';
 
 import Icon from '../components/Icon';
 import StatusView from '../components/StatusView';
@@ -11,6 +13,7 @@ import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import { useWidgetLayoutStore } from '../stores/widgetLayoutStore';
 import type { RootStackScreenProps } from '../types/navigation';
 import {
+  capWidgetName,
   widgetFamilyLabels,
   widgetMetricLabels,
   widgetStyleLabels,
@@ -26,8 +29,12 @@ const WidgetsScreen: React.FC<WidgetsScreenProps> = ({ navigation }) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const usesNativeHeader = useNativeIOSHeadersActive();
+  const [iconColor] = useCSSVariable(['--color-text-secondary']) as [string];
   const layouts = useWidgetLayoutStore((state) => state.layouts);
   const deleteLayout = useWidgetLayoutStore((state) => state.deleteLayout);
+  const duplicateLayout = useWidgetLayoutStore(
+    (state) => state.duplicateLayout
+  );
 
   const familyLabels = widgetFamilyLabels(t);
   const styleLabels = widgetStyleLabels(t);
@@ -67,6 +74,29 @@ const WidgetsScreen: React.FC<WidgetsScreenProps> = ({ navigation }) => {
     );
   };
 
+  const duplicate = (layout: WidgetLayout) => {
+    const name = capWidgetName(
+      t('widgets.copyName', {
+        defaultValue: '{{name}} copy',
+        name: layout.name,
+      })
+    );
+    const id = duplicateLayout(layout.id, name);
+    if (id === null) {
+      Toast.show({
+        type: 'error',
+        text1: t('widgets.editor.limitReached', {
+          defaultValue: 'You have reached the widget limit',
+        }),
+        text2: t('widgets.editor.limitReachedHelp', {
+          defaultValue: 'Delete one you no longer use to make room.',
+        }),
+      });
+      return;
+    }
+    navigation.navigate('WidgetEditor', { layoutId: id });
+  };
+
   const renderLayout = ({ item }: { item: WidgetLayout }) => (
     <View className="bg-surface rounded-xl mb-3 shadow-sm flex-row items-center">
       <Pressable
@@ -92,6 +122,17 @@ const WidgetsScreen: React.FC<WidgetsScreenProps> = ({ navigation }) => {
             .map((m) => m.label?.trim() || metricLabels[m.metric])
             .join(', ')}
         </Text>
+      </Pressable>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={t('widgets.duplicateNamed', {
+          defaultValue: 'Duplicate {{name}}',
+          name: item.name,
+        })}
+        className="py-4 pl-2"
+        onPress={() => duplicate(item)}
+      >
+        <Icon name="copy" size={20} color={iconColor} />
       </Pressable>
       <Pressable
         accessibilityRole="button"

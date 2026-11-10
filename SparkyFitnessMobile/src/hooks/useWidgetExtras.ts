@@ -21,6 +21,8 @@ interface UseWidgetExtrasOptions {
   enabled: boolean;
   /** The account's weight unit, so the widget shows weight the way the app does. */
   weightUnit?: WeightDisplayMode;
+  /** The account's water unit, so the widget shows water the way the app does. */
+  waterUnit?: string;
 }
 
 const positive = (n: number | null | undefined): number | undefined =>
@@ -41,6 +43,7 @@ export function useWidgetExtras({
   date,
   enabled,
   weightUnit,
+  waterUnit,
 }: UseWidgetExtrasOptions): WidgetMetricExtras {
   const layouts = useWidgetLayoutStore((state) => state.layouts);
   const used = useMemo(
@@ -100,6 +103,7 @@ export function useWidgetExtras({
       steps,
       weightKg,
       weightUnit,
+      waterUnit,
       fastStartedAt,
       sleepMinutes,
       restingHeartRate,
@@ -110,6 +114,7 @@ export function useWidgetExtras({
       steps,
       weightKg,
       weightUnit,
+      waterUnit,
       fastStartedAt,
       sleepMinutes,
       restingHeartRate,

@@ -2,6 +2,7 @@ import type {
   WidgetAccent,
   WidgetFamily,
   WidgetMetric,
+  WidgetStyle,
 } from '@workspace/shared';
 
 /** The named accents as colors, for the editor's swatches and the preview. */
@@ -49,7 +50,7 @@ export const WIDGET_PREVIEW_SAMPLES: Record<WidgetMetric, WidgetPreviewSample> =
     protein: { number: '92', unit: 'g', progress: 0.57 },
     carbs: { number: '140', unit: 'g', progress: 0.5 },
     fat: { number: '48', unit: 'g', progress: 0.62 },
-    water: { number: '1.4', unit: 'L', progress: 0.7 },
+    water: { number: '1,400', unit: 'ml', progress: 0.7 },
     weight: { number: '78.4', unit: 'kg' },
     steps: { number: '6,420', progress: 0.64 },
     sleep_duration: { number: '7h 20m' },
@@ -59,3 +60,94 @@ export const WIDGET_PREVIEW_SAMPLES: Record<WidgetMetric, WidgetPreviewSample> =
     fasting_elapsed: { number: '12:40' },
     logging_streak: { number: '9' },
   };
+
+export type WidgetTemplateKey =
+  | 'caloriesLeft'
+  | 'macros'
+  | 'dailySummary'
+  | 'hydration'
+  | 'fasting'
+  | 'activity'
+  | 'lockCalories'
+  | 'lockGlance';
+
+export interface WidgetTemplate {
+  key: WidgetTemplateKey;
+  family: WidgetFamily;
+  style: WidgetStyle;
+  metrics: readonly WidgetMetric[];
+  accent: WidgetAccent;
+}
+
+/**
+ * Starting points for a new widget. Each must already be valid for its family
+ * (style allowed, metric count within the limit); a test runs every one
+ * through `normalizeWidgetLayout`.
+ */
+export const WIDGET_TEMPLATES: readonly WidgetTemplate[] = [
+  {
+    key: 'caloriesLeft',
+    family: 'small',
+    style: 'ring',
+    metrics: ['calories_remaining'],
+    accent: 'orange',
+  },
+  {
+    key: 'macros',
+    family: 'medium',
+    style: 'bars',
+    metrics: ['protein', 'carbs', 'fat'],
+    accent: 'blue',
+  },
+  {
+    key: 'dailySummary',
+    family: 'large',
+    style: 'list',
+    metrics: [
+      'calories_remaining',
+      'protein',
+      'carbs',
+      'fat',
+      'water',
+      'steps',
+      'sleep_duration',
+      'weight',
+    ],
+    accent: 'green',
+  },
+  {
+    key: 'hydration',
+    family: 'small',
+    style: 'ring',
+    metrics: ['water'],
+    accent: 'teal',
+  },
+  {
+    key: 'fasting',
+    family: 'small',
+    style: 'value',
+    metrics: ['fasting_elapsed'],
+    accent: 'purple',
+  },
+  {
+    key: 'activity',
+    family: 'medium',
+    style: 'grid',
+    metrics: ['steps', 'exercise_minutes', 'calories_burned', 'sleep_duration'],
+    accent: 'red',
+  },
+  {
+    key: 'lockCalories',
+    family: 'lockCircular',
+    style: 'ring',
+    metrics: ['calories_remaining'],
+    accent: 'orange',
+  },
+  {
+    key: 'lockGlance',
+    family: 'lockRectangular',
+    style: 'bars',
+    metrics: ['calories_remaining', 'protein', 'water'],
+    accent: 'blue',
+  },
+];

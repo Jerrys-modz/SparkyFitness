@@ -1,6 +1,11 @@
 import type { TFunction } from 'i18next';
+import type {
+  WidgetTemplate,
+  WidgetTemplateKey,
+} from '../constants/widgetBuilder';
 import {
   WIDGET_FAMILY_MAX_METRICS,
+  WIDGET_NAME_MAX_LENGTH,
   normalizeWidgetLayout,
   type WidgetAccent,
   type WidgetFamily,
@@ -90,10 +95,41 @@ export function toggleDraftMetric(
   return { ...draft, metrics: [...draft.metrics, { metric }] };
 }
 
+/**
+ * Sets (or clears) the custom label of a number. The text is kept as typed
+ * while editing, so a space between two words survives; it is trimmed when
+ * saved (`draftToInput`).
+ */
+export function setDraftMetricLabel(
+  draft: WidgetDraft,
+  metric: WidgetMetric,
+  label: string
+): WidgetDraft {
+  return {
+    ...draft,
+    metrics: draft.metrics.map((m) =>
+      m.metric === metric ? { ...m, label } : m
+    ),
+  };
+}
+
+/** The draft as a saveable layout: trimmed name, and only labels that say something. */
 export function draftToInput(
   draft: WidgetDraft
 ): Omit<WidgetLayoutInput, 'id'> {
-  return { ...draft, name: draft.name.trim() };
+  return {
+    ...draft,
+    name: draft.name.trim(),
+    metrics: draft.metrics.map(({ metric, label }) => {
+      const trimmed = label?.trim();
+      return trimmed ? { metric, label: trimmed } : { metric };
+    }),
+  };
+}
+
+/** A name for a copy of a widget, cut to the longest name allowed. */
+export function capWidgetName(name: string): string {
+  return Array.from(name.trim()).slice(0, WIDGET_NAME_MAX_LENGTH).join('');
 }
 
 export function draftIsValid(draft: WidgetDraft): boolean {
@@ -180,5 +216,50 @@ export function widgetAccentLabels(t: TFunction): Record<WidgetAccent, string> {
     teal: t('widgets.accents.teal', { defaultValue: 'Teal' }),
     pink: t('widgets.accents.pink', { defaultValue: 'Pink' }),
     gray: t('widgets.accents.gray', { defaultValue: 'Gray' }),
+  };
+}
+
+/**
+ * The draft with a template's size, style, numbers and color applied. The
+ * person's own name and title/StandBy choices are kept; a blank name takes
+ * the template's.
+ */
+export function applyWidgetTemplate(
+  draft: WidgetDraft,
+  template: WidgetTemplate,
+  templateName: string
+): WidgetDraft {
+  return reconcileWidgetDraft({
+    ...draft,
+    name: draft.name.trim() ? draft.name : templateName,
+    family: template.family,
+    style: template.style,
+    metrics: template.metrics.map((metric) => ({ metric })),
+    accent: template.accent,
+  });
+}
+
+export function widgetTemplateLabels(
+  t: TFunction
+): Record<WidgetTemplateKey, string> {
+  return {
+    caloriesLeft: t('widgets.templates.caloriesLeft', {
+      defaultValue: 'Calories ring',
+    }),
+    macros: t('widgets.templates.macros', { defaultValue: 'Macros' }),
+    dailySummary: t('widgets.templates.dailySummary', {
+      defaultValue: 'Daily summary',
+    }),
+    hydration: t('widgets.templates.hydration', {
+      defaultValue: 'Hydration',
+    }),
+    fasting: t('widgets.templates.fasting', { defaultValue: 'Fasting clock' }),
+    activity: t('widgets.templates.activity', { defaultValue: 'Activity' }),
+    lockCalories: t('widgets.templates.lockCalories', {
+      defaultValue: 'Lock Screen calories',
+    }),
+    lockGlance: t('widgets.templates.lockGlance', {
+      defaultValue: 'Lock Screen glance',
+    }),
   };
 }

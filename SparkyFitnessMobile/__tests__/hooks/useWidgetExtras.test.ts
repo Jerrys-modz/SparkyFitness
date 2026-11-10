@@ -85,6 +85,11 @@ describe('useWidgetExtras', () => {
       expect(result.current.weightUnit).toBe('st_lbs');
     });
 
+    it('carry the account water unit through for the widget', () => {
+      const { result } = run({ waterUnit: 'oz' });
+      expect(result.current.waterUnit).toBe('oz');
+    });
+
     it('ignore a check-in from another day', () => {
       const { result } = run({
         measurements: checkIn({ entry_date: '2026-11-08' }),

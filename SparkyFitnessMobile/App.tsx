@@ -497,6 +497,14 @@ function AppContent() {
         RecordActivity: 'record-activity',
         // The brushing timer's Live Activity opens the oral care screen.
         OralCare: 'oral-care',
+        // Taps on a custom widget's numbers (WIDGET_METRIC_LINK_PATHS in
+        // shared/src/utils/widgetLayout.ts); a test keeps the two in step.
+        NutritionReport: 'reports/nutrition',
+        HydrationReport: 'reports/hydration',
+        MeasurementsReport: 'reports/measurements',
+        SleepAnalytics: 'reports/sleep',
+        HeartRateReport: 'reports/heart-rate',
+        ExerciseStatistics: 'exercise-statistics',
         // Route generation; without a routing provider the screen explains that.
         RouteGenerate: 'routes/generate',
         // An NFC tag tap: https://tag.sparkyfitness.com/t/<code> (#941).

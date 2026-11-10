@@ -1,3 +1,4 @@
+import { WIDGET_METRICS, WIDGET_METRIC_LINK_PATHS } from '@workspace/shared';
 import { buildWidgetDataSnapshot } from '../../src/services/widgetMetricSnapshot';
 import type { DailySummary } from '../../src/types/dailySummary';
 
@@ -89,6 +90,49 @@ describe('buildWidgetDataSnapshot', () => {
     expect(metrics.fasting_elapsed).toEqual({
       value: 1_800_000_000,
       unit: 'since',
+    });
+  });
+
+  it('sends where each number opens, for every metric', () => {
+    const { links } = buildWidgetDataSnapshot(summary, {}, 'kcal', 0);
+    expect(links).toEqual(WIDGET_METRIC_LINK_PATHS);
+    expect(Object.keys(links ?? {})).toHaveLength(WIDGET_METRICS.length);
+  });
+
+  describe('water unit', () => {
+    const build = (waterUnit?: string) =>
+      buildWidgetDataSnapshot(summary, { waterUnit }, 'kcal', 0).metrics.water;
+
+    it('is millilitres by default and for ml', () => {
+      expect(build()).toEqual({
+        value: 1500,
+        goal: 2000,
+        progress: 0.75,
+        unit: 'ml',
+      });
+      expect(build('ml')?.unit).toBe('ml');
+    });
+
+    it('is fluid ounces for oz, with the goal converted too', () => {
+      const water = build('oz');
+      expect(water?.unit).toBe('oz');
+      expect(water?.value).toBeCloseTo(50.72, 1);
+      expect(water?.goal).toBeCloseTo(67.63, 1);
+      // Progress is a ratio, so converting does not move it.
+      expect(water?.progress).toBe(0.75);
+    });
+
+    it('is litres for liter', () => {
+      expect(build('liter')).toEqual({
+        value: 1.5,
+        goal: 2,
+        progress: 0.75,
+        unit: 'liter',
+      });
+    });
+
+    it('falls back to ml for a unit it does not know', () => {
+      expect(build('gallon')).toMatchObject({ value: 1500, unit: 'ml' });
     });
   });
 
