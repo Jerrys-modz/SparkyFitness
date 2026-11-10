@@ -11448,7 +11448,7 @@
       "previewNote": "A preview with sample numbers. Your real widget uses your data.",
       "name": "Name",
       "namePlaceholder": "e.g. Morning macros",
-      "size": "Size",
+      "size": "Designed for",
       "style": "Style",
       "numbers": "Numbers",
       "numbersHelp": "Pick up to {{max}} for this size. {{selected}} chosen.",
@@ -11459,7 +11459,8 @@
       "labels": "Number names",
       "labelsHelp": "Optional. Rename a number to fit your widget, for example \"Protein\" to \"P\".",
       "labelFor": "Name for {{metric}}",
-      "template": "Start from a template"
+      "template": "Start from a template",
+      "sizeHelp": "You pick the size when you add the widget, and it adapts. This sets the preview, the styles offered and how many numbers fit."
     },
     "preview": {
       "untitled": "New widget",

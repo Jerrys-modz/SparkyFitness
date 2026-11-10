@@ -10,6 +10,10 @@ import {
   type WidgetPreviewSample,
 } from '../../constants/widgetBuilder';
 import {
+  PREVIEW_TITLE_HEIGHT,
+  previewLayout,
+} from '../../utils/widgetPreviewLayout';
+import {
   widgetMetricLabels,
   type WidgetDraft,
 } from '../../utils/widgetBuilder';
@@ -63,15 +67,24 @@ function Ring({
   );
 }
 
-function Bar({ progress, color }: { progress: number; color: string }) {
+function Bar({
+  progress,
+  color,
+  height = 6,
+}: {
+  progress: number;
+  color: string;
+  height?: number;
+}) {
   return (
     <View
-      className="h-1.5 rounded-full overflow-hidden"
-      style={{ backgroundColor: `${color}33` }}
+      className="rounded-full overflow-hidden"
+      style={{ height, backgroundColor: `${color}33` }}
     >
       <View
-        className="h-1.5 rounded-full"
+        className="rounded-full"
         style={{
+          height,
           backgroundColor: color,
           width: `${Math.round(Math.max(0, Math.min(1, progress)) * 100)}%`,
         }}
@@ -91,6 +104,8 @@ const WidgetPreview: React.FC<{ draft: WidgetDraft }> = ({ draft }) => {
   const color = WIDGET_ACCENT_COLORS[draft.accent];
   const { width, height } = WIDGET_PREVIEW_SIZES[draft.family];
   const isLock = draft.family.startsWith('lock');
+  const layout = previewLayout(draft);
+  const radius = draft.family === 'lockCircular' ? 999 : isLock ? 16 : 24;
 
   const items: PreviewItem[] = draft.metrics.map((m) => ({
     key: m.metric,
@@ -98,11 +113,10 @@ const WidgetPreview: React.FC<{ draft: WidgetDraft }> = ({ draft }) => {
     sample: WIDGET_PREVIEW_SAMPLES[m.metric],
   }));
   const first = items[0];
-  const title =
-    draft.showTitle && !draft.standByFriendly && !isLock
-      ? draft.name.trim() ||
-        t('widgets.preview.untitled', { defaultValue: 'New widget' })
-      : null;
+  const title = layout.hasTitle
+    ? draft.name.trim() ||
+      t('widgets.preview.untitled', { defaultValue: 'New widget' })
+    : null;
 
   const summary = items.map((i) => `${i.label} ${figure(i.sample)}`).join(', ');
 
@@ -118,11 +132,10 @@ const WidgetPreview: React.FC<{ draft: WidgetDraft }> = ({ draft }) => {
     }
 
     if (draft.family === 'lockCircular') {
-      const size = 56;
       return (
         <View className="items-center justify-center">
           {draft.style === 'ring' && first.sample.progress !== undefined ? (
-            <Ring progress={first.sample.progress} size={size} color={color} />
+            <Ring progress={first.sample.progress} size={56} color={color} />
           ) : null}
           <Text
             className="absolute text-sm font-bold text-text-primary"
@@ -135,13 +148,12 @@ const WidgetPreview: React.FC<{ draft: WidgetDraft }> = ({ draft }) => {
     }
 
     if (draft.style === 'ring') {
-      const size = draft.family === 'small' ? 84 : 96;
       return (
-        <View className="items-center flex-1 justify-center">
+        <View className="items-center">
           <View className="items-center justify-center">
             <Ring
               progress={first.sample.progress ?? 0}
-              size={size}
+              size={layout.ringSize}
               color={color}
             />
             <View className="absolute items-center">
@@ -155,11 +167,19 @@ const WidgetPreview: React.FC<{ draft: WidgetDraft }> = ({ draft }) => {
               ) : null}
             </View>
           </View>
-          <Text className="text-[11px] text-text-secondary mt-1">
+          <Text
+            className="text-[11px] text-text-secondary"
+            style={{ height: 16 }}
+            numberOfLines={1}
+          >
             {first.label}
           </Text>
           {items[1] ? (
-            <Text className="text-xs text-text-primary mt-0.5">
+            <Text
+              className="text-xs text-text-primary"
+              style={{ height: 18 }}
+              numberOfLines={1}
+            >
               {`${items[1].label} ${figure(items[1].sample)}`}
             </Text>
           ) : null}
@@ -169,16 +189,27 @@ const WidgetPreview: React.FC<{ draft: WidgetDraft }> = ({ draft }) => {
 
     if (draft.style === 'value') {
       return (
-        <View className="items-center flex-1 justify-center">
+        <View className="items-center">
           <Text
             className="font-bold text-text-primary"
             style={{ fontSize: draft.standByFriendly ? 44 : 30 }}
+            numberOfLines={1}
           >
             {figure(first.sample)}
           </Text>
-          <Text className="text-xs text-text-secondary">{first.label}</Text>
+          <Text
+            className="text-xs text-text-secondary"
+            style={{ height: 16 }}
+            numberOfLines={1}
+          >
+            {first.label}
+          </Text>
           {items[1] && !draft.standByFriendly ? (
-            <Text className="text-sm text-text-primary mt-1">
+            <Text
+              className="text-sm text-text-primary"
+              style={{ height: 22 }}
+              numberOfLines={1}
+            >
               {figure(items[1].sample)}
             </Text>
           ) : null}
@@ -188,16 +219,23 @@ const WidgetPreview: React.FC<{ draft: WidgetDraft }> = ({ draft }) => {
 
     if (draft.style === 'grid') {
       return (
-        <View className="flex-row flex-wrap">
+        <View className="flex-row flex-wrap" style={{ rowGap: layout.tileGap }}>
           {items.map((item) => (
-            <View key={item.key} className="w-1/2 mb-2">
+            <View
+              key={item.key}
+              className="w-1/2"
+              style={{ height: layout.tileHeight }}
+            >
               <Text
                 className="text-[11px] text-text-secondary"
                 numberOfLines={1}
               >
                 {item.label}
               </Text>
-              <Text className="text-lg font-bold text-text-primary">
+              <Text
+                className="text-base font-bold text-text-primary"
+                numberOfLines={1}
+              >
                 {figure(item.sample)}
               </Text>
             </View>
@@ -206,22 +244,44 @@ const WidgetPreview: React.FC<{ draft: WidgetDraft }> = ({ draft }) => {
       );
     }
 
-    // bars and list
+    // bars and list: fixed-height rows so the budget in widgetPreviewLayout holds
+    const compact = draft.family === 'lockRectangular';
     return (
-      <View className="gap-2">
+      <View style={{ rowGap: layout.row.gap }}>
         {items.map((item) => (
-          <View key={item.key}>
+          <View
+            key={item.key}
+            style={{ height: layout.row.height, justifyContent: 'center' }}
+          >
             <View className="flex-row justify-between items-baseline">
-              <Text className="text-xs text-text-secondary" numberOfLines={1}>
+              <Text
+                className={
+                  compact
+                    ? 'text-[11px] text-text-secondary'
+                    : 'text-xs text-text-secondary'
+                }
+                numberOfLines={1}
+              >
                 {item.label}
               </Text>
-              <Text className="text-sm font-semibold text-text-primary">
+              <Text
+                className={
+                  compact
+                    ? 'text-[11px] font-semibold text-text-primary'
+                    : 'text-sm font-semibold text-text-primary'
+                }
+                numberOfLines={1}
+              >
                 {figure(item.sample)}
               </Text>
             </View>
             {draft.style === 'bars' && item.sample.progress !== undefined ? (
-              <View className="mt-1">
-                <Bar progress={item.sample.progress} color={color} />
+              <View style={{ marginTop: compact ? 0 : 2 }}>
+                <Bar
+                  progress={item.sample.progress}
+                  color={color}
+                  height={compact ? 3 : 6}
+                />
               </View>
             ) : null}
           </View>
@@ -230,6 +290,8 @@ const WidgetPreview: React.FC<{ draft: WidgetDraft }> = ({ draft }) => {
     );
   };
 
+  // The shadow sits on the outer view; the inner one clips, so nothing the
+  // body draws can spill past the widget's edge.
   return (
     <View
       accessible
@@ -237,25 +299,40 @@ const WidgetPreview: React.FC<{ draft: WidgetDraft }> = ({ draft }) => {
         defaultValue: 'Widget preview: {{summary}}',
         summary,
       })}
-      className="self-center bg-surface shadow-sm p-3"
-      style={{
-        width,
-        height,
-        borderRadius: draft.family === 'lockCircular' ? 999 : isLock ? 16 : 24,
-        justifyContent: isLock ? 'center' : undefined,
-        alignItems: draft.family === 'lockCircular' ? 'center' : undefined,
-      }}
+      className="self-center bg-surface shadow-sm"
+      style={{ width, height, borderRadius: radius }}
     >
-      {title ? (
-        <Text
-          className="text-xs font-semibold mb-1"
-          style={{ color }}
-          numberOfLines={1}
+      <View
+        style={{
+          flex: 1,
+          borderRadius: radius,
+          overflow: 'hidden',
+          padding: layout.padding,
+          justifyContent: isLock ? 'center' : undefined,
+          alignItems: draft.family === 'lockCircular' ? 'center' : undefined,
+        }}
+      >
+        {title ? (
+          <Text
+            className="text-xs font-semibold"
+            style={{ color, height: PREVIEW_TITLE_HEIGHT }}
+            numberOfLines={1}
+          >
+            {title}
+          </Text>
+        ) : null}
+        <View
+          style={{
+            flex: 1,
+            justifyContent:
+              isLock || draft.style === 'ring' || draft.style === 'value'
+                ? 'center'
+                : 'flex-start',
+          }}
         >
-          {title}
-        </Text>
-      ) : null}
-      {body()}
+          {body()}
+        </View>
+      </View>
     </View>
   );
 };

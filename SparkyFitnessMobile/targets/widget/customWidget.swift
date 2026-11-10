@@ -474,11 +474,27 @@ struct CustomWidgetProvider: AppIntentTimelineProvider {
     }
 
     func snapshot(for configuration: SelectCustomWidgetIntent, in context: Context) async -> CustomWidgetEntry {
-        makeEntry(for: configuration)
+        // The gallery asks for a snapshot when it opens: keep its list of
+        // saved widgets current for the next time.
+        WidgetCenter.shared.invalidateConfigurationRecommendations()
+        return makeEntry(for: configuration)
     }
 
     func timeline(for configuration: SelectCustomWidgetIntent, in context: Context) async -> Timeline<CustomWidgetEntry> {
-        Timeline(entries: [makeEntry(for: configuration)], policy: .after(Date().addingTimeInterval(30 * 60)))
+        // Layouts changed in the app reload this widget; refresh the gallery's list too.
+        WidgetCenter.shared.invalidateConfigurationRecommendations()
+        return Timeline(entries: [makeEntry(for: configuration)], policy: .after(Date().addingTimeInterval(30 * 60)))
+    }
+
+    /// One gallery card per saved layout, so every widget the person built can
+    /// be added directly. Without this the gallery shows a single "Custom
+    /// widget" that previews only the first layout.
+    func recommendations() -> [AppIntentRecommendation<SelectCustomWidgetIntent>] {
+        loadCustomWidgetLayouts().map { layout in
+            let intent = SelectCustomWidgetIntent()
+            intent.layout = CustomWidgetLayoutEntity(layout: layout)
+            return AppIntentRecommendation(intent: intent, description: LocalizedStringResource(stringLiteral: layout.name))
+        }
     }
 
     /// The picked layout, else the first saved one, so a widget placed before
@@ -688,18 +704,21 @@ struct CustomBarsStyleView: View {
     let plan: CustomRenderPlan
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        // A medium widget with four bars is tight on height: tighten the
+        // spacing and the figures so the fourth is not clipped.
+        let compact = plan.items.count > 3
+        VStack(alignment: .leading, spacing: compact ? 4 : 8) {
             CustomTitleView(plan: plan)
             ForEach(plan.items) { item in
                 CustomItemLink(plan: plan, item: item) {
-                    VStack(alignment: .leading, spacing: 3) {
+                    VStack(alignment: .leading, spacing: compact ? 2 : 3) {
                         HStack(alignment: .firstTextBaseline) {
                             Text(verbatim: item.label)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                                 .lineLimit(1)
                             Spacer(minLength: 4)
-                            CustomFigureView(item: item, energy: plan.energy, size: 15)
+                            CustomFigureView(item: item, energy: plan.energy, size: compact ? 13 : 15)
                         }
                         if let progress = item.value?.progress {
                             CustomBarView(progress: progress, color: plan.accent)

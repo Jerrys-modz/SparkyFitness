@@ -242,8 +242,14 @@ const WidgetEditorScreen: React.FC<WidgetEditorScreenProps> = ({
         />
 
         <SectionTitle>
-          {t('widgets.editor.size', { defaultValue: 'Size' })}
+          {t('widgets.editor.size', { defaultValue: 'Designed for' })}
         </SectionTitle>
+        <Text className="text-xs text-text-muted mb-2">
+          {t('widgets.editor.sizeHelp', {
+            defaultValue:
+              'You pick the size when you add the widget, and it adapts. This sets the preview, the styles offered and how many numbers fit.',
+          })}
+        </Text>
         <View className="flex-row flex-wrap gap-2">
           {WIDGET_FAMILIES.map((family) => (
             <Chip
