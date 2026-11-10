@@ -653,6 +653,8 @@ CREATE POLICY modify_policy ON public.profiles FOR ALL TO PUBLIC USING (authenti
 -- (heart rate zones) also follow these policies: only the owner writes them.
 -- Delegates can read the row, but the /api/v2/heart-rate-zones route is
 -- owner-only and refuses a delegated context for reads as well.
+-- assistant_memory_enabled (whether Sparky uses saved preferences) follows the
+-- same owner-write/delegate-read preference policies and adds no grant.
 -- voice_input_enabled and active_voice_ai_service_id follow these existing
 -- owner-write/delegate-read preference policies. Reading
 -- a provider selection does not grant access to its private ai_service_settings row.

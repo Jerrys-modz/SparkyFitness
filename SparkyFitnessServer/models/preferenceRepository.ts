@@ -144,6 +144,7 @@ async function updateUserPreferences(
         default_glucose_unit = COALESCE($62, default_glucose_unit),
         calorie_cycling_mode = COALESCE($63, calorie_cycling_mode),
         calorie_cycling_offsets = COALESCE($64::smallint[], calorie_cycling_offsets),
+        assistant_memory_enabled = COALESCE($65, assistant_memory_enabled),
         measurement_decimal_places = COALESCE($40, measurement_decimal_places),
         added_sugar_algorithm = COALESCE($43, added_sugar_algorithm),
         calorie_safety_floor_mode = COALESCE($45, calorie_safety_floor_mode),
@@ -217,6 +218,7 @@ async function updateUserPreferences(
         preferenceData.default_glucose_unit,
         preferenceData.calorie_cycling_mode,
         preferenceData.calorie_cycling_offsets,
+        preferenceData.assistant_memory_enabled,
       ]
     );
     return result.rows[0];
@@ -324,6 +326,7 @@ async function upsertUserPreferences(
        default_glucose_unit,
        calorie_cycling_mode,
        calorie_cycling_offsets,
+       assistant_memory_enabled,
        created_at, updated_at
      ) VALUES (
        $1, COALESCE($2, 'yyyy-MM-dd'), COALESCE($44, 'HH:mm'), COALESCE($3, 'lbs'), COALESCE($4, 'in'), COALESCE($5, 'km'),
@@ -372,6 +375,7 @@ async function upsertUserPreferences(
        COALESCE($62, 'mmol/L'),
        COALESCE($63, 'off'),
        COALESCE($64::smallint[], '{0,0,0,0,0,0,0}'),
+       COALESCE($65, TRUE),
        now(), now()
      )
      ON CONFLICT (user_id) DO UPDATE SET
@@ -423,6 +427,7 @@ async function upsertUserPreferences(
        default_glucose_unit = COALESCE($62, user_preferences.default_glucose_unit),
        calorie_cycling_mode = COALESCE($63, user_preferences.calorie_cycling_mode),
        calorie_cycling_offsets = COALESCE($64::smallint[], user_preferences.calorie_cycling_offsets),
+       assistant_memory_enabled = COALESCE($65, user_preferences.assistant_memory_enabled),
        measurement_decimal_places = COALESCE(EXCLUDED.measurement_decimal_places, user_preferences.measurement_decimal_places),
        added_sugar_algorithm = COALESCE(EXCLUDED.added_sugar_algorithm, user_preferences.added_sugar_algorithm),
        calorie_safety_floor_mode = COALESCE($45, user_preferences.calorie_safety_floor_mode),
@@ -507,6 +512,7 @@ async function upsertUserPreferences(
         preferenceData.default_glucose_unit,
         preferenceData.calorie_cycling_mode,
         preferenceData.calorie_cycling_offsets,
+        preferenceData.assistant_memory_enabled,
       ]
     );
     return result.rows[0];

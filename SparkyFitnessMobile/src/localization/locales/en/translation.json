@@ -1340,7 +1340,9 @@
     "labResults": "Lab Results",
     "labResultsSubtitle": "Show your latest lab results and which are out of range",
     "oralCare": "Oral care",
-    "oralCareSubtitle": "Show brushing against your goal and your streak"
+    "oralCareSubtitle": "Show brushing against your goal and your streak",
+    "sparkySummary": "Sparky's daily summary",
+    "sparkySummarySubtitle": "A short AI summary of your day with one or two suggestions. Uses your AI service once when you open the Dashboard"
   },
   "diarySettings": {
     "updateFailed": "Failed to update setting.",
@@ -10196,5 +10198,31 @@
     "daysCount_one": "{{count}} day",
     "daysCount_other": "{{count}} days",
     "otherCare": "Flossing, mouthwash and other"
+  },
+  "sparkySummary": {
+    "title": "Today with Sparky",
+    "loading": "Sparky is looking at your day…",
+    "error": "Sparky could not write a summary right now. Tap refresh to try again.",
+    "noAiService": "Set up an AI service in Settings to get a daily summary.",
+    "noData": "Log a meal, a workout or some water and Sparky will sum up your day here.",
+    "openChat": "Ask Sparky more",
+    "refresh": "Write a new summary"
+  },
+  "sparkyMemory": {
+    "title": "What Sparky remembers",
+    "enable": "Let Sparky use this",
+    "enableHint": "Sparky keeps to these in chat and in the daily summary, on web and mobile. Turning this off keeps the list but Sparky stops reading and adding to it.",
+    "help": "Things you told Sparky to keep in mind, such as your diet, allergies, foods you avoid, goals or how you like to be coached. This is what you said, kept apart from what you log. It is private to you and never shared with family.",
+    "empty": "Nothing saved yet. Add something below, or tell Sparky in chat, for example \"Remember that I am vegetarian\".",
+    "addTitle": "Add something to remember",
+    "nameLabel": "Topic",
+    "namePlaceholder": "Topic, e.g. Diet or Coaching style",
+    "valueLabel": "What to remember",
+    "valuePlaceholder": "e.g. Vegetarian, no mushrooms",
+    "add": "Add",
+    "saveFailed": "Could not save. Check the list and try again.",
+    "loadFailed": "Could not load what Sparky remembers.",
+    "deleteTitle": "Delete this?",
+    "deleteMessage": "Sparky will no longer remember it."
   }
 }

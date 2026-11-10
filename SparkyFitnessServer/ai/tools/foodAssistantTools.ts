@@ -7,6 +7,7 @@ import {
   rememberFoodAssistantPreferenceSchema,
 } from '@workspace/shared';
 import * as service from '../../services/foodAssistantService.js';
+import { isAssistantMemoryEnabled } from '../../services/assistantMemoryService.js';
 import { FoodAssistantConflict } from '../../models/foodAssistantRepository.js';
 import type { ToolBuildContext } from './index.js';
 import { ERRORS, formatZodError } from './errors.js';
@@ -70,6 +71,11 @@ const schema = z.discriminatedUnion('action', [
     .strict(),
 ]);
 
+// The person switched saved preferences off in settings. Forgetting stays
+// available so they can still clear what was saved.
+const MEMORY_OFF_MESSAGE =
+  'Saved preferences are turned off in settings, so nothing is read or remembered. Use only what the user says in this conversation.';
+
 export function buildFoodAssistantTools(
   userId: string,
   ctx?: ToolBuildContext
@@ -77,7 +83,7 @@ export function buildFoodAssistantTools(
   return {
     sparky_food_assistant_state: tool({
       description:
-        'Read saved lasting food preferences and recover multi-step food tasks across chats. Start a task for recipes, meal planning, shopping or complex diary edits before doing work. Save checkpoints with selected food/variant IDs, source evidence, EVERY unresolved ingredient, and the next step. Unresolved nutrition is incomplete, never zero. Save before asking for input. A draft/checkpoint does not save a recipe, log diary food, or schedule a plan. Complete only through the relevant publication/mutation tool after persisted readback. Reuse operation_id and task creation id when retrying an identical request. Read current versions before changing existing state. Cancel stops future work; resume makes a draft available for explicit continuation and does not start background work. Remember only explicit enduring preferences quoted verbatim from the current user message; one-off requests override preferences for that request without changing memory. Forgetting requires a verbatim command in the current user message naming the saved preference key, such as "Forget my bread preference" for key bread; unrelated recipe removals and negated requests are not consent.',
+        'Read saved lasting preferences (diet, allergies, foods to avoid, goals, coaching style) and recover multi-step food tasks across chats. Start a task for recipes, meal planning, shopping or complex diary edits before doing work. Save checkpoints with selected food/variant IDs, source evidence, EVERY unresolved ingredient, and the next step. Unresolved nutrition is incomplete, never zero. Save before asking for input. A draft/checkpoint does not save a recipe, log diary food, or schedule a plan. Complete only through the relevant publication/mutation tool after persisted readback. Reuse operation_id and task creation id when retrying an identical request. Read current versions before changing existing state. Cancel stops future work; resume makes a draft available for explicit continuation and does not start background work. Remember only explicit enduring preferences quoted verbatim from the current user message; one-off requests override preferences for that request without changing memory. Forgetting requires a verbatim command in the current user message naming the saved preference key, such as "Forget my bread preference" for key bread; unrelated recipe removals and negated requests are not consent.',
       inputSchema: z.object({
         action: z.enum(actions),
         task_id: taskId.optional(),
@@ -94,6 +100,13 @@ export function buildFoodAssistantTools(
         if (!parsed.success) return formatZodError(parsed.error);
         const args = parsed.data;
         try {
+          if (
+            (args.action === 'list_preferences' ||
+              args.action === 'remember_preference') &&
+            !(await isAssistantMemoryEnabled(userId))
+          ) {
+            return MEMORY_OFF_MESSAGE;
+          }
           switch (args.action) {
             case 'list_preferences':
               return JSON.stringify(await service.listPreferences(userId));

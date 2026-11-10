@@ -52,3 +52,16 @@ export const changeFoodAssistantTask = async (
     body: { operation_id: uuidv4(), expected_version: task.version },
   });
 };
+
+/** Saves a preference typed in settings; `expectedVersion` 0 creates it. */
+export const saveFoodAssistantPreference = async (
+  key: string,
+  value: string,
+  expectedVersion: number
+) =>
+  foodAssistantPreferenceSchema.parse(
+    await apiCall('/v2/food-assistant/preferences', {
+      method: 'PUT',
+      body: { key, value, expected_version: expectedVersion },
+    })
+  );

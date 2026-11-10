@@ -46,6 +46,7 @@ import SymptomsCard from '../components/SymptomsCard';
 import MoodCard from '../components/mood/MoodCard';
 import LabResultsCard from '../components/labs/LabResultsCard';
 import OralCareCard from '../components/oralCare/OralCareCard';
+import SparkySummaryCard from '../components/SparkySummaryCard';
 import { oralCareQueryKeyRoot } from '../hooks/useOralCare';
 import ProgressPhotosCard from '../components/ProgressPhotosCard';
 import TrainingLoadDashboardCard from '../components/TrainingLoadDashboardCard';
@@ -399,6 +400,9 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
   );
   const oralCareCardVisible = useAppPreferencesStore(
     (s) => s.oralCareCardVisible
+  );
+  const sparkySummaryCardVisible = useAppPreferencesStore(
+    (s) => s.sparkySummaryCardVisible
   );
   const trainingLoadCardVisible = useAppPreferencesStore(
     (s) => s.trainingLoadCardVisible
@@ -907,6 +911,14 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
             case 'labResults':
               return labResultsCardVisible ? (
                 <LabResultsCard key="labResults" navigation={navigation} />
+              ) : null;
+            case 'sparkySummary':
+              return sparkySummaryCardVisible ? (
+                <SparkySummaryCard
+                  key="sparkySummary"
+                  selectedDate={selectedDate}
+                  onOpenChat={() => navigation.navigate('Chat')}
+                />
               ) : null;
             case 'oralCare':
               return oralCareCardVisible ? (

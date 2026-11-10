@@ -1,6 +1,6 @@
 # AGENTS.md
 
-_Last updated: 2026-11-08_
+_Last updated: 2026-11-10_
 
 SparkyFitness Frontend is the React web app for the SparkyFitness monorepo. Use this file as the primary guide for work inside `SparkyFitnessFrontend/`.
 
@@ -48,6 +48,7 @@ Features are organized by domain, and the same domain folder name appears in `sr
 
 ## Source Map
 
+- Sparky memory and daily summary (#2013): `components/ai/SparkyMemorySettings.tsx` (in `pages/Settings/AIServiceSettings.tsx`) holds the `assistant_memory_enabled` switch, the saved-preferences editor (`hooks/AI/useSavedPreferences.ts`, same cache as the chat panel) and the browser-local daily summary switch (`utils/sparkySummaryPreference.ts`, off by default). `components/ai/SparkySummaryCard.tsx` (`hooks/AI/useSparkyDailySummary.ts`, `api/Chatbot/assistantService.ts`) renders above the Diary grid only for today and never while acting for someone else; each new summary costs the person an AI request, so it never refetches on focus.
 - Food assistant state: owner-only preferences, recoverable tasks and operation history use `FoodAssistant.api.zod.ts` / `FoodAssistant.zod.ts` in shared. Server: `routes/v2/foodAssistantRoutes.ts`, `services/foodAssistantService.ts`, `models/foodAssistantRepository.ts`, `ai/tools/foodAssistantTools.ts`. Web: `src/components/ai/FoodAssistantState.tsx`, `src/api/Chatbot/foodAssistantService.ts`.
 
 - `src/main.tsx` - app bootstrap; creates the shared `QueryClient` with global `QueryCache`/`MutationCache` handlers that render toasts from query/mutation `meta` (`errorTitle`, `errorMessage`, `successMessage`).

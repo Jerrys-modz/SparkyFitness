@@ -121,6 +121,8 @@ export const PREFERENCE_DEFAULTS = {
   healthTrendsCardVisible: true,
   mindfulnessCardVisible: true,
   oralCareCardVisible: false,
+  // Off until the person asks for it: showing it sends a request to their AI service.
+  sparkySummaryCardVisible: false,
   labResultsCardVisible: true,
   trainingLoadCardVisible: true,
   dashboardCardOrder: [...DASHBOARD_CARD_KEYS] as DashboardCardKey[],
@@ -217,6 +219,7 @@ export type AppPreferencesData = {
   healthTrendsCardVisible: boolean;
   mindfulnessCardVisible: boolean;
   oralCareCardVisible: boolean;
+  sparkySummaryCardVisible: boolean;
   labResultsCardVisible: boolean;
   trainingLoadCardVisible: boolean;
   dashboardCardOrder: DashboardCardKey[];
@@ -368,6 +371,7 @@ export interface AppPreferencesState extends AppPreferencesData {
   setHealthTrendsCardVisible: (value: boolean) => void;
   setMindfulnessCardVisible: (value: boolean) => void;
   setOralCareCardVisible: (value: boolean) => void;
+  setSparkySummaryCardVisible: (value: boolean) => void;
   setLabResultsCardVisible: (value: boolean) => void;
   setTrainingLoadCardVisible: (value: boolean) => void;
   setDashboardCardOrder: (order: DashboardCardKey[]) => void;
@@ -526,6 +530,8 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
       setMindfulnessCardVisible: (value) =>
         set({ mindfulnessCardVisible: value }),
       setOralCareCardVisible: (value) => set({ oralCareCardVisible: value }),
+      setSparkySummaryCardVisible: (value) =>
+        set({ sparkySummaryCardVisible: value }),
       setLabResultsCardVisible: (value) =>
         set({ labResultsCardVisible: value }),
       setTrainingLoadCardVisible: (value) =>
@@ -753,6 +759,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         healthTrendsCardVisible: state.healthTrendsCardVisible,
         mindfulnessCardVisible: state.mindfulnessCardVisible,
         oralCareCardVisible: state.oralCareCardVisible,
+        sparkySummaryCardVisible: state.sparkySummaryCardVisible,
         labResultsCardVisible: state.labResultsCardVisible,
         trainingLoadCardVisible: state.trainingLoadCardVisible,
         dashboardCardOrder: state.dashboardCardOrder,
