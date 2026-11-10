@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, Switch, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
@@ -17,6 +17,8 @@ import {
 
 import FormInput from '../components/FormInput';
 import { FooterSaveBar } from '../components/FormScreenChrome';
+import SettingsRow, { SettingsRowGroup } from '../components/SettingsRow';
+import Switch from '../components/ui/Switch';
 import WidgetPreview from '../components/widgets/WidgetPreview';
 import {
   WIDGET_ACCENT_COLORS,
@@ -46,28 +48,36 @@ import {
 
 type WidgetEditorScreenProps = RootStackScreenProps<'WidgetEditor'>;
 
+/**
+ * A selectable chip in the canonical form (DESIGN.md, Badges, pills and
+ * chips): a pill with a 1px border. Selected is Sparky Blue with a white
+ * label; unselected is a raised fill with an Ink Navy label.
+ */
 const Chip: React.FC<{
   label: string;
   selected: boolean;
   disabled?: boolean;
-  accent: string;
   onPress: () => void;
-}> = ({ label, selected, disabled, accent, onPress }) => (
+}> = ({ label, selected, disabled, onPress }) => (
   <Pressable
     accessibilityRole="button"
     accessibilityState={{ selected, disabled: !!disabled }}
     disabled={disabled}
     onPress={onPress}
-    className="rounded-full px-3 py-1.5 border"
+    className={`rounded-full border px-3 py-1.5 ${
+      selected
+        ? 'bg-accent-primary border-accent-primary'
+        : 'bg-raised border-border-subtle'
+    }`}
     style={({ pressed }) => ({
-      backgroundColor: selected ? accent : 'transparent',
-      borderColor: selected ? accent : '#9ca3af66',
       opacity: disabled ? 0.4 : pressed ? 0.7 : 1,
     })}
   >
     <Text
-      className="text-sm text-text-primary"
-      style={selected ? { color: '#ffffff' } : undefined}
+      className={`text-sm font-medium ${
+        selected ? 'text-white' : 'text-text-primary'
+      }`}
+      numberOfLines={1}
     >
       {label}
     </Text>
@@ -75,7 +85,7 @@ const Chip: React.FC<{
 );
 
 const SectionTitle: React.FC<{ children: string }> = ({ children }) => (
-  <Text className="text-sm font-semibold text-text-secondary mb-1.5 mt-5">
+  <Text className="text-sm font-medium text-text-secondary mb-1.5 mt-5">
     {children}
   </Text>
 );
@@ -94,7 +104,8 @@ const WidgetEditorScreen: React.FC<WidgetEditorScreenProps> = ({
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const usesNativeHeader = useNativeIOSHeadersActive();
-  const [accentColor] = useCSSVariable(['--color-accent-primary']) as [string];
+  // The selected color swatch is ringed in Ink Navy so it reads on every theme.
+  const [ringColor] = useCSSVariable(['--color-text-primary']) as [string];
 
   const layoutId = route.params?.layoutId;
   const layouts = useWidgetLayoutStore((state) => state.layouts);
@@ -203,7 +214,6 @@ const WidgetEditorScreen: React.FC<WidgetEditorScreenProps> = ({
                   key={template.key}
                   label={templateLabels[template.key]}
                   selected={false}
-                  accent={accentColor}
                   onPress={() =>
                     setDraft((current) =>
                       applyWidgetTemplate(
@@ -240,7 +250,6 @@ const WidgetEditorScreen: React.FC<WidgetEditorScreenProps> = ({
               key={family}
               label={familyLabels[family]}
               selected={draft.family === family}
-              accent={accentColor}
               onPress={() =>
                 setDraft((current) => setDraftFamily(current, family))
               }
@@ -257,7 +266,6 @@ const WidgetEditorScreen: React.FC<WidgetEditorScreenProps> = ({
               key={style}
               label={styleLabels[style]}
               selected={draft.style === style}
-              accent={accentColor}
               onPress={() => update({ style })}
             />
           ))}
@@ -283,7 +291,6 @@ const WidgetEditorScreen: React.FC<WidgetEditorScreenProps> = ({
                 label={metricLabels[metric]}
                 selected={selected}
                 disabled={!selected && metricsFull}
-                accent={accentColor}
                 onPress={() =>
                   setDraft((current) => toggleDraftMetric(current, metric))
                 }
@@ -332,58 +339,62 @@ const WidgetEditorScreen: React.FC<WidgetEditorScreenProps> = ({
               accessibilityLabel={accentLabels[accent]}
               accessibilityState={{ selected: draft.accent === accent }}
               onPress={() => update({ accent })}
+              hitSlop={4}
               className="rounded-full items-center justify-center"
-              style={{
+              style={({ pressed }) => ({
                 width: 36,
                 height: 36,
                 backgroundColor: WIDGET_ACCENT_COLORS[accent],
                 borderWidth: draft.accent === accent ? 3 : 0,
-                borderColor: '#ffffff',
-                shadowColor: '#000',
-                shadowOpacity: draft.accent === accent ? 0.3 : 0,
-                shadowRadius: 3,
-              }}
+                borderColor: ringColor,
+                opacity: pressed ? 0.7 : 1,
+              })}
             />
           ))}
         </View>
 
-        {!isLock ? (
-          <View className="flex-row items-center justify-between mt-5">
-            <Text className="text-base text-text-primary">
-              {t('widgets.editor.showTitle', { defaultValue: 'Show name' })}
-            </Text>
-            <Switch
-              value={draft.showTitle}
-              onValueChange={(showTitle) => update({ showTitle })}
-              accessibilityLabel={t('widgets.editor.showTitle', {
-                defaultValue: 'Show name',
-              })}
-            />
-          </View>
-        ) : null}
-
-        {draft.family === 'small' ? (
-          <View className="mt-4">
-            <View className="flex-row items-center justify-between">
-              <Text className="text-base text-text-primary">
-                {t('widgets.editor.standBy', {
-                  defaultValue: 'Easy to read in StandBy',
-                })}
-              </Text>
-              <Switch
-                value={draft.standByFriendly}
-                onValueChange={(standByFriendly) => update({ standByFriendly })}
-                accessibilityLabel={t('widgets.editor.standBy', {
-                  defaultValue: 'Easy to read in StandBy',
-                })}
-              />
-            </View>
-            <Text className="text-xs text-text-muted mt-1">
-              {t('widgets.editor.standByHelp', {
-                defaultValue:
-                  'Larger numbers and no name, for a charging iPhone on its side.',
-              })}
-            </Text>
+        {!isLock || draft.family === 'small' ? (
+          <View className="mt-5">
+            <SettingsRowGroup>
+              {!isLock ? (
+                <SettingsRow
+                  title={t('widgets.editor.showTitle', {
+                    defaultValue: 'Show name',
+                  })}
+                  rightAccessory={
+                    <Switch
+                      accessibilityLabel={t('widgets.editor.showTitle', {
+                        defaultValue: 'Show name',
+                      })}
+                      value={draft.showTitle}
+                      onValueChange={(showTitle) => update({ showTitle })}
+                    />
+                  }
+                />
+              ) : null}
+              {draft.family === 'small' ? (
+                <SettingsRow
+                  title={t('widgets.editor.standBy', {
+                    defaultValue: 'Easy to read in StandBy',
+                  })}
+                  subtitle={t('widgets.editor.standByHelp', {
+                    defaultValue:
+                      'Larger numbers and no name, for a charging iPhone on its side.',
+                  })}
+                  rightAccessory={
+                    <Switch
+                      accessibilityLabel={t('widgets.editor.standBy', {
+                        defaultValue: 'Easy to read in StandBy',
+                      })}
+                      value={draft.standByFriendly}
+                      onValueChange={(standByFriendly) =>
+                        update({ standByFriendly })
+                      }
+                    />
+                  }
+                />
+              ) : null}
+            </SettingsRowGroup>
           </View>
         ) : null}
       </KeyboardAwareScrollView>

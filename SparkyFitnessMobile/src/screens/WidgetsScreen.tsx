@@ -6,6 +6,7 @@ import { useCSSVariable } from 'uniwind';
 import type { WidgetLayout } from '@workspace/shared';
 import Toast from 'react-native-toast-message';
 
+import { useActiveWorkoutBarPadding } from '../components/ActiveWorkoutBar';
 import Icon from '../components/Icon';
 import StatusView from '../components/StatusView';
 import { useScreenHeader } from '../hooks/useScreenHeader';
@@ -29,7 +30,11 @@ const WidgetsScreen: React.FC<WidgetsScreenProps> = ({ navigation }) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const usesNativeHeader = useNativeIOSHeadersActive();
-  const [iconColor] = useCSSVariable(['--color-text-secondary']) as [string];
+  const activeWorkoutBarPadding = useActiveWorkoutBarPadding('stack');
+  const [iconColor, dangerColor] = useCSSVariable([
+    '--color-text-secondary',
+    '--color-icon-danger',
+  ]) as [string, string];
   const layouts = useWidgetLayoutStore((state) => state.layouts);
   const deleteLayout = useWidgetLayoutStore((state) => state.deleteLayout);
   const duplicateLayout = useWidgetLayoutStore(
@@ -111,7 +116,7 @@ const WidgetsScreen: React.FC<WidgetsScreenProps> = ({ navigation }) => {
           navigation.navigate('WidgetEditor', { layoutId: item.id })
         }
       >
-        <Text className="text-lg font-semibold text-text-primary">
+        <Text className="text-base font-semibold text-text-primary">
           {item.name}
         </Text>
         <Text className="text-sm text-text-secondary mt-1">
@@ -143,7 +148,7 @@ const WidgetsScreen: React.FC<WidgetsScreenProps> = ({ navigation }) => {
         className="p-4"
         onPress={() => confirmDelete(item)}
       >
-        <Icon name="trash" size={20} color="#dc2626" />
+        <Icon name="trash" size={20} color={dangerColor} />
       </Pressable>
     </View>
   );
@@ -164,7 +169,7 @@ const WidgetsScreen: React.FC<WidgetsScreenProps> = ({ navigation }) => {
         contentContainerStyle={{
           paddingHorizontal: 16,
           paddingTop: 16,
-          paddingBottom: insets.bottom + 16,
+          paddingBottom: insets.bottom + activeWorkoutBarPadding + 16,
           flexGrow: 1,
         }}
         ListHeaderComponent={

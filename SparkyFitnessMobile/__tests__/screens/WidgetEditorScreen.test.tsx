@@ -68,6 +68,19 @@ describe('WidgetEditorScreen', () => {
     }
   });
 
+  it('draws chips in the canonical form: accent when selected, raised when not', () => {
+    renderEditor();
+    const selected = screen.getByRole('button', { name: 'Small' });
+    expect(selected.props.className).toContain('bg-accent-primary');
+    expect(within(selected).getByText('Small').props.className).toContain(
+      'text-white'
+    );
+
+    const unselected = screen.getByRole('button', { name: 'Medium' });
+    expect(unselected.props.className).toContain('bg-raised');
+    expect(unselected.props.className).toContain('border-border-subtle');
+  });
+
   it('saves a new widget with the typed name and goes back', () => {
     renderEditor();
     fireEvent.changeText(
