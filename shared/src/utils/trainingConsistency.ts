@@ -2,10 +2,66 @@ import type { TrainingConsistency } from '../schemas/api/TrainingConsistency.api
 import { addDays, dayOfWeek } from './timezone.ts';
 import {
   calculateMuscleGroupSets,
+  workingSetCount,
   type MuscleEntry,
 } from './exerciseMuscleAggregates.ts';
+import { resolveExerciseModality } from '../constants/exercise.ts';
+import type { TrainingConsistencyModality } from '../schemas/api/TrainingConsistency.api.zod.ts';
 
-export type TrainingConsistencyEntry = MuscleEntry & { entry_date?: string };
+export type TrainingConsistencyEntry = MuscleEntry & {
+  entry_date?: string;
+  exercise_modality?: string | null;
+  exercise_category?: string | null;
+  exercise_equipment?: unknown;
+};
+
+function equipmentList(value: unknown): string[] | string | null {
+  if (Array.isArray(value)) {
+    return value.filter((item): item is string => typeof item === 'string');
+  }
+  if (typeof value !== 'string' || value.length === 0) return null;
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (Array.isArray(parsed)) {
+      return parsed.filter((item): item is string => typeof item === 'string');
+    }
+    return typeof parsed === 'string' ? parsed : value;
+  } catch {
+    return value;
+  }
+}
+
+/**
+ * A strength workout: at least one working set, on an exercise whose modality
+ * is not distance-based cardio. Entries without sets (a synced walk, an
+ * elliptical session, a stretch logged by duration) are not strength, whatever
+ * their category says.
+ */
+export function isStrengthTrainingEntry(
+  entry: TrainingConsistencyEntry
+): boolean {
+  if (workingSetCount(entry.sets) === 0) return false;
+  const modality = resolveExerciseModality(
+    entry.exercise_modality,
+    entry.exercise_category,
+    equipmentList(entry.exercise_equipment)
+  );
+  return modality !== 'duration_distance';
+}
+
+/**
+ * Keeps the entries that count for the chosen view: `strength` keeps strength
+ * workouts, `cardio` keeps every other activity, `all` keeps everything.
+ */
+export function filterTrainingConsistencyEntries<
+  T extends TrainingConsistencyEntry,
+>(entries: readonly T[], modality: TrainingConsistencyModality): T[] {
+  if (modality === 'all') return [...entries];
+  const wantStrength = modality === 'strength';
+  return entries.filter(
+    (entry) => isStrengthTrainingEntry(entry) === wantStrength
+  );
+}
 
 /** How many weeks of history the consistency view looks at. */
 export const TRAINING_CONSISTENCY_WEEKS = 26;
