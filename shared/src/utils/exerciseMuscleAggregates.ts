@@ -47,7 +47,7 @@ function parseJsonArray(value: unknown): unknown[] {
   }
 }
 
-function workingSetCount(sets: MuscleSet[] | null | undefined): number {
+export function workingSetCount(sets: MuscleSet[] | null | undefined): number {
   if (!Array.isArray(sets) || sets.length === 0) return 0;
   return sets.filter(
     (set) =>

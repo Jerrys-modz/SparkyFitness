@@ -151,7 +151,9 @@ const ExerciseStatisticsScreen: React.FC<ExerciseStatisticsScreenProps> = ({
   });
 
   const { data, isLoading } = useExerciseDashboard(range, customRange);
-  const consistency = useTrainingConsistency();
+  // The card sits under Strength, so walks and other cardio do not mark
+  // training days or keep the streak going there.
+  const consistency = useTrainingConsistency('strength');
   const strengthVolume = useStrengthVolume();
   const trainingLoad = useTrainingLoad();
   const runEstimates = useRunEstimates();
