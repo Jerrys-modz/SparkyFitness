@@ -191,6 +191,7 @@ const HIDDEN_ROUTES = new Set<string>([
   'LabResultAdd',
   'WorkoutSplitImport',
   'LabReportImport',
+  'WidgetEditor',
   'Chat',
   'ActiveWorkout',
 ]);
