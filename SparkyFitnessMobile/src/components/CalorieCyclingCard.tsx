@@ -54,12 +54,14 @@ interface CalorieCyclingCardProps {
 
 /** Whether the app locale writes the percent sign first (e.g. Turkish "%15"). */
 const percentSignFirst = () => {
-  const parts = new Intl.NumberFormat(getAppLocale(), {
+  // Hermes has no `Intl.NumberFormat.prototype.formatToParts`, so read the
+  // formatted string: the sign comes first when it precedes the first digit.
+  const formatted = new Intl.NumberFormat(getAppLocale(), {
     style: 'percent',
-  }).formatToParts(0.15);
-  const sign = parts.findIndex((part) => part.type === 'percentSign');
-  const number = parts.findIndex((part) => part.type === 'integer');
-  return sign !== -1 && number !== -1 && sign < number;
+  }).format(0.15);
+  const sign = formatted.search(/[%٪﹪％]/);
+  const digit = formatted.search(/\d/);
+  return sign !== -1 && digit !== -1 && sign < digit;
 };
 
 /** A whole percentage with − and + buttons and a box to type it. */
