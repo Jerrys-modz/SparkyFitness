@@ -22,6 +22,7 @@ import { Uniwind, useUniwind, useCSSVariable } from 'uniwind';
 
 import { queryClient, serverConnectionQueryKey, serverConfigsQueryKey, useSyncHealthData, useCycleMode, useServerConnection, drainQuickActionNavigation, useControlRouteHandoff, useQuickActions, useWatchCheckInBridge, useWatchFastingBridge, useWatchComplicationSync, useWatchPlanSync, useWatchRecordingBridge, useWatchSetTargetsSync, useWatchWorkoutBridge, useWatchWorkoutEdit, useWatchRunBridge, useWatchRouteBridge, usePreferences } from './src/hooks';
 import { useCycleSheetLabel } from './src/hooks/useAddMenuItemLabel';
+import { useCustomWidgetLayoutSync } from './src/hooks/useCustomWidgetLayoutSync';
 import { configureRunLiveActivity } from './src/services/runLiveActivity';
 import { useWatchWorkoutStart } from './src/hooks/useWatchWorkoutStart';
 import { useLiveWorkoutInputsCapture } from './src/hooks/useLiveWorkoutInputsCapture';
@@ -400,6 +401,8 @@ function AppContent() {
   const { shouldYieldObserverSync } = useAutoSyncOnOpen({ initialRoute, syncMutation });
   useAppStartup({ shouldYieldObserverSync });
   useOfflineQueueSync();
+  // The widgets built in the app, mirrored to the widget wherever the person is.
+  useCustomWidgetLayoutSync();
 
   const {
     rememberActiveTab,

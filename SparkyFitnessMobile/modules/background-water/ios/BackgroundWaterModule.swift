@@ -114,6 +114,16 @@ public class BackgroundWaterModule: Module {
         /// controls that show one again. `WidgetCenter` reloads widgets only;
         /// controls have their own call, so without this a control keeps the
         /// number it was first shown with.
+        /// Asks iOS to read the widget gallery's list of saved custom widgets
+        /// again (`recommendations()` in targets/widget/customWidget.swift).
+        /// The system caches that list, so without this a widget saved in the
+        /// app does not appear in the gallery until the widget itself asks.
+        Function("reloadWidgetRecommendations") {
+            if #available(iOS 17.0, *) {
+                WidgetCenter.shared.invalidateConfigurationRecommendations()
+            }
+        }
+
         Function("reloadControls") { (kinds: [String]) in
             if #available(iOS 18.0, *) {
                 for kind in kinds {
