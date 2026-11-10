@@ -3,8 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { Text, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 
+import { useWidgetAccentColors } from '../../hooks/useWidgetAccentColors';
+import { withAlpha } from '../../utils/colors';
 import {
-  WIDGET_ACCENT_COLORS,
   WIDGET_PREVIEW_SAMPLES,
   WIDGET_PREVIEW_SIZES,
   type WidgetPreviewSample,
@@ -34,7 +35,7 @@ function Ring({
 }: {
   progress: number;
   size: number;
-  color: string;
+  color: string | undefined;
 }) {
   const stroke = size * 0.11;
   const radius = (size - stroke) / 2;
@@ -73,13 +74,16 @@ function Bar({
   height = 6,
 }: {
   progress: number;
-  color: string;
+  color: string | undefined;
   height?: number;
 }) {
   return (
     <View
       className="rounded-full overflow-hidden"
-      style={{ height, backgroundColor: `${color}33` }}
+      style={{
+        height,
+        backgroundColor: color ? withAlpha(color, 0.2) : undefined,
+      }}
     >
       <View
         className="rounded-full"
@@ -101,7 +105,7 @@ function Bar({
 const WidgetPreview: React.FC<{ draft: WidgetDraft }> = ({ draft }) => {
   const { t } = useTranslation();
   const labels = widgetMetricLabels(t);
-  const color = WIDGET_ACCENT_COLORS[draft.accent];
+  const color = useWidgetAccentColors()[draft.accent];
   const { width, height } = WIDGET_PREVIEW_SIZES[draft.family];
   const isLock = draft.family.startsWith('lock');
   const layout = previewLayout(draft);

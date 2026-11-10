@@ -20,11 +20,9 @@ import { FooterSaveBar } from '../components/FormScreenChrome';
 import SettingsRow, { SettingsRowGroup } from '../components/SettingsRow';
 import Switch from '../components/ui/Switch';
 import WidgetPreview from '../components/widgets/WidgetPreview';
-import {
-  WIDGET_ACCENT_COLORS,
-  WIDGET_TEMPLATES,
-} from '../constants/widgetBuilder';
+import { WIDGET_TEMPLATES } from '../constants/widgetBuilder';
 import { useScreenHeader } from '../hooks/useScreenHeader';
+import { useWidgetAccentColors } from '../hooks/useWidgetAccentColors';
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import { useWidgetLayoutStore } from '../stores/widgetLayoutStore';
 import type { RootStackScreenProps } from '../types/navigation';
@@ -121,6 +119,7 @@ const WidgetEditorScreen: React.FC<WidgetEditorScreenProps> = ({
     existing ? draftFromLayout(existing) : emptyWidgetDraft()
   );
 
+  const accentColors = useWidgetAccentColors();
   const metricLabels = widgetMetricLabels(t);
   const familyLabels = widgetFamilyLabels(t);
   const styleLabels = widgetStyleLabels(t);
@@ -350,7 +349,7 @@ const WidgetEditorScreen: React.FC<WidgetEditorScreenProps> = ({
               style={({ pressed }) => ({
                 width: 36,
                 height: 36,
-                backgroundColor: WIDGET_ACCENT_COLORS[accent],
+                backgroundColor: accentColors[accent],
                 borderWidth: draft.accent === accent ? 3 : 0,
                 borderColor: ringColor,
                 opacity: pressed ? 0.7 : 1,
