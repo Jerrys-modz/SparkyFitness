@@ -5,16 +5,23 @@ import type {
   WidgetStyle,
 } from '@workspace/shared';
 
-/** The named accents as colors, for the editor's swatches and the preview. */
-export const WIDGET_ACCENT_COLORS: Record<WidgetAccent, string> = {
-  blue: '#3b82f6',
-  green: '#22c55e',
-  orange: '#f97316',
-  red: '#ef4444',
-  purple: '#a855f7',
-  teal: '#14b8a6',
-  pink: '#ec4899',
-  gray: '#9ca3af',
+/**
+ * The `global.css` color token each widget accent is drawn with in the app
+ * (the editor's swatches and the preview). The first seven are the Category
+ * palette, DESIGN.md's colors for "things that need a distinct color but no
+ * fixed meaning". There is no red in that palette, so red uses Heart-Rate Red.
+ * The real widget draws the matching system colors; these only approximate
+ * them, in whichever theme the app is in.
+ */
+export const WIDGET_ACCENT_TOKENS: Record<WidgetAccent, string> = {
+  blue: '--color-cat-blue',
+  green: '--color-cat-green',
+  orange: '--color-cat-orange',
+  red: '--color-heart-rate',
+  purple: '--color-cat-violet',
+  teal: '--color-cat-teal',
+  pink: '--color-cat-pink',
+  gray: '--color-cat-slate',
 };
 
 /** Approximate on-screen size (dp) of each family, for the preview. */
