@@ -4,7 +4,6 @@ import { ExtensionStorage } from '@bacons/apple-targets';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
-import BackgroundWaterModule from '../../modules/background-water';
 import { addLog } from '../services/LogService';
 import { useWidgetLayoutStore } from '../stores/widgetLayoutStore';
 
@@ -24,9 +23,9 @@ const iosAppGroup = (
  *
  * The list is always written, even empty, so a deleted widget does not linger.
  * Writing is read back and logged (Settings > View Logs) so a layout that did
- * not reach the widget shows up there. The widget is reloaded, and the gallery
- * told to refresh its list, only once there is something to show or the list
- * changed, so a person who never builds a widget costs nothing.
+ * not reach the widget shows up there. The widget is reloaded only once there
+ * is something to show or the list changed, so a person who never builds a
+ * widget costs nothing.
  */
 export function useCustomWidgetLayoutSync(): void {
   const layouts = useWidgetLayoutStore((state) => state.layouts);
@@ -53,7 +52,6 @@ export function useCustomWidgetLayoutSync(): void {
 
       if (layouts.length > 0 || writtenRef.current) {
         ExtensionStorage.reloadWidget(CUSTOM_WIDGET_KIND);
-        BackgroundWaterModule?.reloadWidgetRecommendations?.();
       }
       writtenRef.current = true;
     } catch (error) {

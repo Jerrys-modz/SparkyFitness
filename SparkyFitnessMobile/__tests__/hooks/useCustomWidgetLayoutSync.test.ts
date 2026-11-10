@@ -2,7 +2,6 @@ import { act, renderHook } from '@testing-library/react-native';
 import { Platform } from 'react-native';
 
 import { ExtensionStorage } from '@bacons/apple-targets';
-import BackgroundWaterModule from '../../modules/background-water';
 import { useCustomWidgetLayoutSync } from '../../src/hooks/useCustomWidgetLayoutSync';
 import { addLog } from '../../src/services/LogService';
 import { useWidgetLayoutStore } from '../../src/stores/widgetLayoutStore';
@@ -44,18 +43,11 @@ jest.mock('@bacons/apple-targets', () => {
   return { ExtensionStorage };
 });
 
-jest.mock('../../modules/background-water', () => ({
-  __esModule: true,
-  default: { reloadWidgetRecommendations: jest.fn() },
-}));
-
 jest.mock('../../src/services/LogService', () => ({ addLog: jest.fn() }));
 
 const setMock = (ExtensionStorage as any).__mockSet as jest.Mock;
 const reloadMock = (ExtensionStorage as any).__mockReload as jest.Mock;
 const store = (ExtensionStorage as any).__mockStore as Map<string, unknown>;
-const recommendationsMock = (BackgroundWaterModule as any)
-  .reloadWidgetRecommendations as jest.Mock;
 const mockAddLog = addLog as jest.MockedFunction<typeof addLog>;
 
 const layout = (id: string, name: string) => ({
@@ -111,12 +103,11 @@ describe('useCustomWidgetLayoutSync', () => {
     expect(written().map((l) => l.id)).toEqual(['a', 'b']);
   });
 
-  it('reloads the widget and refreshes the gallery list when there are widgets', () => {
+  it('reloads the widget when there are widgets', () => {
     useWidgetLayoutStore.setState({ layouts: [layout('a', 'First')] });
     renderHook(() => useCustomWidgetLayoutSync());
 
     expect(reloadMock).toHaveBeenCalledWith('customWidget');
-    expect(recommendationsMock).toHaveBeenCalledTimes(1);
   });
 
   it('writes an empty list but reloads nothing for someone who never built a widget', () => {
@@ -124,7 +115,6 @@ describe('useCustomWidgetLayoutSync', () => {
 
     expect(setMock).toHaveBeenCalledWith('customWidgetLayouts', '[]');
     expect(reloadMock).not.toHaveBeenCalled();
-    expect(recommendationsMock).not.toHaveBeenCalled();
   });
 
   it('clears the widget when the last one is deleted', () => {

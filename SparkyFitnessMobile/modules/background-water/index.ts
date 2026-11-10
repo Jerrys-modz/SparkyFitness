@@ -10,11 +10,6 @@ export interface BackgroundWaterNativeModule {
    */
   reloadControls?(kinds: string[]): void;
   /**
-   * iOS only: asks the widget gallery to read its list of saved custom
-   * widgets again. Absent in a build made before it existed.
-   */
-  reloadWidgetRecommendations?(): void;
-  /**
    * Android only: labels the "Log water" launcher shortcut and puts it back
    * while a login is stored. Absent in a build made before it existed.
    */

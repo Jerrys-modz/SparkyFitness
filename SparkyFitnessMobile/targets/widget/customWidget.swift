@@ -3,9 +3,10 @@ import SwiftUI
 import WidgetKit
 
 // The widget the in-app builder makes. One generic widget draws whichever
-// saved layout the person picks in Edit Widget. The layout list and the
-// numbers are written by `useWidgetSync` as JSON strings in the app group
-// (`customWidgetLayouts`, `customWidgetData`); their shape is the
+// saved layout the person picks in Edit Widget. The layout list is written by
+// `useCustomWidgetLayoutSync` (app root) and the numbers by `useWidgetSync`
+// (Dashboard), both as JSON strings in the app group (`customWidgetLayouts`,
+// `customWidgetData`); their shape is the
 // `WidgetLayout` / `WidgetDataSnapshot` contract in shared/src/utils/widgetLayout.ts.
 //
 // Everything here reads leniently: an unknown metric, style or family from a
@@ -374,7 +375,13 @@ struct CustomRenderPlan {
 struct CustomItemLink<Content: View>: View {
     let plan: CustomRenderPlan
     let item: CustomMetricItem
-    @ViewBuilder let content: () -> Content
+    let content: () -> Content
+
+    init(plan: CustomRenderPlan, item: CustomMetricItem, @ViewBuilder content: @escaping () -> Content) {
+        self.plan = plan
+        self.item = item
+        self.content = content
+    }
 
     var body: some View {
         if plan.linkable, let url = plan.url(for: item) {
@@ -479,20 +486,6 @@ struct CustomWidgetProvider: AppIntentTimelineProvider {
 
     func timeline(for configuration: SelectCustomWidgetIntent, in context: Context) async -> Timeline<CustomWidgetEntry> {
         Timeline(entries: [makeEntry(for: configuration)], policy: .after(Date().addingTimeInterval(30 * 60)))
-    }
-
-    /// One gallery card per saved layout, so every widget the person built can
-    /// be added directly. Without this the gallery shows a single "Custom
-    /// widget" that previews only the first layout. Edit Widget lists every
-    /// saved layout either way (`CustomWidgetLayoutQuery`), as in Home
-    /// Assistant's custom widget. The app asks iOS to refresh this list when
-    /// layouts change (`reloadWidgetRecommendations` in the native module).
-    func recommendations() -> [AppIntentRecommendation<SelectCustomWidgetIntent>] {
-        loadCustomWidgetLayouts().map { layout in
-            let intent = SelectCustomWidgetIntent()
-            intent.layout = CustomWidgetLayoutEntity(layout: layout)
-            return AppIntentRecommendation(intent: intent, description: LocalizedStringResource(stringLiteral: layout.name))
-        }
     }
 
     /// The picked layout, else the first saved one, so a widget placed before

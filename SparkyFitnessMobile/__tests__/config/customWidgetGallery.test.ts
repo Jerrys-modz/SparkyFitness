@@ -1,32 +1,18 @@
 import fs from 'fs';
 import path from 'path';
 
-const appSource = fs.readFileSync(
-  path.join(__dirname, '../../App.tsx'),
-  'utf8'
-);
-const moduleSwift = fs.readFileSync(
-  path.join(
-    __dirname,
-    '../../modules/background-water/ios/BackgroundWaterModule.swift'
-  ),
-  'utf8'
-);
-const swiftSource = fs.readFileSync(
-  path.join(__dirname, '../../targets/widget/customWidget.swift'),
-  'utf8'
-);
+const read = (relative: string) =>
+  fs.readFileSync(path.join(__dirname, '../..', relative), 'utf8');
 
-// Without recommendations() the widget gallery shows one "Custom widget" that
-// previews only the first saved layout, so a second widget never appears.
-describe('custom widget gallery', () => {
-  it('offers one gallery card per saved layout', () => {
-    expect(swiftSource).toMatch(
-      /func recommendations\(\) -> \[AppIntentRecommendation<SelectCustomWidgetIntent>\]/
-    );
-    expect(swiftSource).toMatch(/loadCustomWidgetLayouts\(\)\.map/);
-  });
+const swiftSource = read('targets/widget/customWidget.swift');
+const appSource = read('App.tsx');
 
+// The iOS widget gallery shows one card per widget kind and size, so saved
+// widgets are chosen in Edit Widget, as in Home Assistant's custom widget.
+// AppIntentRecommendation is NOT a way around that: Apple's docs say that on
+// platforms with a dedicated widget configuration UI (iOS, macOS) it is
+// inactive, so it only adds dead code.
+describe('custom widget choosing', () => {
   it('lists every saved layout in Edit Widget, not only the first', () => {
     expect(swiftSource).toMatch(/func suggestedEntities\(\)/);
     expect(swiftSource).toMatch(
@@ -38,9 +24,9 @@ describe('custom widget gallery', () => {
     expect(swiftSource).toMatch(/\?\? layouts\.first/);
   });
 
-  it('does not ask iOS to refresh the gallery from inside the widget on every reload', () => {
-    // The app does it once when layouts change; doing it in snapshot() or
-    // timeline() would run on every refresh.
+  it('does not use recommendations, which are inactive on iOS', () => {
+    expect(swiftSource).not.toMatch(/AppIntentRecommendation/);
+    expect(swiftSource).not.toMatch(/func recommendations\(/);
     expect(swiftSource).not.toMatch(/invalidateConfigurationRecommendations/);
   });
 
@@ -48,17 +34,8 @@ describe('custom widget gallery', () => {
   // saved while the Dashboard was not updating never reached the widget.
   it('mirrors saved widgets from the app root, not from a screen', () => {
     expect(appSource).toMatch(/useCustomWidgetLayoutSync\(\)/);
-    const dashboard = fs.readFileSync(
-      path.join(__dirname, '../../src/screens/DashboardScreen.tsx'),
-      'utf8'
-    );
-    expect(dashboard).not.toMatch(/useCustomWidgetLayoutSync/);
-  });
-
-  it('can tell iOS the gallery list changed', () => {
-    expect(moduleSwift).toMatch(/Function\("reloadWidgetRecommendations"\)/);
-    expect(moduleSwift).toMatch(
-      /WidgetCenter\.shared\.invalidateConfigurationRecommendations\(\)/
+    expect(read('src/screens/DashboardScreen.tsx')).not.toMatch(
+      /useCustomWidgetLayoutSync/
     );
   });
 });
