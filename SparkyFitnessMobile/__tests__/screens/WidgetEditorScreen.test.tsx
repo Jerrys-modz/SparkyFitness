@@ -1,5 +1,10 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import {
+  fireEvent,
+  render,
+  screen,
+  within,
+} from '@testing-library/react-native';
 import Toast from 'react-native-toast-message';
 
 import WidgetEditorScreen from '../../src/screens/WidgetEditorScreen';
@@ -50,6 +55,17 @@ describe('WidgetEditorScreen', () => {
     jest.clearAllMocks();
     mockIdCounter = 0;
     useWidgetLayoutStore.setState({ layouts: [] });
+  });
+
+  it('gives every chip label a theme text color, so unselected ones show on dark themes', () => {
+    renderEditor();
+    // A label with no color class falls back to black: invisible on a dark theme.
+    for (const name of ['Macros', 'Medium', 'Bars', 'Protein']) {
+      const label = within(screen.getByRole('button', { name })).getByText(
+        name
+      );
+      expect(label.props.className).toContain('text-text-primary');
+    }
   });
 
   it('saves a new widget with the typed name and goes back', () => {
