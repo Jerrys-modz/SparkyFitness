@@ -7802,7 +7802,7 @@
         "readiness_low": "Training readiness is {{value}}% below your recent baseline.",
         "hrv_low": "Overnight HRV is {{value}}% below your recent baseline."
       }
-  },
+    },
     "runPower": {
       "title": "Running Power",
       "watts": "{{value}} W",
