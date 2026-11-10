@@ -10250,7 +10250,6 @@
     "deleteMessage": "\"{{name}}\" will stop showing on any Home Screen or Lock Screen widget that uses it.",
     "editNamed": "Edit {{name}}",
     "deleteNamed": "Delete {{name}}",
-    "howTo": "Build a widget here, then touch and hold your Home Screen or Lock Screen, tap Add, choose SparkyFitness and add \"Custom widget\". Touch and hold it, tap Edit Widget and pick yours.",
     "emptyTitle": "No widgets yet",
     "emptySubtitle": "Choose the numbers, the size and the look of your own Home Screen or Lock Screen widget.",
     "editor": {
@@ -10276,7 +10275,8 @@
       "labelsHelp": "Optional. Rename a number to fit your widget, for example \"Protein\" to \"P\".",
       "labelFor": "Name for {{metric}}",
       "template": "Start from a template",
-      "sizeHelp": "You pick the size when you add the widget, and it adapts. This sets the preview, the styles offered and how many numbers fit."
+      "sizeHelp": "You pick the size when you add the widget, and it adapts. This sets the preview, the styles offered and how many numbers fit.",
+      "savedHint": "Add \"Custom widget\" to your screen, then choose this one in Edit Widget."
     },
     "preview": {
       "untitled": "New widget",
@@ -10293,6 +10293,10 @@
       "activity": "Activity",
       "lockCalories": "Lock Screen calories",
       "lockGlance": "Lock Screen glance"
-    }
+    },
+    "howToTitle": "Add a widget to your screen",
+    "howToStep1": "1. Touch and hold your Home Screen or Lock Screen, tap Add, and choose SparkyFitness.",
+    "howToStep2": "2. Add \"Custom widget\". It shows your first widget until you choose.",
+    "howToStep3": "3. Touch and hold it, tap Edit Widget, and pick the widget you want. Add it again to show another."
   }
 }

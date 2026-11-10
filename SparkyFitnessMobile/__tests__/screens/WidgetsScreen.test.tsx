@@ -60,6 +60,29 @@ describe('WidgetsScreen', () => {
     expect(navigation.navigate).toHaveBeenCalledWith('WidgetEditor', {});
   });
 
+  it('explains how to add and choose a widget once there is one', () => {
+    useWidgetLayoutStore.getState().addLayout({
+      name: 'Macros',
+      family: 'small',
+      style: 'ring',
+      metrics: [{ metric: 'protein' }],
+    });
+    renderScreen();
+
+    expect(screen.getByText('Add a widget to your screen')).toBeTruthy();
+    expect(
+      screen.getByText(/It shows your first widget until you choose/)
+    ).toBeTruthy();
+    expect(
+      screen.getByText(/tap Edit Widget, and pick the widget/)
+    ).toBeTruthy();
+  });
+
+  it('does not show the steps before any widget is saved', () => {
+    renderScreen();
+    expect(screen.queryByText('Add a widget to your screen')).toBeNull();
+  });
+
   it('lists saved widgets and opens one to edit', () => {
     const id = useWidgetLayoutStore.getState().addLayout({
       name: 'Macros',

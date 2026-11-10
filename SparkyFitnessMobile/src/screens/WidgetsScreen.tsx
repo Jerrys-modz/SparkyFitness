@@ -173,12 +173,33 @@ const WidgetsScreen: React.FC<WidgetsScreenProps> = ({ navigation }) => {
           flexGrow: 1,
         }}
         ListHeaderComponent={
-          <Text className="text-sm text-text-secondary mb-4">
-            {t('widgets.howTo', {
-              defaultValue:
-                'Build a widget here, then touch and hold your Home Screen or Lock Screen, tap Add, choose SparkyFitness and add "Custom widget". Touch and hold it, tap Edit Widget and pick yours.',
-            })}
-          </Text>
+          layouts.length > 0 ? (
+            <View className="bg-surface rounded-xl p-4 mb-4 shadow-sm">
+              <Text className="text-base font-semibold text-text-primary mb-2">
+                {t('widgets.howToTitle', {
+                  defaultValue: 'Add a widget to your screen',
+                })}
+              </Text>
+              <Text className="text-sm text-text-secondary mb-1">
+                {t('widgets.howToStep1', {
+                  defaultValue:
+                    '1. Touch and hold your Home Screen or Lock Screen, tap Add, and choose SparkyFitness.',
+                })}
+              </Text>
+              <Text className="text-sm text-text-secondary mb-1">
+                {t('widgets.howToStep2', {
+                  defaultValue:
+                    '2. Add "Custom widget". It shows your first widget until you choose.',
+                })}
+              </Text>
+              <Text className="text-sm text-text-secondary">
+                {t('widgets.howToStep3', {
+                  defaultValue:
+                    '3. Touch and hold it, tap Edit Widget, and pick the widget you want. Add it again to show another.',
+                })}
+              </Text>
+            </View>
+          ) : null
         }
         ListEmptyComponent={
           <StatusView

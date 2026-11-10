@@ -39,7 +39,7 @@
 "widget.control.calories_left.name" = "Calories left";
 "widget.control.calories_left.description" = "Shows the calories you have left today. Tap to open your food diary.";
 "widget.custom.name" = "Custom widget";
-"widget.custom.description" = "A widget you design in SparkyFitness.";
+"widget.custom.description" = "A widget you design in SparkyFitness. After adding it, touch and hold it and tap Edit Widget to choose which one.";
 "widget.custom.empty" = "Open SparkyFitness to build a widget";
 "widget.custom.metric.calories_remaining" = "Calories left";
 "widget.custom.metric.calories_eaten" = "Eaten";

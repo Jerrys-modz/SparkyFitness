@@ -161,6 +161,10 @@ const WidgetEditorScreen: React.FC<WidgetEditorScreenProps> = ({
     Toast.show({
       type: 'success',
       text1: t('widgets.editor.saved', { defaultValue: 'Widget saved' }),
+      text2: t('widgets.editor.savedHint', {
+        defaultValue:
+          'Add "Custom widget" to your screen, then choose this one in Edit Widget.',
+      }),
     });
     navigation.goBack();
   };

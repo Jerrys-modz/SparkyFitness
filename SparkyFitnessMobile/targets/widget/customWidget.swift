@@ -416,16 +416,23 @@ struct CustomWidgetLayoutEntity: AppEntity, Identifiable {
 
     let id: String
     let name: String
-    let family: String
+    /// What the widget shows, so two widgets with similar names can be told
+    /// apart in the Edit Widget list. Falls back to the size it was built for.
+    let summary: String
 
     init(layout: CustomWidgetLayout) {
         id = layout.id
         name = layout.name
-        family = layout.family
+        let numbers: [String] = layout.metrics.prefix(3).compactMap { (ref: CustomWidgetMetricRef) -> String? in
+            let custom = ref.label ?? ""
+            if !custom.isEmpty { return custom }
+            return customMetricInfo(ref.metric)?.label
+        }
+        summary = numbers.isEmpty ? customFamilyDisplayName(layout.family) : numbers.joined(separator: ", ")
     }
 
     var displayRepresentation: DisplayRepresentation {
-        DisplayRepresentation(title: "\(name)", subtitle: "\(customFamilyDisplayName(family))")
+        DisplayRepresentation(title: "\(name)", subtitle: "\(summary)")
     }
 }
 

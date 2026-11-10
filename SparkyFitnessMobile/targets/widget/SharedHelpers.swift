@@ -130,7 +130,7 @@ private func fallbackWidgetString(_ key: String) -> String {
     case "widget.search_food": return "Search food"
     case "widget.scan_barcode": return "Scan barcode"
     case "widget.custom.name": return "Custom widget"
-    case "widget.custom.description": return "A widget you design in SparkyFitness."
+    case "widget.custom.description": return "A widget you design in SparkyFitness. After adding it, touch and hold it and tap Edit Widget to choose which one."
     case "widget.custom.empty": return "Open SparkyFitness to build a widget"
     case "widget.custom.metric.calories_remaining": return "Calories left"
     case "widget.custom.metric.calories_eaten": return "Eaten"
