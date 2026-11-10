@@ -105,6 +105,22 @@ describe('WidgetEditorScreen', () => {
     expect(navigation.goBack).toHaveBeenCalled();
   });
 
+  it('tells you what to do next after saving', () => {
+    renderEditor();
+    fireEvent.changeText(
+      screen.getByPlaceholderText('e.g. Morning macros'),
+      'Macros'
+    );
+    press('Save');
+
+    expect(Toast.show).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'success',
+        text2: expect.stringContaining('Edit Widget'),
+      })
+    );
+  });
+
   it('asks for a name instead of saving without one', () => {
     renderEditor();
     press('Save');

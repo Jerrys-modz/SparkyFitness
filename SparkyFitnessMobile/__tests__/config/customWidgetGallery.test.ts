@@ -38,4 +38,21 @@ describe('custom widget choosing', () => {
       /useCustomWidgetLayoutSync/
     );
   });
+
+  // The gallery card previews the first saved widget and cannot show the
+  // others, so its description is where a person learns to use Edit Widget.
+  it('tells the person in the gallery to choose in Edit Widget', () => {
+    const strings = read('targets/widget/en.lproj/Localizable.strings');
+    const description = strings.match(
+      /"widget\.custom\.description" = "([^"]*)";/
+    )?.[1];
+    expect(description).toMatch(/Edit Widget/);
+  });
+
+  it('shows what each saved widget contains in the Edit Widget list', () => {
+    expect(swiftSource).toMatch(
+      /DisplayRepresentation\(title: "\\\(name\)", subtitle: "\\\(summary\)"\)/
+    );
+    expect(swiftSource).toMatch(/layout\.metrics\.prefix\(3\)\.compactMap/);
+  });
 });
