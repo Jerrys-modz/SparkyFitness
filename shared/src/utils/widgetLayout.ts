@@ -83,10 +83,14 @@ export const WIDGET_FAMILY_MAX_METRICS: Record<WidgetFamily, number> = {
   lockInline: 1,
 };
 
-/** Styles that make sense for a family. The first entry is the default. */
+/**
+ * Styles that make sense for a family. The first entry is the default, so
+ * every family lists at least one (the type says so, which keeps `[0]` defined
+ * under `noUncheckedIndexedAccess`, as the web app compiles it).
+ */
 export const WIDGET_FAMILY_STYLES: Record<
   WidgetFamily,
-  readonly WidgetStyle[]
+  readonly [WidgetStyle, ...WidgetStyle[]]
 > = {
   small: ['ring', 'value', 'bars'],
   medium: ['grid', 'bars', 'ring', 'list'],
