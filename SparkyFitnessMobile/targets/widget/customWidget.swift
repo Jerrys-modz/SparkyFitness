@@ -474,21 +474,19 @@ struct CustomWidgetProvider: AppIntentTimelineProvider {
     }
 
     func snapshot(for configuration: SelectCustomWidgetIntent, in context: Context) async -> CustomWidgetEntry {
-        // The gallery asks for a snapshot when it opens: keep its list of
-        // saved widgets current for the next time.
-        WidgetCenter.shared.invalidateConfigurationRecommendations()
-        return makeEntry(for: configuration)
+        makeEntry(for: configuration)
     }
 
     func timeline(for configuration: SelectCustomWidgetIntent, in context: Context) async -> Timeline<CustomWidgetEntry> {
-        // Layouts changed in the app reload this widget; refresh the gallery's list too.
-        WidgetCenter.shared.invalidateConfigurationRecommendations()
-        return Timeline(entries: [makeEntry(for: configuration)], policy: .after(Date().addingTimeInterval(30 * 60)))
+        Timeline(entries: [makeEntry(for: configuration)], policy: .after(Date().addingTimeInterval(30 * 60)))
     }
 
     /// One gallery card per saved layout, so every widget the person built can
     /// be added directly. Without this the gallery shows a single "Custom
-    /// widget" that previews only the first layout.
+    /// widget" that previews only the first layout. Edit Widget lists every
+    /// saved layout either way (`CustomWidgetLayoutQuery`), as in Home
+    /// Assistant's custom widget. The app asks iOS to refresh this list when
+    /// layouts change (`reloadWidgetRecommendations` in the native module).
     func recommendations() -> [AppIntentRecommendation<SelectCustomWidgetIntent>] {
         loadCustomWidgetLayouts().map { layout in
             let intent = SelectCustomWidgetIntent()

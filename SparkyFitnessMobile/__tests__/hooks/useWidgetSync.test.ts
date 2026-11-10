@@ -223,22 +223,23 @@ describe('useWidgetSync', () => {
     });
     renderHook(() => useWidgetSync(summary));
 
-    // The empty layout list is always written; no custom widget data is.
     const keys = setMock.mock.calls.map((call) => call[0]);
-    expect(keys).toEqual(['customWidgetLayouts', 'macroSnapshot']);
+    expect(keys).toEqual(['macroSnapshot']);
 
     const reloadedKinds = reloadMock.mock.calls.map((call) => call[0]);
     expect(reloadedKinds).toEqual(['macroWidget']);
     expect(mockAddLog).not.toHaveBeenCalled();
   });
 
-  it('writes nothing but the empty layout list when the summary date is not today', () => {
+  it('writes nothing when the summary date is not today', () => {
     renderHook(() => useWidgetSync(makeSummary({ date: '2000-01-01' })));
 
-    expect(setMock.mock.calls).toEqual([['customWidgetLayouts', '[]']]);
+    expect(setMock).not.toHaveBeenCalled();
     expect(reloadMock).not.toHaveBeenCalled();
   });
 
+  // The saved layouts are mirrored by useCustomWidgetLayoutSync, mounted at
+  // the app root; this hook only writes the day's numbers for them.
   describe('custom widget', () => {
     const layout = {
       id: 'w1',
@@ -255,19 +256,6 @@ describe('useWidgetSync', () => {
 
     afterEach(() => {
       useWidgetLayoutStore.setState({ layouts: [] });
-    });
-
-    it('writes and reloads saved layouts even without a summary', () => {
-      useWidgetLayoutStore.setState({ layouts: [layout] });
-      renderHook(() => useWidgetSync(undefined));
-
-      expect(setMock).toHaveBeenCalledWith(
-        'customWidgetLayouts',
-        JSON.stringify([layout])
-      );
-      expect(reloadMock.mock.calls.map((call) => call[0])).toEqual([
-        'customWidget',
-      ]);
     });
 
     it('writes the metric snapshot and reloads the widget when layouts exist', () => {
