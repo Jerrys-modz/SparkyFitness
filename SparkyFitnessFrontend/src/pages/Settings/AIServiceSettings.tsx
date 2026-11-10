@@ -28,6 +28,7 @@ import { UserChatPreferences } from '@/components/ai/UserChatPreferences';
 import { GlobalOverrideBanner } from '@/components/ai/GlobalOverrideBanner';
 import { ServiceForm } from '@/components/ai/ServiceForm';
 import { VoiceInputSettings } from '@/components/ai/VoiceInputSettings';
+import { SparkyMemorySettings } from '@/components/ai/SparkyMemorySettings';
 import { UserServiceListItem } from '@/components/ai/UserServiceListItem';
 import { isCustomModelName, requiresApiKey } from '@/utils/aiServiceUtils';
 import {
@@ -695,6 +696,18 @@ const AIServiceSettings = () => {
             chatServiceId={activeServiceId}
             onChange={(patch, onSaved) =>
               patchPreferences(patch, { onSuccess: onSaved })
+            }
+            disabled={isUpdatingPrefs}
+          />
+
+          <SparkyMemorySettings
+            memoryEnabled={
+              preferencesData
+                ? preferencesData.assistant_memory_enabled !== false
+                : undefined
+            }
+            onMemoryEnabledChange={(enabled) =>
+              patchPreferences({ assistant_memory_enabled: enabled })
             }
             disabled={isUpdatingPrefs}
           />

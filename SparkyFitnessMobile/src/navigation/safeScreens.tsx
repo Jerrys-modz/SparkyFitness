@@ -114,6 +114,7 @@ import ProgressPhotoCompareScreen from '../screens/ProgressPhotoCompareScreen';
 import ProgressPhotoTimelapseScreen from '../screens/ProgressPhotoTimelapseScreen';
 import ChatScreen from '../screens/ChatScreen';
 import ChatSettingsScreen from '../screens/ChatSettingsScreen';
+import SparkyMemoryScreen from '../screens/SparkyMemoryScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
 import CycleSettingsScreen from '../screens/CycleSettingsScreen';
 import CycleOnboardingScreen from '../screens/CycleOnboardingScreen';
@@ -249,6 +250,7 @@ export const SafeProgressPhotoCompare = withErrorBoundary(ProgressPhotoCompareSc
 export const SafeProgressPhotoTimelapse = withErrorBoundary(ProgressPhotoTimelapseScreen, 'ProgressPhotoTimelapse', { canGoBack: true });
 export const SafeChat = withErrorBoundary(ChatScreen, 'Chat', { canGoBack: true });
 export const SafeChatSettings = withErrorBoundary(ChatSettingsScreen, 'ChatSettings', { canGoBack: true });
+export const SafeSparkyMemory = withErrorBoundary(SparkyMemoryScreen, 'SparkyMemory', { canGoBack: true });
 export const SafeGoals = withErrorBoundary(GoalsScreen, 'Goals', { canGoBack: true });
 export const SafeWeeklyGoalPlanEdit = withErrorBoundary(WeeklyGoalPlanEditScreen, 'WeeklyGoalPlanEdit', { canGoBack: true });
 export const SafeCalorieSettings = withErrorBoundary(CalorieSettingsScreen, 'CalorieSettings', { canGoBack: true });

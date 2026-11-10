@@ -21,6 +21,10 @@ import {
   supportsTemperature,
 } from '../ai/modelCapabilities.js';
 import { loadUserTimezone } from '../utils/timezoneLoader.js';
+import {
+  buildAssistantMemoryPromptSection,
+  loadAssistantMemory,
+} from './assistantMemoryService.js';
 import { TtlCache } from '../utils/ttlCache.js';
 import {
   assertOutboundUrlShapeAndLiteralAllowed,
@@ -498,6 +502,10 @@ const chatContextInputsCache = new TtlCache<{
   chatTz: string;
   customCategoriesList: string;
   accountName: string | null;
+  // What the person asked Sparky to remember, as a prompt section ('' when
+  // nothing is saved or memory is switched off). It changes only when a
+  // preference is edited, like the two above.
+  assistantMemorySection: string;
 }>(60_000);
 
 // Added to the system prompt when the signed-in person has switched to a
@@ -631,14 +639,22 @@ async function prepareChatContext(
 ) {
   const switched = userId !== authenticatedUserId;
   const loadContextInputs = async () => {
-    const [customCategories, tz, profile] = await Promise.all([
+    const [customCategories, tz, profile, memory] = await Promise.all([
       measurementRepository.getCustomCategories(userId),
       loadUserTimezone(userId),
       switched ? userRepository.getUserProfile(userId) : null,
+      // The signed-in person's own saved preferences, even in a family
+      // member's account. Memory is background, never a reason for a chat turn
+      // to fail.
+      loadAssistantMemory(authenticatedUserId).catch((error: unknown) => {
+        log('warn', 'Could not load saved assistant preferences:', error);
+        return [];
+      }),
     ]);
     return {
       accountName: switched ? (profile?.full_name ?? null) : null,
       chatTz: tz,
+      assistantMemorySection: buildAssistantMemoryPromptSection(memory),
       customCategoriesList:
         customCategories.length > 0
           ? customCategories
@@ -652,12 +668,13 @@ async function prepareChatContext(
   };
   // In a family member's account what the signed-in person can read depends
   // on a grant the owner can change at any time, so it is read every turn.
-  const { chatTz, customCategoriesList, accountName } = switched
-    ? await loadContextInputs()
-    : await chatContextInputsCache.getOrLoad(
-        authenticatedUserId,
-        loadContextInputs
-      );
+  const { chatTz, customCategoriesList, accountName, assistantMemorySection } =
+    switched
+      ? await loadContextInputs()
+      : await chatContextInputsCache.getOrLoad(
+          authenticatedUserId,
+          loadContextInputs
+        );
 
   // Per-service chat tool profile. 'core' trims the tool surface for small/local
   // models and is honored for every self-hosted service type (ollama,
@@ -780,7 +797,8 @@ async function prepareChatContext(
         // account, so this keeps the cached prompt prefix intact.
         ...(switched ? [familyAccountPrompt(accountName)] : []),
       ].join('\n\n'),
-      serviceSystemPrompt
+      serviceSystemPrompt,
+      assistantMemorySection
     ),
     tools,
     activeToolNames,
@@ -801,14 +819,21 @@ async function prepareChatContext(
  *
  * Cache-stability: the custom prompt changes only when the service config is
  * edited, not per-turn, so it doesn't violate the prefix-caching invariant.
+ *
+ * The person's saved preferences (see assistantMemoryService) sit between the
+ * two, and likewise change only when one is edited.
  */
-function buildFinalSystemPrompt(
+export function buildFinalSystemPrompt(
   basePrompt: string,
-  serviceSystemPrompt?: string | null
+  serviceSystemPrompt?: string | null,
+  assistantMemorySection = ''
 ): string {
+  const withMemory = assistantMemorySection
+    ? `${basePrompt}\n\n${assistantMemorySection}`
+    : basePrompt;
   const trimmed = serviceSystemPrompt?.trim();
-  if (!trimmed) return basePrompt;
-  return `${basePrompt}\n\n## Additional Instructions\n${trimmed}`;
+  if (!trimmed) return withMemory;
+  return `${withMemory}\n\n## Additional Instructions\n${trimmed}`;
 }
 
 // INVARIANT — keep the request prefix (system prompt + tool schemas) stable

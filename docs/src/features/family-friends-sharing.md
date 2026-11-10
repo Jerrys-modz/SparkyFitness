@@ -85,6 +85,8 @@ Certain tables contain private user data that is **never** accessible to any fam
 * OIDC SSO Connections (`user_oidc_links` table)
 * Remote MCP OAuth clients, signing keys, consent grants, access/refresh tokens, and revocation records (`jwks` and `oauth_*` tables). These are system-managed and never exposed through family profile switching or delegation. The server-wide OAuth switch and redirect URI allowlist are administrator settings, not family-sharing permissions.
 * Personal AI Assistant Chat History (`sparky_chat_history` table)
+* Sparky's daily summary. It is written from the signed-in person's own data with their own AI service and is not available while viewing a family member's data.
+* What Sparky remembers and the switch that turns it off (`user_preferences.assistant_memory_enabled`), together with the rest of the saved preferences below.
 * Lasting food preferences, food task drafts and their operation history (`food_assistant_preferences`, `food_assistant_tasks`, `food_assistant_operations`). These belong to the signed-in person and are never delegated while viewing a family diary.
 * Voice recordings are transient and are never shared or stored as diary entries. AI transcription uses only the signed-in user's accessible AI configuration, never credentials from a switched family profile.
 * Personal Fasting Preferences and auto-calculation configuration (`user_fasting_preferences` table)

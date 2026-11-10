@@ -53,6 +53,7 @@ import SymptomsCard from '../components/SymptomsCard';
 import MoodCard from '../components/mood/MoodCard';
 import LabResultsCard from '../components/labs/LabResultsCard';
 import OralCareCard from '../components/oralCare/OralCareCard';
+import SparkySummaryCard from '../components/SparkySummaryCard';
 import { oralCareQueryKeyRoot } from '../hooks/useOralCare';
 import ProgressPhotosCard from '../components/ProgressPhotosCard';
 import TrainingLoadDashboardCard from '../components/TrainingLoadDashboardCard';
@@ -584,6 +585,9 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
   const oralCareCardVisible = useAppPreferencesStore(
     (s) => s.oralCareCardVisible
   );
+  const sparkySummaryCardVisible = useAppPreferencesStore(
+    (s) => s.sparkySummaryCardVisible
+  );
   const trainingLoadCardVisible = useAppPreferencesStore(
     (s) => s.trainingLoadCardVisible
   );
@@ -686,6 +690,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
     readiness: readinessCardVisible,
     steps: stepsCardVisible,
     heartRate: heartRateCardVisible,
+    sparkySummary: sparkySummaryCardVisible,
   };
   // The Summary tab's status line sits right under Ask Sparky.
   const shownSlots: DashboardSlot[] =
@@ -1461,6 +1466,14 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                   date={selectedDate}
                   sessions={summary.exerciseEntries}
                   onOpenReport={() => navigation.navigate('HeartRateReport')}
+                />
+              ) : null;
+            case 'sparkySummary':
+              return sparkySummaryCardVisible ? (
+                <SparkySummaryCard
+                  key="sparkySummary"
+                  selectedDate={selectedDate}
+                  onOpenChat={() => navigation.navigate('Chat')}
                 />
               ) : null;
             case 'oralCare':

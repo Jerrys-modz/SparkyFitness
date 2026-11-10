@@ -26,6 +26,7 @@ export const DASHBOARD_CARD_KEYS = [
   'mindfulness',
   'oralCare',
   'labResults',
+  'sparkySummary',
 ] as const;
 
 export type DashboardCardKey = (typeof DASHBOARD_CARD_KEYS)[number];
@@ -82,6 +83,10 @@ export const DASHBOARD_CARD_TITLES: Record<
   steps: (t) => t('dashboardSettings.steps', { defaultValue: 'Steps' }),
   heartRate: (t) =>
     t('dashboardSettings.heartRate', { defaultValue: 'Heart Rate' }),
+  sparkySummary: (t) =>
+    t('dashboardSettings.sparkySummary', {
+      defaultValue: "Sparky's daily summary",
+    }),
 };
 
 export const DASHBOARD_CARD_SUBTITLES: Record<
@@ -192,5 +197,10 @@ export const DASHBOARD_CARD_SUBTITLES: Record<
     t('dashboardSettings.heartRateSubtitle', {
       defaultValue:
         "Show resting heart rate and today's time in each heart rate zone",
+    }),
+  sparkySummary: (t) =>
+    t('dashboardSettings.sparkySummarySubtitle', {
+      defaultValue:
+        'A short AI summary of your day with one or two suggestions. Uses your AI service once when you open the Dashboard',
     }),
 };

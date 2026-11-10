@@ -47,6 +47,27 @@ Multi-step food tasks keep their ingredient selections, portion variants, source
 
 This information belongs to the signed-in person and is not shared with family diary viewers.
 
+## What Sparky Remembers
+
+Sparky can keep a short list of things you told it about yourself: your diet, allergies, foods you avoid, goals, or how you like to be coached. It keeps to them in every chat and in the daily summary, on web and mobile.
+
+- **Add something**: tell Sparky in chat ("Remember that I am vegetarian"), or type it in yourself. On the web open **Settings > AI Service > What Sparky remembers**; in the mobile app open **Settings > What Sparky remembers**.
+- **Change or delete**: use the same screen. Each item can be edited or deleted on its own.
+- **Turn it off**: switch off **Let Sparky use this**. The list is kept, but Sparky stops reading it and stops adding to it until you switch it back on.
+
+This is what you said about yourself, kept apart from what you log. Sparky is told not to assume anything beyond it, and a request in the current message always wins for that message. The list is private to you and is never shared with family.
+
+## Daily Summary
+
+Sparky can write a short summary of your day so far with one or two optional suggestions, based on the food, exercise and water you logged today and yesterday, your goals, and what Sparky remembers.
+
+It is off until you turn it on, because each new summary is one request to your own AI service:
+
+- **Mobile**: **Settings > Dashboard**, switch on **Sparky's daily summary**. The card appears on the Dashboard for today.
+- **Web**: **Settings > AI Service > What Sparky remembers**, switch on **Daily summary on the Diary**. The card appears at the top of the Diary for today. This switch applies to that browser only.
+
+A summary is kept for three hours, so reopening the app does not use your AI service again. Use the refresh button on the card to write a new one sooner. No request is made when no AI service is set up or when nothing was logged today or yesterday. The summary is not stored on the server and is not shown while you view a family member's data.
+
 ## Troubleshooting AI Providers
 
 Most "OpenAI Compatible / OpenRouter isn't working" reports come from provider configuration, not from SparkyFitness itself. The most common cases:

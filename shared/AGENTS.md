@@ -8,6 +8,7 @@ _Last updated: 2026-10-27_
 _Last updated: 2026-11-03_
 _Last updated: 2026-11-08_
 _Last updated: 2026-11-09_
+_Last updated: 2026-11-10_
 
 `@workspace/shared` is a source-first TypeScript workspace library package for schemas, constants, and timezone/day helpers consumed by SparkyFitnessServer, SparkyFitnessFrontend, and SparkyFitnessMobile.
 
@@ -19,7 +20,7 @@ _Last updated: 2026-11-09_
 
 ## Food Assistant State
 
-`schemas/api/FoodAssistant.api.zod.ts` and `schemas/database/FoodAssistant.zod.ts` define lasting preferences, versioned tasks, unresolved ingredients and idempotent operation records. All state is owner-only; these additive contracts do not change existing chat clients.
+`schemas/api/FoodAssistant.api.zod.ts` and `schemas/database/FoodAssistant.zod.ts` define lasting preferences, versioned tasks, unresolved ingredients and idempotent operation records. All state is owner-only; these additive contracts do not change existing chat clients. Preferences are not limited to food: `utils/assistantMemory.ts` (`assistantPreferenceKey`, `assistantPreferenceLabel`) names the ones a person types in settings, and `schemas/api/AssistantDailySummary.api.zod.ts` is the contract for Sparky's daily summary and the `assistant_memory_enabled` preference patch (#2013).
 
 ## Structure
 

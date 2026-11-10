@@ -18,6 +18,8 @@ const FOOD_WATER_TO_INTAKE_PARAM = 47;
 const VOICE_AI_SERVICE_ID_PARAM = 53;
 const VOICE_AI_SERVICE_ID_GUARD_PARAM = 54;
 const VOICE_INPUT_ENABLED_PARAM = 55;
+// $65 in both the update and the upsert.
+const ASSISTANT_MEMORY_ENABLED_PARAM = 64;
 // $8 in the update statement (the upsert numbers it $9).
 const FOOD_DATA_PROVIDER_ID_PARAM = 7;
 
@@ -156,6 +158,33 @@ describe('preferenceRepository bootstrapUserTimezoneIfUnset', () => {
       );
       expect(params[VOICE_INPUT_ENABLED_PARAM]).toBe(enabled);
       expect(params[VOICE_AI_SERVICE_ID_GUARD_PARAM]).toBe(false);
+    }
+  );
+
+  it.each([true, false, undefined])(
+    'writes the assistant memory switch on update and upsert: %s',
+    async (enabled) => {
+      mockClient.query.mockResolvedValue({ rows: [{ user_id: 'user-1' }] });
+      await preferenceRepository.updateUserPreferences('user-1', {
+        assistant_memory_enabled: enabled,
+      });
+      await preferenceRepository.upsertUserPreferences({
+        user_id: 'user-1',
+        assistant_memory_enabled: enabled,
+      });
+      const [updateSql, updateParams] = mockClient.query.mock.calls[0];
+      const [upsertSql, upsertParams] = mockClient.query.mock.calls[1];
+      expect(updateSql).toContain(
+        'assistant_memory_enabled = COALESCE($65, assistant_memory_enabled)'
+      );
+      expect(upsertSql).toContain(
+        'assistant_memory_enabled = COALESCE($65, user_preferences.assistant_memory_enabled)'
+      );
+      expect(upsertSql).toContain('COALESCE($65, TRUE)');
+      expect(updateParams[ASSISTANT_MEMORY_ENABLED_PARAM]).toBe(enabled);
+      expect(upsertParams[ASSISTANT_MEMORY_ENABLED_PARAM]).toBe(enabled);
+      expect(updateParams).toHaveLength(65);
+      expect(upsertParams).toHaveLength(65);
     }
   );
 

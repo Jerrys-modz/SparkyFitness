@@ -435,6 +435,7 @@ describe('appPreferencesStore', () => {
         'mindfulness',
         'oralCare',
         'labResults',
+        'sparkySummary',
       ]);
     });
 
