@@ -44,6 +44,7 @@ import {
   usePreferences,
   useServerConnection,
   useCustomNutrients,
+  useNutrientDisplayPreferences,
   useSetFoodEntryImages,
   useClearFoodEntryImage,
 } from '../hooks';
@@ -58,7 +59,10 @@ import {
   parseOptional,
   buildNutrientDisplayList,
 } from '../types/foodInfo';
-import { getNetCarbsValue } from '../utils/nutrientUtils';
+import {
+  applyNutrientDisplayPreference,
+  getNetCarbsValue,
+} from '../utils/nutrientUtils';
 import type { FoodVariantDetail } from '../types/foods';
 import type { FoodEntry } from '../types/foodEntries';
 import type {
@@ -440,8 +444,21 @@ const FoodEntryViewScreen: React.FC<FoodEntryViewScreenProps> = ({
   const { customNutrients: customNutrientDefs } = useCustomNutrients({
     enabled: isConnected,
   });
+  const { preferences: displayPreferences } = useNutrientDisplayPreferences({
+    enabled: isConnected,
+  });
+  // The Quick Info list the user chose in Nutrient Display (individual food
+  // entries); with none saved the full list shows, as before.
+  const visibleNutrients = displayPreferences.find(
+    (p) => p.view_group === 'quick_info' && p.platform === 'mobile'
+  )?.visible_nutrients;
   const customNutrientRows = useMemo(() => {
-    const rows: { label: string; value: number; unit: string }[] = [];
+    const rows: {
+      label: string;
+      value: number;
+      unit: string;
+      preferenceKey?: string;
+    }[] = [];
     const seen = new Set<string>();
     for (const def of customNutrientDefs) {
       const rawValue = selectedCustomNutrients?.[def.name];
@@ -455,6 +472,7 @@ const FoodEntryViewScreen: React.FC<FoodEntryViewScreenProps> = ({
         label: def.name,
         value: isNaN(value) ? 0 : value,
         unit: def.unit,
+        preferenceKey: def.name,
       });
       seen.add(def.name);
     }
@@ -469,8 +487,8 @@ const FoodEntryViewScreen: React.FC<FoodEntryViewScreenProps> = ({
         rows.push({ label: name, value, unit: '' });
       }
     }
-    return rows;
-  }, [customNutrientDefs, selectedCustomNutrients]);
+    return applyNutrientDisplayPreference(rows, visibleNutrients);
+  }, [customNutrientDefs, selectedCustomNutrients, visibleNutrients]);
 
   const displayValues = useMemo(() => {
     if (!adjustedValues) return activeVariant;
@@ -913,12 +931,19 @@ const FoodEntryViewScreen: React.FC<FoodEntryViewScreenProps> = ({
   // renderNutrientValue scales every other row the same way, so pre-scaling
   // here would double-scale the displayed Total Carbs value.
   const useNetCarbsInList = isEditing ? editUseNetCarbs : viewUseNetCarbs;
-  const { primary: primaryNutrients, additional: additionalNutrients } =
-    buildNutrientDisplayList(displayValues, {
-      showNetCarbs: useNetCarbsInList,
-      carbs: useNetCarbsInList ? displayValues.carbs : undefined,
-      t,
-    });
+  const nutrientList = buildNutrientDisplayList(displayValues, {
+    showNetCarbs: useNetCarbsInList,
+    carbs: useNetCarbsInList ? displayValues.carbs : undefined,
+    t,
+  });
+  const primaryNutrients = applyNutrientDisplayPreference(
+    nutrientList.primary,
+    visibleNutrients
+  );
+  const additionalNutrients = applyNutrientDisplayPreference(
+    nutrientList.additional,
+    visibleNutrients
+  );
   const hasAdditional =
     additionalNutrients.length > 0 || customNutrientRows.length > 0;
   const showAdditionalRows = showMoreNutrients && hasAdditional;
