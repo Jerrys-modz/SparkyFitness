@@ -200,7 +200,7 @@ const NutrientTopSourcesCard: React.FC<NutrientTopSourcesCardProps> = ({
                       style={{ width: `${Math.round(source.share * 100)}%` }}
                     />
                   </View>
-                  <Text className="text-text-muted text-xs ml-2 w-10 text-right">
+                  <Text className="text-text-muted text-xs ml-2 min-w-10 text-right">
                     {t('nutrientTrends.topSources.share', {
                       defaultValue: '{{percent}}%',
                       percent: Math.round(source.share * 100),
