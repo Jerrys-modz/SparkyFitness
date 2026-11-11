@@ -3,6 +3,7 @@ import { Alert } from 'react-native';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 
 import WidgetsScreen from '../../src/screens/WidgetsScreen';
+import Toast from 'react-native-toast-message';
 import { useWidgetLayoutStore } from '../../src/stores/widgetLayoutStore';
 import { initializeI18n } from '../../src/localization/i18n';
 
@@ -29,6 +30,16 @@ jest.mock('../../src/components/Icon', () => {
     default: ({ name }: { name: string }) => <View testID={`icon-${name}`} />,
   };
 });
+
+jest.mock('react-native-toast-message', () => ({
+  __esModule: true,
+  default: { show: jest.fn() },
+}));
+
+const mockReloadWidgets = jest.fn();
+jest.mock('../../src/hooks/useCustomWidgetLayoutSync', () => ({
+  reloadWidgets: (...args: unknown[]) => mockReloadWidgets(...args),
+}));
 
 let mockIdCounter = 0;
 jest.mock('../../src/utils/ids', () => ({
@@ -58,6 +69,50 @@ describe('WidgetsScreen', () => {
     expect(screen.getByText('No widgets yet')).toBeTruthy();
     fireEvent.press(screen.getByText('New widget'));
     expect(navigation.navigate).toHaveBeenCalledWith('WidgetEditor', {});
+  });
+
+  describe('Reload widgets', () => {
+    it('is offered even before any widget is saved', () => {
+      renderScreen();
+      expect(screen.getByText('Reload widgets')).toBeTruthy();
+      expect(
+        screen.getByText(/blank or not showing your latest widgets/)
+      ).toBeTruthy();
+    });
+
+    it('reloads the saved widgets and says so', () => {
+      mockReloadWidgets.mockReturnValue(true);
+      useWidgetLayoutStore.getState().addLayout({
+        name: 'Macros',
+        family: 'small',
+        style: 'ring',
+        metrics: [{ metric: 'protein' }],
+      });
+      renderScreen();
+
+      fireEvent.press(screen.getByText('Reload widgets'));
+
+      expect(mockReloadWidgets).toHaveBeenCalledWith(
+        useWidgetLayoutStore.getState().layouts
+      );
+      expect(Toast.show).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'success', text1: 'Widgets reloaded' })
+      );
+    });
+
+    it('points to the logs when the reload does not work', () => {
+      mockReloadWidgets.mockReturnValue(false);
+      renderScreen();
+
+      fireEvent.press(screen.getByText('Reload widgets'));
+
+      expect(Toast.show).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'error',
+          text2: expect.stringContaining('View Logs'),
+        })
+      );
+    });
   });
 
   it('explains how to add and choose a widget once there is one', () => {

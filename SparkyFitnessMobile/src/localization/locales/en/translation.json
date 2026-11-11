@@ -11612,6 +11612,12 @@
     "checkNow": "Check now",
     "checkNowCreated_one": "{{count}} new message on the Dashboard.",
     "checkNowCreated_other": "{{count}} new messages on the Dashboard.",
-    "checkNowNone": "Nothing to say right now."
+    "checkNowNone": "Nothing to say right now.",
+    "howToStep3": "3. Touch and hold it, tap Edit Widget, and pick the widget you want. Add it again to show another.",
+    "reloaded": "Widgets reloaded",
+    "reloadFailed": "Could not reload the widgets",
+    "reloadFailedHelp": "Try again. Settings > View Logs shows what went wrong.",
+    "reload": "Reload widgets",
+    "reloadHelp": "Use this if a widget is blank or not showing your latest widgets."
   }
 }
