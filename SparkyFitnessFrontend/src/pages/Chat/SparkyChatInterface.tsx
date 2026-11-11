@@ -1,4 +1,7 @@
-import { getSelectedCoachId } from '@/utils/chatCoachSelection';
+import {
+  getSelectedCoachId,
+  useSelectedCoachId,
+} from '@/utils/chatCoachSelection';
 import { formatDateToYYYYMMDD } from '@/lib/utils';
 import { useActiveAIService } from '@/hooks/AI/useAIServiceSettings';
 import { useAuth } from '@/hooks/useAuth';
@@ -210,9 +213,13 @@ const SparkyChatInterface = () => {
     useActiveAIService(!!user);
   const { data: preferences, isLoading: isPrefsLoading } =
     useChatPreferencesQuery();
+  // Each coach keeps its own thread: the history follows the chosen coach and
+  // the chat remounts with it.
+  const coachId = useSelectedCoachId();
   const { data: history, isLoading: isHistoryLoading } = useChatHistoryQuery(
     preferences?.auto_clear_history || 'never',
-    !!user
+    !!user,
+    coachId
   );
 
   if (isActiveServiceLoading || isPrefsLoading || isHistoryLoading) {
@@ -225,7 +232,7 @@ const SparkyChatInterface = () => {
 
   return (
     <SparkyChatInner
-      key={activeUserId ?? ''}
+      key={`${activeUserId ?? ''}:${coachId ?? 'sparky'}`}
       activeAIServiceSetting={activeAIServiceSetting || null}
       history={history || []}
     />

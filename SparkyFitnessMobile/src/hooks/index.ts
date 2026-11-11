@@ -4,6 +4,7 @@ export {
   serverConfigsQueryKey,
   fastingRootQueryKey,
   chatHistoryQueryKey,
+  chatThreadQueryKey,
   medicationsRootQueryKey,
   caffeineActiveRootQueryKey,
 } from './queryKeys';

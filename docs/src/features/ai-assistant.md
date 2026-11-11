@@ -59,7 +59,7 @@ This is what you said about yourself, kept apart from what you log. Sparky is to
 
 ## Coaches
 
-A coach is Sparky with a focus. Choosing one adds that coach's instructions to the chat and limits the chat to the tools the coach needs, so a coach only reaches the data its job calls for. One coach is active at a time, and choosing a different one starts a new conversation.
+A coach is Sparky with a focus. Choosing one adds that coach's instructions to the chat and limits the chat to the tools the coach needs, so a coach only reaches the data its job calls for. One coach is active at a time. Each coach keeps its own conversation: choosing a coach shows what you and that coach said before, a coach only sees its own conversation, and clearing the chat clears only the conversation shown.
 
 Four coaches are built in:
 
@@ -82,7 +82,7 @@ Once a day, from the hour you choose, the server looks at your finished days and
 
 | Coach | Speaks up when |
 |---|---|
-| Recovery Coach | You trained yesterday, logged food, and protein was under 80% of your goal |
+| Recovery Coach | You logged a workout yesterday, logged food, and protein was under 80% of your goal |
 | Sleep and Recovery Coach | Last night was under 6 hours and you logged 2 or more workouts in the 3 days before |
 | Consistency Coach | You have not logged for 2 days, and once more at 5 days; or a logging streak reaches 3, 7, 14, 30, 60, 100, 200 or 365 days |
 
@@ -90,6 +90,7 @@ The Macro Timing Coach and your own coaches do not check in yet.
 
 Things to know:
 
+- Active calories synced from a watch are a daily energy total, not a workout, and do not count as training or as logging.
 - You get at most 2 messages a day, a coach does not repeat the same observation for a few days, and something you did not log is treated as unknown, never as zero.
 - Messages appear at the top of the web Diary and in a "From your coaches" card on the mobile Dashboard. From a message you can dismiss it or open the chat as that coach. Messages are deleted after 30 days.
 - **Wording**: by default a message is a ready-made sentence with your numbers in it, and no AI request is made. Switch on **Let my AI service word them** to have your AI service write each one; that is one background request to your AI service per message.

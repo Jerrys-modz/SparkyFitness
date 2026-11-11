@@ -127,6 +127,14 @@ async function getDayNutritionTotals(
   }
 }
 
+/**
+ * True for a workout the person logged or a device recorded as a session. A
+ * synced device's "Active Calories" row is a daily energy total, not a
+ * workout, and is stored in the same table under that name.
+ */
+export const LOGGED_WORKOUT_SQL =
+  "exercise_name IS DISTINCT FROM 'Active Calories'";
+
 /** The names of one day's logged exercises, for the daily summary. */
 async function getDayExerciseNames(
   userId: string,
@@ -138,6 +146,7 @@ async function getDayExerciseNames(
       `SELECT DISTINCT exercise_name
        FROM exercise_entries
        WHERE user_id = $1 AND entry_date = $2 AND exercise_name IS NOT NULL
+         AND ${LOGGED_WORKOUT_SQL}
        ORDER BY exercise_name
        LIMIT 12`,
       [userId, day]

@@ -8,6 +8,7 @@ import {
   type UpdateCoachCheckinSettingsBody,
 } from '@workspace/shared';
 import { getClient, getSystemClient } from '../db/poolManager.js';
+import { LOGGED_WORKOUT_SQL } from './coachRepository.js';
 import { MAIN_SLEEP_ORDER_SQL } from './sleepRepository.js';
 
 // Coach check-ins (#2013): the settings, the facts the trigger rules read and
@@ -188,7 +189,8 @@ export async function getCheckinDayFacts(
 ): Promise<CheckinDayFacts> {
   const client = await getClient(userId, userId);
   try {
-    // 400 days covers the longest streak milestone.
+    // 400 days covers the longest streak milestone. A device's synced
+    // "Active Calories" row is neither a workout nor the person logging.
     const logged = await client.query(
       `SELECT DISTINCT entry_date::text AS day FROM (
          SELECT entry_date FROM food_entries
@@ -196,6 +198,7 @@ export async function getCheckinDayFacts(
          UNION
          SELECT entry_date FROM exercise_entries
            WHERE user_id = $1 AND entry_date > ($2::date - 400) AND entry_date <= $2::date
+             AND ${LOGGED_WORKOUT_SQL}
          UNION
          SELECT entry_date FROM check_in_measurements
            WHERE user_id = $1 AND entry_date > ($2::date - 400) AND entry_date <= $2::date
@@ -207,7 +210,8 @@ export async function getCheckinDayFacts(
          COUNT(*) FILTER (WHERE entry_date = ($2::date - 1))::int AS yesterday,
          COUNT(*)::int AS last3
        FROM exercise_entries
-       WHERE user_id = $1 AND entry_date >= ($2::date - 3) AND entry_date < $2::date`,
+       WHERE user_id = $1 AND entry_date >= ($2::date - 3) AND entry_date < $2::date
+         AND ${LOGGED_WORKOUT_SQL}`,
       [userId, today]
     );
     // The most recent night: today's main sleep, else yesterday's.

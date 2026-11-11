@@ -28,6 +28,7 @@ import {
   buildCoachPromptSection,
   coachToolCategories,
   resolveChatCoach,
+  type ChatCoach,
 } from './coachPersonaService.js';
 import { TtlCache } from '../utils/ttlCache.js';
 import {
@@ -317,10 +318,15 @@ async function clearOldChatHistory(authenticatedUserId: string) {
 
 async function getSparkyChatHistory(
   authenticatedUserId: string,
-  targetUserId: string
+  targetUserId: string,
+  // The coach whose thread to read; null is plain Sparky's.
+  coachId: string | null = null
 ) {
   try {
-    const history = await chatRepository.getChatHistoryByUserId(targetUserId);
+    const history = await chatRepository.getChatHistoryByUserId(
+      targetUserId,
+      coachId
+    );
     return history;
   } catch (error) {
     log(
@@ -432,8 +438,17 @@ async function deleteSparkyChatHistoryEntry(
   }
 }
 
-async function clearAllSparkyChatHistory(authenticatedUserId: string) {
+async function clearAllSparkyChatHistory(
+  authenticatedUserId: string,
+  // Set to clear one thread only: a coach's id, or null for plain Sparky's.
+  // Left out, every thread is cleared.
+  thread?: { coachId: string | null }
+) {
   try {
+    if (thread) {
+      await chatRepository.clearChatThread(authenticatedUserId, thread.coachId);
+      return { message: 'Chat history cleared successfully.' };
+    }
     await chatRepository.clearAllChatHistory(authenticatedUserId);
     return { message: 'All chat history cleared successfully.' };
   } catch (error) {
@@ -738,6 +753,16 @@ async function prepareChatContext(
  * coach's role (see coachPersonaService) sit between the two. Preferences
  * change only when one is edited and the coach is fixed for a conversation.
  */
+/**
+ * Files a saved chat message under its coach's thread, so each coach keeps
+ * its own conversation. Plain Sparky's messages carry no coach id.
+ */
+function coachThreadMetadata(
+  coach: ChatCoach | null
+): { coach_id: string } | undefined {
+  return coach ? { coach_id: coach.id } : undefined;
+}
+
 export function buildFinalSystemPrompt(
   basePrompt: string,
   serviceSystemPrompt?: string | null,
@@ -2432,6 +2457,7 @@ async function processChatMessage(
         content: userMessageContent,
         messageType: 'user',
         parts: userMessageParts,
+        metadata: coachThreadMetadata(coach),
       })
       .catch((err: unknown) =>
         log('error', 'Failed to save user chat history:', err)
@@ -2457,6 +2483,7 @@ async function processChatMessage(
           content: finalContent,
           messageType: 'assistant',
           parts: [{ type: 'text', text: finalContent }],
+          metadata: coachThreadMetadata(coach),
         })
         .catch((err: unknown) =>
           log('error', 'Failed to save assistant chat history:', err)
@@ -3089,6 +3116,7 @@ async function processChatMessageStream(
             content: userMessageContent,
             messageType: 'user',
             parts: userMessageParts,
+            metadata: coachThreadMetadata(coach),
           })
           .catch((err: unknown) =>
             log('error', 'Failed to save user chat history:', err)
@@ -3157,6 +3185,7 @@ async function processChatMessageStream(
               '',
             messageType: 'assistant',
             parts: assistantParts,
+            metadata: coachThreadMetadata(coach),
           })
           .catch((err: unknown) =>
             log('error', 'Failed to save assistant chat history:', err)

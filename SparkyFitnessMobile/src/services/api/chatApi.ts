@@ -31,25 +31,33 @@ type InitialMessages = NonNullable<
  * messages in chronological order). The GET handler ignores the web's
  * `autoClearHistory` query param, so no params are needed here.
  * GET /api/chat/sparky-chat-history
+ *
+ * Each coach has its own thread: `coachId` reads that coach's, and null reads
+ * plain Sparky's.
  */
-export const loadChatHistory = (): Promise<ChatHistoryEntry[]> =>
+export const loadChatHistory = (
+  coachId: string | null = null
+): Promise<ChatHistoryEntry[]> =>
   apiFetch<ChatHistoryEntry[]>({
-    endpoint: '/api/chat/sparky-chat-history',
+    endpoint: coachId
+      ? `/api/chat/sparky-chat-history?coachId=${encodeURIComponent(coachId)}`
+      : '/api/chat/sparky-chat-history',
     serviceName: 'Chat API',
     operation: 'load chat history',
   });
 
 /**
- * Clears all stored chat history for the user.
+ * Clears the thread shown: the coach's in `coachId`, or plain Sparky's when
+ * null. Other coaches' threads are kept.
  * POST /api/chat/clear-all-history
  */
-export const clearAllChatHistory = (): Promise<void> =>
+export const clearChatThread = (coachId: string | null): Promise<void> =>
   apiFetch<void>({
     endpoint: '/api/chat/clear-all-history',
     serviceName: 'Chat API',
     operation: 'clear chat history',
     method: 'POST',
-    body: {},
+    body: { thread: true, coachId: coachId ?? undefined },
   });
 
 type NormalizedHistoryPart = Extract<

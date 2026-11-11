@@ -24,12 +24,18 @@ export const loadUserPreferences = async (): Promise<UserPreferences> => {
   );
 };
 
+/**
+ * Each coach has its own thread: `coachId` reads that coach's, and null reads
+ * plain Sparky's.
+ */
 export const loadChatHistory = async (
-  autoClearHistory: string
+  autoClearHistory: string,
+  coachId: string | null = null
 ): Promise<Message[]> => {
   const params = new URLSearchParams({
     autoClearHistory,
   });
+  if (coachId) params.set('coachId', coachId);
   const data: ChatHistory[] = await apiCall(
     `/chat/sparky-chat-history?${params.toString()}`,
     {
@@ -53,14 +59,23 @@ export const loadChatHistory = async (
   });
 };
 
+/**
+ * `manual` removes old messages; `all` clears the thread shown (the coach's in
+ * `coachId`, or plain Sparky's when null) and keeps other coaches' threads.
+ */
 export const clearChatHistory = async (
-  clearType: 'manual' | 'all'
+  clearType: 'manual' | 'all',
+  coachId: string | null = null
 ): Promise<void> => {
   await apiCall(
     `/chat/${clearType === 'all' ? 'clear-all-history' : 'clear-old-history'}`,
     {
       method: 'POST',
-      body: {}, // No body needed, user is identified by JWT
+      // The user is identified by the session.
+      body:
+        clearType === 'all'
+          ? { thread: true, coachId: coachId ?? undefined }
+          : {},
     }
   );
 };

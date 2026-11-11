@@ -4900,7 +4900,6 @@
     "placeholder": "Message Sparky…",
     "emptyPrompt": "Ask Sparky anything about your nutrition, exercise, or goals.",
     "clearTitle": "Clear chat",
-    "clearMessage": "This permanently deletes your Sparky chat history. This cannot be undone.",
     "clearFailed": "Could not clear chat",
     "clearAccessibility": "Clear chat",
     "noServer": "No active server config. Set one up in Settings first.",
@@ -4944,7 +4943,8 @@
       "cameraPermission": "Camera permission needed",
       "cameraPermissionBody": "Enable camera access to add a photo.",
       "addFailed": "Could not add photo"
-    }
+    },
+    "clearThreadMessage": "This permanently deletes this conversation. Conversations with other coaches are kept. This cannot be undone."
   },
   "foodImagePicker": {
     "photos": "Photos",

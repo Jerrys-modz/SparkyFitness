@@ -77,7 +77,7 @@ import {
 } from '../services/storage';
 import { getAuthHeaders } from '../services/api/authService';
 import { normalizeUrl } from '../services/api/apiClient';
-import { clearAllChatHistory } from '../services/api/chatApi';
+import { clearChatThread } from '../services/api/chatApi';
 import { addLog } from '../services/LogService';
 import {
   MAX_CHAT_ATTACHMENTS,
@@ -93,6 +93,7 @@ import {
   useChatHistory,
   usePreferences,
   chatHistoryQueryKey,
+  chatThreadQueryKey,
 } from '../hooks';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import ChatCoachPicker from '../components/chat/ChatCoachPicker';
@@ -1476,8 +1477,10 @@ export default function ChatScreen({
   }, []);
 
   // Clearing needs only an authenticated server, not an active AI provider.
+  // Each coach keeps its own thread, so the history follows the chosen coach.
   const { data: historyData, isLoading: loadingHistory } = useChatHistory({
     enabled: !!baseUrl,
+    coachId: chatCoachId,
   });
   const initialMessages = historyData ?? [];
 
@@ -1507,9 +1510,9 @@ export default function ChatScreen({
   const handleClear = useCallback(() => {
     Alert.alert(
       t('chat.clearTitle', { defaultValue: 'Clear chat' }),
-      t('chat.clearMessage', {
+      t('chat.clearThreadMessage', {
         defaultValue:
-          'This permanently deletes your Sparky chat history. This cannot be undone.',
+          'This permanently deletes this conversation. Conversations with other coaches are kept. This cannot be undone.',
       }),
       [
         {
@@ -1521,9 +1524,10 @@ export default function ChatScreen({
           style: 'destructive',
           onPress: async () => {
             try {
-              await clearAllChatHistory();
+              // Only the thread shown is cleared; other coaches keep theirs.
+              await clearChatThread(chatCoachId);
               // Reset the raw (pre-select) cache so a remount seeds an empty thread.
-              queryClient.setQueryData(chatHistoryQueryKey, []);
+              queryClient.setQueryData(chatThreadQueryKey(chatCoachId), []);
               startChatConversation(serviceConfigId);
               setThreadKey((k) => k + 1);
             } catch (error) {
@@ -1544,7 +1548,7 @@ export default function ChatScreen({
         },
       ]
     );
-  }, [queryClient, serviceConfigId, startChatConversation, t]);
+  }, [queryClient, serviceConfigId, startChatConversation, chatCoachId, t]);
 
   // Clear chat is disabled while a stream runs so the server's in-flight
   // onFinish save can't resurrect the exchange after the DELETE.

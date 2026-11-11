@@ -388,15 +388,23 @@ async function clearOldChatHistory(userId: string) {
     client.release();
   }
 }
-async function getChatHistoryByUserId(userId: string) {
+/**
+ * The chat thread a history row belongs to (#2013): a coach's id, kept in
+ * `metadata.coach_id`, or null for plain Sparky. Rows written before coaches
+ * existed have no coach id, so they are Sparky's thread.
+ */
+async function getChatHistoryByUserId(
+  userId: string,
+  coachId: string | null = null
+) {
   const client = await getClient(userId); // User-specific operation
   try {
     // Fetch the 50 most recent messages (ORDER BY created_at DESC LIMIT 50)
     // and sort them chronologically (ORDER BY created_at ASC) in the outer query
     // so that the AI context and UI display them in the correct chronological order.
     const result = await client.query(
-      'SELECT id, content, message_type, created_at, metadata, parts FROM (SELECT id, content, message_type, created_at, metadata, parts FROM sparky_chat_history WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50) sub ORDER BY created_at ASC',
-      [userId]
+      "SELECT id, content, message_type, created_at, metadata, parts FROM (SELECT id, content, message_type, created_at, metadata, parts FROM sparky_chat_history WHERE user_id = $1 AND (metadata->>'coach_id') IS NOT DISTINCT FROM $2 ORDER BY created_at DESC LIMIT 50) sub ORDER BY created_at ASC",
+      [userId, coachId]
     );
     return result.rows;
   } finally {
@@ -477,6 +485,20 @@ async function clearAllChatHistory(userId: string) {
   const client = await getClient(userId); // User-specific operation
   try {
     await client.query('DELETE FROM sparky_chat_history', []);
+    return true;
+  } finally {
+    client.release();
+  }
+}
+/** Clears one thread: a coach's, or plain Sparky's when `coachId` is null. */
+async function clearChatThread(userId: string, coachId: string | null) {
+  const client = await getClient(userId); // User-specific operation
+  try {
+    await client.query(
+      `DELETE FROM sparky_chat_history
+       WHERE (metadata->>'coach_id') IS NOT DISTINCT FROM $1`,
+      [coachId]
+    );
     return true;
   } finally {
     client.release();
@@ -633,6 +655,7 @@ export { getChatHistoryEntryOwnerId };
 export { updateChatHistoryEntry };
 export { deleteChatHistoryEntry };
 export { clearAllChatHistory };
+export { clearChatThread };
 export { saveChatHistory };
 export { upsertGlobalAiServiceSetting };
 export { getGlobalAiServiceSettings };
@@ -654,6 +677,7 @@ export default {
   updateChatHistoryEntry,
   deleteChatHistoryEntry,
   clearAllChatHistory,
+  clearChatThread,
   saveChatHistory,
   upsertGlobalAiServiceSetting,
   getGlobalAiServiceSettings,
