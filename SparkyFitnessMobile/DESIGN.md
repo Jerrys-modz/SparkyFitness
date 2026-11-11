@@ -74,18 +74,18 @@ In Light, the canvas is the darkest surface and controls are white. In Dark, rai
 
 ### Nutrition and activity metrics
 
-| Role                 | Token class                       | Light hex | Dark hex | Usage                                                                                         |
-| -------------------- | --------------------------------- | --------- | -------- | --------------------------------------------------------------------------------------------- |
-| Calorie Indigo       | `--color-calories` (JS only)      | #506CF7   | #8792E3  | Calorie ring, diary calorie bar, "other" calories segment; also reused for the verified badge |
-| Protein Apricot      | `--color-macro-protein` (JS only) | #F6B151   | #E3AE63  | Protein bars, ring arcs, chart segments                                                       |
-| Carb Leaf Green      | `--color-macro-carbs` (JS only)   | #7AD680   | #89C88D  | Carbohydrate bars, ring arcs, chart segments                                                  |
-| Fat Sky Cyan         | `--color-macro-fat` (JS only)     | #6DCAE9   | #78C4DD  | Fat bars, ring arcs, chart segments                                                           |
-| Fiber Moss           | `--color-macro-fiber` (JS only)   | #47944F   | #568F5C  | Fiber bar                                                                                     |
-| Hydration Steel Blue | `--color-hydration` (JS only)     | #70A7C2   | #4799C2  | Water-bottle gauge fill, hydration settings icon                                              |
-| Exercise Mint        | `bg-exercise`                     | #6DE3A0   | #3EB68A  | Training-load and training-consistency bars                                                   |
-| PR Gold              | `--color-pr` (JS only)            | #D78509   | #F4C452  | Personal-record cards, rows and confetti; kept distinct from Category Amber                   |
-| Heart-Rate Red       | `--color-heart-rate` (JS only)    | #E2363C   | #E96367  | Watch-measured heart rate on workouts and charts; also the finish marker on route maps        |
-| Active-Energy Orange | `--color-active-energy` (JS only) | #F36F16   | #E79055  | Watch-measured active energy; separate from dietary Calorie Indigo                            |
+| Role                 | Token class                       | Light hex | Dark hex | Usage                                                                                                                                  |
+| -------------------- | --------------------------------- | --------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Calorie Indigo       | `--color-calories` (JS only)      | #506CF7   | #8792E3  | Calorie ring, diary calorie bar, "other" calories segment; also reused for the verified badge                                          |
+| Protein Apricot      | `--color-macro-protein` (JS only) | #F6B151   | #E3AE63  | Protein bars, ring arcs, chart segments                                                                                                |
+| Carb Leaf Green      | `--color-macro-carbs` (JS only)   | #7AD680   | #89C88D  | Carbohydrate bars, ring arcs, chart segments                                                                                           |
+| Fat Sky Cyan         | `--color-macro-fat` (JS only)     | #6DCAE9   | #78C4DD  | Fat bars, ring arcs, chart segments                                                                                                    |
+| Fiber Moss           | `--color-macro-fiber` (JS only)   | #47944F   | #568F5C  | Fiber bar                                                                                                                              |
+| Hydration Steel Blue | `--color-hydration` (JS only)     | #70A7C2   | #4799C2  | Water-bottle gauge fill, hydration settings icon                                                                                       |
+| Exercise Mint        | `bg-exercise`                     | #6DE3A0   | #3EB68A  | Training-load and training-consistency bars                                                                                            |
+| PR Gold              | `--color-pr` (JS only)            | #D78509   | #F4C452  | Personal-record cards, rows and confetti; kept distinct from Category Amber                                                            |
+| Heart-Rate Red       | `--color-heart-rate` (JS only)    | #E2363C   | #E96367  | Watch-measured heart rate on workouts and charts; also the finish marker on route maps and the red widget accent in the widget builder |
+| Active-Energy Orange | `--color-active-energy` (JS only) | #F36F16   | #E79055  | Watch-measured active energy; separate from dietary Calorie Indigo                                                                     |
 
 ### Category palette
 

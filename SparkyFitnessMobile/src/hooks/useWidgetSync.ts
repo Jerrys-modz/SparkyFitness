@@ -15,6 +15,14 @@ import {
 } from '../services/androidWidgetSyncService';
 import BackgroundWaterModule from '../../modules/background-water';
 import { buildCalorieWidgetSnapshot } from '../services/calorieWidgetSnapshot';
+import {
+  buildWidgetDataSnapshot,
+  type WidgetMetricExtras,
+} from '../services/widgetMetricSnapshot';
+import {
+  CUSTOM_WIDGET_KIND,
+  useCustomWidgetActive,
+} from './useCustomWidgetActive';
 import { addLog } from '../services/LogService';
 import type { DailySummary } from '../types/dailySummary';
 import { getTodayDate } from '../utils/dateUtils';
@@ -26,6 +34,10 @@ const MACRO_WIDGET_KIND = 'macroWidget';
 const MACRO_SNAPSHOT_KEY = 'macroSnapshot';
 const WATER_WIDGET_KIND = 'waterWidget';
 const WATER_SNAPSHOT_KEY = 'waterSnapshot';
+// The custom widget: the person picks its numbers in Edit Widget, so this hook
+// writes the day's figure for every metric, as a JSON string because the
+// storage takes only flat string/number records.
+const CUSTOM_DATA_KEY = 'customWidgetData';
 // Control Center / Lock Screen controls that show a number from the snapshots.
 const CONTROL_KINDS = [
   'com.sparkyapps.sparkyfitness.control.caloriesLeft',
@@ -38,7 +50,8 @@ const iosAppGroup = (
 
 export function useWidgetSync(
   summary: DailySummary | undefined,
-  water?: WaterWidgetInfo
+  water?: WaterWidgetInfo,
+  extras?: WidgetMetricExtras
 ): void {
   const drinkMl = water?.drinkMl;
   const waterUnit = water?.unit;
@@ -49,6 +62,9 @@ export function useWidgetSync(
   const lastAndroidCalorieSnapshotKeyRef = useRef<string | null>(null);
   const lastAndroidMacroSnapshotKeyRef = useRef<string | null>(null);
   const lastAndroidWaterSnapshotKeyRef = useRef<string | null>(null);
+  const customWidgetActive = useCustomWidgetActive();
+  // A fresh object every render must not re-run the sync below.
+  const extrasKey = JSON.stringify(extras ?? {});
 
   useEffect(() => {
     if (!isToday || !date || !summary) {
@@ -108,8 +124,25 @@ export function useWidgetSync(
           });
         }
 
+        // Always written: it is cheap, and a widget added later has numbers
+        // the first time iOS draws it. Only the reload below waits for one.
+        storage.set(
+          CUSTOM_DATA_KEY,
+          JSON.stringify(
+            buildWidgetDataSnapshot(
+              summary,
+              JSON.parse(extrasKey) as WidgetMetricExtras,
+              energyUnit,
+              lastUpdated
+            )
+          )
+        );
+
         if (calorieSnapshot) {
           ExtensionStorage.reloadWidget(WIDGET_KIND);
+        }
+        if (customWidgetActive) {
+          ExtensionStorage.reloadWidget(CUSTOM_WIDGET_KIND);
         }
         ExtensionStorage.reloadWidget(MACRO_WIDGET_KIND);
         if (waterUnit) ExtensionStorage.reloadWidget(WATER_WIDGET_KIND);
@@ -169,7 +202,17 @@ export function useWidgetSync(
         );
       }
     }
-  }, [summary, date, isToday, drinkMl, waterUnit, canLog, energyUnit]);
+  }, [
+    summary,
+    date,
+    isToday,
+    drinkMl,
+    waterUnit,
+    canLog,
+    energyUnit,
+    extrasKey,
+    customWidgetActive,
+  ]);
 }
 
 /**

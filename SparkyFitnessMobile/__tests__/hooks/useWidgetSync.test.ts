@@ -44,6 +44,12 @@ jest.mock('@bacons/apple-targets', () => {
   return { ExtensionStorage };
 });
 
+let mockCustomWidgetActive = false;
+jest.mock('../../src/hooks/useCustomWidgetActive', () => ({
+  CUSTOM_WIDGET_KIND: 'customWidget',
+  useCustomWidgetActive: () => mockCustomWidgetActive,
+}));
+
 jest.mock('../../src/services/LogService', () => ({
   addLog: jest.fn(),
 }));
@@ -121,6 +127,7 @@ const makeSummary = (overrides: Partial<DailySummary> = {}): DailySummary => ({
 
 describe('useWidgetSync', () => {
   beforeEach(() => {
+    mockCustomWidgetActive = false;
     setMock.mockReset();
     getMock.mockReset().mockReturnValue('stored');
     reloadMock.mockReset();
@@ -223,7 +230,7 @@ describe('useWidgetSync', () => {
     renderHook(() => useWidgetSync(summary));
 
     const keys = setMock.mock.calls.map((call) => call[0]);
-    expect(keys).toEqual(['macroSnapshot']);
+    expect(keys).toEqual(['macroSnapshot', 'customWidgetData']);
 
     const reloadedKinds = reloadMock.mock.calls.map((call) => call[0]);
     expect(reloadedKinds).toEqual(['macroWidget']);
@@ -235,6 +242,38 @@ describe('useWidgetSync', () => {
 
     expect(setMock).not.toHaveBeenCalled();
     expect(reloadMock).not.toHaveBeenCalled();
+  });
+
+  // The widget's own Edit Widget picks its numbers, so the app writes every
+  // metric and reloads the widget only while one is on a screen.
+  describe('custom widget', () => {
+    it('writes the figure for every metric, even with no widget placed', () => {
+      renderHook(() =>
+        useWidgetSync(makeSummary(), undefined, { weightKg: 80 })
+      );
+
+      const dataCall = setMock.mock.calls.find(
+        (call) => call[0] === 'customWidgetData'
+      );
+      const data = JSON.parse(dataCall?.[1] as string);
+      expect(data.metrics.protein).toBeDefined();
+      expect(data.metrics.weight).toEqual({ value: 80, unit: 'kg' });
+    });
+
+    it('does not reload the custom widget when none is placed', () => {
+      renderHook(() => useWidgetSync(makeSummary()));
+      expect(reloadMock.mock.calls.map((call) => call[0])).not.toContain(
+        'customWidget'
+      );
+    });
+
+    it('reloads the custom widget once one is placed', () => {
+      mockCustomWidgetActive = true;
+      renderHook(() => useWidgetSync(makeSummary()));
+      expect(reloadMock.mock.calls.map((call) => call[0])).toContain(
+        'customWidget'
+      );
+    });
   });
 
   it('pushes calorie and macro snapshots to Android bridge and does not touch iOS ExtensionStorage', async () => {
