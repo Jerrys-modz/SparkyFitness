@@ -57,7 +57,7 @@ const RouteStyleControls: React.FC<RouteStyleControlsProps> = ({
       </Text>
       {supported.surface ? (
         <View className="flex-row items-center flex-wrap gap-2 mt-2">
-          <Text className="text-text-secondary text-sm w-14">
+          <Text className="text-text-secondary text-sm min-w-14">
             {t('routes.style.surface', { defaultValue: 'Surface' })}
           </Text>
           {SURFACES.map((surface) => (
@@ -72,7 +72,7 @@ const RouteStyleControls: React.FC<RouteStyleControlsProps> = ({
       ) : null}
       {supported.hilliness ? (
         <View className="flex-row items-center flex-wrap gap-2 mt-2">
-          <Text className="text-text-secondary text-sm w-14">
+          <Text className="text-text-secondary text-sm min-w-14">
             {t('routes.style.hills', { defaultValue: 'Hills' })}
           </Text>
           {HILLS.map((hilliness) => (

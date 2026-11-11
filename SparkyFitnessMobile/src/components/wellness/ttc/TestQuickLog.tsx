@@ -185,7 +185,7 @@ const TestQuickLog: React.FC<TestQuickLogProps> = ({ date }) => {
                     : ''
                 }`}
               >
-                <Text className="text-text-secondary text-xs w-24">
+                <Text className="text-text-secondary text-xs min-w-24">
                   {formatDate(entry.entry_date, dateLocale)}
                 </Text>
                 <Text className="text-text-primary text-xs font-semibold flex-1 text-center uppercase">

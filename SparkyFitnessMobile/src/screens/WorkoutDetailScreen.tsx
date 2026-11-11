@@ -108,10 +108,12 @@ import HeartRateZones from '../components/exerciseStats/HeartRateZones';
 import { useWorkoutHeartRateZones } from '../hooks/useWorkoutHeartRateZones';
 import { useEnergyUnit } from '../hooks/useEnergyUnit';
 import { formatEnergy, formatEnergyNumber } from '../utils/energyUnit';
+import { useLargeText } from '../hooks/useLargeText';
 
 type Props = RootStackScreenProps<'WorkoutDetail'>;
 
 const WorkoutDetailScreen: React.FC<Props> = ({ navigation, route }) => {
+  const largeText = useLargeText();
   const { t, i18n: translationI18n } = useTranslation();
   const energyUnit = useEnergyUnit();
   const dateLocale = translationI18n.language.startsWith('pl')
@@ -813,7 +815,10 @@ const WorkoutDetailScreen: React.FC<Props> = ({ navigation, route }) => {
       <View className="bg-surface rounded-xl p-4">
         <View className="flex-row flex-wrap">
           {summaryItems.map((item) => (
-            <View key={item.label} className="w-1/3 py-1.5 pr-2">
+            <View
+              key={item.label}
+              className={`${largeText ? 'w-1/2' : 'w-1/3'} py-1.5 pr-2`}
+            >
               <Text className="text-xs text-text-muted" numberOfLines={1}>
                 {item.label}
               </Text>

@@ -131,7 +131,7 @@ const Row: React.FC<{
       >
         <Text className="text-text-primary text-lg">−</Text>
       </TouchableOpacity>
-      <Text className="text-text-primary text-base font-semibold w-16 text-center">
+      <Text className="text-text-primary text-base font-semibold min-w-16 text-center">
         {value}
       </Text>
       <TouchableOpacity
