@@ -1,4 +1,9 @@
 import { ActivityCadenceChart } from '@/components/ExerciseCharts/ActivityCadenceChart';
+import { ActivitySensorChart } from '@/components/ExerciseCharts/ActivitySensorChart';
+import {
+  ActivityDynamicsCard,
+  ActivityPowerCard,
+} from '@/components/ExerciseCharts/ActivityPowerDynamicsCards';
 import { ActivityElevationChart } from '@/components/ExerciseCharts/ActivityElevationChart';
 import { ActivityHeartRateChart } from '@/components/ExerciseCharts/ActivityHeartRateChart';
 import { ActivityHeartRateZonesChart } from '@/components/ExerciseCharts/ActivityHeartRateZoneChart';
@@ -244,6 +249,12 @@ const ActivityReportVisualizer = ({
   const runCadenceData = allChartData.filter(
     (data: ChartDataPoint) => data.runCadence > 0
   );
+  const sensorData = (key: keyof ChartDataPoint) =>
+    allChartData.filter((data: ChartDataPoint) => Number(data[key] ?? 0) > 0);
+  const powerData = sensorData('power');
+  const groundContactData = sensorData('groundContactTime');
+  const verticalOscillationData = sensorData('verticalOscillation');
+  const strideLengthData = sensorData('strideLength');
   const elevationData = allChartData.filter(
     (data: ChartDataPoint) => data.elevation !== null
   );
@@ -682,6 +693,57 @@ const ActivityReportVisualizer = ({
             getXAxisDataKey={getXAxisDataKey}
             getXAxisLabel={getXAxisLabel}
             distanceUnit={distanceUnit}
+          />
+        )}
+
+        {gpsPoints && <ActivityPowerCard points={gpsPoints} />}
+        {powerData && powerData.length > 0 && (
+          <ActivitySensorChart
+            data={powerData}
+            xAxisMode={effectiveXAxisMode}
+            getXAxisDataKey={getXAxisDataKey}
+            getXAxisLabel={getXAxisLabel}
+            distanceUnit={distanceUnit}
+            dataKey="power"
+            title={t('reports.activityReport.runPowerW')}
+            color="#2563eb"
+          />
+        )}
+        {gpsPoints && <ActivityDynamicsCard points={gpsPoints} />}
+        {groundContactData && groundContactData.length > 0 && (
+          <ActivitySensorChart
+            data={groundContactData}
+            xAxisMode={effectiveXAxisMode}
+            getXAxisDataKey={getXAxisDataKey}
+            getXAxisLabel={getXAxisLabel}
+            distanceUnit={distanceUnit}
+            dataKey="groundContactTime"
+            title={t('reports.activityReport.groundContactMs')}
+            color="#d97706"
+          />
+        )}
+        {verticalOscillationData && verticalOscillationData.length > 0 && (
+          <ActivitySensorChart
+            data={verticalOscillationData}
+            xAxisMode={effectiveXAxisMode}
+            getXAxisDataKey={getXAxisDataKey}
+            getXAxisLabel={getXAxisLabel}
+            distanceUnit={distanceUnit}
+            dataKey="verticalOscillation"
+            title={t('reports.activityReport.verticalOscillationMm')}
+            color="#9333ea"
+          />
+        )}
+        {strideLengthData && strideLengthData.length > 0 && (
+          <ActivitySensorChart
+            data={strideLengthData}
+            xAxisMode={effectiveXAxisMode}
+            getXAxisDataKey={getXAxisDataKey}
+            getXAxisLabel={getXAxisLabel}
+            distanceUnit={distanceUnit}
+            dataKey="strideLength"
+            title={t('reports.activityReport.strideLengthCm')}
+            color="#0d9488"
           />
         )}
 

@@ -35,6 +35,26 @@ jest.mock('../../src/components/recording/ProgramWorkoutBadge', () => ({
   __esModule: true,
   default: () => null,
 }));
+// The power and dynamics cards read preferences and have their own tests; here
+// they only prove the screen hands them the stored trackpoints.
+jest.mock('../../src/components/exerciseStats/RunningPowerCard', () => {
+  const { Text } = require('react-native');
+  return {
+    __esModule: true,
+    default: ({ points }: { points: unknown[] }) => (
+      <Text>{`power card: ${points.length} points`}</Text>
+    ),
+  };
+});
+jest.mock('../../src/components/exerciseStats/RunningDynamicsCard', () => {
+  const { Text } = require('react-native');
+  return {
+    __esModule: true,
+    default: ({ points }: { points: unknown[] }) => (
+      <Text>{`dynamics card: ${points.length} points`}</Text>
+    ),
+  };
+});
 const mockTemperatureUnit = jest.fn(() => 'celsius');
 jest.mock('../../src/hooks/useTemperatureUnit', () => ({
   useTemperatureUnit: () => mockTemperatureUnit(),
@@ -222,6 +242,14 @@ describe('CardioSessionScreen', () => {
     expect(screen.getByText('168 spm')).toBeTruthy();
     expect(screen.getByText('Stride length')).toBeTruthy();
     expect(screen.getByText('1.04 m')).toBeTruthy();
+  });
+
+  it('passes the stored trackpoints to the power and dynamics cards', () => {
+    mockDetail.mockReturnValue(detail());
+    const screen = render(<CardioSessionScreen {...props(RUN_WITH_FORM)} />);
+
+    expect(screen.getByText(/^power card: \d+ points$/)).toBeTruthy();
+    expect(screen.getByText(/^dynamics card: \d+ points$/)).toBeTruthy();
   });
 
   it('shows stride length in feet when the distance unit is miles', () => {

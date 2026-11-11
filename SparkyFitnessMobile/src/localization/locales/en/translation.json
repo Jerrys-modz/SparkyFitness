@@ -7366,6 +7366,40 @@
       "fromTypical_one": "Estimated from your last {{formattedCount}} run, so less precise. A hard run of 3 km or more sharpens it.",
       "fromTypical_other": "Estimated from your last {{formattedCount}} runs, so less precise. A hard run of 3 km or more sharpens it.",
       "fromTest": "Set by your latest fitness test. Threshold pace is about {{pace}} {{unit}}."
+    },
+    "runPower": {
+      "title": "Running Power",
+      "watts": "{{value}} W",
+      "percent": "{{value}}%",
+      "average": "Average",
+      "max": "Max",
+      "normalized": "Normalized",
+      "variability": "Variability index",
+      "decoupling": "Power to heart rate drift",
+      "zones": "Power zones",
+      "zoneFrom": "from {{value}} W",
+      "zonesBasis": "Zones from a critical power of {{value}} W, estimated as 95% of this run’s best 20 minutes. An easy run under-estimates it, so read zones from a hard effort.",
+      "zonesBasisSet": "Zones from your critical power of {{value}} W.",
+      "saveFailed": "Could not save critical power.",
+      "criticalPower": "Critical power",
+      "criticalPowerPlaceholder": "Watts, {{min}} to {{max}}",
+      "useEstimate": "Use the estimate",
+      "changeCriticalPower": "Change my critical power",
+      "setCriticalPower": "Set my critical power"
+    },
+    "runDynamics": {
+      "title": "Running Dynamics",
+      "ms": "{{value}} ms",
+      "mm": "{{value}} mm",
+      "cm": "{{value}} cm",
+      "signedPercent": "{{value}}%",
+      "groundContact": "Ground contact time",
+      "verticalOscillation": "Vertical oscillation",
+      "strideLength": "Stride length",
+      "verticalRatio": "Vertical ratio",
+      "groundContactDrift": "Ground contact change, start to finish",
+      "groundContactChart": "Ground contact time (ms)",
+      "note": "A lower vertical ratio means less of each step goes up instead of forward. Ground contact time that climbs through a long run is a sign of tiring."
     }
   },
   "customCategories": {

@@ -464,6 +464,10 @@ export const processGpsPointsToChartData = (
       heartRate: pt.hr ?? null,
       runCadence: pt.cad ?? 0,
       elevation: pt.alt ?? null,
+      power: pt.power ?? 0,
+      groundContactTime: pt.gct ?? 0,
+      verticalOscillation: pt.vo ?? 0,
+      strideLength: pt.stride ?? 0,
     };
   });
 };
