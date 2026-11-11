@@ -28,6 +28,7 @@ import {
   type ExerciseStatsInput,
 } from './schemas/exerciseStats.js';
 import { normalizeActionArgs } from './dates.js';
+import { actorUserIdFor } from '../../db/poolManager.js';
 
 const VALID_ACTIONS = [...EXERCISE_STATS_ACTIONS];
 
@@ -319,7 +320,10 @@ export function buildExerciseStatsTools(userId: string, tz: string) {
                   userId,
                   args.window_days
                 ),
-                preferenceService.getUserPreferences(userId, userId),
+                preferenceService.getUserPreferences(
+                  actorUserIdFor(userId),
+                  userId
+                ),
               ]);
               return formatTrainingReview(
                 review,
@@ -329,7 +333,10 @@ export function buildExerciseStatsTools(userId: string, tz: string) {
             case 'run_review': {
               const [{ review, load }, prefs] = await Promise.all([
                 runReviewService.getRunReview(userId, args.window_days),
-                preferenceService.getUserPreferences(userId, userId),
+                preferenceService.getUserPreferences(
+                  actorUserIdFor(userId),
+                  userId
+                ),
               ]);
               return formatRunReview(
                 review,
