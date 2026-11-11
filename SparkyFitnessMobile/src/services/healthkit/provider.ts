@@ -20,6 +20,8 @@ import { enrichSleepSessions } from './sleepBiometrics';
 import { transformHealthRecords } from './dataTransformation';
 import { fetchMoveRingActiveCaloriesSetting } from '../api/preferencesApi';
 import { addLog } from '../LogService';
+import { readDeletedWaterSampleIds } from './deletedSamples';
+import { HEALTHKIT_SOURCE } from '../../types/healthRecords';
 
 type CumulativeReader = (
   startDate: Date,
@@ -114,4 +116,8 @@ export const healthReadProvider: HealthReadProvider = {
   readEarliestRecord,
   postProcessRaw,
   transform: transformHealthRecords,
+  hydrationDeletions: {
+    read: readDeletedWaterSampleIds,
+    source: HEALTHKIT_SOURCE,
+  },
 };

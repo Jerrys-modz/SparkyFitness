@@ -62,6 +62,7 @@ jest.mock('react-native-nitro-modules', () => ({
 jest.mock('@kingstinct/react-native-healthkit', () => ({
   requestAuthorization: jest.fn().mockResolvedValue(true),
   queryQuantitySamples: jest.fn(),
+  queryQuantitySamplesWithAnchor: jest.fn(),
   queryCategorySamples: jest.fn(),
   queryStatisticsForQuantity: jest.fn(),
   queryStatisticsCollectionForQuantity: jest.fn().mockResolvedValue([]),

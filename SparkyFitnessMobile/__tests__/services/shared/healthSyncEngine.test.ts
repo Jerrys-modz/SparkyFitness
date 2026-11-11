@@ -4,6 +4,7 @@ import {
   allDayHeartRateSettled,
   collectHealthData,
   runForegroundSync,
+  runHydrationDeletionsPhase,
   type HealthReadProvider,
   sessionTelemetryOutcomesUsable,
 } from '../../../src/services/shared/healthSyncEngine';
@@ -37,6 +38,10 @@ jest.mock('../../../src/services/storage', () => ({
 }));
 jest.mock('../../../src/services/api/healthSamplesApi', () => ({
   postHealthMetricSamples: jest.fn().mockResolvedValue({}),
+}));
+
+jest.mock('../../../src/services/shared/healthStoreDeletions', () => ({
+  syncHydrationDeletions: jest.fn().mockResolvedValue({ found: 0, deleted: 0 }),
 }));
 
 jest.mock('../../../src/services/api/measurementsApi', () => ({
@@ -1259,6 +1264,87 @@ describe('sessionTelemetryOutcomesUsable', () => {
   test('a run with no session metric has nothing staged to withhold', () => {
     expect(sessionTelemetryOutcomesUsable([outcome('Steps', 'rejected')])).toBe(
       true
+    );
+  });
+});
+
+describe('runHydrationDeletionsPhase (#3489)', () => {
+  const deletions =
+    require('../../../src/services/shared/healthStoreDeletions') as {
+      syncHydrationDeletions: jest.Mock;
+    };
+  const account = {
+    id: 'server-1',
+    url: 'https://sparky.example',
+    apiKey: 'k',
+  };
+  const read = jest.fn();
+  const provider = {
+    ...fakeProvider(),
+    hydrationDeletions: { read, source: 'HealthKit' },
+  } as unknown as HealthReadProvider;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    deletions.syncHydrationDeletions.mockResolvedValue({
+      found: 2,
+      deleted: 2,
+    });
+  });
+
+  test('runs for the sync account when hydration is enabled', async () => {
+    const deleted = await runHydrationDeletionsPhase(
+      provider,
+      account,
+      true,
+      '[Test]'
+    );
+    expect(deleted).toBe(2);
+    expect(deletions.syncHydrationDeletions).toHaveBeenCalledWith(
+      read,
+      account,
+      'HealthKit',
+      '[Test]'
+    );
+  });
+
+  test('does nothing without hydration, an account or platform support', async () => {
+    await runHydrationDeletionsPhase(provider, account, false, '[Test]');
+    await runHydrationDeletionsPhase(provider, null, true, '[Test]');
+    await runHydrationDeletionsPhase(
+      fakeProvider() as unknown as HealthReadProvider,
+      account,
+      true,
+      '[Test]'
+    );
+    expect(deletions.syncHydrationDeletions).not.toHaveBeenCalled();
+  });
+
+  test('a failure is logged and never thrown', async () => {
+    deletions.syncHydrationDeletions.mockRejectedValue(new Error('offline'));
+    await expect(
+      runHydrationDeletionsPhase(provider, account, true, '[Test]')
+    ).resolves.toBe(0);
+  });
+
+  test('runForegroundSync runs it after the upload when hydration is enabled', async () => {
+    const result = await runForegroundSync(
+      provider,
+      'today',
+      { isHydrationSyncEnabled: true },
+      {
+        logTag: '[TestService]',
+        emptyMessage: 'Nothing to sync.',
+        timeoutLabelPrefix: 'Test query',
+      }
+    );
+    await allDayHeartRateSettled();
+    expect(result.success).toBe(true);
+    expect(deletions.syncHydrationDeletions).toHaveBeenCalledWith(
+      read,
+      expect.objectContaining({ id: 'server-1' }),
+      'HealthKit',
+      '[TestService]'
     );
   });
 });

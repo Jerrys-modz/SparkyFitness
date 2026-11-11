@@ -35,6 +35,10 @@ import {
   glucoseContextQueryKeyRoot,
 } from '../../hooks/queryKeys';
 import { syncAllDayHeartRate, syncAllDayGlucose } from './heartRateSamplesSync';
+import {
+  syncHydrationDeletions,
+  type DeletedSamplesReader,
+} from './healthStoreDeletions';
 import { getActiveServerConfig, type ServerConfig } from '../storage';
 import {
   alignToLocalDayStart,
@@ -104,7 +108,41 @@ export interface HealthReadProvider {
   beginRun?(): void;
   /** Platform transform tables (record shapes and timezone metadata differ). */
   transform(records: unknown[], metric: MetricConfig): TransformOutput[];
+  /** Reads water samples deleted in the health store since an anchor, so the
+   *  server can remove what it imported from them (#3489). `source` is the
+   *  source the imported rows carry. iOS only for now. */
+  hydrationDeletions?: { read: DeletedSamplesReader; source: string };
 }
+
+const DELETIONS_TIMEOUT_MS = 60_000;
+
+/**
+ * Removes imported water the user has since deleted in the health store. Best
+ * effort and isolated like writeback: a failure is logged, never fails the
+ * sync, and the same deletions are read again next run. Resolves with the
+ * number of rows the server removed.
+ */
+export const runHydrationDeletionsPhase = async (
+  provider: HealthReadProvider,
+  account: ServerConfig | null,
+  hydrationEnabled: boolean,
+  logTag: string
+): Promise<number> => {
+  const deletions = provider.hydrationDeletions;
+  if (!deletions || !account || !hydrationEnabled) return 0;
+  try {
+    const { deleted } = await withTimeout(
+      syncHydrationDeletions(deletions.read, account, deletions.source, logTag),
+      DELETIONS_TIMEOUT_MS,
+      `${logTag} Hydration deletions`
+    );
+    return deleted;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    addLog(`${logTag} Hydration deletions phase failed: ${message}`, 'ERROR');
+    return 0;
+  }
+};
 
 export interface MetricSyncOutcome {
   metric: HealthMetric;
@@ -522,6 +560,14 @@ export const runForegroundSync = async (
   }
 
   const result = await uploadInbound();
+  if (result.success) {
+    await runHydrationDeletionsPhase(
+      provider,
+      account,
+      metricsToSync.some((metric) => metric.recordType === 'Hydration'),
+      opts.logTag
+    );
+  }
   // Started after the main upload and not awaited: this best-effort phase
   // (several window reads, each with its own timeout) must neither delay the
   // upload nor keep the sync pending past the sync-on-open watchdog.

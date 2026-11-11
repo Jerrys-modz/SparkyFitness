@@ -507,3 +507,92 @@ describe('measurementRepository.incrementWaterData', () => {
     expect(values[2]).toBe(59.147000000000006);
   });
 });
+
+describe('measurementRepository.deleteWaterIntakeSamplesBySourceIds', () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let mockClient: any;
+
+  beforeEach(() => {
+    mockClient = {
+      query: vi.fn(async (text: string) => {
+        if (text.includes('DELETE FROM water_intake_entries')) {
+          return {
+            rows: [
+              { entry_date: '2026-08-03' },
+              { entry_date: '2026-08-03' },
+              { entry_date: '2026-08-04' },
+            ],
+            rowCount: 3,
+          };
+        }
+        if (text.includes('SUM(water_ml)')) {
+          return { rows: [{ total_ml: 500 }] };
+        }
+        return { rows: [] };
+      }),
+      release: vi.fn(),
+    };
+    vi.mocked(getClient).mockResolvedValue(mockClient);
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('deletes only keyed rows of the source and recomputes each affected day once', async () => {
+    const deleted =
+      await measurementRepository.deleteWaterIntakeSamplesBySourceIds(
+        'user-1',
+        'user-1',
+        'HealthKit',
+        ['a', 'b', 'c']
+      );
+    expect(deleted).toBe(3);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const calls: Array<[string, any[]]> = mockClient.query.mock.calls;
+    const del = calls.find(([text]) =>
+      text.includes('DELETE FROM water_intake_entries')
+    );
+    expect(del?.[0]).toContain('source_id = ANY');
+    expect(del?.[1]).toEqual(['user-1', 'HealthKit', ['a', 'b', 'c']]);
+
+    const recomputed = calls
+      .filter(([text]) => text.includes('INSERT INTO water_intake '))
+      .map(([, values]) => values[1]);
+    expect(recomputed).toEqual(['2026-08-03', '2026-08-04']);
+    expect(calls.map(([text]) => text)).toContain('COMMIT');
+    expect(mockClient.release).toHaveBeenCalled();
+  });
+
+  it('does nothing for an empty id list', async () => {
+    const deleted =
+      await measurementRepository.deleteWaterIntakeSamplesBySourceIds(
+        'user-1',
+        'user-1',
+        'HealthKit',
+        []
+      );
+    expect(deleted).toBe(0);
+    expect(getClient).not.toHaveBeenCalled();
+  });
+
+  it('rolls back when the delete fails', async () => {
+    mockClient.query.mockImplementation(async (text: string) => {
+      if (text.includes('DELETE')) throw new Error('boom');
+      return { rows: [] };
+    });
+    await expect(
+      measurementRepository.deleteWaterIntakeSamplesBySourceIds(
+        'user-1',
+        'user-1',
+        'HealthKit',
+        ['a']
+      )
+    ).rejects.toThrow('boom');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const texts = mockClient.query.mock.calls.map((c: any[]) => c[0]);
+    expect(texts).toContain('ROLLBACK');
+    expect(mockClient.release).toHaveBeenCalled();
+  });
+});

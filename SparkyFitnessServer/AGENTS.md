@@ -1,6 +1,6 @@
 # AGENTS.md
 
-_Last updated: 2026-11-08_
+_Last updated: 2026-11-11_
 
 SparkyFitness Server is the backend API package for the SparkyFitness monorepo. Use this file as the primary guide for work inside `SparkyFitnessServer/`.
 
@@ -320,6 +320,7 @@ When searching, ignore noisy/generated directories unless you explicitly need th
   inspect `../shared/src/utils/heartRateZones.ts`, `services/heartRateZoneService.ts`, `routes/v2/heartRateZoneRoutes.ts`, then `services/healthDataHandlers.ts` (`persistWorkoutTelemetry`) and `services/exerciseEntryService.ts` (watch telemetry) for the write paths
 - Health data or date bucketing issue:
   inspect `integrations/healthData/healthDataRoutes.ts`, `services/measurementService.ts`, and `utils/timezoneLoader.ts`
+  `POST /api/health-data/deletions` (`diary` permission, body `healthDataDeletionsRequestSchema` in `../shared/src/schemas/api/HealthDataDeletions.api.zod.ts`) removes synced water rows whose source sample was deleted in Apple Health (#3489): `measurementRepository.deleteWaterIntakeSamplesBySourceIds` deletes by `(user, source, source_id)` and recomputes each affected day's `water_intake` aggregate in one transaction. Only `water` is supported
 - Writing passive all-day samples (heart rate, stress, SpO2 and the other `health_metric_samples` metrics) from a source without a server-side integration:
   inspect `POST /samples` in `routes/genericHealthRoutes.ts` (mounted at `/api/generic-health`, body schema `healthMetricSamplesWriteBodySchema` in `../shared/src/schemas/api/HealthMetricSamples.api.zod.ts`). It buckets each sample by the user's calendar day and calls `upsertSamplesByDay` with `days` set to every day the `window` touches, so a resend also clears a day that no longer has readings, and with `keepLinked`, so stored samples with an `ex`/`sl` link (a workout's or a night's) survive both modes. It only touches rows of the posted `source`, and the source names the server writes samples under (`HEALTH_METRIC_SAMPLES_RESERVED_SOURCES`: the built-in integrations, plus `manual`, the default source of workouts imported through `/health-data`) are refused. `merge` (the default) requires a `window` and rejects samples outside it; `ex`/`sl` links are not accepted. Guarded by `checkPermissionMiddleware('checkin')` (write), and closed to read-only API keys like every POST outside `utils/apiKeyScope.ts`
 - Attaching heart rate to an already-existing exercise entry (e.g. from a paired Apple Watch's live workout tracking, `SparkyFitnessMobile/src/hooks/useWatchWorkoutBridge.ts`):

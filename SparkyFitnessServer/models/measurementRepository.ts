@@ -2091,6 +2091,50 @@ async function upsertWaterIntakeSamples(
   }
 }
 
+/**
+ * Removes synced water rows whose source sample was deleted in the health
+ * store it came from (#3489), then recomputes each affected day's aggregate.
+ * Only keyed rows of the given source can match, so manual entries and other
+ * sources are never touched; ids that match nothing are ignored.
+ */
+async function deleteWaterIntakeSamplesBySourceIds(
+  userId: string,
+  actingUserId: string,
+  source: string,
+  sourceIds: string[]
+): Promise<number> {
+  if (sourceIds.length === 0) return 0;
+  const client = await getClient(actingUserId);
+  try {
+    await client.query('BEGIN');
+    const deleted = await client.query(
+      `DELETE FROM water_intake_entries
+       WHERE user_id = $1 AND source = $2 AND source_id = ANY($3::text[])
+       RETURNING to_char(entry_date, 'YYYY-MM-DD') AS entry_date`,
+      [userId, source, sourceIds]
+    );
+    const dates = new Set<string>(
+      deleted.rows.map((row: { entry_date: string }) => row.entry_date)
+    );
+    for (const dateStr of dates) {
+      await recomputeWaterAggregate(
+        client,
+        userId,
+        actingUserId,
+        dateStr,
+        source
+      );
+    }
+    await client.query('COMMIT');
+    return deleted.rowCount ?? 0;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 async function getWaterIntakeLogsByDates(userId: string, dates: string[]) {
   const client = await getClient(userId);
   try {
@@ -2312,6 +2356,7 @@ export default {
   deleteWaterIntake,
   insertWaterIntakeLog,
   upsertWaterIntakeSamples,
+  deleteWaterIntakeSamplesBySourceIds,
   getWaterIntakeLogByDate,
   getWaterIntakeLogsByDates,
   deleteWaterIntakeLog,

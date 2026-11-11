@@ -2,7 +2,12 @@ import express from 'express';
 import { isLogLevelEnabled, log } from '../../config/logging.js';
 import measurementService from '../../services/measurementService.js';
 import { loadUserTimezone } from '../../utils/timezoneLoader.js';
-import { instantToDay } from '@workspace/shared';
+import {
+  instantToDay,
+  healthDataDeletionsRequestSchema,
+  type HealthDataDeletionsResponse,
+} from '@workspace/shared';
+import measurementRepository from '../../models/measurementRepository.js';
 import sleepRepository from '../../models/sleepRepository.js';
 import checkPermissionMiddleware from '../../middleware/checkPermissionMiddleware.js';
 const router = express.Router();
@@ -70,6 +75,71 @@ router.post('/', checkPermissionMiddleware('diary'), async (req, res, next) => {
     next(error);
   }
 });
+/**
+ * @swagger
+ * /health-data/deletions:
+ *   post:
+ *     summary: Remove imported health records deleted at their source
+ *     tags: [Wellness & Metrics]
+ *     description: >
+ *       A phone sends the ids of samples deleted in Apple Health or Health
+ *       Connect; the server removes the rows it imported under the same
+ *       (source, source_id) and recomputes the affected days. Ids that match
+ *       nothing are ignored. Only `water` is supported.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [type, source, source_ids]
+ *             properties:
+ *               type:
+ *                 type: string
+ *                 enum: [water]
+ *               source:
+ *                 type: string
+ *               source_ids:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *     responses:
+ *       200:
+ *         description: Number of rows removed.
+ *       400:
+ *         description: Invalid request body.
+ */
+router.post(
+  '/deletions',
+  checkPermissionMiddleware('diary'),
+  async (req, res, next) => {
+    const parsed = healthDataDeletionsRequestSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'Invalid deletions request.',
+        details: parsed.error.flatten().fieldErrors,
+      });
+    }
+    const { source, source_ids } = parsed.data;
+    try {
+      const deleted =
+        await measurementRepository.deleteWaterIntakeSamplesBySourceIds(
+          req.userId,
+          req.userId,
+          source,
+          [...new Set(source_ids)]
+        );
+      log(
+        'info',
+        `Health data deletions: removed ${deleted} of ${source_ids.length} ${source} water sample(s)`
+      );
+      const body: HealthDataDeletionsResponse = { deleted };
+      res.status(200).json(body);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
 // Endpoint for manual sleep entry (API Key authenticated)
 router.post(
   '/sleep/manual_entry',

@@ -51,6 +51,7 @@ jest.mock('../../src/services/storage', () => ({
   loadBackgroundSyncEnabled: jest.fn(),
   savePendingHealthSyncCacheRefresh: jest.fn(),
   consumePendingHealthSyncCacheRefresh: jest.fn(),
+  getActiveServerConfig: jest.fn(() => Promise.resolve(null)),
 }));
 
 jest.mock('../../src/HealthMetrics', () => ({

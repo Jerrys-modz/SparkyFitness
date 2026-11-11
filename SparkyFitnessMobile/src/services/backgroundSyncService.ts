@@ -15,6 +15,7 @@ import {
 } from './healthConnectService';
 import {
   collectHealthData,
+  runHydrationDeletionsPhase,
   sessionTelemetryOutcomesUsable,
 } from './shared/healthSyncEngine';
 import { markEnrichedSessions } from './shared/enrichedSessionCache';
@@ -28,6 +29,7 @@ import {
   loadBackgroundSyncEnabled,
   savePendingHealthSyncCacheRefresh,
   consumePendingHealthSyncCacheRefresh,
+  getActiveServerConfig,
 } from './storage';
 import { queryClient } from '../hooks/queryClient';
 import { refreshHealthSyncCache } from '../hooks/refreshHealthSyncCache';
@@ -333,6 +335,24 @@ const runBackgroundSync = async (
       `[Background Sync] No health data collected to sync${syncErrors > 0 ? ` (${syncErrors} metric(s) had errors)` : ''}`,
       'INFO'
     );
+  }
+
+  // Imported water deleted in the health store since the last run (#3489).
+  // Best effort, like writeback below.
+  const hydrationEnabled = enabledMetrics.some(
+    (metric) => metric.recordType === 'Hydration'
+  );
+  const deletedWater =
+    hydrationEnabled && healthReadProvider.hydrationDeletions
+      ? await runHydrationDeletionsPhase(
+          healthReadProvider,
+          await getActiveServerConfig().catch(() => null),
+          hydrationEnabled,
+          '[Background Sync]'
+        )
+      : 0;
+  if (deletedWater > 0) {
+    await refreshHealthSyncCacheWhenActive();
   }
 
   // Outbound phase: SparkyFitness diary → OS health store (Health Connect on

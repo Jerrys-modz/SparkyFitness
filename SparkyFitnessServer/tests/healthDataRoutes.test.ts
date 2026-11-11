@@ -5,6 +5,7 @@ import express from 'express';
 import measurementService from '../services/measurementService.js';
 import errorHandler from '../middleware/errorHandler.js';
 import healthDataRoutes from '../integrations/healthData/healthDataRoutes.js';
+import measurementRepository from '../models/measurementRepository.js';
 
 // Toggle for the mocked permission middleware so a test can assert the 403 path
 // (a switched-context delegate lacking diary access to the active user). The
@@ -17,6 +18,12 @@ vi.mock('../services/measurementService.js', () => ({
   default: {
     processHealthData: vi.fn(),
     processSleepEntry: vi.fn(),
+  },
+}));
+
+vi.mock('../models/measurementRepository.js', () => ({
+  default: {
+    deleteWaterIntakeSamplesBySourceIds: vi.fn(),
   },
 }));
 
@@ -250,5 +257,60 @@ describe('Health Data Routes - POST /api/health-data', () => {
 
     expect(res.statusCode).toBe(500);
     expect(res.body.error).toBe('database unavailable');
+  });
+});
+
+describe('Health Data Routes - POST /api/health-data/deletions', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('removes the matching water rows and reports how many', async () => {
+    vi.mocked(
+      measurementRepository.deleteWaterIntakeSamplesBySourceIds
+    ).mockResolvedValue(1);
+    const res = await request(app)
+      .post('/api/health-data/deletions')
+      .send({
+        type: 'water',
+        source: 'HealthKit',
+        source_ids: ['uuid-1', 'uuid-2', 'uuid-1'],
+      });
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toEqual({ deleted: 1 });
+    expect(
+      measurementRepository.deleteWaterIntakeSamplesBySourceIds
+    ).toHaveBeenCalledWith('test-user-id', 'test-user-id', 'HealthKit', [
+      'uuid-1',
+      'uuid-2',
+    ]);
+  });
+
+  it('rejects an unsupported type', async () => {
+    const res = await request(app)
+      .post('/api/health-data/deletions')
+      .send({ type: 'step', source: 'HealthKit', source_ids: ['uuid-1'] });
+    expect(res.statusCode).toBe(400);
+    expect(
+      measurementRepository.deleteWaterIntakeSamplesBySourceIds
+    ).not.toHaveBeenCalled();
+  });
+
+  it('rejects an empty id list', async () => {
+    const res = await request(app)
+      .post('/api/health-data/deletions')
+      .send({ type: 'water', source: 'HealthKit', source_ids: [] });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it('returns 403 without diary permission', async () => {
+    permissionState.allow = false;
+    const res = await request(app)
+      .post('/api/health-data/deletions')
+      .send({ type: 'water', source: 'HealthKit', source_ids: ['uuid-1'] });
+    expect(res.statusCode).toBe(403);
+    expect(
+      measurementRepository.deleteWaterIntakeSamplesBySourceIds
+    ).not.toHaveBeenCalled();
   });
 });
