@@ -3,6 +3,7 @@ import { render } from '@testing-library/react-native';
 import { View, type TextProps } from 'react-native';
 import {
   installTextFontScaleDefaults,
+  LARGE_FONT_MAX_LINES,
   LARGE_FONT_SCALE,
 } from '../../src/utils/textFontScaleDefaults';
 
@@ -38,6 +39,34 @@ describe('installTextFontScaleDefaults', () => {
     const Text = setup(LARGE_FONT_SCALE);
     const { getByTestId } = render(<Text style={{ color: 'red' }} />);
     expect(styleOf(getByTestId('text'))).toEqual([{ color: 'red' }]);
+  });
+
+  it('lets single-line text wrap at large font scales', () => {
+    const Text = setup(1.35);
+    const { getByTestId } = render(<Text numberOfLines={1} />);
+    expect(getByTestId('text').props.numberOfLines).toBe(LARGE_FONT_MAX_LINES);
+  });
+
+  it('keeps single-line text at normal font scales', () => {
+    const Text = setup(1);
+    const { getByTestId } = render(<Text numberOfLines={1} />);
+    expect(getByTestId('text').props.numberOfLines).toBe(1);
+  });
+
+  it('keeps the lines of text that sizes itself to a constrained box', () => {
+    const Text = setup(1.35);
+    const capped = render(
+      <Text numberOfLines={1} maxFontSizeMultiplier={1.3} />
+    );
+    expect(capped.getByTestId('text').props.numberOfLines).toBe(1);
+    const fitted = render(<Text numberOfLines={1} adjustsFontSizeToFit />);
+    expect(fitted.getByTestId('text').props.numberOfLines).toBe(1);
+  });
+
+  it('leaves multi-line limits alone', () => {
+    const Text = setup(1.35);
+    const { getByTestId } = render(<Text numberOfLines={2} />);
+    expect(getByTestId('text').props.numberOfLines).toBe(2);
   });
 
   it('does not wrap twice', () => {

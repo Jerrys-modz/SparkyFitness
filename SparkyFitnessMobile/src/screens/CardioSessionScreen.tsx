@@ -34,6 +34,7 @@ import FitnessTestBadge from '../components/recording/FitnessTestBadge';
 import ShoePickerCard from '../components/ShoePickerCard';
 import type { RootStackScreenProps } from '../types/navigation';
 import { useEnergyUnit } from '../hooks/useEnergyUnit';
+import { useLargeText } from '../hooks/useLargeText';
 
 type CardioSessionScreenProps = RootStackScreenProps<'CardioSession'>;
 
@@ -53,6 +54,7 @@ const CardioSessionScreen: React.FC<CardioSessionScreenProps> = ({
 }) => {
   const { session, distanceUnit, diaryEntry } = route.params;
   const { t } = useTranslation();
+  const largeText = useLargeText();
   const insets = useSafeAreaInsets();
   const activeWorkoutBarPadding = useActiveWorkoutBarPadding('stack');
   const usesNativeHeader = useNativeIOSHeadersActive();
@@ -191,7 +193,10 @@ const CardioSessionScreen: React.FC<CardioSessionScreenProps> = ({
         {stats.length > 0 ? (
           <View className="bg-surface rounded-xl p-4 mb-4 shadow-sm flex-row flex-wrap">
             {stats.map((stat) => (
-              <View key={stat.key} className="w-1/2 py-1.5">
+              <View
+                key={stat.key}
+                className={`${largeText ? 'w-full' : 'w-1/2'} py-1.5`}
+              >
                 <Text className="text-text-secondary text-xs">
                   {stat.label}
                 </Text>
