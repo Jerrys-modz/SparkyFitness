@@ -1,21 +1,18 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { View, Text, useWindowDimensions } from 'react-native';
+import { View, Text } from 'react-native';
 import { useCSSVariable } from 'uniwind';
 import ProgressRing from './ProgressRing';
 import { formatLocalizedNumber } from '../localization';
 import { energyFromKcal } from '@workspace/shared';
 import { useEnergyUnit } from '../hooks/useEnergyUnit';
 import { energyUnitLabel, formatEnergyNumber } from '../utils/energyUnit';
+import { useLargeText } from '../hooks/useLargeText';
 
 interface SideStatProps {
   label: string;
   value: number;
 }
-
-// Above this system font scale the side stats no longer fit beside the ring,
-// so they move into a row under it.
-const STACK_FONT_SCALE = 1.3;
 
 const SideStat: React.FC<SideStatProps> = ({ label, value }) => (
   <View className="items-center justify-center flex-1">
@@ -48,8 +45,7 @@ const CalorieRingCard: React.FC<CalorieRingCardProps> = ({
   progressPercent,
 }) => {
   const { t } = useTranslation();
-  const { fontScale } = useWindowDimensions();
-  const stacked = fontScale > STACK_FONT_SCALE;
+  const stacked = useLargeText();
   const energyUnit = useEnergyUnit();
   const [progressTrackColor, progressFillColor] = useCSSVariable([
     '--color-progress-track',
