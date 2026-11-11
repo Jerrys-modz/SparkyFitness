@@ -153,6 +153,12 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
   const setSparkySummaryCardVisible = useAppPreferencesStore(
     (s) => s.setSparkySummaryCardVisible
   );
+  const coachMessagesCardVisible = useAppPreferencesStore(
+    (s) => s.coachMessagesCardVisible
+  );
+  const setCoachMessagesCardVisible = useAppPreferencesStore(
+    (s) => s.setCoachMessagesCardVisible
+  );
   const labResultsCardVisible = useAppPreferencesStore(
     (s) => s.labResultsCardVisible
   );
@@ -261,6 +267,7 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
     mindfulness: mindfulnessCardVisible,
     oralCare: oralCareCardVisible,
     sparkySummary: sparkySummaryCardVisible,
+    coachMessages: coachMessagesCardVisible,
     labResults: labResultsCardVisible,
     trainingLoad: trainingLoadCardVisible,
     workouts: workoutsCardVisible,
@@ -322,6 +329,9 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
         case 'sparkySummary':
           setSparkySummaryCardVisible(isVisible);
           break;
+        case 'coachMessages':
+          setCoachMessagesCardVisible(isVisible);
+          break;
         case 'labResults':
           setLabResultsCardVisible(isVisible);
 
@@ -373,6 +383,7 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
       setMindfulnessCardVisible,
       setOralCareCardVisible,
       setSparkySummaryCardVisible,
+      setCoachMessagesCardVisible,
       setLabResultsCardVisible,
       setTrainingLoadCardVisible,
       setWorkoutsCardVisible,

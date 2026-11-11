@@ -4,6 +4,11 @@ import CoachesScreen from '../../src/screens/CoachesScreen';
 import { useCoaches } from '../../src/hooks/useCoaches';
 
 jest.mock('../../src/hooks/useCoaches', () => ({ useCoaches: jest.fn() }));
+// The check-in section has its own tests (CoachCheckins.test.tsx).
+jest.mock('../../src/components/CoachCheckinSettingsSection', () => ({
+  __esModule: true,
+  default: () => null,
+}));
 jest.mock('../../src/hooks/useScreenHeader', () => ({
   useScreenHeader: () => null,
 }));

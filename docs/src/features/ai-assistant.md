@@ -72,7 +72,29 @@ To choose one, use the coach button in the web chat composer, or the coach chip 
 
 You can add up to 20 coaches of your own: give each a name, instructions (what to focus on and how to talk to you) and the tools it may use. On the web open **Settings > AI Service > Your coaches**; in the mobile app open **Settings > Coaches**. A coach cannot read or change anything outside the tools you gave it. If you also trim tools in the chat's tool selector, the coach gets only the tools both allow.
 
-Coaches answer when you ask; they do not send messages on their own. Your coaches are private to you and are never shared with family. What Sparky remembers applies to every coach.
+Your coaches are private to you and are never shared with family. What Sparky remembers applies to every coach.
+
+### Coach check-ins
+
+Coaches normally answer when you ask. With check-ins on, some of them also leave you a short message when there is something worth saying. Check-ins are off until you turn them on: on the web under **Settings > AI Service > Coach check-ins**, in the mobile app under **Settings > Coaches**.
+
+Once a day, from the hour you choose, the server looks at your finished days and each coach you switched on may leave one message:
+
+| Coach | Speaks up when |
+|---|---|
+| Recovery Coach | You trained yesterday, logged food, and protein was under 80% of your goal |
+| Sleep and Recovery Coach | Last night was under 6 hours and you logged 2 or more workouts in the 3 days before |
+| Consistency Coach | You have not logged for 2 days, and once more at 5 days; or a logging streak reaches 3, 7, 14, 30, 60, 100, 200 or 365 days |
+
+The Macro Timing Coach and your own coaches do not check in yet.
+
+Things to know:
+
+- You get at most 2 messages a day, a coach does not repeat the same observation for a few days, and something you did not log is treated as unknown, never as zero.
+- Messages appear at the top of the web Diary and in a "From your coaches" card on the mobile Dashboard. From a message you can dismiss it or open the chat as that coach. Messages are deleted after 30 days.
+- **Wording**: by default a message is a ready-made sentence with your numbers in it, and no AI request is made. Switch on **Let my AI service word them** to have your AI service write each one; that is one background request to your AI service per message.
+- **Notifications**: the mobile app has no server push. With **Notify me on this phone** on, a new message raises a notification the next time the app syncs in the background, so it can arrive some time after it was written. It needs notifications and background sync to be on.
+- **Check now** runs today's check straight away, under the same rules and daily limit.
 
 ## Daily Summary
 

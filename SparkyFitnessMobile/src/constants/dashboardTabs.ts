@@ -21,6 +21,7 @@ export const DEFAULT_DASHBOARD_TAB: DashboardTab = 'summary';
 const HOME_TAB: Record<DashboardCardKey, DashboardTab | null> = {
   askSparky: null,
   sparkySummary: 'summary',
+  coachMessages: 'summary',
   pinnedMetrics: 'summary',
   calorieRing: 'nutrition',
   macros: 'nutrition',

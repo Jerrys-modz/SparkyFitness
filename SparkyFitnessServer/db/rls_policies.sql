@@ -59,6 +59,8 @@ BEGIN
     'plate_inventories',
     'action_tags',
     'coaches',
+    'coach_checkin_settings',
+    'coach_messages',
     'custom_run_programs',
     'fitness_tests',
     'routes',
@@ -744,6 +746,10 @@ SELECT create_owner_policy('action_tags');
 -- A coach holds the person's own instructions to their assistant and is used
 -- only in their own chats, so it is owner-only like the saved preferences.
 SELECT create_owner_policy('coaches');
+-- Check-in settings and the messages they produce are written from the
+-- person's own data across several domains, so they are owner-only too.
+SELECT create_owner_policy('coach_checkin_settings');
+SELECT create_owner_policy('coach_messages');
 -- Custom policy for exercise_entries to allow access if linked to an owned exercise_preset_entry
 CREATE POLICY select_exercise_preset_entry_linked_policy ON public.exercise_entries FOR SELECT TO PUBLIC
 USING (
