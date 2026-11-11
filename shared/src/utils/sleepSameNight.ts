@@ -9,6 +9,15 @@
  * while a nap that does not overlap, or only clips the night, still counts.
  */
 
+/**
+ * Sleep more than this far apart is two sleeps, not one with a gap: the gap
+ * between an afternoon nap and the night that follows it is often only two to
+ * three hours, so the old 4 hour threshold merged the nap into the night.
+ * The HealthKit aggregator on the phone and the server's stage clustering both
+ * read this, so they never disagree about where one sleep ends.
+ */
+export const SLEEP_SESSION_GAP_MS = 2 * 60 * 60 * 1000;
+
 /** Records are one sleep when they overlap for at least this share of the shorter one. */
 const SAME_SLEEP_MIN_OVERLAP = 0.5;
 /** A record shorter than this share of the longest record of its sleep is partial and never wins. */

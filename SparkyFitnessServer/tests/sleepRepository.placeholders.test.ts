@@ -268,7 +268,7 @@ describe('sleepRepository placeholder integrity', () => {
       'Health Connect',
       FULL_ENTRY.bedtime,
       FULL_ENTRY.wake_time,
-      4 * 60 * 60,
+      2 * 60 * 60,
     ]);
     const texts = queryCalls().map((c) => c.text);
     const lockAt = texts.findIndex((t) => t.includes('pg_advisory_xact_lock'));

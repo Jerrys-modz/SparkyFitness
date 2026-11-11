@@ -18,6 +18,7 @@ import {
 } from '@workspace/shared';
 import { userAge } from '../utils/dateHelpers.js';
 import {
+  clusterSleepStagesByGap,
   getPrimarySleepStageCluster,
   recomputeSleepAggregatesFromStages,
   sumAsleepSeconds,
@@ -1662,6 +1663,68 @@ async function storeSleepAggregatesFromStages(
   return aggregates;
 }
 
+/**
+ * Moves every sleep in an entry's stages other than its main one (see
+ * `clusterSleepStagesByGap`) into its own entry, then recomputes the entry
+ * from what is left. Only sleeps with time asleep are moved; a stray awake
+ * fragment stays where it is and does not count. Returns the entry's new
+ * aggregates when anything moved.
+ */
+async function splitSecondarySleepsOutOfEntry(
+  userId: string,
+  actingUserId: string,
+  entryId: string,
+  stages: SleepStageEventInput[],
+  zone: string,
+  age: number | null
+): Promise<Awaited<ReturnType<typeof storeSleepAggregatesFromStages>> | null> {
+  const clusters = clusterSleepStagesByGap(stages);
+  if (clusters.length < 2) return null;
+  const primary = getPrimarySleepStageCluster(stages);
+  let moved = false;
+  for (const cluster of clusters) {
+    if (cluster.includes(primary[0]) || sumAsleepSeconds(cluster) <= 0) {
+      continue;
+    }
+    let start = Infinity;
+    let end = -Infinity;
+    for (const stage of cluster) {
+      start = Math.min(start, new Date(stage.start_time).getTime());
+      end = Math.max(end, new Date(stage.end_time).getTime());
+    }
+    const newEntryId = await sleepRepository.splitSleepStagesIntoOwnEntry(
+      userId,
+      actingUserId,
+      entryId,
+      new Date(start),
+      new Date(end),
+      instantToDay(end, zone)
+    );
+    moved = true;
+    if (newEntryId) {
+      await storeSleepAggregatesFromStages(
+        userId,
+        newEntryId,
+        actingUserId,
+        cluster,
+        age
+      );
+    }
+  }
+  if (!moved) return null;
+  const remaining = await sleepRepository.getSleepStageEventsByEntryId(
+    userId,
+    entryId
+  );
+  return storeSleepAggregatesFromStages(
+    userId,
+    entryId,
+    actingUserId,
+    remaining,
+    age
+  );
+}
+
 async function processSleepEntry(
   userId: string,
   actingUserId: string,
@@ -1844,6 +1907,22 @@ async function processSleepEntry(
           // sync that added stages after the read above is not cascaded away.
           await sleepRepository.deleteSleepEntryIfEmpty(userId, siblingId);
         }
+      }
+    }
+    // An entry an older sync filled with two sleeps (a nap merged into the
+    // night while sleeps up to 4 hours apart counted as one): give each sleep
+    // other than the main one its own entry.
+    if (originalHadStages) {
+      const healed = await splitSecondarySleepsOutOfEntry(
+        userId,
+        actingUserId,
+        newSleepEntry.id,
+        mergedStages,
+        rest.record_timezone || tz,
+        age
+      );
+      if (healed) {
+        return { ...newSleepEntry, ...healed };
       }
     }
     return {

@@ -159,4 +159,84 @@ describe('processSleepEntry nap session (#3240)', () => {
     ).not.toHaveBeenCalled();
     expect(sleepRepository.updateSleepEntryAggregates).toHaveBeenCalledTimes(1);
   });
+
+  it('moves a nap an older sync merged into the night into its own entry', async () => {
+    // An afternoon nap 2h40m before the night, stored in the night's entry
+    // back when sleeps up to 4 hours apart counted as one.
+    const eveningNap = [
+      stage('light', '2026-10-27T15:15:00.000Z', '2026-10-27T17:15:00.000Z'),
+    ];
+    const night = {
+      entry_date: '2026-10-28',
+      bedtime: '2026-10-27T19:55:00.000Z',
+      wake_time: '2026-10-28T07:00:00.000Z',
+      duration_in_seconds: 39900,
+      source: 'HealthKit',
+      stage_events: [
+        stage('light', '2026-10-27T19:55:00.000Z', '2026-10-28T03:00:00.000Z'),
+        stage('deep', '2026-10-28T03:00:00.000Z', '2026-10-28T07:00:00.000Z'),
+      ],
+    };
+    storedStages.set('entry-night', [...eveningNap]);
+    sleepRepository.upsertSleepEntry = vi
+      .fn()
+      .mockResolvedValue({ id: 'entry-night', created: false });
+    sleepRepository.splitSleepStagesIntoOwnEntry = vi
+      .fn()
+      .mockImplementation(async () => {
+        storedStages.set(
+          'entry-night',
+          (storedStages.get('entry-night') ?? []).filter(
+            (s) => !eveningNap.includes(s)
+          )
+        );
+        storedStages.set('entry-split', eveningNap);
+        return 'entry-split';
+      });
+
+    const result = await measurementService.processSleepEntry(
+      userId,
+      userId,
+      night
+    );
+
+    expect(sleepRepository.splitSleepStagesIntoOwnEntry).toHaveBeenCalledWith(
+      userId,
+      userId,
+      'entry-night',
+      new Date('2026-10-27T15:15:00.000Z'),
+      new Date('2026-10-27T17:15:00.000Z'),
+      '2026-10-27'
+    );
+    expect(result).toMatchObject({
+      id: 'entry-night',
+      bedtime: new Date('2026-10-27T19:55:00.000Z'),
+      time_asleep_in_seconds: 39900,
+    });
+    const updates = vi.mocked(sleepRepository.updateSleepEntryAggregates).mock
+      .calls;
+    expect(updates.map((call) => call[1])).toEqual([
+      'entry-night',
+      'entry-split',
+      'entry-night',
+    ]);
+    expect(updates[1][3]).toMatchObject({
+      bedtime: new Date('2026-10-27T15:15:00.000Z'),
+      time_asleep_in_seconds: 7200,
+    });
+  });
+
+  it('leaves a night with no second sleep in one entry', async () => {
+    sleepRepository.upsertSleepEntry = vi
+      .fn()
+      .mockResolvedValue({ id: 'entry-night', created: false });
+    sleepRepository.splitSleepStagesIntoOwnEntry = vi.fn();
+
+    await measurementService.processSleepEntry(userId, userId, {
+      ...nap,
+      stage_events: nightStages,
+    });
+
+    expect(sleepRepository.splitSleepStagesIntoOwnEntry).not.toHaveBeenCalled();
+  });
 });

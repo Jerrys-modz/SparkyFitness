@@ -9,6 +9,7 @@ import {
   type TransformedRecord,
 } from '../../types/healthRecords';
 import { SleepStageEvent } from '../../types/mobileHealthData';
+import { SLEEP_SESSION_GAP_MS } from '@workspace/shared';
 import { toLocalDateString } from '../../utils/dateUtils';
 
 // Re-export for backward compatibility
@@ -194,9 +195,6 @@ export const aggregateSleepSessions = (
   const aggregatedSessions: AggregatedSleepSession[] = [];
   let currentSession: SleepSessionAccumulator | null = null;
 
-  // Define a threshold for what constitutes a new sleep session (e.g., 4 hours awake)
-  const SESSION_GAP_THRESHOLD_MS = 4 * 60 * 60 * 1000; // 4 hours
-
   for (const record of sortedRecords) {
     const recordStartTime = new Date(record.startTime);
     const recordEndTime = new Date(record.endTime);
@@ -208,7 +206,7 @@ export const aggregateSleepSessions = (
     if (
       !currentSession ||
       recordStartTime.getTime() - currentSession.wake_time.getTime() >
-        SESSION_GAP_THRESHOLD_MS
+        SLEEP_SESSION_GAP_MS
     ) {
       if (currentSession) {
         // Finalize the previous session before starting a new one

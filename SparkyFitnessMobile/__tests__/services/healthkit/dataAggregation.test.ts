@@ -72,7 +72,7 @@ describe('aggregateSleepSessions', () => {
     expect(result[0].wake_time).toBe('2024-01-16T06:00:00.000Z');
   });
 
-  test('merges records within 4hr gap into one session', () => {
+  test('merges records within the session gap into one session', () => {
     const records: HKSleepRecord[] = [
       {
         startTime: '2024-01-15T22:00:00Z',
@@ -95,7 +95,7 @@ describe('aggregateSleepSessions', () => {
     expect(result[0].stage_events).toHaveLength(3);
   });
 
-  test('creates separate sessions for records more than 4hr apart', () => {
+  test('creates separate sessions for records more than 2hr apart', () => {
     const records: HKSleepRecord[] = [
       {
         startTime: '2024-01-15T22:00:00Z',
@@ -112,10 +112,30 @@ describe('aggregateSleepSessions', () => {
     expect(result).toHaveLength(2);
   });
 
-  test('records exactly 4hr apart stay in same session (uses > not >=)', () => {
+  test('keeps an afternoon nap apart from the night that follows it', () => {
+    const records: HKSleepRecord[] = [
+      {
+        startTime: '2024-01-15T15:15:00Z',
+        endTime: '2024-01-15T17:15:00Z',
+        value: 'HKCategoryValueSleepAnalysisAsleepCore',
+      },
+      {
+        // 2h40m later: two sleeps, not one with a gap
+        startTime: '2024-01-15T19:55:00Z',
+        endTime: '2024-01-16T07:00:00Z',
+        value: 'HKCategoryValueSleepAnalysisAsleepCore',
+      },
+    ];
+    const result = aggregateSleepSessions(records);
+    expect(result).toHaveLength(2);
+    expect(result[0].wake_time).toBe('2024-01-15T17:15:00.000Z');
+    expect(result[1].bedtime).toBe('2024-01-15T19:55:00.000Z');
+  });
+
+  test('records exactly 2hr apart stay in same session (uses > not >=)', () => {
     const baseEnd = new Date('2024-01-16T02:00:00Z');
     const exactlyFourHoursLater = new Date(
-      baseEnd.getTime() + 4 * 60 * 60 * 1000
+      baseEnd.getTime() + 2 * 60 * 60 * 1000
     );
 
     const records: HKSleepRecord[] = [
@@ -133,7 +153,7 @@ describe('aggregateSleepSessions', () => {
       },
     ];
     const result = aggregateSleepSessions(records);
-    expect(result).toHaveLength(1); // Same session because gap is exactly 4hr, not > 4hr
+    expect(result).toHaveLength(1); // Same session because gap is exactly 2hr, not > 2hr
   });
 
   test('maps string stage values correctly', () => {

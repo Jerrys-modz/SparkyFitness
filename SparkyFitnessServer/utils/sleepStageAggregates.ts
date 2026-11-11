@@ -3,10 +3,13 @@
 // Health Connect / HealthKit sync merges stages onto one entry_date. When a
 // disconnected block (next-night evening fragment or daytime nap) lands on the
 // same row, min(start)→max(end) produces a ~24h History envelope (#1954).
-// Cluster by gap (same 4h threshold as the HealthKit mobile aggregator) and
-// take the primary (longest asleep) cluster for bedtime/wake/duration.
+// Cluster by gap (the shared SLEEP_SESSION_GAP_MS, the same threshold as the
+// HealthKit mobile aggregator) and take the primary (longest asleep) cluster
+// for bedtime/wake/duration.
 
-export const SLEEP_STAGE_CLUSTER_GAP_MS = 4 * 60 * 60 * 1000;
+import { SLEEP_SESSION_GAP_MS } from '@workspace/shared';
+
+export const SLEEP_STAGE_CLUSTER_GAP_MS = SLEEP_SESSION_GAP_MS;
 
 /**
  * Stages that define a partial re-sync's overlap-delete window.
@@ -247,7 +250,7 @@ export function getPrimarySleepStageCluster(stages: any[]) {
 }
 
 // Aggregates from the primary cluster only. Within one night, partial re-sync
-// gaps stay under the 4h threshold so #1180 union behavior is preserved.
+// gaps stay under the session gap so #1180 union behavior is preserved.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function recomputeSleepAggregatesFromStages(stages: any[]) {
   const primary = getPrimarySleepStageCluster(stages);

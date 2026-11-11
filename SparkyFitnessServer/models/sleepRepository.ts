@@ -77,7 +77,7 @@ export interface SleepEntryUpsertOptions {
 
 /**
  * Finds the stored entry a write for this session belongs to: same night and
- * source, and no more than the stage cluster gap (4 hours) apart, so a re-sync
+ * source, and no more than the stage cluster gap (`SLEEP_SESSION_GAP_MS`) apart, so a re-sync
  * or a partial fragment of a night updates it while a nap gets its own entry
  * (#3240). The closest one wins when several qualify. Without times on either
  * side the night and source alone decide, as before.
@@ -633,7 +633,8 @@ async function mergeSleepStageEvents(
 
 /**
  * Deletes the stages a new session's entry now holds from the other entries of
- * that night and source. Before #3240 a nap was merged into the night's entry,
+ * that source filed on the same day or the day either side (an older sync could
+ * file a nap under the next morning's night). Before #3240 a nap was merged into the night's entry,
  * so its stages sit there too; the next sync of that night gives the nap its own
  * entry and this takes them out of the night. Returns the entries that lost
  * stages so their aggregates can be recomputed.
@@ -653,7 +654,7 @@ async function removeSessionStagesFromSiblingEntries(
        USING sleep_entries sibling
        WHERE stage.entry_id = sibling.id
          AND sibling.user_id = $1
-         AND sibling.entry_date = $2
+         AND sibling.entry_date BETWEEN $2::date - 1 AND $2::date + 1
          AND sibling.source = $3
          AND sibling.id <> $4
          AND stage.start_time >= $5::timestamptz
@@ -1292,6 +1293,106 @@ async function deleteSleepEntryIfEmpty(
   }
 }
 
+/**
+ * Moves one sleep out of an entry that holds two: a nap an older sync
+ * merged into the night, back when sleeps up to 4 hours apart counted as one.
+ * The stages between `windowStart` and `windowEnd` leave `fromEntryId`. When
+ * another entry of the same source already holds stages in that window (the
+ * nap was synced again on its own) they are only deleted here; otherwise they
+ * move to a new entry filed under `entryDate`, with the source and recording
+ * zone of the entry they came from. Biometrics stay on the original entry, as
+ * they were measured over the night.
+ *
+ * Returns the new entry's id, or null when the stages were a duplicate.
+ */
+async function splitSleepStagesIntoOwnEntry(
+  userId: string,
+  actingUserId: string,
+  fromEntryId: string,
+  windowStart: Date,
+  windowEnd: Date,
+  entryDate: string
+): Promise<string | null> {
+  const client = await getClient(userId);
+  try {
+    await client.query('BEGIN');
+    const fromResult = await client.query(
+      `SELECT source, record_timezone, record_utc_offset_minutes
+       FROM sleep_entries WHERE id = $1 AND user_id = $2 FOR UPDATE`,
+      [fromEntryId, userId]
+    );
+    const from = fromResult.rows[0] as
+      | {
+          source: string;
+          record_timezone: string | null;
+          record_utc_offset_minutes: number | null;
+        }
+      | undefined;
+    if (!from) {
+      await client.query('COMMIT');
+      return null;
+    }
+    const elsewhere = await client.query(
+      `SELECT 1
+       FROM sleep_entry_stages stage
+       JOIN sleep_entries other ON other.id = stage.entry_id
+       WHERE other.user_id = $1
+         AND other.source = $2
+         AND other.id <> $3
+         AND stage.start_time < $5::timestamptz
+         AND stage.end_time > $4::timestamptz
+       LIMIT 1`,
+      [userId, from.source, fromEntryId, windowStart, windowEnd]
+    );
+    let newEntryId: string | null = null;
+    if (elsewhere.rows.length > 0) {
+      await client.query(
+        `DELETE FROM sleep_entry_stages
+         WHERE entry_id = $1 AND user_id = $2
+           AND start_time >= $3::timestamptz AND end_time <= $4::timestamptz`,
+        [fromEntryId, userId, windowStart, windowEnd]
+      );
+    } else {
+      const inserted = await client.query(
+        `INSERT INTO sleep_entries (user_id, entry_date, bedtime, wake_time, duration_in_seconds, source, record_timezone, record_utc_offset_minutes, created_by_user_id, updated_by_user_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $9)
+         RETURNING id`,
+        [
+          userId,
+          entryDate,
+          windowStart,
+          windowEnd,
+          Math.round((windowEnd.getTime() - windowStart.getTime()) / 1000),
+          from.source,
+          from.record_timezone,
+          from.record_utc_offset_minutes,
+          actingUserId,
+        ]
+      );
+      newEntryId = inserted.rows[0].id as string;
+      await client.query(
+        `UPDATE sleep_entry_stages
+         SET entry_id = $1, updated_at = now(), updated_by_user_id = $5
+         WHERE entry_id = $2 AND user_id = $3
+           AND start_time >= $4::timestamptz AND end_time <= $6::timestamptz`,
+        [newEntryId, fromEntryId, userId, windowStart, actingUserId, windowEnd]
+      );
+    }
+    await client.query('COMMIT');
+    return newEntryId;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    log(
+      'error',
+      `Error splitting sleep stages out of entry ${fromEntryId} for user ${userId}: `,
+      error
+    );
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 export { upsertSleepEntry };
 export { upsertSleepStageEvent };
 export { mergeSleepStageEvents };
@@ -1309,6 +1410,7 @@ export default {
   upsertSleepStageEvent,
   mergeSleepStageEvents,
   removeSessionStagesFromSiblingEntries,
+  splitSleepStagesIntoOwnEntry,
   getSleepStageEventsByEntryId,
   updateSleepEntryAggregates,
   getSleepEntriesByUserIdAndDateRange,
