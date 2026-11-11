@@ -190,7 +190,6 @@ const HIDDEN_ROUTES = new Set<string>([
   'OralCareLog',
   'LabResultAdd',
   'LabReportImport',
-  'WidgetEditor',
   'Chat',
   'ActiveWorkout',
 ]);

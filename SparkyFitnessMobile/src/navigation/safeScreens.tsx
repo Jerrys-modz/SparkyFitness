@@ -80,8 +80,6 @@ import DashboardSettingsScreen from '../screens/DashboardSettingsScreen';
 import HealthTrendsSettingsScreen from '../screens/HealthTrendsSettingsScreen';
 import WatchSettingsScreen from '../screens/WatchSettingsScreen';
 import AddMenuSettingsScreen from '../screens/AddMenuSettingsScreen';
-import WidgetsScreen from '../screens/WidgetsScreen';
-import WidgetEditorScreen from '../screens/WidgetEditorScreen';
 import CustomCategoriesScreen from '../screens/CustomCategoriesScreen';
 import CustomCategoryEditScreen from '../screens/CustomCategoryEditScreen';
 import DiarySettingsScreen from '../screens/DiarySettingsScreen';
@@ -251,8 +249,6 @@ export const SafeDashboardSettings = withErrorBoundary(DashboardSettingsScreen, 
 export const SafeHealthTrendsSettings = withErrorBoundary(HealthTrendsSettingsScreen, 'HealthTrendsSettings', { canGoBack: true });
 export const SafeWatchSettings = withErrorBoundary(WatchSettingsScreen, 'WatchSettings', { canGoBack: true });
 export const SafeAddMenuSettings = withErrorBoundary(AddMenuSettingsScreen, 'AddMenuSettings', { canGoBack: true });
-export const SafeWidgets = withErrorBoundary(WidgetsScreen, 'Widgets', { canGoBack: true });
-export const SafeWidgetEditor = withErrorBoundary(WidgetEditorScreen, 'WidgetEditor', { canGoBack: true });
 export const SafeDiarySettings = withErrorBoundary(DiarySettingsScreen, 'DiarySettings', { canGoBack: true });
 export const SafeCustomCategories = withErrorBoundary(CustomCategoriesScreen, 'CustomCategories', { canGoBack: true });
 export const SafeCustomCategoryEdit = withErrorBoundary(CustomCategoryEditScreen, 'CustomCategoryEdit', { canGoBack: true });

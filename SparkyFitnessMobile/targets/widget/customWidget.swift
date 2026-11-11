@@ -2,64 +2,19 @@ import AppIntents
 import SwiftUI
 import WidgetKit
 
-// The widget the in-app builder makes. One generic widget draws whichever
-// saved layout the person picks in Edit Widget. The layout list is written by
-// `useCustomWidgetLayoutSync` (app root) and the numbers by `useWidgetSync`
-// (Dashboard), both as JSON strings in the app group (`customWidgetLayouts`,
-// `customWidgetData`); their shape is the
-// `WidgetLayout` / `WidgetDataSnapshot` contract in shared/src/utils/widgetLayout.ts.
+// The custom widget. The person picks its numbers, style and color in the
+// widget's own Edit Widget screen (the intent below), so there is nothing saved
+// in the app to choose from. The app writes today's figure for every metric as
+// a JSON string in the app group (`customWidgetData`, by `useWidgetSync`); its
+// shape is the `WidgetDataSnapshot` contract in shared/src/utils/widgetLayout.ts.
+// The widget in turn stamps `customWidgetActiveAt` each time iOS asks it for a
+// timeline, so the app knows one is on a screen and fetches the extra figures.
 //
-// Everything here reads leniently: an unknown metric, style or family from a
-// newer app is skipped, never a crash, because the widget extension and the
-// app update independently.
+// Everything here reads leniently: an unknown metric or style from a newer app
+// is skipped, never a crash, because the widget extension and the app update
+// independently.
 
 // MARK: - Models
-
-struct CustomWidgetMetricRef: Decodable {
-    let metric: String
-    let label: String?
-}
-
-struct CustomWidgetLayout: Decodable, Identifiable {
-    let id: String
-    let name: String
-    let family: String
-    let style: String
-    let metrics: [CustomWidgetMetricRef]
-    let accent: String
-    let showTitle: Bool
-    let standByFriendly: Bool
-
-    private enum CodingKeys: String, CodingKey {
-        case id, name, family, style, metrics, accent, showTitle, standByFriendly
-    }
-
-    init(
-        id: String, name: String, family: String, style: String,
-        metrics: [CustomWidgetMetricRef], accent: String, showTitle: Bool, standByFriendly: Bool
-    ) {
-        self.id = id
-        self.name = name
-        self.family = family
-        self.style = style
-        self.metrics = metrics
-        self.accent = accent
-        self.showTitle = showTitle
-        self.standByFriendly = standByFriendly
-    }
-
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = try container.decode(String.self, forKey: .id)
-        name = try container.decode(String.self, forKey: .name)
-        family = try container.decodeIfPresent(String.self, forKey: .family) ?? "small"
-        style = try container.decodeIfPresent(String.self, forKey: .style) ?? "value"
-        metrics = try container.decodeIfPresent([CustomWidgetMetricRef].self, forKey: .metrics) ?? []
-        accent = try container.decodeIfPresent(String.self, forKey: .accent) ?? "blue"
-        showTitle = try container.decodeIfPresent(Bool.self, forKey: .showTitle) ?? true
-        standByFriendly = try container.decodeIfPresent(Bool.self, forKey: .standByFriendly) ?? false
-    }
-}
 
 struct CustomMetricValue: Decodable {
     let value: Double
@@ -81,18 +36,19 @@ struct CustomWidgetData: Decodable {
     static let empty = CustomWidgetData(date: nil, lastUpdated: nil, energyUnit: nil, metrics: [:], links: nil)
 }
 
-/// Decodes one array element without failing the whole array when it is bad.
-private struct LossyDecodable<T: Decodable>: Decodable {
-    let value: T?
-
-    init(from decoder: Decoder) throws {
-        value = try? T(from: decoder)
-    }
+/// What the person picked in Edit Widget, as plain values the renderer reads.
+struct CustomWidgetConfig {
+    /// Metric ids in the order picked; empty slots are already left out.
+    let metrics: [String]
+    /// A style name, or "auto" for the placed size's default.
+    let style: String
+    let accent: String
+    let largeText: Bool
 }
 
 // MARK: - Loading
 
-/// The storage writes a string for the JSON these keys hold; a build that
+/// The storage writes a string for the JSON this key holds; a build that
 /// stored it as data is read too.
 private func readCustomJSON(_ key: String) -> Data? {
     guard
@@ -108,16 +64,6 @@ private func readCustomJSON(_ key: String) -> Data? {
     return defaults.data(forKey: key)
 }
 
-func loadCustomWidgetLayouts() -> [CustomWidgetLayout] {
-    guard
-        let data = readCustomJSON("customWidgetLayouts"),
-        let decoded = try? JSONDecoder().decode([LossyDecodable<CustomWidgetLayout>].self, from: data)
-    else {
-        return []
-    }
-    return decoded.compactMap { $0.value }
-}
-
 func loadCustomWidgetData() -> CustomWidgetData {
     guard
         let data = readCustomJSON("customWidgetData"),
@@ -127,6 +73,20 @@ func loadCustomWidgetData() -> CustomWidgetData {
         return .empty
     }
     return payload
+}
+
+/// Tells the app a custom widget is on a screen (iOS only asks for a timeline
+/// while one is). The app reads this to decide whether to fetch the extra
+/// figures, and treats a stamp older than two days as no widget.
+private func markCustomWidgetActive() {
+    guard
+        let appGroup = appGroupIdentifier(),
+        !appGroup.isEmpty,
+        let defaults = UserDefaults(suiteName: appGroup)
+    else {
+        return
+    }
+    defaults.set(Int(Date().timeIntervalSince1970), forKey: "customWidgetActiveAt")
 }
 
 // MARK: - Families, styles, metrics
@@ -156,17 +116,6 @@ private func customFamilyKey(_ family: WidgetFamily) -> String? {
     case .accessoryRectangular: return "lockRectangular"
     case .accessoryInline: return "lockInline"
     default: return nil
-    }
-}
-
-func customFamilyDisplayName(_ family: String) -> String {
-    switch family {
-    case "medium": return localizedWidgetString("widget.custom.family.medium")
-    case "large": return localizedWidgetString("widget.custom.family.large")
-    case "lockCircular": return localizedWidgetString("widget.custom.family.lock_circular")
-    case "lockRectangular": return localizedWidgetString("widget.custom.family.lock_rectangular")
-    case "lockInline": return localizedWidgetString("widget.custom.family.lock_inline")
-    default: return localizedWidgetString("widget.custom.family.small")
     }
 }
 
@@ -315,14 +264,12 @@ struct CustomMetricItem: Identifiable {
     var id: String { key }
 }
 
-/// What to draw for one layout in one placed family. A layout built for a
-/// small widget can sit in a medium slot: the style falls back to that
-/// family's default and the metrics are cut to what it fits, as the app's
-/// editor does with `normalizeWidgetLayout`.
+/// What to draw for one configuration in one placed family. The style falls
+/// back to that family's default when it is "auto" or the family cannot show
+/// it, and the metrics are cut to what the family fits.
 struct CustomRenderPlan {
     let style: String
     let accent: Color
-    let title: String?
     let standBy: Bool
     let items: [CustomMetricItem]
     let energy: WidgetEnergyUnit
@@ -330,34 +277,32 @@ struct CustomRenderPlan {
     let linkable: Bool
     private let links: [String: String]
 
-    init?(layout: CustomWidgetLayout, data: CustomWidgetData, family: WidgetFamily) {
+    init?(config: CustomWidgetConfig, data: CustomWidgetData, family: WidgetFamily) {
         guard let familyKey = customFamilyKey(family) else { return nil }
         let allowed = customFamilyStyles[familyKey] ?? ["value"]
         let limit = customFamilyMaxMetrics[familyKey] ?? 1
 
         var seen = Set<String>()
         var built: [CustomMetricItem] = []
-        for ref in layout.metrics {
-            guard built.count < limit, !seen.contains(ref.metric), let info = customMetricInfo(ref.metric) else {
+        for metric in config.metrics {
+            guard built.count < limit, !seen.contains(metric), let info = customMetricInfo(metric) else {
                 continue
             }
-            seen.insert(ref.metric)
-            let override = ref.label ?? ""
+            seen.insert(metric)
             built.append(
                 CustomMetricItem(
-                    key: ref.metric,
-                    label: override.isEmpty ? info.label : override,
+                    key: metric,
+                    label: info.label,
                     symbol: info.symbol,
-                    value: data.metrics[ref.metric]
+                    value: data.metrics[metric]
                 )
             )
         }
         guard !built.isEmpty else { return nil }
 
-        style = allowed.contains(layout.style) ? layout.style : allowed[0]
-        accent = customAccentColor(layout.accent)
-        standBy = layout.standByFriendly
-        title = layout.showTitle && !layout.standByFriendly ? layout.name : nil
+        style = allowed.contains(config.style) ? config.style : allowed[0]
+        accent = customAccentColor(config.accent)
+        standBy = config.largeText
         items = built
         energy = WidgetEnergyUnit(data.energyUnit)
         linkable = familyKey == "medium" || familyKey == "large"
@@ -407,55 +352,125 @@ func customUnitLabel(_ item: CustomMetricItem, energy: WidgetEnergyUnit) -> Stri
     return customFormat(metric: item.key, value: value, energy: energy).unit
 }
 
-// MARK: - Entity and intent
+// MARK: - Intent
+
+// The options in Edit Widget. Raw values are the metric / style / accent ids
+// the app and the shared contract use, so a metric added there needs a case
+// here (a test checks every id has one).
 
 @available(iOS 17.0, *)
-struct CustomWidgetLayoutEntity: AppEntity, Identifiable {
-    static var typeDisplayRepresentation: TypeDisplayRepresentation = "Widget"
-    static var defaultQuery = CustomWidgetLayoutQuery()
+enum CustomMetricOption: String, AppEnum {
+    case off
+    case calories_remaining
+    case calories_eaten
+    case calories_burned
+    case calorie_goal
+    case protein
+    case carbs
+    case fat
+    case water
+    case weight
+    case steps
+    case sleep_duration
+    case resting_heart_rate
+    case heart_rate
+    case exercise_minutes
+    case fasting_elapsed
+    case logging_streak
 
-    let id: String
-    let name: String
-    /// What the widget shows, so two widgets with similar names can be told
-    /// apart in the Edit Widget list. Falls back to the size it was built for.
-    let summary: String
-
-    init(layout: CustomWidgetLayout) {
-        id = layout.id
-        name = layout.name
-        let numbers: [String] = layout.metrics.prefix(3).compactMap { (ref: CustomWidgetMetricRef) -> String? in
-            let custom = ref.label ?? ""
-            if !custom.isEmpty { return custom }
-            return customMetricInfo(ref.metric)?.label
-        }
-        summary = numbers.isEmpty ? customFamilyDisplayName(layout.family) : numbers.joined(separator: ", ")
-    }
-
-    var displayRepresentation: DisplayRepresentation {
-        DisplayRepresentation(title: "\(name)", subtitle: "\(summary)")
-    }
+    static var typeDisplayRepresentation: TypeDisplayRepresentation = "widget.custom.param.number"
+    static var caseDisplayRepresentations: [CustomMetricOption: DisplayRepresentation] = [
+        .off: DisplayRepresentation(title: "widget.custom.metric.off"),
+        .calories_remaining: DisplayRepresentation(title: "widget.custom.metric.calories_remaining"),
+        .calories_eaten: DisplayRepresentation(title: "widget.custom.metric.calories_eaten"),
+        .calories_burned: DisplayRepresentation(title: "widget.custom.metric.calories_burned"),
+        .calorie_goal: DisplayRepresentation(title: "widget.custom.metric.calorie_goal"),
+        .protein: DisplayRepresentation(title: "widget.custom.metric.protein"),
+        .carbs: DisplayRepresentation(title: "widget.custom.metric.carbs"),
+        .fat: DisplayRepresentation(title: "widget.custom.metric.fat"),
+        .water: DisplayRepresentation(title: "widget.custom.metric.water"),
+        .weight: DisplayRepresentation(title: "widget.custom.metric.weight"),
+        .steps: DisplayRepresentation(title: "widget.custom.metric.steps"),
+        .sleep_duration: DisplayRepresentation(title: "widget.custom.metric.sleep_duration"),
+        .resting_heart_rate: DisplayRepresentation(title: "widget.custom.metric.resting_heart_rate"),
+        .heart_rate: DisplayRepresentation(title: "widget.custom.metric.heart_rate"),
+        .exercise_minutes: DisplayRepresentation(title: "widget.custom.metric.exercise_minutes"),
+        .fasting_elapsed: DisplayRepresentation(title: "widget.custom.metric.fasting_elapsed"),
+        .logging_streak: DisplayRepresentation(title: "widget.custom.metric.logging_streak"),
+    ]
 }
 
 @available(iOS 17.0, *)
-struct CustomWidgetLayoutQuery: EntityQuery {
-    func entities(for identifiers: [String]) async throws -> [CustomWidgetLayoutEntity] {
-        loadCustomWidgetLayouts()
-            .filter { identifiers.contains($0.id) }
-            .map { CustomWidgetLayoutEntity(layout: $0) }
-    }
+enum CustomStyleOption: String, AppEnum {
+    case auto
+    case ring
+    case bars
+    case list
+    case grid
+    case value
 
-    func suggestedEntities() async throws -> [CustomWidgetLayoutEntity] {
-        loadCustomWidgetLayouts().map { CustomWidgetLayoutEntity(layout: $0) }
-    }
+    static var typeDisplayRepresentation: TypeDisplayRepresentation = "widget.custom.param.style"
+    static var caseDisplayRepresentations: [CustomStyleOption: DisplayRepresentation] = [
+        .auto: DisplayRepresentation(title: "widget.custom.style.auto"),
+        .ring: DisplayRepresentation(title: "widget.custom.style.ring"),
+        .bars: DisplayRepresentation(title: "widget.custom.style.bars"),
+        .list: DisplayRepresentation(title: "widget.custom.style.list"),
+        .grid: DisplayRepresentation(title: "widget.custom.style.grid"),
+        .value: DisplayRepresentation(title: "widget.custom.style.value"),
+    ]
 }
 
 @available(iOS 17.0, *)
-struct SelectCustomWidgetIntent: WidgetConfigurationIntent {
-    static var title: LocalizedStringResource = "Choose widget"
-    static var description = IntentDescription("Pick which of your saved widgets to show.")
+enum CustomAccentOption: String, AppEnum {
+    case blue
+    case green
+    case orange
+    case red
+    case purple
+    case teal
+    case pink
+    case gray
 
-    @Parameter(title: "Widget")
-    var layout: CustomWidgetLayoutEntity?
+    static var typeDisplayRepresentation: TypeDisplayRepresentation = "widget.custom.param.accent"
+    static var caseDisplayRepresentations: [CustomAccentOption: DisplayRepresentation] = [
+        .blue: DisplayRepresentation(title: "widget.custom.accent.blue"),
+        .green: DisplayRepresentation(title: "widget.custom.accent.green"),
+        .orange: DisplayRepresentation(title: "widget.custom.accent.orange"),
+        .red: DisplayRepresentation(title: "widget.custom.accent.red"),
+        .purple: DisplayRepresentation(title: "widget.custom.accent.purple"),
+        .teal: DisplayRepresentation(title: "widget.custom.accent.teal"),
+        .pink: DisplayRepresentation(title: "widget.custom.accent.pink"),
+        .gray: DisplayRepresentation(title: "widget.custom.accent.gray"),
+    ]
+}
+
+@available(iOS 17.0, *)
+struct CustomWidgetIntent: WidgetConfigurationIntent {
+    static var title: LocalizedStringResource = "widget.custom.name"
+    static var description = IntentDescription("widget.custom.description")
+
+    // Four slots fill a medium widget's grid; a small widget shows the first
+    // two and a Lock Screen rectangle the first three. "None" leaves one empty.
+    @Parameter(title: "widget.custom.param.first", default: .calories_remaining)
+    var first: CustomMetricOption
+
+    @Parameter(title: "widget.custom.param.second", default: .protein)
+    var second: CustomMetricOption
+
+    @Parameter(title: "widget.custom.param.third", default: .water)
+    var third: CustomMetricOption
+
+    @Parameter(title: "widget.custom.param.fourth", default: .steps)
+    var fourth: CustomMetricOption
+
+    @Parameter(title: "widget.custom.param.style", default: .auto)
+    var style: CustomStyleOption
+
+    @Parameter(title: "widget.custom.param.accent", default: .blue)
+    var accent: CustomAccentOption
+
+    @Parameter(title: "widget.custom.param.large_text", default: false)
+    var largeText: Bool
 }
 
 // MARK: - Provider
@@ -463,16 +478,13 @@ struct SelectCustomWidgetIntent: WidgetConfigurationIntent {
 @available(iOS 17.0, *)
 struct CustomWidgetEntry: TimelineEntry {
     let date: Date
-    let layout: CustomWidgetLayout?
+    /// Nil when every slot is "None": the widget then says how to pick numbers.
+    let config: CustomWidgetConfig?
     let data: CustomWidgetData
 }
 
 enum CustomWidgetSamples {
-    static let layout = CustomWidgetLayout(
-        id: "sample", name: "Today", family: "small", style: "ring",
-        metrics: [CustomWidgetMetricRef(metric: "protein", label: nil)],
-        accent: "blue", showTitle: true, standByFriendly: false
-    )
+    static let config = CustomWidgetConfig(metrics: ["protein"], style: "ring", accent: "blue", largeText: false)
 
     static let data = CustomWidgetData(
         date: nil, lastUpdated: nil, energyUnit: nil,
@@ -484,23 +496,32 @@ enum CustomWidgetSamples {
 @available(iOS 17.0, *)
 struct CustomWidgetProvider: AppIntentTimelineProvider {
     func placeholder(in context: Context) -> CustomWidgetEntry {
-        CustomWidgetEntry(date: Date(), layout: CustomWidgetSamples.layout, data: CustomWidgetSamples.data)
+        CustomWidgetEntry(date: Date(), config: CustomWidgetSamples.config, data: CustomWidgetSamples.data)
     }
 
-    func snapshot(for configuration: SelectCustomWidgetIntent, in context: Context) async -> CustomWidgetEntry {
+    func snapshot(for configuration: CustomWidgetIntent, in context: Context) async -> CustomWidgetEntry {
         makeEntry(for: configuration)
     }
 
-    func timeline(for configuration: SelectCustomWidgetIntent, in context: Context) async -> Timeline<CustomWidgetEntry> {
-        Timeline(entries: [makeEntry(for: configuration)], policy: .after(Date().addingTimeInterval(30 * 60)))
+    func timeline(for configuration: CustomWidgetIntent, in context: Context) async -> Timeline<CustomWidgetEntry> {
+        // Only a placed widget gets a timeline, never the gallery preview.
+        markCustomWidgetActive()
+        return Timeline(entries: [makeEntry(for: configuration)], policy: .after(Date().addingTimeInterval(30 * 60)))
     }
 
-    /// The picked layout, else the first saved one, so a widget placed before
-    /// the person has chosen shows something instead of an empty slot.
-    private func makeEntry(for configuration: SelectCustomWidgetIntent) -> CustomWidgetEntry {
-        let layouts = loadCustomWidgetLayouts()
-        let chosen = layouts.first { $0.id == configuration.layout?.id } ?? layouts.first
-        return CustomWidgetEntry(date: Date(), layout: chosen, data: loadCustomWidgetData())
+    private func makeEntry(for configuration: CustomWidgetIntent) -> CustomWidgetEntry {
+        let picked = [configuration.first, configuration.second, configuration.third, configuration.fourth]
+            .map { $0.rawValue }
+            .filter { $0 != CustomMetricOption.off.rawValue }
+        let config: CustomWidgetConfig? = picked.isEmpty
+            ? nil
+            : CustomWidgetConfig(
+                metrics: picked,
+                style: configuration.style.rawValue,
+                accent: configuration.accent.rawValue,
+                largeText: configuration.largeText
+            )
+        return CustomWidgetEntry(date: Date(), config: config, data: loadCustomWidgetData())
     }
 }
 
@@ -512,7 +533,7 @@ struct CustomWidgetView: View {
     @Environment(\.widgetFamily) private var family
 
     var body: some View {
-        let plan = entry.layout.flatMap { CustomRenderPlan(layout: $0, data: entry.data, family: family) }
+        let plan = entry.config.flatMap { CustomRenderPlan(config: $0, data: entry.data, family: family) }
         Group {
             if let plan = plan {
                 switch family {
@@ -549,20 +570,6 @@ struct CustomEmptyView: View {
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
                 .minimumScaleFactor(0.7)
-        }
-    }
-}
-
-struct CustomTitleView: View {
-    let plan: CustomRenderPlan
-
-    var body: some View {
-        if let title = plan.title {
-            Text(verbatim: title)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(plan.accent)
-                .lineLimit(1)
-                .widgetAccentable()
         }
     }
 }
@@ -626,7 +633,6 @@ struct CustomValueStyleView: View {
 
     var body: some View {
         VStack(spacing: plan.standBy ? 4 : 2) {
-            CustomTitleView(plan: plan)
             if let first = plan.items.first {
                 Image(systemName: first.symbol)
                     .font(.title3)
@@ -652,7 +658,6 @@ struct CustomRingStyleView: View {
 
     var body: some View {
         VStack(spacing: 4) {
-            CustomTitleView(plan: plan)
             if let first = plan.items.first {
                 GeometryReader { geometry in
                     let size = min(geometry.size.width, geometry.size.height)
@@ -706,7 +711,6 @@ struct CustomBarsStyleView: View {
         // spacing and the figures so the fourth is not clipped.
         let compact = plan.items.count > 3
         VStack(alignment: .leading, spacing: compact ? 4 : 8) {
-            CustomTitleView(plan: plan)
             ForEach(plan.items) { item in
                 CustomItemLink(plan: plan, item: item) {
                     VStack(alignment: .leading, spacing: compact ? 2 : 3) {
@@ -736,7 +740,6 @@ struct CustomListStyleView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            CustomTitleView(plan: plan)
             ForEach(plan.items) { item in
                 CustomItemLink(plan: plan, item: item) {
                     HStack(spacing: 8) {
@@ -764,7 +767,6 @@ struct CustomGridStyleView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            CustomTitleView(plan: plan)
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], alignment: .leading, spacing: 10) {
                 ForEach(plan.items) { item in
                     CustomItemLink(plan: plan, item: item) {
@@ -876,7 +878,7 @@ struct customWidget: Widget {
     let kind: String = "customWidget"
 
     var body: some WidgetConfiguration {
-        AppIntentConfiguration(kind: kind, intent: SelectCustomWidgetIntent.self, provider: CustomWidgetProvider()) { entry in
+        AppIntentConfiguration(kind: kind, intent: CustomWidgetIntent.self, provider: CustomWidgetProvider()) { entry in
             CustomWidgetView(entry: entry)
                 .containerBackground(.fill.tertiary, for: .widget)
         }

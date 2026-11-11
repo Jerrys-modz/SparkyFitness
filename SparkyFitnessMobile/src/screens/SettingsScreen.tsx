@@ -385,16 +385,6 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
                 onPress={() => navigation.navigate('AddMenuSettings')}
                 iconColor={catBlue}
               />
-              {Platform.OS === 'ios' && (
-                <SettingsRow
-                  icon="dashboard-settings"
-                  title={t('settings.rows.widgets', {
-                    defaultValue: 'Widgets',
-                  })}
-                  onPress={() => navigation.navigate('Widgets')}
-                  iconColor={catBlue}
-                />
-              )}
               <SettingsRow
                 icon="workout-settings"
                 title={t('settings.rows.workout', { defaultValue: 'Workout' })}
