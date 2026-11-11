@@ -740,7 +740,7 @@ function ActiveWorkoutFocusSets({
     <View
       ref={metricAnchorRef}
       collapsable={false}
-      className={`${stepperRows ? 'w-10' : 'w-14'} items-center`}
+      className={`${stepperRows ? 'min-w-10' : 'min-w-14'} items-center`}
     >
       <Pressable
         onPress={openMetricMenu}
@@ -829,7 +829,7 @@ function ActiveWorkoutFocusSets({
       {!stepperRows && !cardioForm && exercise.sets.length > 0 && (
         // Same columns as the list card's header for these tables.
         <View className="flex-row items-center px-1 py-1.5">
-          <Text className={`w-9 ${headerClass}`}>
+          <Text className={`min-w-9 ${headerClass}`}>
             {t('workout.set', { defaultValue: 'Set' })}
           </Text>
           {previousSets !== undefined && (
