@@ -19,6 +19,7 @@ Longer notes for the "Widgets And Native Config" section of [`SparkyFitnessMobil
 - Not covered by CI or Jest: the Swift and the `ExpoNotifications` pod dependency the module now declares (CI does not build iOS). They are checked only by `npx expo prebuild --clean`, a build, and testing on a real iPhone with the app force-quit: Taken, Skip and Snooze from the lock screen, a group reminder, no network (the dose should land in the queue and log on the next open), and a signed-out device (JavaScript should handle the press). Attach a screen recording of that run to the PR.
 
 ## Custom widgets (iOS builder)
+
 ## Custom widget (iOS, Edit Widget pickers)
 
 - One WidgetKit widget (`customWidget`, kind `customWidget`, iOS 17+ because it is an `AppIntentConfiguration`). There is no builder or saved layout in the app: the person adds "Custom widget", touches and holds it, taps Edit Widget and picks up to four numbers (any of the 16 metrics or None), a style, a color and large text. Each placed widget is configured on its own. The options are the `CustomWidgetIntent` parameters and the `CustomMetricOption` / `CustomStyleOption` / `CustomAccentOption` enums in `customWidget.swift`; their raw values are the shared metric, style and accent ids, and `__tests__/config/customWidgetIntent.test.ts` fails if a metric or style in `shared/src/utils/widgetLayout.ts` has no case. Adding a metric means: the shared list, `WIDGET_METRIC_LINK_PATHS`, `widgetMetricSnapshot.ts`, an enum case, `customMetricInfo`, and the `widget.custom.metric.*` string.

@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   cleanupSessions: vi.fn(),
   deleteExpiredTickets: vi.fn(),
   demoReset: vi.fn(),
+  coachCheckins: vi.fn(),
   log: vi.fn(),
 }));
 
@@ -25,6 +26,9 @@ vi.mock('../services/openFoodFactsAutoSyncScheduler.js', () => ({
 }));
 vi.mock('../services/providerSyncScheduler.js', () => ({
   startProviderSyncSchedulers: mocks.providerSyncs,
+}));
+vi.mock('../services/coachCheckinService.js', () => ({
+  runScheduledCoachCheckins: mocks.coachCheckins,
 }));
 vi.mock('../services/demoSeedService.js', () => ({
   scheduleDemoMidnightReset: mocks.demoReset,
@@ -48,10 +52,16 @@ describe('scheduleBackgroundJobs', () => {
     expect(mocks.openFoodFacts).toHaveBeenCalledExactlyOnceWith();
     expect(mocks.providerSyncs).toHaveBeenCalledExactlyOnceWith();
     expect(mocks.demoReset).toHaveBeenCalledExactlyOnceWith();
-    expect(mocks.schedule).toHaveBeenCalledExactlyOnceWith(
+    expect(mocks.schedule).toHaveBeenCalledTimes(2);
+    expect(mocks.schedule).toHaveBeenCalledWith(
       '0 3 * * *',
       expect.any(Function),
       expect.objectContaining({ name: 'session-cleanup', distributed: true })
+    );
+    expect(mocks.schedule).toHaveBeenCalledWith(
+      '7 * * * *',
+      expect.any(Function),
+      expect.objectContaining({ name: 'coach-checkins', distributed: true })
     );
   });
 

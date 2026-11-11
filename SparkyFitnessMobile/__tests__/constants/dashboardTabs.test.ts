@@ -42,13 +42,20 @@ describe('dashboard tabs', () => {
         'medications',
         'macros',
         'trainingLoad',
+        'sparkySummary',
+        'coachMessages',
       ]);
     });
 
     it('keeps the saved list, drops unknown or repeated keys, and always keeps At a Glance', () => {
       expect(
         resolveSummaryCards(['hydration', 'gone', 'hydration', 'askSparky'])
-      ).toEqual(['hydration', 'pinnedMetrics']);
+      ).toEqual([
+        'hydration',
+        'sparkySummary',
+        'coachMessages',
+        'pinnedMetrics',
+      ]);
     });
 
     it('shows a repeated card on Summary as well as on its home tab', () => {

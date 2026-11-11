@@ -167,9 +167,13 @@ describe('DashboardSettingsScreen', () => {
         'medications',
         'macros',
         'trainingLoad',
+        'sparkySummary',
+        'coachMessages',
       ]);
       // At a Glance lives on Summary, so its switch is its (opt-in) visibility.
-      for (const key of summaryRowKeys().filter((k) => k !== 'pinnedMetrics')) {
+      // Sparky Summary and Coach Messages are opt-in the same way.
+      const optIn = ['pinnedMetrics', 'sparkySummary', 'coachMessages'];
+      for (const key of summaryRowKeys().filter((k) => !optIn.includes(k))) {
         expect(
           screen.getByTestId(`dashboard-summary-card-switch-${key}`).props.value
         ).toBe(true);
@@ -179,8 +183,9 @@ describe('DashboardSettingsScreen', () => {
         screen.getByTestId('dashboard-summary-add-hydration')
       ).toBeTruthy();
       expect(screen.queryByTestId('dashboard-summary-add-macros')).toBeNull();
-      // Every card but Ask Sparky and At a Glance has a home tab section.
-      expect(orderedRowKeys()).toHaveLength(DASHBOARD_CARD_KEYS.length - 2);
+      // Summary-only cards (At a Glance, Sparky Summary, Coach Messages) and Ask
+      // Sparky have no home tab section.
+      expect(orderedRowKeys()).toHaveLength(DASHBOARD_CARD_KEYS.length - 4);
       expect(orderedRowKeys()).not.toContain('askSparky');
     });
 

@@ -40,8 +40,8 @@ const MOBILE_PLATFORM = 'mobile';
  * with the screen that reads it.
  */
 const VIEW_GROUP_IDS = [
-  'quick_info',
   'food_database',
+  'quick_info',
   'report_tabular',
 ] as const;
 
