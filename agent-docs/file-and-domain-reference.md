@@ -98,6 +98,7 @@ Paths are relative to each package root. `—` means that layer does not exist f
 | Feature | Backend | Frontend | Mobile | Shared |
 |---------|---------|----------|--------|--------|
 | **Chat** (Sparky) | `routes/chatRoutes.ts` `routes/mcpRoutes.ts`, `services/chatService.ts`, `ai/tools/` | `pages/Chat/` `api/Chatbot/` `hooks/AI/` | `screens/ChatScreen.tsx` `services/api/chatApi.ts` `hooks/useChatHistory.ts` | — (no Chat API schema) |
+| **Sparky memory & daily summary** | `routes/v2/assistantRoutes.ts` `routes/v2/foodAssistantRoutes.ts`, `services/assistantDailySummaryService.ts` `services/assistantMemoryService.ts`, `models/foodAssistantRepository.ts` | `components/ai/SparkySummaryCard.tsx` `components/ai/SparkyMemorySettings.tsx` `hooks/AI/useSparkyDailySummary.ts` `hooks/AI/useSavedPreferences.ts` | `screens/SparkyMemoryScreen.tsx` `components/SparkySummaryCard.tsx` `hooks/useAssistant.ts` `services/api/assistantApi.ts` | `schemas/api/AssistantDailySummary.api.zod.ts` `schemas/api/FoodAssistant.api.zod.ts` `utils/assistantMemory.ts` |
 | **AI Photo Estimate** | `routes/checkInPhotoRoutes.ts` + food-photo route, `services/foodPhotoEstimationService.ts` `services/checkInPhotoService.ts`, `ai/` | `pages/Foods/` (photo flow) | `screens/FoodPhoto*Screen.tsx` `services/api/externalFoodSearchApi.ts` `hooks/useEstimateFoodPhoto.ts` | `schemas/api/FoodPhotoEstimate.api.zod.ts` |
 
 ---

@@ -1,6 +1,6 @@
 # AGENTS.md
 
-_Last updated: 2026-11-08_
+_Last updated: 2026-11-10_
 
 SparkyFitness Server is the backend API package for the SparkyFitness monorepo. Use this file as the primary guide for work inside `SparkyFitnessServer/`.
 
@@ -68,6 +68,8 @@ pnpm exec eslint routes/v2/foodRoutes.ts services/foodCoreService.ts
 - Alternative source lookups abort product requests after 12 seconds. Only normalized external matches/misses are cached for 30 seconds per account, profile, barcode, provider and nutrition settings; repeated in-flight lookups share work. Provider availability, preferences and saved local foods are checked on every request, and errors remain retryable.
 
 - Food assistant state: owner-only preferences, recoverable tasks and operation history use `FoodAssistant.api.zod.ts` / `FoodAssistant.zod.ts` in shared. Server: `routes/v2/foodAssistantRoutes.ts`, `services/foodAssistantService.ts`, `models/foodAssistantRepository.ts`, `ai/tools/foodAssistantTools.ts`. Web: `src/components/ai/FoodAssistantState.tsx`, `src/api/Chatbot/foodAssistantService.ts`.
+
+- Sparky memory and daily summary (#2013): `services/assistantMemoryService.ts` turns the saved preferences (`food_assistant_preferences`, any topic, not only food) into a system prompt section that `chatService.prepareChatContext` places between the base prompt and the service's own instructions; it only changes when a preference is edited, so the cached prefix stays stable. `user_preferences.assistant_memory_enabled` (default true) switches reading and saving off without deleting rows, also for the `list_preferences` and `remember_preference` tool actions. `routes/v2/assistantRoutes.ts` `POST /api/v2/assistant/daily-summary` (owner-only, `requireSelfActor`) calls `services/assistantDailySummaryService.ts`: today's and yesterday's totals from `coachRepository`, goals and memory go to the person's chat AI service through `dispatchAiRequest`; the answer is held in memory for three hours per person and day and never stored. No AI request is made without a service (`no_ai_service`) or without logged data (`no_data`). Contract: `../shared/src/schemas/api/AssistantDailySummary.api.zod.ts`.
 
 - `index.ts` - real dev entrypoint; loads env, secrets, and preflight checks before booting the app
 - `SparkyFitnessServer.ts` - Express app shell, route mounting, Swagger/ReDoc, startup

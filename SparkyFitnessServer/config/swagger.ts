@@ -1471,6 +1471,12 @@ const options = {
               description:
                 'Show voice dictation in web and mobile chat. Turning this off preserves the selected voice configuration. Omitted values are unchanged on update.',
             },
+            assistant_memory_enabled: {
+              type: 'boolean',
+              default: true,
+              description:
+                'Let Sparky use the lasting preferences the person saved (diet, allergies, coaching style) in chat and the daily summary. Turning this off keeps the saved preferences but stops reading and saving them. Omitted values are unchanged on update.',
+            },
             active_voice_ai_service_id: {
               type: 'string',
               format: 'uuid',

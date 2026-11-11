@@ -20,6 +20,10 @@ import {
   supportsTemperature,
 } from '../ai/modelCapabilities.js';
 import { loadUserTimezone } from '../utils/timezoneLoader.js';
+import {
+  buildAssistantMemoryPromptSection,
+  loadAssistantMemory,
+} from './assistantMemoryService.js';
 import { TtlCache } from '../utils/ttlCache.js';
 import {
   assertOutboundUrlShapeAndLiteralAllowed,
@@ -472,6 +476,10 @@ async function saveSparkyChatHistory(
 const chatContextInputsCache = new TtlCache<{
   chatTz: string;
   customCategoriesList: string;
+  // What the person asked Sparky to remember, as a prompt section ('' when
+  // nothing is saved or memory is switched off). It changes only when a
+  // preference is edited, like the two above.
+  assistantMemorySection: string;
 }>(60_000);
 
 // The agent loop's stop conditions, shared by the streaming and non-streaming
@@ -550,14 +558,20 @@ async function prepareChatContext(
   // ON_DEMAND_TOOLS). Escalating their category still brings them in.
   heldBackTools: readonly string[] = []
 ) {
-  const { chatTz, customCategoriesList } =
+  const { chatTz, customCategoriesList, assistantMemorySection } =
     await chatContextInputsCache.getOrLoad(authenticatedUserId, async () => {
-      const [customCategories, tz] = await Promise.all([
+      const [customCategories, tz, memory] = await Promise.all([
         measurementRepository.getCustomCategories(authenticatedUserId),
         loadUserTimezone(authenticatedUserId),
+        // Memory is background, never a reason for a chat turn to fail.
+        loadAssistantMemory(authenticatedUserId).catch((error: unknown) => {
+          log('warn', 'Could not load saved assistant preferences:', error);
+          return [];
+        }),
       ]);
       return {
         chatTz: tz,
+        assistantMemorySection: buildAssistantMemoryPromptSection(memory),
         customCategoriesList:
           customCategories.length > 0
             ? customCategories
@@ -689,7 +703,8 @@ async function prepareChatContext(
         // tool selector as the way to widen.
         !categoriesAreManual
       ),
-      serviceSystemPrompt
+      serviceSystemPrompt,
+      assistantMemorySection
     ),
     tools,
     activeToolNames,
@@ -710,14 +725,21 @@ async function prepareChatContext(
  *
  * Cache-stability: the custom prompt changes only when the service config is
  * edited, not per-turn, so it doesn't violate the prefix-caching invariant.
+ *
+ * The person's saved preferences (see assistantMemoryService) sit between the
+ * two, and likewise change only when one is edited.
  */
-function buildFinalSystemPrompt(
+export function buildFinalSystemPrompt(
   basePrompt: string,
-  serviceSystemPrompt?: string | null
+  serviceSystemPrompt?: string | null,
+  assistantMemorySection = ''
 ): string {
+  const withMemory = assistantMemorySection
+    ? `${basePrompt}\n\n${assistantMemorySection}`
+    : basePrompt;
   const trimmed = serviceSystemPrompt?.trim();
-  if (!trimmed) return basePrompt;
-  return `${basePrompt}\n\n## Additional Instructions\n${trimmed}`;
+  if (!trimmed) return withMemory;
+  return `${withMemory}\n\n## Additional Instructions\n${trimmed}`;
 }
 
 // INVARIANT — keep the request prefix (system prompt + tool schemas) stable

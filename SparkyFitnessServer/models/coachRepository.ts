@@ -95,6 +95,61 @@ async function getWaterIntakeTotal(
   }
 }
 
+export interface DayNutritionTotals {
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  entry_count: number;
+}
+
+/** One day's food totals, for the daily summary. */
+async function getDayNutritionTotals(
+  userId: string,
+  day: string
+): Promise<DayNutritionTotals> {
+  const client = await getClient(userId);
+  try {
+    const result = await client.query(
+      `SELECT
+        COALESCE(SUM(calories * quantity / NULLIF(serving_size, 0)), 0)::float8 AS calories,
+        COALESCE(SUM(protein * quantity / NULLIF(serving_size, 0)), 0)::float8 AS protein,
+        COALESCE(SUM(carbs * quantity / NULLIF(serving_size, 0)), 0)::float8 AS carbs,
+        COALESCE(SUM(fat * quantity / NULLIF(serving_size, 0)), 0)::float8 AS fat,
+        COUNT(*)::int AS entry_count
+       FROM food_entries
+       WHERE user_id = $1 AND entry_date = $2`,
+      [userId, day]
+    );
+    return result.rows[0] as DayNutritionTotals;
+  } finally {
+    client.release();
+  }
+}
+
+/** The names of one day's logged exercises, for the daily summary. */
+async function getDayExerciseNames(
+  userId: string,
+  day: string
+): Promise<string[]> {
+  const client = await getClient(userId);
+  try {
+    const result = await client.query(
+      `SELECT DISTINCT exercise_name
+       FROM exercise_entries
+       WHERE user_id = $1 AND entry_date = $2 AND exercise_name IS NOT NULL
+       ORDER BY exercise_name
+       LIMIT 12`,
+      [userId, day]
+    );
+    return result.rows.map(
+      (row: { exercise_name: string }) => row.exercise_name
+    );
+  } finally {
+    client.release();
+  }
+}
+
 // Trailing windows anchor on `today`, the caller's user-timezone day string.
 async function getWeightSeries(userId: string, days: number, today: string) {
   const client = await getClient(userId);
@@ -331,6 +386,8 @@ export {
   get30DayWeightSeries,
   getDailyCorrelationRows,
   getFrequentHighProteinFoods,
+  getDayNutritionTotals,
+  getDayExerciseNames,
 };
 export default {
   getNutritionAggregates,
@@ -346,4 +403,6 @@ export default {
   get30DayWeightSeries,
   getDailyCorrelationRows,
   getFrequentHighProteinFoods,
+  getDayNutritionTotals,
+  getDayExerciseNames,
 };

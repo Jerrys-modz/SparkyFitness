@@ -112,6 +112,7 @@ import {
   SafeProgressPhotoTimelapse,
   SafeChat,
   SafeChatSettings,
+  SafeSparkyMemory,
   SafeCalorieSettings,
   SafeGoals,
   SafeWeeklyGoalPlanEdit,
@@ -1186,6 +1187,11 @@ function AppContent() {
             name="ChatSettings"
             component={SafeChatSettings}
             options={createStackScreenOptions(t('voiceSettings.open', { defaultValue: 'Voice settings' }), { headerBackTitle: t('navigation.settings', { defaultValue: 'Settings' }) })}
+          />
+          <Stack.Screen
+            name="SparkyMemory"
+            component={SafeSparkyMemory}
+            options={createStackScreenOptions(t('sparkyMemory.title', { defaultValue: 'What Sparky remembers' }), { headerBackTitle: t('navigation.settings', { defaultValue: 'Settings' }) })}
           />
           <Stack.Screen
             name="FoodSettings"
