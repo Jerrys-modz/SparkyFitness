@@ -114,6 +114,8 @@ These tables are managed by Better Auth and are not exposed through family shari
 | `plate_inventories` | Bars and plates a person owns, for the plate calculator (one row per user) |
 | `action_tags` | NFC tags: a random tag code plus the saved action a tap runs (owner-only) |
 | `coaches` | A person's own Sparky coaches: instructions plus the chat tool categories each may use (owner-only) |
+| `coach_checkin_settings` | Per-person coach check-in settings (off by default) |
+| `coach_messages` | Messages coaches left from a check-in, kept 30 days (owner-only) |
 | `exercise_entry_laps` | Lap split intervals for workouts |
 | `exercise_entry_hr_zones` | Heart-rate time-in-zone splits per workout |
 | `exercise_entry_distance_series` | Distance-against-time rows for an indoor entry with no route, behind its pace chart. One row per workout (`points` is JSONB) |

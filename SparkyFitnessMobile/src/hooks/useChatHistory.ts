@@ -3,10 +3,12 @@ import {
   loadChatHistory,
   mapHistoryToInitialMessages,
 } from '../services/api/chatApi';
-import { chatHistoryQueryKey } from './queryKeys';
+import { chatThreadQueryKey } from './queryKeys';
 
 interface UseChatHistoryOptions {
   enabled?: boolean;
+  /** The coach whose thread to load; null is plain Sparky's. */
+  coachId?: string | null;
 }
 
 /**
@@ -21,13 +23,19 @@ interface UseChatHistoryOptions {
  * seeds from the latest server state. This is the always-refetch-on-open model,
  * so no `onFinish` invalidation is needed.
  *
+ * Each coach has its own thread, so the key carries the coach: switching coach
+ * loads that coach's messages instead of showing the previous one's.
+ *
  * On error `data` is `undefined`; callers default to `[]` so chat still works
  * against an older/offline server.
  */
-export function useChatHistory({ enabled = true }: UseChatHistoryOptions = {}) {
+export function useChatHistory({
+  enabled = true,
+  coachId = null,
+}: UseChatHistoryOptions = {}) {
   return useQuery({
-    queryKey: chatHistoryQueryKey,
-    queryFn: loadChatHistory,
+    queryKey: chatThreadQueryKey(coachId),
+    queryFn: () => loadChatHistory(coachId),
     enabled,
     staleTime: 0,
     gcTime: 0,

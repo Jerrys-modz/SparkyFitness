@@ -42,6 +42,7 @@ import {
   type TelemetryRunContext,
 } from './shared/telemetryBudget';
 import { refreshAndroidWidgetsFromServer } from './androidWidgetSyncService';
+import { announceNewCoachMessages } from './coachMessageNotificationService';
 
 const isAppActive = (): boolean => AppState.currentState === 'active';
 
@@ -371,6 +372,10 @@ const runBackgroundSync = async (
       'ERROR'
     );
   }
+
+  // Coach messages the server wrote since the last run; it handles its own
+  // errors and does nothing when the person has notifications off.
+  await announceNewCoachMessages();
 };
 
 TaskManager.defineTask(BACKGROUND_TASK_NAME, async () => {

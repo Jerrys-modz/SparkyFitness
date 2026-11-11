@@ -86,6 +86,17 @@ export function coachToolCategories(
   return narrowed.length > 0 ? narrowed : coach.toolCategories;
 }
 
+/**
+ * The chat thread a request names: the id as sent when it is a built-in coach
+ * or a coach of this person, else null (plain Sparky's thread).
+ */
+export async function resolveCoachThreadId(
+  userId: string,
+  coachId: unknown
+): Promise<string | null> {
+  return (await resolveChatCoach(userId, coachId))?.id ?? null;
+}
+
 /** The system prompt section that puts Sparky in the coach's role. */
 export function buildCoachPromptSection(coach: ChatCoach): string {
   return [

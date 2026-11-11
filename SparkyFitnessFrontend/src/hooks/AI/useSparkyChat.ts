@@ -5,6 +5,7 @@ import {
   loadChatHistory,
   clearChatHistory,
 } from '@/api/Chatbot/sparkyChatService';
+import { getSelectedCoachId } from '@/utils/chatCoachSelection';
 import { chatbotKeys } from '@/api/keys/ai';
 
 export const useChatPreferencesQuery = () => {
@@ -24,14 +25,20 @@ export const useChatPreferencesQuery = () => {
 
 export const useChatHistoryQuery = (
   autoClearSetting: string,
-  enabled: boolean
+  enabled: boolean,
+  // The coach whose thread to load; null is plain Sparky's.
+  coachId: string | null = null
 ) => {
   const { t } = useTranslation();
 
   return useQuery({
-    queryKey: chatbotKeys.history(autoClearSetting),
-    queryFn: () => loadChatHistory(autoClearSetting),
+    queryKey: chatbotKeys.history(autoClearSetting, coachId),
+    queryFn: () => loadChatHistory(autoClearSetting, coachId),
     enabled,
+    // Dropped as soon as nothing shows it, so coming back to a coach loads
+    // its thread from the server instead of seeding the chat from a copy
+    // taken before the last messages were sent.
+    gcTime: 0,
     meta: {
       errorMessage: t(
         'chat.errorLoadingHistory',
@@ -46,7 +53,8 @@ export const useClearChatHistoryMutation = () => {
   const { t } = useTranslation();
 
   return useMutation({
-    mutationFn: (clearType: 'manual' | 'all') => clearChatHistory(clearType),
+    mutationFn: (clearType: 'manual' | 'all') =>
+      clearChatHistory(clearType, getSelectedCoachId()),
     onSuccess: () => {
       queryClient.removeQueries({ queryKey: [...chatbotKeys.all, 'history'] });
     },

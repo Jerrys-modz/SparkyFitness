@@ -115,6 +115,8 @@ export const mealTypesQueryKey = ['mealTypes'] as const;
 export const shoesQueryKey = ['shoes'] as const;
 export const plateInventoryQueryKey = ['plateInventory'] as const;
 export const coachesQueryKey = ['coaches'] as const;
+export const coachCheckinSettingsQueryKey = ['coachCheckinSettings'] as const;
+export const coachMessagesQueryKey = ['coachMessages'] as const;
 export const savedPreferencesQueryKey = ['savedAssistantPreferences'] as const;
 export const sparkyDailySummaryQueryKey = (date: string) =>
   ['sparkyDailySummary', date] as const;
@@ -373,6 +375,9 @@ export const nutrientDisplayPreferencesQueryKey = [
 ] as const;
 
 export const chatHistoryQueryKey = ['chatHistory'] as const;
+/** One coach's chat thread; null is plain Sparky's. */
+export const chatThreadQueryKey = (coachId: string | null) =>
+  [...chatHistoryQueryKey, coachId ?? 'sparky'] as const;
 
 export const nutritionTrendsQueryKey = (startDate: string, endDate: string) =>
   ['nutritionTrends', startDate, endDate] as const;

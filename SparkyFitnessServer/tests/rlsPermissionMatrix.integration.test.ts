@@ -197,6 +197,8 @@ describe.runIf(RUN)('RLS permission matrix', () => {
     plate_inventories: 'owner',
     action_tags: 'owner',
     coaches: 'owner',
+    coach_checkin_settings: 'owner',
+    coach_messages: 'owner',
     // diary
     exercise_entries: 'diary',
     exercise_preset_entries: 'diary',
