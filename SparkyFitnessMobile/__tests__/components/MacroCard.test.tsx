@@ -7,7 +7,20 @@ jest.mock('@react-navigation/native', () => ({
   useIsFocused: () => true,
 }));
 
+const mockDimensions = (fontScale: number) =>
+  jest
+    .spyOn(require('react-native'), 'useWindowDimensions')
+    .mockReturnValue({ width: 390, height: 844, scale: 3, fontScale });
+
 describe('MacroCard', () => {
+  beforeEach(() => {
+    mockDimensions(1);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   const baseProps = {
     label: 'Carbs',
     consumed: 50,
@@ -31,6 +44,13 @@ describe('MacroCard', () => {
     const { toJSON } = render(<MacroCard {...baseProps} />);
     const root = toJSON() as { props: { className: string } };
     expect(root.props.className).toContain('w-[48%]');
+  });
+
+  it('takes the full row at large system font sizes', () => {
+    mockDimensions(1.5);
+    const { toJSON } = render(<MacroCard {...baseProps} />);
+    const root = toJSON() as { props: { className: string } };
+    expect(root.props.className).toContain('w-full');
   });
 
   it('applies a custom widthClassName when provided', () => {
