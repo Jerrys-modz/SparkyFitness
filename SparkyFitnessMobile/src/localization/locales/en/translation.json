@@ -311,7 +311,8 @@
       "fasting": "Fasting",
       "hydration": "Hydration reminders",
       "moodCheckin": "Mood check-ins",
-      "oralCare": "Brushing reminders"
+      "oralCare": "Brushing reminders",
+      "coachMessages": "Coach messages"
     },
     "moodCheckin": {
       "title": "How are you feeling?",
@@ -1342,7 +1343,9 @@
     "oralCare": "Oral care",
     "oralCareSubtitle": "Show brushing against your goal and your streak",
     "sparkySummary": "Sparky's daily summary",
-    "sparkySummarySubtitle": "A short AI summary of your day with one or two suggestions. Uses your AI service once when you open the Dashboard"
+    "sparkySummarySubtitle": "A short AI summary of your day with one or two suggestions. Uses your AI service once when you open the Dashboard",
+    "coachMessages": "Coach messages",
+    "coachMessagesSubtitle": "Show what your coaches left for you. Turn check-ins on in Settings > Coaches"
   },
   "diarySettings": {
     "updateFailed": "Failed to update setting.",
@@ -10280,5 +10283,30 @@
       "add": "Add a coach",
       "limit": "You have the most coaches allowed."
     }
+  },
+  "coachMessages": {
+    "title": "From your coaches",
+    "talk": "Talk to this coach",
+    "dismiss": "Dismiss",
+    "lowProteinAfterTraining": "You trained yesterday and logged {{protein}} g of protein against your {{goal}} g goal. A protein-rich meal today would help you recover.",
+    "shortSleepUnderLoad": "You slept about {{hours}} hours last night after {{workouts}} workouts in three days. An easier session or an early night could pay off.",
+    "loggingGap": "It has been {{days}} days since your last entry. No catching up needed: logging one meal today is enough to get going again.",
+    "streakMilestone": "You have logged {{days}} days in a row. That consistency is what makes the numbers useful."
+  },
+  "coachCheckins": {
+    "title": "Coach check-ins",
+    "help": "Once a day your coaches look at your finished days and leave a short message on the Dashboard when something is worth saying, at most {{max}} a day. They stay quiet otherwise. This applies on web and mobile.",
+    "loadFailed": "Could not load the check-in settings.",
+    "saveFailed": "Could not save the check-in settings. Try again.",
+    "coaches": "Coaches that may check in",
+    "hour": "Check in from",
+    "aiWording": "Let my AI service word them",
+    "aiWordingHint": "Off: messages use ready-made sentences and no AI request is made. On: each message is one request to your AI service, made in the background, and it respects what Sparky remembers.",
+    "notify": "Notify me on this phone",
+    "notifyHint": "A new message raises a notification the next time the app syncs in the background, so it can arrive some time after it was written. Needs notifications and background sync to be on.",
+    "checkNow": "Check now",
+    "checkNowCreated_one": "{{count}} new message on the Dashboard.",
+    "checkNowCreated_other": "{{count}} new messages on the Dashboard.",
+    "checkNowNone": "Nothing to say right now."
   }
 }

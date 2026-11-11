@@ -13,6 +13,7 @@ import {
   type ChatToolCategorySlug,
   type CoachResponse,
 } from '@workspace/shared';
+import CoachCheckinSettingsSection from '../components/CoachCheckinSettingsSection';
 import FormInput from '../components/FormInput';
 import SettingsRow, { SettingsRowGroup } from '../components/SettingsRow';
 import StatusView from '../components/StatusView';
@@ -169,6 +170,10 @@ export default function CoachesScreen(_props: RootStackScreenProps<'Coaches'>) {
             />
           ))}
         </SettingsRowGroup>
+
+        <View className="mt-6">
+          <CoachCheckinSettingsSection />
+        </View>
 
         <Text className="text-text-primary font-semibold mt-6 mb-2">
           {t('coaches.settings.title', { defaultValue: 'Your coaches' })}

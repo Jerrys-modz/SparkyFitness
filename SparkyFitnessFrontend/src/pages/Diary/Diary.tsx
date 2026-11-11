@@ -12,6 +12,7 @@ import MealCard from './MealCard';
 import ExerciseCard from './ExerciseCard';
 import DiaryWidgetGrid, { type DiaryWidget } from './DiaryWidgetGrid';
 import { SparkySummaryCard } from '@/components/ai/SparkySummaryCard';
+import { CoachMessagesCard } from '@/components/ai/CoachMessagesCard';
 import { useSparkySummaryCardEnabled } from '@/utils/sparkySummaryPreference';
 import { mealWidgetKey } from '@/utils/dashboardLayout';
 import {
@@ -539,6 +540,8 @@ const Diary = () => {
           />
         </div>
       </div>
+
+      {!isActingOnBehalf && <CoachMessagesCard />}
 
       {showSparkySummary && <SparkySummaryCard today={selectedDate} />}
 

@@ -7,6 +7,7 @@ import { deleteExpiredTickets } from './passkeyTicketService.js';
 import { scheduleDemoMidnightReset } from './demoSeedService.js';
 import { log } from '../config/logging.js';
 import { scheduledJobsDisabled } from '../utils/scheduledJobs.js';
+import { runScheduledCoachCheckins } from './coachCheckinService.js';
 
 // Backup scheduling is handled by services/backupScheduler.ts
 // Session cleanup scheduling
@@ -32,6 +33,19 @@ const scheduleSessionCleanup = async () => {
   });
 };
 
+// Coach check-ins (#2013): every hour, people whose chosen hour has come and
+// whose day has not been evaluated yet get their check. It does nothing, and
+// makes no AI request, for anyone who has not switched check-ins on.
+const scheduleCoachCheckins = () => {
+  scheduleJob('coach-checkins', '7 * * * *', async () => {
+    try {
+      await runScheduledCoachCheckins();
+    } catch (error) {
+      log('error', '[CRON] Coach check-ins failed:', error);
+    }
+  });
+};
+
 /** Registers every scheduled background job after the database is initialized. */
 export async function scheduleBackgroundJobs(): Promise<void> {
   if (scheduledJobsDisabled()) {
@@ -46,4 +60,5 @@ export async function scheduleBackgroundJobs(): Promise<void> {
   scheduleSessionCleanup();
   startProviderSyncSchedulers();
   scheduleDemoMidnightReset();
+  scheduleCoachCheckins();
 }

@@ -9,6 +9,10 @@ const mockGoals = { calories: 1800, protein: 100, carbs: 200, fat: 60 };
 let mockRemaining = 1256;
 let mockCaloriePreference: NutrientGoalPreferenceEntry | undefined;
 
+// The coach messages card has its own tests (CoachCheckins.test.tsx).
+jest.mock('@/components/ai/CoachMessagesCard', () => ({
+  CoachMessagesCard: () => null,
+}));
 jest.mock('@/contexts/ActiveUserContext', () => ({
   useActiveUser: () => ({ activeUserId: 'test-user' }),
 }));

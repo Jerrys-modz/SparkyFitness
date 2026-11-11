@@ -189,6 +189,11 @@ export const PREFERENCE_DEFAULTS = {
   // The coach the chat runs as (#2013): a built-in id, one of the person's own,
   // or null for plain Sparky.
   chatCoachId: null as string | null,
+  // Coach messages (#2013): whether a new one raises a notification on this
+  // phone, and the ids already announced so each is announced once.
+  coachMessageNotificationsEnabled: true,
+  announcedCoachMessageIds: [] as string[],
+  coachMessagesCardVisible: true,
   reportNutrientOrder: [] as string[],
   shownReportNutrients: [...DEFAULT_REPORT_NUTRIENTS] as string[],
   foodSearchOwnershipFilter: 'all' as OwnershipFilter,
@@ -311,6 +316,12 @@ export type AppPreferencesData = {
   startChatConversation: (serviceConfigId: string | null) => void;
   chatCoachId: string | null;
   setChatCoachId: (coachId: string | null) => void;
+  coachMessageNotificationsEnabled: boolean;
+  setCoachMessageNotificationsEnabled: (value: boolean) => void;
+  announcedCoachMessageIds: string[];
+  setAnnouncedCoachMessageIds: (ids: string[]) => void;
+  coachMessagesCardVisible: boolean;
+  setCoachMessagesCardVisible: (value: boolean) => void;
   /** Order of the nutrients the Nutrition report can average; unknown ones follow in catalog order. */
   reportNutrientOrder: string[];
   /** Nutrients (standard keys or custom names) the Nutrition report's "Your nutrients" card shows. */
@@ -676,6 +687,12 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
           chatConversationId: newUuid(),
           chatConversationServiceId: serviceConfigId,
         }),
+      setCoachMessageNotificationsEnabled: (value) =>
+        set({ coachMessageNotificationsEnabled: value }),
+      setAnnouncedCoachMessageIds: (ids) =>
+        set({ announcedCoachMessageIds: ids }),
+      setCoachMessagesCardVisible: (value) =>
+        set({ coachMessagesCardVisible: value }),
       // A coach changes the system prompt, so the chat starts a new
       // conversation: clearing the id makes ChatScreen begin one.
       setChatCoachId: (coachId) =>
@@ -839,6 +856,10 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         chatConversationId: state.chatConversationId,
         chatConversationServiceId: state.chatConversationServiceId,
         chatCoachId: state.chatCoachId,
+        coachMessageNotificationsEnabled:
+          state.coachMessageNotificationsEnabled,
+        announcedCoachMessageIds: state.announcedCoachMessageIds,
+        coachMessagesCardVisible: state.coachMessagesCardVisible,
         reportNutrientOrder: state.reportNutrientOrder,
         shownReportNutrients: state.shownReportNutrients,
         foodSearchOwnershipFilter: state.foodSearchOwnershipFilter,

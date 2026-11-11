@@ -280,6 +280,7 @@ describe('appPreferencesStore', () => {
         'oralCare',
         'labResults',
         'sparkySummary',
+        'coachMessages',
       ]);
     });
 
