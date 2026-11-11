@@ -24,6 +24,11 @@ import {
   buildAssistantMemoryPromptSection,
   loadAssistantMemory,
 } from './assistantMemoryService.js';
+import {
+  buildCoachPromptSection,
+  coachToolCategories,
+  resolveChatCoach,
+} from './coachPersonaService.js';
 import { TtlCache } from '../utils/ttlCache.js';
 import {
   assertOutboundUrlShapeAndLiteralAllowed,
@@ -556,7 +561,10 @@ async function prepareChatContext(
   latestUserText?: string,
   // Auto mode only: tools held back from this turn's base selection (see
   // ON_DEMAND_TOOLS). Escalating their category still brings them in.
-  heldBackTools: readonly string[] = []
+  heldBackTools: readonly string[] = [],
+  // The chosen coach's instructions (see coachPersonaService); '' for plain
+  // Sparky. Fixed for a conversation, so the request prefix stays stable.
+  coachPromptSection = ''
 ) {
   const { chatTz, customCategoriesList, assistantMemorySection } =
     await chatContextInputsCache.getOrLoad(authenticatedUserId, async () => {
@@ -704,7 +712,7 @@ async function prepareChatContext(
         !categoriesAreManual
       ),
       serviceSystemPrompt,
-      assistantMemorySection
+      [assistantMemorySection, coachPromptSection].filter(Boolean).join('\n\n')
     ),
     tools,
     activeToolNames,
@@ -726,16 +734,18 @@ async function prepareChatContext(
  * Cache-stability: the custom prompt changes only when the service config is
  * edited, not per-turn, so it doesn't violate the prefix-caching invariant.
  *
- * The person's saved preferences (see assistantMemoryService) sit between the
- * two, and likewise change only when one is edited.
+ * The person's saved preferences (see assistantMemoryService) and the chosen
+ * coach's role (see coachPersonaService) sit between the two. Preferences
+ * change only when one is edited and the coach is fixed for a conversation.
  */
 export function buildFinalSystemPrompt(
   basePrompt: string,
   serviceSystemPrompt?: string | null,
-  assistantMemorySection = ''
+  // Saved preferences, then the chosen coach's role.
+  extraSections = ''
 ): string {
-  const withMemory = assistantMemorySection
-    ? `${basePrompt}\n\n${assistantMemorySection}`
+  const withMemory = extraSections
+    ? `${basePrompt}\n\n${extraSections}`
     : basePrompt;
   const trimmed = serviceSystemPrompt?.trim();
   if (!trimmed) return withMemory;
@@ -2226,7 +2236,9 @@ async function processChatMessage(
   authenticatedUserId: string,
   actorIsAdmin = false,
   toolCategories?: readonly string[],
-  conversationId?: string
+  conversationId?: string,
+  // The coach the person chose for this conversation (#2013), if any.
+  coachId?: string
 ) {
   try {
     if (!Array.isArray(messages) || messages.length === 0) {
@@ -2265,8 +2277,16 @@ async function processChatMessage(
       sessionId
     );
 
+    // A coach limits the conversation to its own tool categories, which the
+    // person's in-chat selection can only narrow.
+    const coach = await resolveChatCoach(authenticatedUserId, coachId);
+    if (coach) {
+      toolCategories = coachToolCategories(coach, toolCategories);
+    }
+
     // A non-empty toolCategories here is the user's explicit in-chat selection
-    // (a strict ceiling); an empty one falls through to auto-classification.
+    // or the coach's list (a strict ceiling); an empty one falls through to
+    // auto-classification.
     const categoriesAreManual = Boolean(
       toolCategories && toolCategories.length > 0
     );
@@ -2312,7 +2332,8 @@ async function processChatMessage(
           content: '',
         }
       ),
-      heldBackChatTools(messages)
+      heldBackChatTools(messages),
+      coach ? buildCoachPromptSection(coach) : ''
     );
 
     const chatProviderOptions = buildChatProviderOptions(
@@ -2863,7 +2884,9 @@ async function processChatMessageStream(
   authenticatedUserId: string,
   actorIsAdmin = false,
   toolCategories?: readonly string[],
-  conversationId?: string
+  conversationId?: string,
+  // The coach the person chose for this conversation (#2013), if any.
+  coachId?: string
 ) {
   try {
     if (!Array.isArray(messages) || messages.length === 0) {
@@ -2897,8 +2920,16 @@ async function processChatMessageStream(
       sessionId
     );
 
+    // A coach limits the conversation to its own tool categories, which the
+    // person's in-chat selection can only narrow.
+    const coach = await resolveChatCoach(authenticatedUserId, coachId);
+    if (coach) {
+      toolCategories = coachToolCategories(coach, toolCategories);
+    }
+
     // A non-empty toolCategories here is the user's explicit in-chat selection
-    // (a strict ceiling); an empty one falls through to auto-classification.
+    // or the coach's list (a strict ceiling); an empty one falls through to
+    // auto-classification.
     const categoriesAreManual = Boolean(
       toolCategories && toolCategories.length > 0
     );
@@ -2945,7 +2976,8 @@ async function processChatMessageStream(
           content: '',
         }
       ),
-      heldBackChatTools(messages)
+      heldBackChatTools(messages),
+      coach ? buildCoachPromptSection(coach) : ''
     );
 
     const chatProviderOptions = buildChatProviderOptions(

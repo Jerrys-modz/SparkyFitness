@@ -32,6 +32,7 @@ import type {
 import { getThreadMessageTokenUsage } from '@assistant-ui/react-ai-sdk';
 import { useChatbotVisibility } from '@/contexts/ChatbotVisibilityContext';
 import { ChatToolCategoriesSelector } from '@/components/ai/ChatToolCategoriesSelector';
+import { ChatCoachSelector } from '@/components/ai/ChatCoachSelector';
 import {
   ArrowDownIcon,
   ArrowUpIcon,
@@ -234,6 +235,7 @@ const Composer: FC = () => {
             >
               <ComposerAddAttachment />
               <ChatToolCategoriesSelector />
+              <ChatCoachSelector />
             </div>
             <div className="flex flex-col items-end gap-2">
               {voiceEnabled && !running ? (

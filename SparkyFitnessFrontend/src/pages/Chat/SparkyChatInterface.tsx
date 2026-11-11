@@ -1,3 +1,4 @@
+import { getSelectedCoachId } from '@/utils/chatCoachSelection';
 import { formatDateToYYYYMMDD } from '@/lib/utils';
 import { useActiveAIService } from '@/hooks/AI/useAIServiceSettings';
 import { useAuth } from '@/hooks/useAuth';
@@ -148,6 +149,9 @@ const SparkyChatInner = ({
             // closure never sends a stale set). Empty => server falls back to
             // the service's profile default.
             toolCategories: hasCustomSelection ? getSelected() : undefined,
+            // The coach chosen in the composer; the server ignores an id
+            // that names no coach.
+            coachId: getSelectedCoachId() ?? undefined,
             // Stable per-conversation ID. The server pins providers that need
             // session affinity (OpenCode Go) to it.
             conversationId: await getChatConversationId(activeUserId ?? ''),

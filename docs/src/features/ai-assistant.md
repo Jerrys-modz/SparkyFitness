@@ -57,6 +57,23 @@ Sparky can keep a short list of things you told it about yourself: your diet, al
 
 This is what you said about yourself, kept apart from what you log. Sparky is told not to assume anything beyond it, and a request in the current message always wins for that message. The list is private to you and is never shared with family.
 
+## Coaches
+
+A coach is Sparky with a focus. Choosing one adds that coach's instructions to the chat and limits the chat to the tools the coach needs, so a coach only reaches the data its job calls for. One coach is active at a time, and choosing a different one starts a new conversation.
+
+Four coaches are built in:
+
+- **Recovery Coach** connects your training with what you eat and how you rest.
+- **Consistency Coach** helps you keep habits going and restart gently after a gap.
+- **Macro Timing Coach** looks at when you eat protein and carbs around your workouts.
+- **Sleep and Recovery Coach** compares your sleep with your training load.
+
+To choose one, use the coach button in the web chat composer, or the coach chip above the chat in the mobile app. Choose **Sparky** to go back to the general assistant with every tool.
+
+You can add up to 20 coaches of your own: give each a name, instructions (what to focus on and how to talk to you) and the tools it may use. On the web open **Settings > AI Service > Your coaches**; in the mobile app open **Settings > Coaches**. A coach cannot read or change anything outside the tools you gave it. If you also trim tools in the chat's tool selector, the coach gets only the tools both allow.
+
+Coaches answer when you ask; they do not send messages on their own. Your coaches are private to you and are never shared with family. What Sparky remembers applies to every coach.
+
 ## Daily Summary
 
 Sparky can write a short summary of your day so far with one or two optional suggestions, based on the food, exercise and water you logged today and yesterday, your goals, and what Sparky remembers.
