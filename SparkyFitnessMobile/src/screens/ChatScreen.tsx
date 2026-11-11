@@ -95,6 +95,7 @@ import {
   chatHistoryQueryKey,
 } from '../hooks';
 import { useScreenHeader } from '../hooks/useScreenHeader';
+import ChatCoachPicker from '../components/chat/ChatCoachPicker';
 import type { RootStackScreenProps } from '../types/navigation';
 
 /** Seed (initial) messages accepted by `useChatRuntime`. */
@@ -163,11 +164,13 @@ function useSparkyChatRuntime({
   baseUrl,
   serviceConfigId,
   conversationId,
+  coachId,
   initialMessages,
 }: {
   baseUrl: string;
   serviceConfigId: string;
   conversationId: string;
+  coachId: string | null;
   initialMessages: InitialMessages;
 }) {
   const { t } = useTranslation();
@@ -188,9 +191,15 @@ function useSparkyChatRuntime({
             : {};
         },
         // Merged into the request body alongside `messages`; the server reads it.
-        body: { service_config_id: serviceConfigId, conversationId },
+        // `coachId` is the coach chosen above the chat; the server ignores an
+        // id that names no coach.
+        body: {
+          service_config_id: serviceConfigId,
+          conversationId,
+          coachId: coachId ?? undefined,
+        },
       }),
-    [baseUrl, serviceConfigId, conversationId]
+    [baseUrl, serviceConfigId, conversationId, coachId]
   );
 
   // Thread-level safety net: a per-message error box can't render if the stream
@@ -1213,6 +1222,7 @@ function ChatThread({
   voiceServiceConfigId,
   voiceInputEnabled,
   conversationId,
+  coachId,
   initialMessages,
   onRunningChange,
   autoFocusReady,
@@ -1222,6 +1232,7 @@ function ChatThread({
   voiceServiceConfigId?: string | null;
   voiceInputEnabled: boolean;
   conversationId: string;
+  coachId: string | null;
   initialMessages: InitialMessages;
   onRunningChange: (running: boolean) => void;
   autoFocusReady: boolean;
@@ -1232,6 +1243,7 @@ function ChatThread({
     baseUrl,
     serviceConfigId,
     conversationId,
+    coachId,
     initialMessages,
   });
 
@@ -1418,6 +1430,7 @@ export default function ChatScreen({
   const chatConversationServiceId = useAppPreferencesStore(
     (s) => s.chatConversationServiceId
   );
+  const chatCoachId = useAppPreferencesStore((s) => s.chatCoachId);
   const startChatConversation = useAppPreferencesStore(
     (s) => s.startChatConversation
   );
@@ -1563,6 +1576,7 @@ export default function ChatScreen({
       }}
     >
       {header}
+      {!!baseUrl && !!serviceConfigId && <ChatCoachPicker disabled={running} />}
 
       {/* Padding shrinks the message list by the keyboard height so the composer
           stays pinned just above the keyboard. On iOS, RN core's
@@ -1608,6 +1622,7 @@ export default function ChatScreen({
               !!preferences && preferences.voice_input_enabled !== false
             }
             conversationId={chatConversationId}
+            coachId={chatCoachId}
             initialMessages={initialMessages}
             onRunningChange={setRunning}
             autoFocusReady={transitionComplete}

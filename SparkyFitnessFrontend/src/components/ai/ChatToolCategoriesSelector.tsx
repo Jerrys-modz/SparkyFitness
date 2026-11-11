@@ -1,8 +1,8 @@
 import { type FC } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SlidersHorizontalIcon } from 'lucide-react';
-import type { ChatToolCategorySlug } from '@workspace/shared';
 import { useChatToolCategories } from '@/contexts/ChatToolCategoriesContext';
+import { CATEGORY_LABELS } from '@/utils/chatToolCategoryLabels';
 import { TooltipIconButton } from '@/components/tooltip-icon-button';
 import { Button } from '@/components/ui/button';
 import { Toggle } from '@/components/ui/toggle';
@@ -12,21 +12,6 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
-
-// English fallbacks kept inline (2nd arg) so the control is readable before the
-// translation keys land in every locale, matching the repo's inline-fallback
-// convention for translated strings.
-const CATEGORY_LABELS: Record<ChatToolCategorySlug, [string, string]> = {
-  food: ['chat.toolCategories.food', 'Food & Water'],
-  exercise: ['chat.toolCategories.exercise', 'Exercise'],
-  checkin: ['chat.toolCategories.checkin', 'Body & Check-ins'],
-  goals: ['chat.toolCategories.goals', 'Goals'],
-  reports: ['chat.toolCategories.reports', 'Reports & Analytics'],
-  coaching: ['chat.toolCategories.coaching', 'Coaching'],
-  vision: ['chat.toolCategories.vision', 'Vision'],
-  profile: ['chat.toolCategories.profile', 'Profile & Habits'],
-  medications: ['chat.toolCategories.medications', 'Medications'],
-};
 
 /**
  * Runtime tool-category selector shown in the chat composer. Lets the user

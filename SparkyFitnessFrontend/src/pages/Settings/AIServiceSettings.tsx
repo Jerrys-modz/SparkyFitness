@@ -29,6 +29,7 @@ import { GlobalOverrideBanner } from '@/components/ai/GlobalOverrideBanner';
 import { ServiceForm } from '@/components/ai/ServiceForm';
 import { VoiceInputSettings } from '@/components/ai/VoiceInputSettings';
 import { SparkyMemorySettings } from '@/components/ai/SparkyMemorySettings';
+import { CoachSettings } from '@/components/ai/CoachSettings';
 import { UserServiceListItem } from '@/components/ai/UserServiceListItem';
 import { isCustomModelName, requiresApiKey } from '@/utils/aiServiceUtils';
 import {
@@ -711,6 +712,8 @@ const AIServiceSettings = () => {
             }
             disabled={isUpdatingPrefs}
           />
+
+          <CoachSettings />
 
           {services.length > 0 && (
             <>
