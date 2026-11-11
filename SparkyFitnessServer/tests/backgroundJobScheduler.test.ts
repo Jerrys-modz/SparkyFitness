@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
   cleanupSessions: vi.fn(),
   deleteExpiredTickets: vi.fn(),
   demoReset: vi.fn(),
-  coachCheckins: vi.fn(),
+  runCoachCheckins: vi.fn(),
   log: vi.fn(),
 }));
 
@@ -27,11 +27,12 @@ vi.mock('../services/openFoodFactsAutoSyncScheduler.js', () => ({
 vi.mock('../services/providerSyncScheduler.js', () => ({
   startProviderSyncSchedulers: mocks.providerSyncs,
 }));
-vi.mock('../services/coachCheckinService.js', () => ({
-  runScheduledCoachCheckins: mocks.coachCheckins,
-}));
 vi.mock('../services/demoSeedService.js', () => ({
   scheduleDemoMidnightReset: mocks.demoReset,
+}));
+
+vi.mock('../services/coachCheckinService.js', () => ({
+  runScheduledCoachCheckins: mocks.runCoachCheckins,
 }));
 
 import { scheduleBackgroundJobs } from '../services/backgroundJobScheduler.js';
@@ -62,6 +63,20 @@ describe('scheduleBackgroundJobs', () => {
       '7 * * * *',
       expect.any(Function),
       expect.objectContaining({ name: 'coach-checkins', distributed: true })
+    );
+  });
+
+  it('logs a failed coach check-in run instead of throwing', async () => {
+    mocks.runCoachCheckins.mockRejectedValue(new Error('db down'));
+    await scheduleBackgroundJobs();
+    const job = mocks.schedule.mock.calls.find(
+      (call) => call[2]?.name === 'coach-checkins'
+    )?.[1] as () => Promise<void>;
+    await expect(job()).resolves.toBeUndefined();
+    expect(mocks.log).toHaveBeenCalledWith(
+      'error',
+      '[CRON] Coach check-ins failed:',
+      expect.any(Error)
     );
   });
 
