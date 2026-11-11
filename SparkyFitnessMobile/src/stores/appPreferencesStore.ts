@@ -254,6 +254,9 @@ export const PREFERENCE_DEFAULTS = {
   compareRecentQuestions: [] as CompareQuestion[],
   chatConversationId: null as string | null,
   chatConversationServiceId: null as string | null,
+  // The coach the chat runs as (#2013): a built-in id, one of the person's own,
+  // or null for plain Sparky.
+  chatCoachId: null as string | null,
   reportNutrientOrder: [] as string[],
   shownReportNutrients: [...DEFAULT_REPORT_NUTRIENTS] as string[],
   foodSearchOwnershipFilter: 'all' as OwnershipFilter,
@@ -422,6 +425,8 @@ export type AppPreferencesData = {
   /** The AI provider the conversation ID was started with; a new provider starts a new conversation. */
   chatConversationServiceId: string | null;
   startChatConversation: (serviceConfigId: string | null) => void;
+  chatCoachId: string | null;
+  setChatCoachId: (coachId: string | null) => void;
   /** Order of the nutrients the Nutrition report can average; unknown ones follow in catalog order. */
   reportNutrientOrder: string[];
   /** Nutrients (standard keys or custom names) the Nutrition report's "Your nutrients" card shows. */
@@ -913,6 +918,14 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
           chatConversationId: newUuid(),
           chatConversationServiceId: serviceConfigId,
         }),
+      // A coach changes the system prompt, so the chat starts a new
+      // conversation: clearing the id makes ChatScreen begin one.
+      setChatCoachId: (coachId) =>
+        set((state) =>
+          state.chatCoachId === coachId
+            ? state
+            : { chatCoachId: coachId, chatConversationId: null }
+        ),
       setReportNutrientOrder: (order) => set({ reportNutrientOrder: order }),
       setReportNutrientShown: (key, isShown) =>
         set((state) => ({
@@ -1104,6 +1117,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         compareRecentQuestions: state.compareRecentQuestions,
         chatConversationId: state.chatConversationId,
         chatConversationServiceId: state.chatConversationServiceId,
+        chatCoachId: state.chatCoachId,
         reportNutrientOrder: state.reportNutrientOrder,
         shownReportNutrients: state.shownReportNutrients,
         foodSearchOwnershipFilter: state.foodSearchOwnershipFilter,

@@ -8,6 +8,7 @@ _Last updated: 2026-11-03_
 _Last updated: 2026-11-08_
 _Last updated: 2026-11-09_
 _Last updated: 2026-11-10_
+_Last updated: 2026-11-11_
 
 SparkyFitness Frontend is the React web app for the SparkyFitness monorepo. Use this file as the primary guide for work inside `SparkyFitnessFrontend/`.
 
@@ -55,6 +56,7 @@ Features are organized by domain, and the same domain folder name appears in `sr
 
 ## Source Map
 
+- Coaches (#2013): `components/ai/ChatCoachSelector.tsx` in the chat composer picks one coach (Sparky, a built-in from shared `BUILTIN_COACHES`, or the person's own); the choice is browser-local (`utils/chatCoachSelection.ts`), is sent as `coachId` by `pages/Chat/SparkyChatInterface.tsx`, and rotates the conversation id when it changes. `components/ai/CoachSettings.tsx` (in `pages/Settings/AIServiceSettings.tsx`) creates, edits and deletes the person's own (`hooks/AI/useCoaches.ts`, `api/Chatbot/coachService.ts`). Built-in names live in `utils/builtinCoachLabels.ts` and the tool category labels in `utils/chatToolCategoryLabels.ts`.
 - Sparky memory and daily summary (#2013): `components/ai/SparkyMemorySettings.tsx` (in `pages/Settings/AIServiceSettings.tsx`) holds the `assistant_memory_enabled` switch, the saved-preferences editor (`hooks/AI/useSavedPreferences.ts`, same cache as the chat panel) and the browser-local daily summary switch (`utils/sparkySummaryPreference.ts`, off by default). `components/ai/SparkySummaryCard.tsx` (`hooks/AI/useSparkyDailySummary.ts`, `api/Chatbot/assistantService.ts`) renders above the Diary grid only for today and never while acting for someone else; each new summary costs the person an AI request, so it never refetches on focus.
 - Food assistant state: owner-only preferences, recoverable tasks and operation history use `FoodAssistant.api.zod.ts` / `FoodAssistant.zod.ts` in shared. Server: `routes/v2/foodAssistantRoutes.ts`, `services/foodAssistantService.ts`, `models/foodAssistantRepository.ts`, `ai/tools/foodAssistantTools.ts`. Web: `src/components/ai/FoodAssistantState.tsx`, `src/api/Chatbot/foodAssistantService.ts`.
 

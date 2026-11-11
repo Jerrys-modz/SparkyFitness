@@ -119,6 +119,7 @@ import {
   SafeChat,
   SafeChatSettings,
   SafeSparkyMemory,
+  SafeCoaches,
   SafeCalorieSettings,
   SafeGoals,
   SafeWeeklyGoalPlanEdit,
@@ -1253,6 +1254,11 @@ function AppContent() {
             name="SparkyMemory"
             component={SafeSparkyMemory}
             options={createStackScreenOptions(t('sparkyMemory.title', { defaultValue: 'What Sparky remembers' }), { headerBackTitle: t('navigation.settings', { defaultValue: 'Settings' }) })}
+          />
+          <Stack.Screen
+            name="Coaches"
+            component={SafeCoaches}
+            options={createStackScreenOptions(t('coaches.settings.screenTitle', { defaultValue: 'Coaches' }), { headerBackTitle: t('navigation.settings', { defaultValue: 'Settings' }) })}
           />
           <Stack.Screen
             name="FoodSettings"

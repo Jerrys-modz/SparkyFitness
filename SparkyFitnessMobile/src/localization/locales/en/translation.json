@@ -11505,5 +11505,61 @@
     "loadFailed": "Could not load what Sparky remembers.",
     "deleteTitle": "Delete this?",
     "deleteMessage": "Sparky will no longer remember it."
+  },
+  "coaches": {
+    "sparky": {
+      "name": "Sparky"
+    },
+    "builtin": {
+      "recovery": {
+        "name": "Recovery Coach",
+        "description": "Connects your training with what you eat and how you rest."
+      },
+      "consistency": {
+        "name": "Consistency Coach",
+        "description": "Helps you keep habits going and restart gently after a gap."
+      },
+      "macro_timing": {
+        "name": "Macro Timing Coach",
+        "description": "Looks at when you eat protein and carbs around your workouts."
+      },
+      "sleep_recovery": {
+        "name": "Sleep and Recovery Coach",
+        "description": "Compares your sleep with your training load."
+      }
+    },
+    "toolCategories": {
+      "food": "Food & Water",
+      "exercise": "Exercise",
+      "checkin": "Body & Check-ins",
+      "goals": "Goals",
+      "reports": "Reports & Analytics",
+      "coaching": "Coaching",
+      "vision": "Vision",
+      "profile": "Profile & Habits",
+      "medications": "Medications"
+    },
+    "picker": {
+      "title": "Coach",
+      "a11y": "Coach: {{name}}. Double tap to change."
+    },
+    "settings": {
+      "screenTitle": "Coaches",
+      "title": "Your coaches",
+      "builtinTitle": "Built in",
+      "help": "A coach is Sparky with a focus: its instructions plus the only tools it may use. Pick one above the chat. Coaches are private to you.",
+      "empty": "You have not added a coach yet.",
+      "saveFailed": "Could not save your coaches. Try again.",
+      "loadFailed": "Could not load your coaches.",
+      "deleteTitle": "Delete this coach?",
+      "name": "Name",
+      "description": "Short description (optional)",
+      "prompt": "Instructions",
+      "promptPlaceholder": "What should this coach focus on, and how should it talk to you?",
+      "tools": "Tools this coach may use",
+      "toolsHint": "The coach cannot read or change anything outside these.",
+      "add": "Add a coach",
+      "limit": "You have the most coaches allowed."
+    }
   }
 }

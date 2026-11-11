@@ -99,6 +99,7 @@ Certain tables contain private user data that is **never** accessible to any fam
 * Your saved routes (`routes` table): routes you drew, imported or saved from a workout, with their points and turn cues. They are personal, so they are never shared or delegated.
 * Your plates and bars (`plate_inventories` table): the bars you own and how many pairs of each plate, for the plate calculator. They are personal, so they are never shared or delegated, and the server refuses requests for them while you act on behalf of someone else. Someone logging workouts for you sees the calculator with the standard set for your weight unit.
 * Your NFC tags (`action_tags` table): each tag's random code, its name and the action a tap runs, such as logging a drink from one of your water containers, a food or a saved meal. Tags are personal, so they are never shared or delegated, and the server refuses requests for them while you act on behalf of someone else. The sticker itself holds only the code.
+* Your coaches (`coaches` table): the coaches you created for Sparky, with their instructions and the tools each may use. A coach is only ever used in your own chats.
 
 ### 2. Tier 2: Read-Only Profile & Settings Data
 The following data can be **read** by delegates who hold at least one of `can_manage_diary`, `can_manage_checkin`, `can_manage_medications`, `can_manage_symptoms`, or `can_view_reports` — but **only the account owner can modify it**:

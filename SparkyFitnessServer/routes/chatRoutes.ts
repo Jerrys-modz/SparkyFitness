@@ -284,7 +284,8 @@ router.post('/', authenticate, async (req, res, next) => {
       toolCategories,
       typeof req.body?.conversationId === 'string'
         ? req.body.conversationId
-        : undefined
+        : undefined,
+      typeof req.body?.coachId === 'string' ? req.body.coachId : undefined
     );
     return res.status(200).json({ content, action: actionType, executedTools });
   } catch (error) {
@@ -349,7 +350,8 @@ router.post('/stream', authenticate, async (req, res, next) => {
       toolCategories,
       typeof req.body?.conversationId === 'string'
         ? req.body.conversationId
-        : undefined
+        : undefined,
+      typeof req.body?.coachId === 'string' ? req.body.coachId : undefined
     );
 
     pipeUIMessageStreamToResponse({ response: res, stream });

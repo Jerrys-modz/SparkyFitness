@@ -473,6 +473,7 @@ export type RootStackParamList = {
   Chat: undefined;
   ChatSettings: undefined;
   SparkyMemory: undefined;
+  Coaches: undefined;
   Logs: undefined;
   Sync: undefined;
   ImportHistory: undefined;

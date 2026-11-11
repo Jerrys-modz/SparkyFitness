@@ -10924,5 +10924,47 @@
     "namePlaceholder": "Topic, e.g. Diet or Coaching style",
     "valuePlaceholder": "e.g. Vegetarian, no mushrooms",
     "add": "Add"
+  },
+  "coaches": {
+    "sparky": {
+      "name": "Sparky",
+      "description": "The general assistant, with every tool."
+    },
+    "builtin": {
+      "recovery": {
+        "name": "Recovery Coach",
+        "description": "Connects your training with what you eat and how you rest."
+      },
+      "consistency": {
+        "name": "Consistency Coach",
+        "description": "Helps you keep habits going and restart gently after a gap."
+      },
+      "macro_timing": {
+        "name": "Macro Timing Coach",
+        "description": "Looks at when you eat protein and carbs around your workouts."
+      },
+      "sleep_recovery": {
+        "name": "Sleep and Recovery Coach",
+        "description": "Compares your sleep with your training load."
+      }
+    },
+    "picker": {
+      "tooltip": "Choose a coach",
+      "title": "Coach",
+      "description": "A coach gives Sparky a focus and only the tools it needs. Add your own in Settings > AI Service."
+    },
+    "settings": {
+      "title": "Your coaches",
+      "help": "A coach is Sparky with a focus: your instructions plus the only tools it may use. Pick one with the coach button in the chat. The built-in coaches are always there; add your own here. Coaches are private to you.",
+      "saveFailed": "Could not load or save your coaches. Try again.",
+      "name": "Name",
+      "description": "Short description (optional)",
+      "prompt": "Instructions",
+      "promptPlaceholder": "What should this coach focus on, and how should it talk to you?",
+      "tools": "Tools this coach may use",
+      "toolsHint": "The coach cannot read or change anything outside these.",
+      "add": "Add a coach",
+      "limit": "You have the most coaches allowed."
+    }
   }
 }

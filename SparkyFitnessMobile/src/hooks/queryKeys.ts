@@ -114,6 +114,7 @@ export const mealTypesQueryKey = ['mealTypes'] as const;
 
 export const shoesQueryKey = ['shoes'] as const;
 export const plateInventoryQueryKey = ['plateInventory'] as const;
+export const coachesQueryKey = ['coaches'] as const;
 export const savedPreferencesQueryKey = ['savedAssistantPreferences'] as const;
 export const sparkyDailySummaryQueryKey = (date: string) =>
   ['sparkyDailySummary', date] as const;
