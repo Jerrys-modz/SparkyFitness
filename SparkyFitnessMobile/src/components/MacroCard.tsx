@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, useWindowDimensions } from 'react-native';
+import { View, Text } from 'react-native';
 import Animated, {
   useSharedValue,
   useDerivedValue,
@@ -9,6 +9,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useIsFocused } from '@react-navigation/native';
 import { useCSSVariable } from 'uniwind';
+import { useLargeText } from '../hooks/useLargeText';
 
 interface MacroCardProps {
   label: string;
@@ -23,9 +24,6 @@ interface MacroCardProps {
   widthClassName?: string;
 }
 
-// Above this system font scale two cards no longer fit side by side.
-const STACK_FONT_SCALE = 1.3;
-
 const MacroCard: React.FC<MacroCardProps> = ({
   label,
   consumed,
@@ -36,11 +34,9 @@ const MacroCard: React.FC<MacroCardProps> = ({
   compact = false,
   widthClassName = 'w-[48%]',
 }) => {
-  const { fontScale } = useWindowDimensions();
+  const largeText = useLargeText();
   const containerWidthClassName =
-    fontScale > STACK_FONT_SCALE && widthClassName === 'w-[48%]'
-      ? 'w-full'
-      : widthClassName;
+    largeText && widthClassName === 'w-[48%]' ? 'w-full' : widthClassName;
   const [barWidth, setBarWidth] = useState(0);
   const hasGoal = !!(goal && goal > 0);
   const progress = hasGoal ? consumed / (goal as number) : 0;

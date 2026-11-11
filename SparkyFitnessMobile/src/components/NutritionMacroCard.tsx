@@ -1,10 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  useWindowDimensions,
-} from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { useCSSVariable } from 'uniwind';
 import Icon from './Icon';
 import MacroCompositionRing from './MacroCompositionRing';
@@ -15,6 +10,7 @@ import { formatLocalizedNumber } from '../localization';
 import { energyFromKcal } from '@workspace/shared';
 import { useEnergyUnit } from '../hooks/useEnergyUnit';
 import { energyUnitLabel } from '../utils/energyUnit';
+import { useLargeText } from '../hooks/useLargeText';
 
 export interface NutritionGoalPercentages {
   calories?: number | null;
@@ -53,9 +49,6 @@ interface NutritionMacroCardProps {
 
 const RING_SIZE = 130;
 const RING_STROKE = 12;
-// Above this system font scale the ring and macro bars stack vertically.
-const STACK_FONT_SCALE = 1.3;
-
 const NutritionMacroCard: React.FC<NutritionMacroCardProps> = ({
   calories: caloriesKcal,
   protein,
@@ -73,8 +66,7 @@ const NutritionMacroCard: React.FC<NutritionMacroCardProps> = ({
   onMacroPress,
 }) => {
   const energyUnit = useEnergyUnit();
-  const { fontScale } = useWindowDimensions();
-  const stacked = fontScale > STACK_FONT_SCALE;
+  const stacked = useLargeText();
   // Values arrive in kcal; everything below shows them in the account's unit.
   const calories = energyFromKcal(caloriesKcal, energyUnit);
   const calorieGoal =
