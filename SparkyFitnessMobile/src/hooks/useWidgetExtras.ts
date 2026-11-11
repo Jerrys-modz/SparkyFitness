@@ -1,12 +1,12 @@
 import { useMemo } from 'react';
-import { dailyHeartRateAverages, type WidgetMetric } from '@workspace/shared';
+import { dailyHeartRateAverages } from '@workspace/shared';
 
-import { useWidgetLayoutStore } from '../stores/widgetLayoutStore';
 import type { WidgetMetricExtras } from '../services/widgetMetricSnapshot';
 import type { CheckInMeasurement } from '../types/measurements';
 import type { WeightDisplayMode } from '../utils/unitConversions';
 import { toWatchFast } from '../utils/watchFast';
 import { sleepMinutesForWidget } from '../utils/widgetExtras';
+import { useCustomWidgetActive } from './useCustomWidgetActive';
 import { useCurrentFast } from './useFasting';
 import { useHeartRateRange } from './useHeartRateRange';
 import { useHeartRateSamples } from './useHeartRateTimelines';
@@ -31,9 +31,10 @@ const positive = (n: number | null | undefined): number | undefined =>
 /**
  * The widget figures the daily summary does not carry, for `useWidgetSync`.
  * Steps and weight come from the check-in the caller already has, so they
- * cost nothing. Everything else is fetched only while a saved widget actually
- * shows it (the fasting timer, sleep, either heart rate, the logging streak),
- * so a person without such a widget makes no extra request.
+ * cost nothing. Everything else (the fasting timer, sleep, either heart rate,
+ * the logging streak) is fetched only while a custom widget is on a screen,
+ * because the widget's own Edit Widget picks which numbers it shows, so a
+ * person without one makes no extra request.
  *
  * A figure that is missing is left undefined, never zero, and the widget
  * draws a dash for it.
@@ -45,58 +46,46 @@ export function useWidgetExtras({
   weightUnit,
   waterUnit,
 }: UseWidgetExtrasOptions): WidgetMetricExtras {
-  const layouts = useWidgetLayoutStore((state) => state.layouts);
-  const used = useMemo(
-    () =>
-      new Set<WidgetMetric>(
-        layouts.flatMap((layout) => layout.metrics.map((m) => m.metric))
-      ),
-    [layouts]
-  );
-  const on = (metric: WidgetMetric) => enabled && !!date && used.has(metric);
+  const active = useCustomWidgetActive();
+  const on = enabled && !!date && active;
 
-  const needsFast = used.has('fasting_elapsed');
-  const { data: currentFast } = useCurrentFast({
-    enabled: enabled && needsFast,
-  });
+  const { data: currentFast } = useCurrentFast({ enabled: on });
 
-  const { wakeUp } = useSleepDay(date ?? '', { enabled: on('sleep_duration') });
+  const { wakeUp } = useSleepDay(date ?? '', { enabled: on });
   const { heartRateData } = useHeartRateRange({
     range: '7d',
-    enabled: on('resting_heart_rate'),
+    enabled: on,
   });
   const { data: heartRateRows } = useHeartRateSamples(
     date ?? '',
     date ?? '',
-    on('heart_rate')
+    on
   );
-  const loggingStreakDays = useLoggingStreak(date, on('logging_streak'));
+  const loggingStreakDays = useLoggingStreak(date, on);
 
   const checkIn =
     measurements && measurements.entry_date === date ? measurements : undefined;
   const steps = positive(checkIn?.steps);
   const weightKg = positive(checkIn?.weight);
-  const fastStartedAt = needsFast
-    ? toWatchFast(currentFast)?.startedAt
-    : undefined;
-  const sleepMinutes = on('sleep_duration')
+  const fastStartedAt = on ? toWatchFast(currentFast)?.startedAt : undefined;
+  const sleepMinutes = on
     ? (sleepMinutesForWidget(wakeUp) ?? undefined)
     : undefined;
   // The newest reading in the window: a resting rate is not logged every day.
-  const restingHeartRate = on('resting_heart_rate')
+  const restingHeartRate = on
     ? positive(
         [...heartRateData].reverse().find((point) => point.restingHr > 0)
           ?.restingHr
       )
     : undefined;
-  const heartRate = on('heart_rate')
+  const heartRate = on
     ? positive(
         dailyHeartRateAverages(heartRateRows).find((d) => d.day === date)
           ?.avgBpm
       )
     : undefined;
 
-  const streakDays = on('logging_streak') ? loggingStreakDays : undefined;
+  const streakDays = on ? loggingStreakDays : undefined;
 
   return useMemo(
     () => ({

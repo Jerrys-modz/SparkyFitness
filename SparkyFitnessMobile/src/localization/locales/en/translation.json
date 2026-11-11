@@ -180,8 +180,7 @@
       "goals": "Goals",
       "reports": "Reports",
       "heartRateZones": "Heart Rate Zones",
-      "heartRateZonesSubtitle": "Max and resting heart rate, zone method",
-      "widgets": "Widgets"
+      "heartRateZonesSubtitle": "Max and resting heart rate, zone method"
     },
     "theme": {
       "title": "Theme",
@@ -819,7 +818,8 @@
     "pinnedMetricsSettings": "At a Glance",
     "treadmillSettings": "Treadmill & Stride",
     "widgets": "Widgets",
-    "widgetEditor": "Widget"
+    "widgetEditor": "Widget",
+    "labReportImport": "Import report"
   },
   "activityShare": {
     "title": "Share Activity",
