@@ -8,7 +8,9 @@ import Toast from 'react-native-toast-message';
 
 import { useActiveWorkoutBarPadding } from '../components/ActiveWorkoutBar';
 import Icon from '../components/Icon';
+import SettingsRow from '../components/SettingsRow';
 import StatusView from '../components/StatusView';
+import { reloadWidgets } from '../hooks/useCustomWidgetLayoutSync';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import { useWidgetLayoutStore } from '../stores/widgetLayoutStore';
@@ -56,6 +58,25 @@ const WidgetsScreen: React.FC<WidgetsScreenProps> = ({ navigation }) => {
       onPress: () => navigation.navigate('WidgetEditor', {}),
     },
   });
+
+  const handleReload = () => {
+    if (reloadWidgets(layouts)) {
+      Toast.show({
+        type: 'success',
+        text1: t('widgets.reloaded', { defaultValue: 'Widgets reloaded' }),
+      });
+      return;
+    }
+    Toast.show({
+      type: 'error',
+      text1: t('widgets.reloadFailed', {
+        defaultValue: 'Could not reload the widgets',
+      }),
+      text2: t('widgets.reloadFailedHelp', {
+        defaultValue: 'Try again. Settings > View Logs shows what went wrong.',
+      }),
+    });
+  };
 
   const confirmDelete = (layout: WidgetLayout) => {
     Alert.alert(
@@ -200,6 +221,21 @@ const WidgetsScreen: React.FC<WidgetsScreenProps> = ({ navigation }) => {
               </Text>
             </View>
           ) : null
+        }
+        ListFooterComponent={
+          <View className="mt-2">
+            <SettingsRow
+              icon="sync"
+              title={t('widgets.reload', { defaultValue: 'Reload widgets' })}
+              subtitle={t('widgets.reloadHelp', {
+                defaultValue:
+                  'Use this if a widget is blank or not showing your latest widgets.',
+              })}
+              subtitleNumberOfLines={0}
+              onPress={handleReload}
+              rightAccessory={null}
+            />
+          </View>
         }
         ListEmptyComponent={
           <StatusView

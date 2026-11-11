@@ -2,7 +2,10 @@ import { act, renderHook } from '@testing-library/react-native';
 import { Platform } from 'react-native';
 
 import { ExtensionStorage } from '@bacons/apple-targets';
-import { useCustomWidgetLayoutSync } from '../../src/hooks/useCustomWidgetLayoutSync';
+import {
+  reloadWidgets,
+  useCustomWidgetLayoutSync,
+} from '../../src/hooks/useCustomWidgetLayoutSync';
 import { addLog } from '../../src/services/LogService';
 import { useWidgetLayoutStore } from '../../src/stores/widgetLayoutStore';
 
@@ -162,5 +165,54 @@ describe('useCustomWidgetLayoutSync', () => {
 
     expect(setMock).not.toHaveBeenCalled();
     expect(reloadMock).not.toHaveBeenCalled();
+  });
+
+  describe('reloadWidgets', () => {
+    it('writes the saved widgets again and reloads every widget', () => {
+      const layouts = [layout('a', 'First'), layout('b', 'Second')];
+
+      expect(reloadWidgets(layouts)).toBe(true);
+
+      expect(written().map((l) => l.id)).toEqual(['a', 'b']);
+      // No name: every widget, not only the custom one.
+      expect(reloadMock).toHaveBeenCalledWith(undefined);
+      expect(mockAddLog).toHaveBeenCalledWith(
+        '[customWidget] Reloading widgets: 2 saved widget(s) written to the widget',
+        'INFO'
+      );
+    });
+
+    it('still reloads, but reports failure, when the write does not stick', () => {
+      setMock.mockImplementationOnce(() => {
+        // The write silently does not stick.
+      });
+
+      expect(reloadWidgets([layout('a', 'First')])).toBe(false);
+      expect(reloadMock).toHaveBeenCalledWith(undefined);
+      expect(mockAddLog).toHaveBeenCalledWith(
+        expect.stringContaining('did not reach the widget'),
+        'WARNING'
+      );
+    });
+
+    it('reports failure when the storage throws', () => {
+      setMock.mockImplementationOnce(() => {
+        throw new Error('no app group');
+      });
+
+      expect(reloadWidgets([layout('a', 'First')])).toBe(false);
+      expect(mockAddLog).toHaveBeenCalledWith(
+        expect.stringContaining('Failed to reload the widgets'),
+        'ERROR'
+      );
+    });
+
+    it('does nothing on Android', () => {
+      Object.defineProperty(Platform, 'OS', { get: () => 'android' });
+
+      expect(reloadWidgets([layout('a', 'First')])).toBe(false);
+      expect(setMock).not.toHaveBeenCalled();
+      expect(reloadMock).not.toHaveBeenCalled();
+    });
   });
 });

@@ -10297,6 +10297,11 @@
     "howToTitle": "Add a widget to your screen",
     "howToStep1": "1. Touch and hold your Home Screen or Lock Screen, tap Add, and choose SparkyFitness.",
     "howToStep2": "2. Add \"Custom widget\". It shows your first widget until you choose.",
-    "howToStep3": "3. Touch and hold it, tap Edit Widget, and pick the widget you want. Add it again to show another."
+    "howToStep3": "3. Touch and hold it, tap Edit Widget, and pick the widget you want. Add it again to show another.",
+    "reloaded": "Widgets reloaded",
+    "reloadFailed": "Could not reload the widgets",
+    "reloadFailedHelp": "Try again. Settings > View Logs shows what went wrong.",
+    "reload": "Reload widgets",
+    "reloadHelp": "Use this if a widget is blank or not showing your latest widgets."
   }
 }
