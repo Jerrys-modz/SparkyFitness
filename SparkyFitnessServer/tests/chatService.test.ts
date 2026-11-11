@@ -326,7 +326,8 @@ describe('chatService', () => {
       // The signed-in person's history, in the account being worked in.
       expect(chatRepository.getChatHistoryByUserId).toHaveBeenCalledWith(
         mockUserId,
-        mockTargetUserId
+        mockTargetUserId,
+        null
       );
     });
     it('should get chat history entry by id', async () => {

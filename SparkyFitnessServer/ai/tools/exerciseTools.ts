@@ -1,3 +1,4 @@
+import { KM_TO_MILES } from './unitConversion.js';
 import { tool } from 'ai';
 import { z } from 'zod';
 import {
@@ -787,6 +788,16 @@ const exerciseProgressSchema = exerciseDateRangeSchema
     exercise_name: z.string().optional(),
   });
 
+/**
+ * An entry's distance for the diary listing. `exercise_entries.distance` is
+ * kilometres; a bare number was read as miles by models answering someone who
+ * uses miles, so both units are spelled out.
+ */
+function formatDiaryDistance(km: number): string {
+  const miles = Math.round(km * KM_TO_MILES * 100) / 100;
+  return `${km} km (${miles} mi)`;
+}
+
 export function buildExerciseTools(userId: string, tz: string) {
   return {
     sparky_manage_exercise: tool({
@@ -1152,7 +1163,8 @@ Workout formats (workout_format, default standard) drive the in-app timer:
                   if (e.duration_minutes)
                     text += ` | ${e.duration_minutes} min`;
                   if (e.calories_burned) text += ` | ${e.calories_burned} kcal`;
-                  if (isSet(e.distance)) text += ` | ${e.distance} dist`;
+                  if (isSet(e.distance))
+                    text += ` | ${formatDiaryDistance(Number(e.distance))}`;
                   if (isSet(e.avg_heart_rate))
                     text += ` | ${e.avg_heart_rate} bpm`;
                   if (isSet(e.steps)) text += ` | ${e.steps} steps`;

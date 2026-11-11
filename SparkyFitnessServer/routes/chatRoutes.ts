@@ -8,6 +8,7 @@ import type { FoodOptionsErrorCategory } from '../services/chatService.js';
 import { transcribeVoiceAudio } from '../services/voiceTranscriptionService.js';
 import globalSettingsRepository from '../models/globalSettingsRepository.js';
 import { resolveIsAdmin } from '../utils/adminCheck.js';
+import { resolveCoachThreadId } from '../services/coachPersonaService.js';
 import { createResponseAbortSignal } from '../utils/responseAbortSignal.js';
 import {
   assertOutboundUrlShapeAndLiteralAllowed,
@@ -703,9 +704,15 @@ router.delete(
 router.get('/sparky-chat-history', authenticate, async (req, res, next) => {
   try {
     // The signed-in person's conversation in the account they are working in.
+    // Each coach has its own thread; no coachId is plain Sparky's.
+    const coachId = await resolveCoachThreadId(
+      req.authenticatedUserId,
+      req.query.coachId
+    );
     const history = await chatService.getSparkyChatHistory(
       req.authenticatedUserId,
-      req.userId
+      req.userId,
+      coachId
     );
     res.status(200).json(history);
   } catch (error) {
@@ -917,9 +924,21 @@ router.delete(
  */
 router.post('/clear-all-history', authenticate, async (req, res, next) => {
   try {
+    // `thread: true` clears only the thread shown (the coach in `coachId`,
+    // or plain Sparky's); without it every thread is cleared, as before.
+    const thread =
+      req.body?.thread === true
+        ? {
+            coachId: await resolveCoachThreadId(
+              req.authenticatedUserId,
+              req.body?.coachId
+            ),
+          }
+        : undefined;
     const result = await chatService.clearAllSparkyChatHistory(
       req.authenticatedUserId,
-      req.userId
+      req.userId,
+      thread
     );
     res.status(200).json(result);
   } catch (error) {

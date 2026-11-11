@@ -405,10 +405,15 @@ async function clearOldChatHistory(userId: string) {
 // cleared on its own: tools follow the account, and a turn from one account
 // must not reach the model as context in another.
 const IN_ACCOUNT = "COALESCE(metadata->>'account_user_id', user_id::text) = $2";
+// The coach thread a row belongs to (#2013): a coach's id, kept in
+// `metadata.coach_id`, or null for plain Sparky. Rows written before coaches
+// existed have no coach id, so they are Sparky's thread.
+const IN_THREAD = "(metadata->>'coach_id') IS NOT DISTINCT FROM $3";
 
 async function getChatHistoryByUserId(
   userId: string,
-  accountUserId: string = userId
+  accountUserId: string = userId,
+  coachId: string | null = null
 ) {
   const client = await getClient(userId); // User-specific operation
   try {
@@ -416,8 +421,8 @@ async function getChatHistoryByUserId(
     // and sort them chronologically (ORDER BY created_at ASC) in the outer query
     // so that the AI context and UI display them in the correct chronological order.
     const result = await client.query(
-      `SELECT id, content, message_type, created_at, metadata, parts FROM (SELECT id, content, message_type, created_at, metadata, parts FROM sparky_chat_history WHERE user_id = $1 AND ${IN_ACCOUNT} ORDER BY created_at DESC LIMIT 50) sub ORDER BY created_at ASC`,
-      [userId, accountUserId]
+      `SELECT id, content, message_type, created_at, metadata, parts FROM (SELECT id, content, message_type, created_at, metadata, parts FROM sparky_chat_history WHERE user_id = $1 AND ${IN_ACCOUNT} AND ${IN_THREAD} ORDER BY created_at DESC LIMIT 50) sub ORDER BY created_at ASC`,
+      [userId, accountUserId, coachId]
     );
     return result.rows;
   } finally {
@@ -515,6 +520,23 @@ function metadataParam(metadata: unknown): string | null {
   return metadata === undefined || metadata === null
     ? null
     : JSON.stringify(metadata);
+}
+/** Clears one thread of one account: a coach's, or plain Sparky's when `coachId` is null. */
+async function clearChatThread(
+  userId: string,
+  accountUserId: string,
+  coachId: string | null
+) {
+  const client = await getClient(userId); // User-specific operation
+  try {
+    await client.query(
+      `DELETE FROM sparky_chat_history WHERE user_id = $1 AND ${IN_ACCOUNT} AND ${IN_THREAD}`,
+      [userId, accountUserId, coachId]
+    );
+    return true;
+  } finally {
+    client.release();
+  }
 }
 async function saveChatHistory(
   historyData: Partial<SparkyChatHistory> & {
@@ -667,6 +689,7 @@ export { getChatHistoryEntryOwnerId };
 export { updateChatHistoryEntry };
 export { deleteChatHistoryEntry };
 export { clearAllChatHistory };
+export { clearChatThread };
 export { saveChatHistory };
 export { upsertGlobalAiServiceSetting };
 export { getGlobalAiServiceSettings };
@@ -688,6 +711,7 @@ export default {
   updateChatHistoryEntry,
   deleteChatHistoryEntry,
   clearAllChatHistory,
+  clearChatThread,
   saveChatHistory,
   upsertGlobalAiServiceSetting,
   getGlobalAiServiceSettings,

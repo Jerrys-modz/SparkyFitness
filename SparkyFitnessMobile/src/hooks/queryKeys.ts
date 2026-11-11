@@ -407,6 +407,9 @@ export const nutrientDisplayPreferencesQueryKey = [
 ] as const;
 
 export const chatHistoryQueryKey = ['chatHistory'] as const;
+/** One coach's chat thread; null is plain Sparky's. */
+export const chatThreadQueryKey = (coachId: string | null) =>
+  [...chatHistoryQueryKey, coachId ?? 'sparky'] as const;
 
 export const nutritionTrendsQueryKey = (startDate: string, endDate: string) =>
   ['nutritionTrends', startDate, endDate] as const;

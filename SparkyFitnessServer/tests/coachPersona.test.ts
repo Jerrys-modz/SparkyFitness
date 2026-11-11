@@ -15,6 +15,7 @@ import {
   buildCoachPromptSection,
   coachToolCategories,
   resolveChatCoach,
+  resolveCoachThreadId,
 } from '../services/coachPersonaService.js';
 
 vi.mock('../models/customCoachRepository.js', () => {
@@ -110,6 +111,23 @@ describe('resolveChatCoach', () => {
     expect(await resolveChatCoach('actor', COACH_ID)).toBeNull();
     vi.mocked(repository.getCoach).mockRejectedValue(new Error('db down'));
     expect(await resolveChatCoach('actor', COACH_ID)).toBeNull();
+  });
+});
+
+describe('resolveCoachThreadId', () => {
+  it('names a built-in or own coach thread, and Sparky for anything else', async () => {
+    expect(await resolveCoachThreadId('actor', 'builtin:recovery')).toBe(
+      'builtin:recovery'
+    );
+    vi.mocked(repository.getCoach).mockResolvedValue(stored);
+    expect(await resolveCoachThreadId('actor', COACH_ID)).toBe(COACH_ID);
+
+    vi.mocked(repository.getCoach).mockResolvedValue(null);
+    expect(await resolveCoachThreadId('actor', COACH_ID)).toBeNull();
+    expect(await resolveCoachThreadId('actor', undefined)).toBeNull();
+    expect(
+      await resolveCoachThreadId('actor', ['builtin:recovery'])
+    ).toBeNull();
   });
 });
 
