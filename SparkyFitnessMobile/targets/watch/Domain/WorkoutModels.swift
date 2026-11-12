@@ -64,6 +64,10 @@ struct PlannedExercise: Codable, Equatable, Identifiable {
     /// Only then does the set options page offer Side and Add Other Side.
     /// Optional so an older phone, or a saved snapshot, still decodes.
     var perSide: Bool? = nil
+    /// The exercise's equipment ("Barbell"), for the line under its name on the
+    /// new workout view. Nil until the phone sends it; the line then shows the
+    /// set's label instead.
+    var equipment: String? = nil
     let sets: [PlannedSet]
 
     var id: String { exerciseEntryId }
@@ -184,6 +188,8 @@ struct WorkoutStep: Identifiable, Equatable {
     /// Same index as `PlannedExercise.supersetRun`. Nil when this set is not
     /// in a superset, so the caption and its colour share one source.
     let supersetRun: Int?
+    /// `PlannedExercise.equipment`.
+    var equipment: String? = nil
 
     var id: String { plannedSet.setId }
 
