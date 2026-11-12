@@ -7,6 +7,8 @@ import WatchConnectivity, {
 import { isTempSetId } from '../utils/workoutSession';
 import { saveActiveWorkoutSession } from './useActiveWorkoutAutosave';
 import { queryClient } from './queryClient';
+import { plateInventoryQueryKey } from './queryKeys';
+import { fetchPlateInventory } from '../services/api/plateInventoryApi';
 import { buildWatchWorkoutStartPayload } from './useStartLiveWorkout';
 
 type ActiveWorkoutState = ReturnType<typeof useActiveWorkoutStore.getState>;
@@ -24,6 +26,8 @@ function watchPlanStructureKey(plan: WatchWorkoutStartPayload): string {
       exercise.supersetRun,
       exercise.bodyweight ?? false,
       exercise.perSide ?? false,
+      exercise.equipment ?? null,
+      exercise.plates ?? null,
       exercise.sets.map((set) => [
         set.setId,
         set.setType,
@@ -104,7 +108,24 @@ export function useWatchPlanSync(enabled: boolean): void {
     };
 
     sync(useActiveWorkoutStore.getState());
-    return useActiveWorkoutStore.subscribe((state, prev) => {
+    // The plate inventory feeds the Plates tile; send it once it has loaded.
+    void queryClient
+      .prefetchQuery({
+        queryKey: plateInventoryQueryKey,
+        queryFn: fetchPlateInventory,
+      })
+      .catch(() => undefined);
+    const unsubscribeInventory = queryClient
+      .getQueryCache()
+      .subscribe((event) => {
+        if (
+          event.type === 'updated' &&
+          event.query.queryKey[0] === plateInventoryQueryKey[0]
+        ) {
+          sync(useActiveWorkoutStore.getState());
+        }
+      });
+    const unsubscribeStore = useActiveWorkoutStore.subscribe((state, prev) => {
       if (
         state.session === prev.session &&
         state.steps === prev.steps &&
@@ -114,5 +135,9 @@ export function useWatchPlanSync(enabled: boolean): void {
       }
       sync(state);
     });
+    return () => {
+      unsubscribeInventory();
+      unsubscribeStore();
+    };
   }, [enabled, t]);
 }
