@@ -919,22 +919,6 @@
     "sparkyFitnessV": "SparkyFitness v{{version}}",
     "labs": "Lab results"
   },
-  "nutrientInsights": {
-    "title": "Nutrient Insights",
-    "score": "Nutrition score",
-    "basis": "Average daily intake over {{count}} logged days compared with your goals.",
-    "empty": "Log food and set nutrient goals in Goals to see how your intake compares.",
-    "limit": "limit {{value}}",
-    "suggestionsTitle": "Foods to fill the gaps",
-    "noSuggestions": "No gaps to fill, or none of your recent foods help with them.",
-    "perServing": "Per {{serving}}:",
-    "status": {
-      "deficient": "Deficient",
-      "low": "Low",
-      "onTarget": "On target",
-      "over": "Over limit"
-    }
-  },
   "nutrition": {
     "calories": "Calories",
     "protein": "Protein",
@@ -1563,16 +1547,6 @@
     }
   },
   "workoutPresetsManager": {
-    "starterRoutines": {
-      "button": "Stretch routines",
-      "title": "Stretch routines",
-      "description": "Add a ready-made stretching routine to your presets. You can edit your copy afterwards.",
-      "moveCount": "{{count}} moves",
-      "adding": "Adding...",
-      "addSuccess": "Routine added to your workout presets.",
-      "addError": "Failed to add routine.",
-      "loadError": "Failed to load starter routines."
-    },
     "addPresetButton": "Add Preset",
     "noPresetsFound": "No workout presets found. Create one to get started!",
     "logPresetToDiaryTooltip": "Log preset to diary",

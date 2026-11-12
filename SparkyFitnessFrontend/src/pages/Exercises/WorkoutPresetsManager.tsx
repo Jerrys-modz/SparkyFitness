@@ -22,7 +22,6 @@ import {
   X,
   MoreHorizontal,
   CopyPlus,
-  StretchHorizontal,
   Share2,
   Upload,
 } from 'lucide-react';
@@ -52,7 +51,6 @@ import { usePreferences } from '@/contexts/PreferencesContext';
 import { createWorkoutPlaybackRouteState } from '@/utils/workoutPlayback';
 import { formatWeight } from '@/utils/numberFormatting';
 import WorkoutPresetSelector from './WorkoutPresetSelector';
-import StarterRoutinesDialog from './StarterRoutinesDialog';
 
 import { useBulkSelection } from '@/hooks/useBulkSelection';
 import BulkActionToolbar from '@/components/BulkActionToolbar';
@@ -97,7 +95,6 @@ const WorkoutPresetsManager = () => {
     itemsPerPage
   );
 
-  const [isStarterRoutinesOpen, setIsStarterRoutinesOpen] = useState(false);
   const { mutateAsync: createPreset } = useCreateWorkoutPresetMutation();
   const { mutateAsync: updatePreset } = useUpdateWorkoutPresetMutation();
   const { mutateAsync: deletePreset } = useDeleteWorkoutPresetMutation();
@@ -535,28 +532,6 @@ const WorkoutPresetsManager = () => {
               </Button>
             )}
             <Button
-              variant="outline"
-              size={isMobile ? 'icon' : 'default'}
-              onClick={() => setIsStarterRoutinesOpen(true)}
-              className="shrink-0"
-              title={t(
-                'workoutPresetsManager.starterRoutines.button',
-                'Stretch routines'
-              )}
-            >
-              <StretchHorizontal
-                className={isMobile ? 'w-5 h-5' : 'h-4 w-4 mr-2'}
-              />
-              {!isMobile && (
-                <span>
-                  {t(
-                    'workoutPresetsManager.starterRoutines.button',
-                    'Stretch routines'
-                  )}
-                </span>
-              )}
-            </Button>
-            <Button
               onClick={() => setIsAddPresetDialogOpen(true)}
               size={isMobile ? 'icon' : 'default'}
               className="shrink-0"
@@ -619,11 +594,6 @@ const WorkoutPresetsManager = () => {
           onImported={() => setIsImportDialogOpen(false)}
         />
       </Card>
-
-      <StarterRoutinesDialog
-        open={isStarterRoutinesOpen}
-        onOpenChange={setIsStarterRoutinesOpen}
-      />
 
       <Dialog
         open={isStartWorkoutDialogOpen}

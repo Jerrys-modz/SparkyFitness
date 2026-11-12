@@ -104,8 +104,6 @@ export {
   useCreateWorkoutPreset,
   useUpdateWorkoutPreset,
   useDeleteWorkoutPreset,
-  useStarterRoutines,
-  useAddStarterRoutine,
 } from './useWorkoutPresetMutations';
 export { useWidgetSync } from './useWidgetSync';
 export { useProfile } from './useProfile';

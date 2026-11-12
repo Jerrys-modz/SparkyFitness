@@ -9,7 +9,6 @@ import { useProfileQuery } from '@/hooks/Settings/useProfile';
 import { useIsMobile } from '@/hooks/use-mobile';
 import ZoomableChart from '@/components/ZoomableChart';
 import ReportsControls from '@/pages/Reports/ReportsControls';
-import NutrientInsightsCard from '@/pages/Reports/NutrientInsightsCard';
 import WidgetGrid from '@/components/widgets/WidgetGrid';
 import {
   generateReportsMeasurementsDefaultLayouts,
@@ -257,13 +256,6 @@ const Reports = () => {
       case 'charts':
         return (
           <div className="space-y-12">
-            <ChartErrorBoundary>
-              <NutrientInsightsCard
-                nutritionData={reportsData?.nutritionData ?? []}
-                customNutrients={customNutrients}
-                goals={goalData}
-              />
-            </ChartErrorBoundary>
             <ChartErrorBoundary>
               <WidgetGrid
                 pageKey="reports-nutrients"

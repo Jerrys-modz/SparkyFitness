@@ -26,7 +26,6 @@ import {
   ownershipFilterHeaderMenu,
 } from '../utils/shareStatus';
 import ShareStatusBadge from '../components/ShareStatusBadge';
-import StarterRoutinesModal from '../components/StarterRoutinesModal';
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { usePickWorkoutProgramFile } from '../hooks/useWorkoutProgramSharing';
@@ -50,7 +49,6 @@ const WorkoutPresetsLibraryScreen: React.FC<
   ]) as [string, string];
   const scrollBottomPadding = insets.bottom + activeWorkoutBarPadding + 16;
   const [searchText, setSearchText] = useState('');
-  const [starterRoutinesVisible, setStarterRoutinesVisible] = useState(false);
   const ownershipFilter = useAppPreferencesStore(
     (s) => s.workoutPresetsLibraryOwnershipFilter
   );
@@ -304,22 +302,7 @@ const WorkoutPresetsLibraryScreen: React.FC<
           isSearching={isSearching}
         />
       ) : null}
-      {isConnected ? (
-        <TouchableOpacity
-          className="mx-4 mb-2 self-start"
-          onPress={() => setStarterRoutinesVisible(true)}
-          accessibilityRole="button"
-        >
-          <Text style={{ color: accentColor }} className="text-sm font-medium">
-            {t('starterRoutines.open', { defaultValue: 'Stretch routines' })}
-          </Text>
-        </TouchableOpacity>
-      ) : null}
       <ServerGate>{renderContent()}</ServerGate>
-      <StarterRoutinesModal
-        visible={starterRoutinesVisible}
-        onClose={() => setStarterRoutinesVisible(false)}
-      />
     </View>
   );
 };
