@@ -19,10 +19,8 @@ import {
   buildWidgetDataSnapshot,
   type WidgetMetricExtras,
 } from '../services/widgetMetricSnapshot';
-import {
-  CUSTOM_WIDGET_KIND,
-  useCustomWidgetActive,
-} from './useCustomWidgetActive';
+import { useWidgetLayoutStore } from '../stores/widgetLayoutStore';
+import { CUSTOM_WIDGET_KIND } from './useCustomWidgetLayoutSync';
 import { addLog } from '../services/LogService';
 import type { DailySummary } from '../types/dailySummary';
 import { getTodayDate } from '../utils/dateUtils';
@@ -34,9 +32,10 @@ const MACRO_WIDGET_KIND = 'macroWidget';
 const MACRO_SNAPSHOT_KEY = 'macroSnapshot';
 const WATER_WIDGET_KIND = 'waterWidget';
 const WATER_SNAPSHOT_KEY = 'waterSnapshot';
-// The custom widget: the person picks its numbers in Edit Widget, so this hook
-// writes the day's figure for every metric, as a JSON string because the
-// storage takes only flat string/number records.
+// The widget the in-app builder makes: one generic widget that draws whichever
+// saved layout the person picked in Edit Widget. The saved layouts are mirrored
+// by useCustomWidgetLayoutSync; this hook writes the day's numbers, as a JSON
+// string because the storage takes only flat string/number records.
 const CUSTOM_DATA_KEY = 'customWidgetData';
 // Control Center / Lock Screen controls that show a number from the snapshots.
 const CONTROL_KINDS = [
@@ -62,9 +61,10 @@ export function useWidgetSync(
   const lastAndroidCalorieSnapshotKeyRef = useRef<string | null>(null);
   const lastAndroidMacroSnapshotKeyRef = useRef<string | null>(null);
   const lastAndroidWaterSnapshotKeyRef = useRef<string | null>(null);
-  const customWidgetActive = useCustomWidgetActive();
+  const layouts = useWidgetLayoutStore((state) => state.layouts);
   // A fresh object every render must not re-run the sync below.
   const extrasKey = JSON.stringify(extras ?? {});
+  const hasCustomLayouts = layouts.length > 0;
 
   useEffect(() => {
     if (!isToday || !date || !summary) {
@@ -124,26 +124,25 @@ export function useWidgetSync(
           });
         }
 
-        // Always written: it is cheap, and a widget added later has numbers
-        // the first time iOS draws it. Only the reload below waits for one.
-        storage.set(
-          CUSTOM_DATA_KEY,
-          JSON.stringify(
-            buildWidgetDataSnapshot(
-              summary,
-              JSON.parse(extrasKey) as WidgetMetricExtras,
-              energyUnit,
-              lastUpdated
+        // Only once a custom widget exists: the metric snapshot is for it alone.
+        if (hasCustomLayouts) {
+          storage.set(
+            CUSTOM_DATA_KEY,
+            JSON.stringify(
+              buildWidgetDataSnapshot(
+                summary,
+                JSON.parse(extrasKey) as WidgetMetricExtras,
+                energyUnit,
+                lastUpdated
+              )
             )
-          )
-        );
+          );
+        }
 
         if (calorieSnapshot) {
           ExtensionStorage.reloadWidget(WIDGET_KIND);
         }
-        if (customWidgetActive) {
-          ExtensionStorage.reloadWidget(CUSTOM_WIDGET_KIND);
-        }
+        if (hasCustomLayouts) ExtensionStorage.reloadWidget(CUSTOM_WIDGET_KIND);
         ExtensionStorage.reloadWidget(MACRO_WIDGET_KIND);
         if (waterUnit) ExtensionStorage.reloadWidget(WATER_WIDGET_KIND);
         // Controls are reloaded separately from widgets.
@@ -211,7 +210,7 @@ export function useWidgetSync(
     canLog,
     energyUnit,
     extrasKey,
-    customWidgetActive,
+    hasCustomLayouts,
   ]);
 }
 

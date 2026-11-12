@@ -182,7 +182,8 @@
       "goals": "Goals",
       "reports": "Reports",
       "heartRateZones": "Heart Rate Zones",
-      "heartRateZonesSubtitle": "Max and resting heart rate, zone method"
+      "heartRateZonesSubtitle": "Max and resting heart rate, zone method",
+      "widgets": "Widgets"
     },
     "theme": {
       "title": "Theme",
@@ -11698,6 +11699,12 @@
     "noDeclaredNutrition": "No declared nutrition",
     "missingNutritionHint": "This Mealie recipe has no declared nutrition. Calculate it from matched ingredients.",
     "importAsMeal": "Import ingredients as a meal",
-    "searchMacros": "Protein {{protein}} g · Carbs {{carbs}} g · Fat {{fat}} g"
+    "searchMacros": "Protein {{protein}} g · Carbs {{carbs}} g · Fat {{fat}} g",
+    "howToStep3": "3. Touch and hold it, tap Edit Widget, and pick the widget you want. Add it again to show another.",
+    "reloaded": "Widgets reloaded",
+    "reloadFailed": "Could not reload the widgets",
+    "reloadFailedHelp": "Try again. Settings > View Logs shows what went wrong.",
+    "reload": "Reload widgets",
+    "reloadHelp": "Use this if a widget is blank or not showing your latest widgets."
   }
 }
