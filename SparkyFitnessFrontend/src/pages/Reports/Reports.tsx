@@ -67,6 +67,8 @@ const Reports = () => {
     loggingLevel,
     energyUnit,
     convertEnergy,
+    convertWeight,
+    convertMeasurement,
     weightUnit: defaultWeightUnit,
     measurementUnit: defaultMeasurementUnit,
     showNetCarbs,
@@ -416,6 +418,8 @@ const Reports = () => {
                   defaultWeightUnit,
                   defaultMeasurementUnit,
                   formatDateInUserTimezone,
+                  convertWeight,
+                  convertMeasurement,
                 })
               }
               onExportCustomMeasurements={(
