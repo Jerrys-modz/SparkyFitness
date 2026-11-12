@@ -89,7 +89,7 @@ In Light, the canvas is the darkest surface and controls are white. In Dark, rai
 
 ### Category palette
 
-Eight balanced hues for things that need a distinct color but no fixed meaning. Seven of them (all but amber) tint Settings row icons, and all eight color workout superset rails and the workout-complete confetti.
+Eight balanced hues for things that need a distinct color but no fixed meaning. Seven of them (all but amber) tint Settings row icons, and all eight color workout superset rails and the workout-complete confetti. The widget builder's accent swatches and preview also draw from this palette (all but amber and Category Violet standing in for purple; red uses Heart-Rate Red, as the palette has none): `WIDGET_ACCENT_TOKENS` in `constants/widgetBuilder.ts`.
 
 | Role            | Token class                    | Light hex | Dark hex | Usage                                                   |
 | --------------- | ------------------------------ | --------- | -------- | ------------------------------------------------------- |

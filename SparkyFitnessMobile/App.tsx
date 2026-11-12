@@ -22,6 +22,7 @@ import { Uniwind, useUniwind, useCSSVariable } from 'uniwind';
 
 import { queryClient, serverConnectionQueryKey, serverConfigsQueryKey, useSyncHealthData, useCycleMode, useServerConnection, drainQuickActionNavigation, useControlRouteHandoff, useQuickActions, useWatchCheckInBridge, useWatchFastingBridge, useWatchPlanSync, useWatchRecordingBridge, useWatchSetTargetsSync, useWatchWorkoutBridge, useWatchWorkoutEdit, useWatchRunBridge, useWatchRouteBridge, usePreferences } from './src/hooks';
 import { useCycleSheetLabel } from './src/hooks/useAddMenuItemLabel';
+import { useCustomWidgetLayoutSync } from './src/hooks/useCustomWidgetLayoutSync';
 import { configureRunLiveActivity } from './src/services/runLiveActivity';
 import { useWatchWorkoutStart } from './src/hooks/useWatchWorkoutStart';
 import { useLiveWorkoutInputsCapture } from './src/hooks/useLiveWorkoutInputsCapture';
@@ -130,6 +131,8 @@ import {
   SafeHealthTrendsSettings,
   SafeWatchSettings,
   SafeAddMenuSettings,
+  SafeWidgets,
+  SafeWidgetEditor,
   SafeDiarySettings,
   SafeCustomCategories,
   SafeCustomCategoryEdit,
@@ -371,6 +374,8 @@ function AppContent() {
   const syncMutation = useSyncHealthData();
   const { shouldYieldObserverSync } = useAutoSyncOnOpen({ initialRoute, syncMutation });
   useAppStartup({ shouldYieldObserverSync });
+  // The widgets built in the app, mirrored to the widget wherever the person is.
+  useCustomWidgetLayoutSync();
 
   const {
     rememberActiveTab,
@@ -1279,6 +1284,16 @@ function AppContent() {
             name="AddMenuSettings"
             component={SafeAddMenuSettings}
             options={createStackScreenOptions(t('screens.addMenuSettings', { defaultValue: 'Quick Actions' }), { headerBackTitle: t('navigation.settings', { defaultValue: 'Settings' }) })}
+          />
+          <Stack.Screen
+            name="Widgets"
+            component={SafeWidgets}
+            options={createStackScreenOptions(t('screens.widgets', { defaultValue: 'Widgets' }), { headerBackTitle: t('navigation.settings', { defaultValue: 'Settings' }) })}
+          />
+          <Stack.Screen
+            name="WidgetEditor"
+            component={SafeWidgetEditor}
+            options={createStackScreenOptions(t('screens.widgetEditor', { defaultValue: 'Widget' }), { headerBackTitle: t('screens.widgets', { defaultValue: 'Widgets' }) })}
           />
           <Stack.Screen
             name="WorkoutSettings"

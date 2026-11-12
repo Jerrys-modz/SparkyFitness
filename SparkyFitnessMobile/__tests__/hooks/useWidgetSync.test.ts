@@ -8,11 +8,12 @@ jest.mock('expo-constants', () => ({
   },
 }));
 
-import { renderHook } from '@testing-library/react-native';
+import { act, renderHook } from '@testing-library/react-native';
 import { Platform } from 'react-native';
 
 import { ExtensionStorage } from '@bacons/apple-targets';
 import { useWidgetSync } from '../../src/hooks/useWidgetSync';
+import { useWidgetLayoutStore } from '../../src/stores/widgetLayoutStore';
 import { addLog } from '../../src/services/LogService';
 import { getTodayDate } from '../../src/utils/dateUtils';
 import type { DailySummary } from '../../src/types/dailySummary';
@@ -43,12 +44,6 @@ jest.mock('@bacons/apple-targets', () => {
 
   return { ExtensionStorage };
 });
-
-let mockCustomWidgetActive = false;
-jest.mock('../../src/hooks/useCustomWidgetActive', () => ({
-  CUSTOM_WIDGET_KIND: 'customWidget',
-  useCustomWidgetActive: () => mockCustomWidgetActive,
-}));
 
 jest.mock('../../src/services/LogService', () => ({
   addLog: jest.fn(),
@@ -127,7 +122,6 @@ const makeSummary = (overrides: Partial<DailySummary> = {}): DailySummary => ({
 
 describe('useWidgetSync', () => {
   beforeEach(() => {
-    mockCustomWidgetActive = false;
     setMock.mockReset();
     getMock.mockReset().mockReturnValue('stored');
     reloadMock.mockReset();
@@ -230,7 +224,7 @@ describe('useWidgetSync', () => {
     renderHook(() => useWidgetSync(summary));
 
     const keys = setMock.mock.calls.map((call) => call[0]);
-    expect(keys).toEqual(['macroSnapshot', 'customWidgetData']);
+    expect(keys).toEqual(['macroSnapshot']);
 
     const reloadedKinds = reloadMock.mock.calls.map((call) => call[0]);
     expect(reloadedKinds).toEqual(['macroWidget']);
@@ -244,10 +238,28 @@ describe('useWidgetSync', () => {
     expect(reloadMock).not.toHaveBeenCalled();
   });
 
-  // The widget's own Edit Widget picks its numbers, so the app writes every
-  // metric and reloads the widget only while one is on a screen.
+  // The saved layouts are mirrored by useCustomWidgetLayoutSync, mounted at
+  // the app root; this hook only writes the day's numbers for them.
   describe('custom widget', () => {
-    it('writes the figure for every metric, even with no widget placed', () => {
+    const layout = {
+      id: 'w1',
+      name: 'Protein',
+      family: 'small' as const,
+      style: 'ring' as const,
+      metrics: [{ metric: 'protein' as const }],
+      accent: 'blue' as const,
+      showTitle: true,
+      standByFriendly: false,
+      version: 1 as const,
+      updatedAt: 1,
+    };
+
+    afterEach(() => {
+      useWidgetLayoutStore.setState({ layouts: [] });
+    });
+
+    it('writes the metric snapshot and reloads the widget when layouts exist', () => {
+      useWidgetLayoutStore.setState({ layouts: [layout] });
       renderHook(() =>
         useWidgetSync(makeSummary(), undefined, { weightKg: 80 })
       );
@@ -258,19 +270,33 @@ describe('useWidgetSync', () => {
       const data = JSON.parse(dataCall?.[1] as string);
       expect(data.metrics.protein).toBeDefined();
       expect(data.metrics.weight).toEqual({ value: 80, unit: 'kg' });
-    });
-
-    it('does not reload the custom widget when none is placed', () => {
-      renderHook(() => useWidgetSync(makeSummary()));
-      expect(reloadMock.mock.calls.map((call) => call[0])).not.toContain(
+      expect(reloadMock.mock.calls.map((call) => call[0])).toContain(
         'customWidget'
       );
     });
 
-    it('reloads the custom widget once one is placed', () => {
-      mockCustomWidgetActive = true;
+    it('writes the metric snapshot as soon as the first layout is saved', () => {
       renderHook(() => useWidgetSync(makeSummary()));
-      expect(reloadMock.mock.calls.map((call) => call[0])).toContain(
+      expect(
+        setMock.mock.calls.some((call) => call[0] === 'customWidgetData')
+      ).toBe(false);
+
+      act(() => {
+        useWidgetLayoutStore.setState({ layouts: [layout] });
+      });
+
+      expect(
+        setMock.mock.calls.some((call) => call[0] === 'customWidgetData')
+      ).toBe(true);
+    });
+
+    it('skips the metric snapshot and reload when there are no layouts', () => {
+      renderHook(() => useWidgetSync(makeSummary()));
+
+      expect(
+        setMock.mock.calls.some((call) => call[0] === 'customWidgetData')
+      ).toBe(false);
+      expect(reloadMock.mock.calls.map((call) => call[0])).not.toContain(
         'customWidget'
       );
     });
