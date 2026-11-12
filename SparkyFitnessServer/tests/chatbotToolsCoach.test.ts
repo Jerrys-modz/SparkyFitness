@@ -8,6 +8,7 @@ import { toolOpts } from './helpers/toolExecutionOptions.js';
 vi.mock('../models/coachRepository', () => ({
   default: {
     getNutritionAggregates: vi.fn(),
+    getHeartVitalsInRange: vi.fn(),
     getExerciseAggregates: vi.fn(),
     getLatestWeightInRange: vi.fn(),
     getWaterIntakeTotal: vi.fn(),
@@ -42,6 +43,11 @@ const DB_ERROR_TEXT =
 let tools: ReturnType<typeof buildCoachTools>;
 
 beforeEach(() => {
+  vi.mocked(coachRepository.getHeartVitalsInRange).mockResolvedValue({
+    avg_resting_heart_rate: null,
+    avg_hrv: null,
+    avg_workout_heart_rate: null,
+  });
   // These fixtures contain no device "Active Calories" row, so the resolved total and
   // the raw SUM agree. Tracking the repo mock keeps every existing golden intact while
   // routing the tool through the resolver it now uses.
@@ -97,6 +103,9 @@ describe('sparky_get_health_summary', () => {
             },
             vitals: {
               latest_weight: { weight: 81.5, date: '2026-06-07' },
+              avg_resting_heart_rate: null,
+              avg_hrv_ms: null,
+              avg_workout_heart_rate: null,
             },
             hydration: {
               total_water_ml: 14000,
@@ -161,6 +170,9 @@ describe('sparky_get_health_summary', () => {
             },
             vitals: {
               latest_weight: { weight: 81.5, date: '2026-06-10' },
+              avg_resting_heart_rate: null,
+              avg_hrv_ms: null,
+              avg_workout_heart_rate: null,
             },
             hydration: {
               total_water_ml: 0,
@@ -212,6 +224,9 @@ describe('sparky_get_health_summary', () => {
             },
             vitals: {
               latest_weight: null,
+              avg_resting_heart_rate: null,
+              avg_hrv_ms: null,
+              avg_workout_heart_rate: null,
             },
             hydration: {
               total_water_ml: 0,
@@ -254,6 +269,43 @@ describe('sparky_get_health_summary', () => {
     );
 
     expect(result).toContain('Health Summary');
+  });
+
+  it('includes resting heart rate, HRV and workout heart rate in vitals', async () => {
+    vi.mocked(coachRepository.getNutritionAggregates).mockResolvedValue({
+      total_calories: '0',
+      avg_protein: '0',
+      avg_carbs: '0',
+      avg_fat: '0',
+      entry_count: 0,
+    });
+    vi.mocked(coachRepository.getExerciseAggregates).mockResolvedValue({
+      total_calories_burned: '0',
+      workout_count: 0,
+    });
+    vi.mocked(coachRepository.getLatestWeightInRange).mockResolvedValue(null);
+    vi.mocked(coachRepository.getWaterIntakeTotal).mockResolvedValue({
+      total_water: '0',
+    });
+    vi.mocked(coachRepository.getHeartVitalsInRange).mockResolvedValue({
+      avg_resting_heart_rate: '52.3333',
+      avg_hrv: '68.25',
+      avg_workout_heart_rate: '141',
+    });
+
+    const result = await tools.sparky_get_health_summary.execute!(
+      { start_date: '2026-06-01', end_date: '2026-06-07' },
+      opts
+    );
+
+    expect(result).toContain('"avg_resting_heart_rate": 52.3');
+    expect(result).toContain('"avg_hrv_ms": 68.3');
+    expect(result).toContain('"avg_workout_heart_rate": 141');
+    expect(coachRepository.getHeartVitalsInRange).toHaveBeenCalledWith(
+      'user-1',
+      '2026-06-01',
+      '2026-06-07'
+    );
   });
 
   it('maps repository failures to DB_ERROR', async () => {

@@ -317,8 +317,52 @@ async function getFrequentHighProteinFoods(userId: string) {
   }
 }
 
+export interface HeartVitalsAggregates {
+  avg_resting_heart_rate: string | number | null;
+  avg_hrv: string | number | null;
+  avg_workout_heart_rate: string | number | null;
+}
+
+// Resting heart rate and overnight HRV from each day's main sleep (one night
+// per day, so a nap or a second source does not skew the average), with check-in
+// resting heart rate as the fallback for resting HR, and average heart rate
+// across logged workouts. Any value is null when nothing was recorded.
+async function getHeartVitalsInRange(
+  userId: string,
+  startDate: string,
+  endDate: string
+): Promise<HeartVitalsAggregates> {
+  const client = await getClient(userId);
+  try {
+    const result = await client.query(
+      `WITH main_sleep AS (
+         SELECT DISTINCT ON (entry_date) entry_date, resting_heart_rate, avg_overnight_hrv
+         FROM sleep_entries
+         WHERE user_id = $1 AND entry_date >= $2 AND entry_date <= $3
+         ORDER BY ${MAIN_SLEEP_ORDER_SQL}
+       )
+       SELECT
+         COALESCE(
+           (SELECT AVG(resting_heart_rate) FROM main_sleep WHERE resting_heart_rate > 0),
+           (SELECT AVG(resting_heart_rate) FROM check_in_measurements
+             WHERE user_id = $1 AND entry_date >= $2 AND entry_date <= $3
+               AND resting_heart_rate > 0)
+         )::numeric AS avg_resting_heart_rate,
+         (SELECT AVG(avg_overnight_hrv) FROM main_sleep WHERE avg_overnight_hrv > 0)::numeric AS avg_hrv,
+         (SELECT AVG(avg_heart_rate) FROM exercise_entries
+           WHERE user_id = $1 AND entry_date >= $2 AND entry_date <= $3
+             AND avg_heart_rate > 0)::numeric AS avg_workout_heart_rate`,
+      [userId, startDate, endDate]
+    );
+    return result.rows[0];
+  } finally {
+    client.release();
+  }
+}
+
 export {
   getNutritionAggregates,
+  getHeartVitalsInRange,
   getExerciseAggregates,
   getLatestWeightInRange,
   getWaterIntakeTotal,
@@ -334,6 +378,7 @@ export {
 };
 export default {
   getNutritionAggregates,
+  getHeartVitalsInRange,
   getExerciseAggregates,
   getLatestWeightInRange,
   getWaterIntakeTotal,
