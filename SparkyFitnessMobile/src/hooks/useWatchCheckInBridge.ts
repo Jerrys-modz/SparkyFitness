@@ -297,8 +297,9 @@ export function useWatchCheckInBridge(enabled: boolean): void {
   );
   const watchUpNextPage = useAppPreferencesStore((s) => s.watchUpNextPage);
   const watchLargerText = useAppPreferencesStore((s) => s.watchLargerText);
-  const watchClassicWorkout = useAppPreferencesStore(
-    (s) => s.watchClassicWorkout
+  const watchNewWorkout = useAppPreferencesStore((s) => s.watchNewWorkout);
+  const watchWorkoutCountdown = useAppPreferencesStore(
+    (s) => s.watchWorkoutCountdown
   );
   const watchDoubleTapEnabled = useAppPreferencesStore(
     (s) => s.watchDoubleTapEnabled
@@ -940,7 +941,8 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         setScreenMetrics: watchSetScreenMetrics,
         upNextPage: watchUpNextPage,
         largerText: watchLargerText,
-        classicWorkout: watchClassicWorkout,
+        newWorkout: watchNewWorkout,
+        workoutCountdown: watchWorkoutCountdown,
         // This build handles a skipped dose from the watch.
         medicationSkip: true,
         // ... and "do this exercise now" from the workout pages.
@@ -1017,8 +1019,9 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     watchSetScreenMetrics,
     watchUpNextPage,
     watchLargerText,
-    watchClassicWorkout,
     heartRateZoneFloors,
+    watchNewWorkout,
+    watchWorkoutCountdown,
     runPlans,
     indoorDistanceScale,
     fuelingPreference,
