@@ -70,7 +70,7 @@ struct SetOptionsPage: View {
     }
 }
 
-private struct SetTypeSheet: View {
+struct SetTypeSheet: View {
     let current: String?
     let onPick: (String) -> Void
 
