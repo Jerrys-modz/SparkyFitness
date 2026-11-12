@@ -378,8 +378,8 @@ enum CustomMetricOption: String, AppEnum {
     case fasting_elapsed
     case logging_streak
 
-    static let typeDisplayRepresentation: TypeDisplayRepresentation = "widget.custom.param.number"
-    static let caseDisplayRepresentations: [CustomMetricOption: DisplayRepresentation] = [
+    static var typeDisplayRepresentation: TypeDisplayRepresentation = "widget.custom.param.number"
+    static var caseDisplayRepresentations: [CustomMetricOption: DisplayRepresentation] = [
         .off: DisplayRepresentation(title: "widget.custom.metric.off"),
         .calories_remaining: DisplayRepresentation(title: "widget.custom.metric.calories_remaining"),
         .calories_eaten: DisplayRepresentation(title: "widget.custom.metric.calories_eaten"),
@@ -409,8 +409,8 @@ enum CustomStyleOption: String, AppEnum {
     case grid
     case value
 
-    static let typeDisplayRepresentation: TypeDisplayRepresentation = "widget.custom.param.style"
-    static let caseDisplayRepresentations: [CustomStyleOption: DisplayRepresentation] = [
+    static var typeDisplayRepresentation: TypeDisplayRepresentation = "widget.custom.param.style"
+    static var caseDisplayRepresentations: [CustomStyleOption: DisplayRepresentation] = [
         .auto: DisplayRepresentation(title: "widget.custom.style.auto"),
         .ring: DisplayRepresentation(title: "widget.custom.style.ring"),
         .bars: DisplayRepresentation(title: "widget.custom.style.bars"),
@@ -431,8 +431,8 @@ enum CustomAccentOption: String, AppEnum {
     case pink
     case gray
 
-    static let typeDisplayRepresentation: TypeDisplayRepresentation = "widget.custom.param.accent"
-    static let caseDisplayRepresentations: [CustomAccentOption: DisplayRepresentation] = [
+    static var typeDisplayRepresentation: TypeDisplayRepresentation = "widget.custom.param.accent"
+    static var caseDisplayRepresentations: [CustomAccentOption: DisplayRepresentation] = [
         .blue: DisplayRepresentation(title: "widget.custom.accent.blue"),
         .green: DisplayRepresentation(title: "widget.custom.accent.green"),
         .orange: DisplayRepresentation(title: "widget.custom.accent.orange"),
