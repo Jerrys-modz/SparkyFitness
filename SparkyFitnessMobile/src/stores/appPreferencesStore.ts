@@ -242,6 +242,7 @@ export const PREFERENCE_DEFAULTS = {
   watchUpNextPage: false,
   watchNewWorkout: false,
   watchWorkoutCountdown: 0 as WatchWorkoutCountdown,
+  watchHoldCountdown: true,
   watchWorkoutTopLine: 'time' as WatchWorkoutTopLine,
   activeWorkoutNowCard: false,
   activeWorkoutView: 'list' as ActiveWorkoutView,
@@ -449,6 +450,7 @@ export type AppPreferencesData = {
   watchNewWorkout: boolean;
   /** Seconds of audible countdown before a rest or hold ends. 0 is off. */
   watchWorkoutCountdown: WatchWorkoutCountdown;
+  watchHoldCountdown: boolean;
   /** What the new workout view's top line shows first. */
   watchWorkoutTopLine: WatchWorkoutTopLine;
   /** Whether the active workout pins the Now card under the exercise rail. */
@@ -595,6 +597,7 @@ export interface AppPreferencesState extends AppPreferencesData {
   setWatchUpNextPage: (value: boolean) => void;
   setWatchNewWorkout: (value: boolean) => void;
   setWatchWorkoutCountdown: (value: WatchWorkoutCountdown) => void;
+  setWatchHoldCountdown: (value: boolean) => void;
   setWatchWorkoutTopLine: (value: WatchWorkoutTopLine) => void;
   setActiveWorkoutNowCard: (value: boolean) => void;
   setActiveWorkoutView: (value: ActiveWorkoutView) => void;
@@ -961,6 +964,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
       setWatchNewWorkout: (value) => set({ watchNewWorkout: value }),
       setWatchWorkoutCountdown: (value) =>
         set({ watchWorkoutCountdown: value }),
+      setWatchHoldCountdown: (value) => set({ watchHoldCountdown: value }),
       setWatchWorkoutTopLine: (value) => set({ watchWorkoutTopLine: value }),
       setActiveWorkoutNowCard: (value) => set({ activeWorkoutNowCard: value }),
       setActiveWorkoutView: (value) => set({ activeWorkoutView: value }),
@@ -1104,6 +1108,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         watchUpNextPage: state.watchUpNextPage,
         watchNewWorkout: state.watchNewWorkout,
         watchWorkoutCountdown: state.watchWorkoutCountdown,
+        watchHoldCountdown: state.watchHoldCountdown,
         watchWorkoutTopLine: state.watchWorkoutTopLine,
         activeWorkoutNowCard: state.activeWorkoutNowCard,
         activeWorkoutView: state.activeWorkoutView,

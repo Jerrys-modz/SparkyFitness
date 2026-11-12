@@ -300,6 +300,9 @@ export function useWatchCheckInBridge(enabled: boolean): void {
   const watchWorkoutCountdown = useAppPreferencesStore(
     (s) => s.watchWorkoutCountdown
   );
+  const watchHoldCountdown = useAppPreferencesStore(
+    (s) => s.watchHoldCountdown
+  );
   const watchWorkoutTopLine = useAppPreferencesStore(
     (s) => s.watchWorkoutTopLine
   );
@@ -944,6 +947,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         upNextPage: watchUpNextPage,
         newWorkout: watchNewWorkout,
         workoutCountdown: watchWorkoutCountdown,
+        holdCountdown: watchHoldCountdown,
         workoutTopLine: watchWorkoutTopLine,
         // This build handles a skipped dose from the watch.
         medicationSkip: true,
@@ -1023,6 +1027,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     heartRateZoneFloors,
     watchNewWorkout,
     watchWorkoutCountdown,
+    watchHoldCountdown,
     watchWorkoutTopLine,
     runPlans,
     indoorDistanceScale,
