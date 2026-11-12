@@ -79,6 +79,7 @@ describe('chat history threads', () => {
       .send({ thread: true, coachId: 'builtin:recovery' });
     expect(chatService.clearAllSparkyChatHistory).toHaveBeenCalledWith(
       'actor',
+      'actor',
       { coachId: 'builtin:recovery' }
     );
 
@@ -88,6 +89,7 @@ describe('chat history threads', () => {
       .send({ thread: true });
     expect(chatService.clearAllSparkyChatHistory).toHaveBeenLastCalledWith(
       'actor',
+      'actor',
       { coachId: null }
     );
   });
@@ -95,6 +97,7 @@ describe('chat history threads', () => {
   it('still clears everything for a client that names no thread', async () => {
     await request(app).post('/api/chat/clear-all-history').send({});
     expect(chatService.clearAllSparkyChatHistory).toHaveBeenCalledWith(
+      'actor',
       'actor',
       undefined
     );
