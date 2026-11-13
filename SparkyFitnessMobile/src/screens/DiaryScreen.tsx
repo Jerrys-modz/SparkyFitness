@@ -65,7 +65,6 @@ import { usePreferences } from '../hooks/usePreferences';
 import { useSleepDay } from '../hooks/useSleepDay';
 import { useNativeIOSTabsActive } from '../services/nativeTabBarPreference';
 import { useVerticalBar } from '../hooks/useVerticalBar';
-import { useActiveWorkoutStore } from '../stores/activeWorkoutStore';
 import { useDiaryDateStore } from '../stores/diaryDateStore';
 import type { FoodEntry } from '../types/foodEntries';
 import type { RootStackParamList, TabParamList } from '../types/navigation';
