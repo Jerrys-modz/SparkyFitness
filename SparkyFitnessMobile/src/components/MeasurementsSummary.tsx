@@ -11,7 +11,6 @@ import {
 import type { CheckInMeasurement } from '../types/measurements';
 import type { CustomMeasurementEntry } from '../types/customMeasurements';
 import { isManualSource } from '../utils/customMeasurementsForm';
-import { useLargeText } from '../hooks/useLargeText';
 
 interface MeasurementsSummaryProps {
   measurements: CheckInMeasurement | undefined;
@@ -68,7 +67,6 @@ const MeasurementsSummary: React.FC<MeasurementsSummaryProps> = ({
   ]) as [string, string];
 
   const { t } = useTranslation();
-  const largeText = useLargeText();
 
   if (!measurements && (!customMeasurements || customMeasurements.length === 0))
     return null;
@@ -186,7 +184,7 @@ const MeasurementsSummary: React.FC<MeasurementsSummaryProps> = ({
     return (
       <View
         key={row.kind === 'custom' ? `custom-${idx}` : row.kind}
-        className={`${largeText ? 'w-full' : 'w-[48%]'} mb-2`}
+        className="w-[48%] mb-2"
       >
         <View className="bg-surface rounded-xl py-3 px-3 shadow-sm flex-row items-center">
           {IconComponent ? (

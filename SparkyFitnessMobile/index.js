@@ -2,7 +2,6 @@
  * @format
  */
 
-import './src/installTextDefaults';
 import { Platform } from 'react-native';
 import App from './App';
 import { registerRootComponent } from 'expo';

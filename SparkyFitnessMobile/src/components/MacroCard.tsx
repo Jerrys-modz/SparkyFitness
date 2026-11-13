@@ -9,7 +9,6 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useIsFocused } from '@react-navigation/native';
 import { useCSSVariable } from 'uniwind';
-import { useLargeText } from '../hooks/useLargeText';
 
 interface MacroCardProps {
   label: string;
@@ -34,9 +33,6 @@ const MacroCard: React.FC<MacroCardProps> = ({
   compact = false,
   widthClassName = 'w-[48%]',
 }) => {
-  const largeText = useLargeText();
-  const containerWidthClassName =
-    largeText && widthClassName === 'w-[48%]' ? 'w-full' : widthClassName;
   const [barWidth, setBarWidth] = useState(0);
   const hasGoal = !!(goal && goal > 0);
   const progress = hasGoal ? consumed / (goal as number) : 0;
@@ -89,8 +85,8 @@ const MacroCard: React.FC<MacroCardProps> = ({
   }));
 
   return (
-    <View className={`${containerWidthClassName} p-1`}>
-      <View className="flex-row flex-wrap justify-between items-center mb-2 gap-x-2">
+    <View className={`${widthClassName} p-1`}>
+      <View className="flex-row justify-between items-center mb-2">
         <Text
           className={
             compact

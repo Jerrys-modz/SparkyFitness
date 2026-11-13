@@ -255,7 +255,7 @@ const CaffeineCard: React.FC<CaffeineCardProps> = ({
       </View>
 
       {/* The plot carries two series and no axis legend, so name them. */}
-      <View className="flex-row flex-wrap justify-center items-center gap-x-4 gap-y-1 mt-1">
+      <View className="flex-row justify-center items-center gap-4 mt-1">
         <View className="flex-row items-center gap-1.5">
           <View
             style={{ width: 14, height: 2, backgroundColor: accentColor }}

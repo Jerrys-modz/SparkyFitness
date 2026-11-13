@@ -10,7 +10,6 @@ import { formatLocalizedNumber } from '../localization';
 import { energyFromKcal } from '@workspace/shared';
 import { useEnergyUnit } from '../hooks/useEnergyUnit';
 import { energyUnitLabel } from '../utils/energyUnit';
-import { useLargeText } from '../hooks/useLargeText';
 
 export interface NutritionGoalPercentages {
   calories?: number | null;
@@ -49,6 +48,7 @@ interface NutritionMacroCardProps {
 
 const RING_SIZE = 130;
 const RING_STROKE = 12;
+
 const NutritionMacroCard: React.FC<NutritionMacroCardProps> = ({
   calories: caloriesKcal,
   protein,
@@ -66,7 +66,6 @@ const NutritionMacroCard: React.FC<NutritionMacroCardProps> = ({
   onMacroPress,
 }) => {
   const energyUnit = useEnergyUnit();
-  const stacked = useLargeText();
   // Values arrive in kcal; everything below shows them in the account's unit.
   const calories = energyFromKcal(caloriesKcal, energyUnit);
   const calorieGoal =
@@ -149,14 +148,8 @@ const NutritionMacroCard: React.FC<NutritionMacroCardProps> = ({
       ) : null}
 
       {showGoalProgress ? (
-        <View className={stacked ? 'gap-4' : 'flex-row items-center'}>
-          <View
-            className={
-              stacked
-                ? 'items-center justify-center'
-                : 'flex-1 items-center pr-2 justify-center'
-            }
-          >
+        <View className="flex-row items-center">
+          <View className="flex-1 items-center pr-2 justify-center">
             <View
               className="items-center justify-center relative"
               style={{ width: 110, height: 110 }}
@@ -185,20 +178,14 @@ const NutritionMacroCard: React.FC<NutritionMacroCardProps> = ({
                 />
               )}
               <View className="absolute items-center justify-center">
-                <Text
-                  className="text-text-primary text-xl font-bold"
-                  maxFontSizeMultiplier={1.3}
-                >
+                <Text className="text-text-primary text-xl font-bold">
                   {hasCalorieGoal
                     ? formatLocalizedNumber(
                         Math.max(0, Math.round(calorieGoal - calories))
                       )
                     : formatLocalizedNumber(Math.round(calories))}
                 </Text>
-                <Text
-                  className="text-text-muted text-[10px] uppercase font-semibold mt-0.5"
-                  maxFontSizeMultiplier={1.3}
-                >
+                <Text className="text-text-muted text-[10px] uppercase font-semibold mt-0.5">
                   {hasCalorieGoal
                     ? t('nutrition.left', { defaultValue: 'left' })
                     : energyUnitLabel(energyUnit, t)}
@@ -219,7 +206,7 @@ const NutritionMacroCard: React.FC<NutritionMacroCardProps> = ({
             )}
           </View>
 
-          <View className={stacked ? 'gap-3' : 'flex-2 gap-3'}>
+          <View className="flex-2 gap-3">
             {macros.map((macro) => {
               const goalPct = macro.goalPercent;
               const fillPct =
@@ -244,17 +231,11 @@ const NutritionMacroCard: React.FC<NutritionMacroCardProps> = ({
                       }
                     : {})}
                 >
-                  <View
-                    className={
-                      stacked
-                        ? 'flex-row flex-wrap justify-between mb-1 gap-x-2'
-                        : 'flex-row justify-between mb-1'
-                    }
-                  >
+                  <View className="flex-row justify-between mb-1">
                     <Text className="text-text-secondary text-sm">
                       {macro.label}
                     </Text>
-                    <View className="flex-row items-center gap-1 shrink">
+                    <View className="flex-row items-center gap-1">
                       <Text className="text-text-primary text-sm font-medium">
                         {formatLocalizedNumber(Math.round(macro.value))}g
                         {macro.goal && macro.goal > 0
@@ -314,11 +295,7 @@ const NutritionMacroCard: React.FC<NutritionMacroCardProps> = ({
           </View>
         </View>
       ) : (
-        <View
-          className={
-            stacked ? 'gap-4 items-center' : 'flex-row items-center gap-x-5'
-          }
-        >
+        <View className="flex-row items-center gap-x-5">
           <View className="items-center">
             <View
               className="items-center justify-center"
@@ -361,7 +338,7 @@ const NutritionMacroCard: React.FC<NutritionMacroCardProps> = ({
             ) : null}
           </View>
 
-          <View className={stacked ? 'w-full gap-3' : 'flex-1 gap-3 pl-5'}>
+          <View className="flex-1 gap-3 pl-5">
             {macros.map((macro) => (
               <View key={macro.key} className="flex-row items-center gap-2">
                 <View

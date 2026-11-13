@@ -38,7 +38,7 @@ const RangeStepperRow: React.FC<Props> = ({
       </TouchableOpacity>
       <Text
         testID={`${testIDPrefix}-value`}
-        className="text-text-primary text-base font-semibold min-w-24 text-center"
+        className="text-text-primary text-base font-semibold w-24 text-center"
       >
         {valueText}
       </Text>

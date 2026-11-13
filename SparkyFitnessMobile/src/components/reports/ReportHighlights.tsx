@@ -1,6 +1,5 @@
 import React from 'react';
 import { Text, View } from 'react-native';
-import { useLargeText } from '../../hooks/useLargeText';
 
 export type ReportChangeTone = 'positive' | 'negative' | 'neutral';
 
@@ -27,47 +26,38 @@ const CHANGE_CLASS: Record<ReportChangeTone, string> = {
  */
 const ReportHighlights: React.FC<{ items: ReportHighlight[] }> = ({
   items,
-}) => {
-  const largeText = useLargeText();
-  return (
-    <View className="flex-row flex-wrap -mx-1 mb-1">
-      {items.map((item) => (
+}) => (
+  <View className="flex-row flex-wrap -mx-1 mb-1">
+    {items.map((item) => (
+      <View key={item.label} className="w-1/2 p-1">
         <View
-          key={item.label}
-          className={largeText ? 'w-full p-1' : 'w-1/2 p-1'}
+          testID={item.testID}
+          className="bg-surface rounded-xl p-3 shadow-sm"
         >
-          <View
-            testID={item.testID}
-            className="bg-surface rounded-xl p-3 shadow-sm"
+          <Text className="text-text-secondary text-xs mb-1" numberOfLines={1}>
+            {item.label}
+          </Text>
+          <Text
+            className="text-text-primary text-xl font-bold"
+            numberOfLines={1}
+            adjustsFontSizeToFit
           >
+            {item.value}
+          </Text>
+          {item.change ? (
             <Text
-              className="text-text-secondary text-xs mb-1"
+              className={`text-xs mt-0.5 font-medium ${
+                CHANGE_CLASS[item.changeTone ?? 'neutral']
+              }`}
               numberOfLines={1}
             >
-              {item.label}
+              {item.change}
             </Text>
-            <Text
-              className="text-text-primary text-xl font-bold"
-              numberOfLines={1}
-              adjustsFontSizeToFit
-            >
-              {item.value}
-            </Text>
-            {item.change ? (
-              <Text
-                className={`text-xs mt-0.5 font-medium ${
-                  CHANGE_CLASS[item.changeTone ?? 'neutral']
-                }`}
-                numberOfLines={1}
-              >
-                {item.change}
-              </Text>
-            ) : null}
-          </View>
+          ) : null}
         </View>
-      ))}
-    </View>
-  );
-};
+      </View>
+    ))}
+  </View>
+);
 
 export default ReportHighlights;

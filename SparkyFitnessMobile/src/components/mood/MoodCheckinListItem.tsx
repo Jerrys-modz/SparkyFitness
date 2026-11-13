@@ -88,7 +88,7 @@ export default function MoodCheckinListItem({
       })}
       className="flex-row gap-3"
     >
-      <Text className="min-w-16 pt-3 text-sm font-semibold text-text-secondary">
+      <Text className="w-16 pt-3 text-sm font-semibold text-text-secondary">
         {time}
       </Text>
       <View className="flex-1 bg-surface rounded-xl p-3 gap-1.5">

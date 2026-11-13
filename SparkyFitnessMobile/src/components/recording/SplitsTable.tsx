@@ -62,22 +62,22 @@ const SplitsTable: React.FC<Props> = ({ splits, unitMeters, unit }) => {
   return (
     <View testID="splits-table">
       <View className="flex-row items-center pb-2 border-b border-border-subtle">
-        <Text className="min-w-12 text-text-muted text-xs">
+        <Text className="w-12 text-text-muted text-xs">
           {miles
             ? t('recordActivity.splitsTable.mi', { defaultValue: 'Mi' })
             : t('recordActivity.splitsTable.km', { defaultValue: 'Km' })}
         </Text>
-        <Text className="min-w-14 text-text-muted text-xs">
+        <Text className="w-14 text-text-muted text-xs">
           {t('recordActivity.splitsTable.pace', { defaultValue: 'Pace' })}
         </Text>
         <View className="flex-1" />
         {showElevation ? (
-          <Text className="min-w-12 text-right text-text-muted text-xs">
+          <Text className="w-12 text-right text-text-muted text-xs">
             {t('recordActivity.splitsTable.elev', { defaultValue: 'Elev' })}
           </Text>
         ) : null}
         {showHeartRate ? (
-          <Text className="min-w-12 text-right text-text-muted text-xs">
+          <Text className="w-12 text-right text-text-muted text-xs">
             {t('recordActivity.splitsTable.hr', { defaultValue: 'HR' })}
           </Text>
         ) : null}
@@ -91,10 +91,7 @@ const SplitsTable: React.FC<Props> = ({ splits, unitMeters, unit }) => {
             testID={`split-row-${split.index}`}
             className="flex-row items-center py-1.5"
           >
-            <Text
-              className="min-w-12 text-text-primary text-sm"
-              style={TABULAR}
-            >
+            <Text className="w-12 text-text-primary text-sm" style={TABULAR}>
               {split.partial
                 ? formatLocalizedNumber(split.distanceMeters / unitMeters, {
                     maximumFractionDigits: 2,
@@ -121,7 +118,7 @@ const SplitsTable: React.FC<Props> = ({ splits, unitMeters, unit }) => {
             </View>
             {showElevation ? (
               <Text
-                className="min-w-12 text-right text-text-primary text-sm"
+                className="w-12 text-right text-text-primary text-sm"
                 style={TABULAR}
               >
                 {elevationText(split.elevationChangeMeters)}
@@ -129,7 +126,7 @@ const SplitsTable: React.FC<Props> = ({ splits, unitMeters, unit }) => {
             ) : null}
             {showHeartRate ? (
               <Text
-                className="min-w-12 text-right text-text-primary text-sm"
+                className="w-12 text-right text-text-primary text-sm"
                 style={TABULAR}
               >
                 {split.avgHeartRate != null

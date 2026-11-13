@@ -165,7 +165,7 @@ const SleepStagesBreakdown: React.FC<SleepStagesBreakdownProps> = ({
             <Text className="text-base text-text-secondary mr-3">
               {formatSleepDuration(share.seconds, t)}
             </Text>
-            <Text className="text-base font-semibold text-text-primary min-w-12 text-right">
+            <Text className="text-base font-semibold text-text-primary w-12 text-right">
               {formatPercent(share.percent, t)}
             </Text>
           </View>

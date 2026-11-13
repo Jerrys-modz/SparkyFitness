@@ -141,7 +141,6 @@ const CustomTabBar: React.FC<BottomTabBarProps> = ({
               className={`text-xs ${isFocused ? 'font-semibold' : 'font-medium'}`}
               style={{ color: tintColor }}
               numberOfLines={1}
-              maxFontSizeMultiplier={1.3}
             >
               {label}
             </Text>

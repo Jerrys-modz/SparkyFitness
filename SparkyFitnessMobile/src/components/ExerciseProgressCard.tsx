@@ -86,7 +86,7 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
 
   return (
     <View>
-      <View className="flex-row flex-wrap justify-between items-center mb-2 gap-x-2">
+      <View className="flex-row justify-between items-center mb-2">
         <Text className="text-sm font-semibold text-text-primary">{label}</Text>
         <Text className="text-sm text-text-primary">
           {goal > 0
