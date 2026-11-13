@@ -450,6 +450,9 @@ final class WorkoutSessionStore: ObservableObject {
         if let next = nextIncompleteIndex() {
             moveCursor(to: next)
         } else {
+            // Nothing left: a Get ready for the set just finished must not
+            // outlive the cursor leaving the plan.
+            if getReadySetId != nil { cancelGetReady() }
             currentStepIndex = steps.count
         }
     }
@@ -970,6 +973,7 @@ final class WorkoutSessionStore: ObservableObject {
     /// A tap on the Get ready screen: start the hold now.
     func skipGetReady() {
         guard let setId = getReadySetId else { return }
+        guard !completedSetIds.contains(setId) else { return cancelGetReady() }
         let seconds = getReadyHoldSeconds
         getReadyCues.cancel()
         startHold(for: setId, seconds: seconds)
@@ -981,6 +985,7 @@ final class WorkoutSessionStore: ObservableObject {
 
     private func finishGetReady() {
         guard let setId = getReadySetId else { return }
+        guard !completedSetIds.contains(setId) else { return cancelGetReady() }
         startHold(for: setId, seconds: getReadyHoldSeconds)
     }
 
