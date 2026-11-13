@@ -11,9 +11,6 @@ import CaffeineCard from './CaffeineCard';
 import MealCard from './MealCard';
 import ExerciseCard from './ExerciseCard';
 import DiaryWidgetGrid, { type DiaryWidget } from './DiaryWidgetGrid';
-import { SparkySummaryCard } from '@/components/ai/SparkySummaryCard';
-import { CoachMessagesCard } from '@/components/ai/CoachMessagesCard';
-import { useSparkySummaryCardEnabled } from '@/utils/sparkySummaryPreference';
 import { mealWidgetKey } from '@/utils/dashboardLayout';
 import {
   Flame,
@@ -66,8 +63,7 @@ import { getCalorieBudget } from '@/utils/calorieBudget';
 
 const Diary = () => {
   const { t } = useTranslation();
-  const { activeUserId, isActingOnBehalf } = useActiveUser();
-  const sparkySummaryEnabled = useSparkySummaryCardEnabled();
+  const { activeUserId } = useActiveUser();
   const location = useLocation();
   const navigate = useNavigate();
   const { timezone, loggingLevel, energyUnit, convertEnergy } =
@@ -513,13 +509,6 @@ const Diary = () => {
     t,
   ]);
 
-  // The summary is about the signed-in person's own day today, so it stays
-  // off other dates and off a family member's diary.
-  const showSparkySummary =
-    sparkySummaryEnabled &&
-    !isActingOnBehalf &&
-    selectedDate === todayInZone(timezone);
-
   if (loading) return <div>{t('common.loading', 'Loading...')}</div>;
   return (
     <div className="space-y-6">
@@ -540,10 +529,6 @@ const Diary = () => {
           />
         </div>
       </div>
-
-      {!isActingOnBehalf && <CoachMessagesCard />}
-
-      {showSparkySummary && <SparkySummaryCard today={selectedDate} />}
 
       {effectiveGoals && (
         <DiaryWidgetGrid

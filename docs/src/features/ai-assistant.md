@@ -47,67 +47,6 @@ Multi-step food tasks keep their ingredient selections, portion variants, source
 
 This information belongs to the signed-in person and is not shared with family diary viewers.
 
-## What Sparky Remembers
-
-Sparky can keep a short list of things you told it about yourself: your diet, allergies, foods you avoid, goals, or how you like to be coached. It keeps to them in every chat and in the daily summary, on web and mobile.
-
-- **Add something**: tell Sparky in chat ("Remember that I am vegetarian"), or type it in yourself. On the web open **Settings > AI Service > What Sparky remembers**; in the mobile app open **Settings > What Sparky remembers**.
-- **Change or delete**: use the same screen. Each item can be edited or deleted on its own.
-- **Turn it off**: switch off **Let Sparky use this**. The list is kept, but Sparky stops reading it and stops adding to it until you switch it back on.
-
-This is what you said about yourself, kept apart from what you log. Sparky is told not to assume anything beyond it, and a request in the current message always wins for that message. The list is private to you and is never shared with family.
-
-## Coaches
-
-A coach is Sparky with a focus. Choosing one adds that coach's instructions to the chat and limits the chat to the tools the coach needs, so a coach only reaches the data its job calls for. One coach is active at a time. Each coach keeps its own conversation: choosing a coach shows what you and that coach said before, a coach only sees its own conversation, and clearing the chat clears only the conversation shown.
-
-Four coaches are built in:
-
-- **Recovery Coach** connects your training with what you eat and how you rest.
-- **Consistency Coach** helps you keep habits going and restart gently after a gap.
-- **Macro Timing Coach** looks at when you eat protein and carbs around your workouts.
-- **Sleep and Recovery Coach** compares your sleep with your training load.
-
-To choose one, use the coach button in the web chat composer, or the coach chip above the chat in the mobile app. Choose **Sparky** to go back to the general assistant with every tool.
-
-You can add up to 20 coaches of your own: give each a name, instructions (what to focus on and how to talk to you) and the tools it may use. On the web open **Settings > AI Service > Your coaches**; in the mobile app open **Settings > Coaches**. A coach cannot read or change anything outside the tools you gave it. If you also trim tools in the chat's tool selector, the coach gets only the tools both allow.
-
-Your coaches are private to you and are never shared with family. What Sparky remembers applies to every coach.
-
-### Coach check-ins
-
-Coaches normally answer when you ask. With check-ins on, some of them also leave you a short message when there is something worth saying. Check-ins are off until you turn them on: on the web under **Settings > AI Service > Coach check-ins**, in the mobile app under **Settings > Coaches**.
-
-Once a day, from the hour you choose, the server looks at your finished days and each coach you switched on may leave one message:
-
-| Coach | Speaks up when |
-|---|---|
-| Recovery Coach | You logged a workout yesterday, logged food, and protein was under 80% of your goal |
-| Sleep and Recovery Coach | Last night was under 6 hours and you logged 2 or more workouts in the 3 days before |
-| Consistency Coach | You have not logged for 2 days, and once more at 5 days; or a logging streak reaches 3, 7, 14, 30, 60, 100, 200 or 365 days |
-
-The Macro Timing Coach and your own coaches do not check in yet.
-
-Things to know:
-
-- Active calories synced from a watch are a daily energy total, not a workout, and do not count as training or as logging.
-- You get at most 2 messages a day, a coach does not repeat the same observation for a few days, and something you did not log is treated as unknown, never as zero.
-- Messages appear at the top of the web Diary and in a "From your coaches" card on the mobile Dashboard. From a message you can dismiss it or open the chat as that coach. Messages are deleted after 30 days.
-- **Wording**: by default a message is a ready-made sentence with your numbers in it, and no AI request is made. Switch on **Let my AI service word them** to have your AI service write each one; that is one background request to your AI service per message.
-- **Notifications**: the mobile app has no server push. With **Notify me on this phone** on, a new message raises a notification the next time the app syncs in the background, so it can arrive some time after it was written. It needs notifications and background sync to be on.
-- **Check now** runs today's check straight away, under the same rules and daily limit.
-
-## Daily Summary
-
-Sparky can write a short summary of your day so far with one or two optional suggestions, based on the food, exercise and water you logged today and yesterday, your goals, and what Sparky remembers.
-
-It is off until you turn it on, because each new summary is one request to your own AI service:
-
-- **Mobile**: **Settings > Dashboard**, switch on **Sparky's daily summary**. The card appears on the Dashboard for today.
-- **Web**: **Settings > AI Service > What Sparky remembers**, switch on **Daily summary on the Diary**. The card appears at the top of the Diary for today. This switch applies to that browser only.
-
-A summary is kept for three hours, so reopening the app does not use your AI service again. Use the refresh button on the card to write a new one sooner. No request is made when no AI service is set up or when nothing was logged today or yesterday. The summary is not stored on the server and is not shown while you view a family member's data.
-
 ## Troubleshooting AI Providers
 
 Most "OpenAI Compatible / OpenRouter isn't working" reports come from provider configuration, not from SparkyFitness itself. The most common cases:

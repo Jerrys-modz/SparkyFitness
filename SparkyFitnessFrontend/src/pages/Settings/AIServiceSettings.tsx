@@ -28,9 +28,6 @@ import { UserChatPreferences } from '@/components/ai/UserChatPreferences';
 import { GlobalOverrideBanner } from '@/components/ai/GlobalOverrideBanner';
 import { ServiceForm } from '@/components/ai/ServiceForm';
 import { VoiceInputSettings } from '@/components/ai/VoiceInputSettings';
-import { SparkyMemorySettings } from '@/components/ai/SparkyMemorySettings';
-import { CoachSettings } from '@/components/ai/CoachSettings';
-import { CoachCheckinSettings } from '@/components/ai/CoachCheckinSettings';
 import { UserServiceListItem } from '@/components/ai/UserServiceListItem';
 import { isCustomModelName, requiresApiKey } from '@/utils/aiServiceUtils';
 import {
@@ -701,22 +698,6 @@ const AIServiceSettings = () => {
             }
             disabled={isUpdatingPrefs}
           />
-
-          <SparkyMemorySettings
-            memoryEnabled={
-              preferencesData
-                ? preferencesData.assistant_memory_enabled !== false
-                : undefined
-            }
-            onMemoryEnabledChange={(enabled) =>
-              patchPreferences({ assistant_memory_enabled: enabled })
-            }
-            disabled={isUpdatingPrefs}
-          />
-
-          <CoachSettings />
-
-          <CoachCheckinSettings />
 
           {services.length > 0 && (
             <>

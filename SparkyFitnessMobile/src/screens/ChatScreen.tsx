@@ -77,7 +77,7 @@ import {
 } from '../services/storage';
 import { getAuthHeaders } from '../services/api/authService';
 import { normalizeUrl } from '../services/api/apiClient';
-import { clearChatThread } from '../services/api/chatApi';
+import { clearAllChatHistory } from '../services/api/chatApi';
 import { addLog } from '../services/LogService';
 import {
   MAX_CHAT_ATTACHMENTS,
@@ -93,10 +93,8 @@ import {
   useChatHistory,
   usePreferences,
   chatHistoryQueryKey,
-  chatThreadQueryKey,
 } from '../hooks';
 import { useScreenHeader } from '../hooks/useScreenHeader';
-import ChatCoachPicker from '../components/chat/ChatCoachPicker';
 import type { RootStackScreenProps } from '../types/navigation';
 
 /** Seed (initial) messages accepted by `useChatRuntime`. */
@@ -165,13 +163,11 @@ function useSparkyChatRuntime({
   baseUrl,
   serviceConfigId,
   conversationId,
-  coachId,
   initialMessages,
 }: {
   baseUrl: string;
   serviceConfigId: string;
   conversationId: string;
-  coachId: string | null;
   initialMessages: InitialMessages;
 }) {
   const { t } = useTranslation();
@@ -192,15 +188,9 @@ function useSparkyChatRuntime({
             : {};
         },
         // Merged into the request body alongside `messages`; the server reads it.
-        // `coachId` is the coach chosen above the chat; the server ignores an
-        // id that names no coach.
-        body: {
-          service_config_id: serviceConfigId,
-          conversationId,
-          coachId: coachId ?? undefined,
-        },
+        body: { service_config_id: serviceConfigId, conversationId },
       }),
-    [baseUrl, serviceConfigId, conversationId, coachId]
+    [baseUrl, serviceConfigId, conversationId]
   );
 
   // Thread-level safety net: a per-message error box can't render if the stream
@@ -1223,7 +1213,6 @@ function ChatThread({
   voiceServiceConfigId,
   voiceInputEnabled,
   conversationId,
-  coachId,
   initialMessages,
   onRunningChange,
   autoFocusReady,
@@ -1233,7 +1222,6 @@ function ChatThread({
   voiceServiceConfigId?: string | null;
   voiceInputEnabled: boolean;
   conversationId: string;
-  coachId: string | null;
   initialMessages: InitialMessages;
   onRunningChange: (running: boolean) => void;
   autoFocusReady: boolean;
@@ -1244,7 +1232,6 @@ function ChatThread({
     baseUrl,
     serviceConfigId,
     conversationId,
-    coachId,
     initialMessages,
   });
 
@@ -1431,7 +1418,6 @@ export default function ChatScreen({
   const chatConversationServiceId = useAppPreferencesStore(
     (s) => s.chatConversationServiceId
   );
-  const chatCoachId = useAppPreferencesStore((s) => s.chatCoachId);
   const startChatConversation = useAppPreferencesStore(
     (s) => s.startChatConversation
   );
@@ -1477,10 +1463,8 @@ export default function ChatScreen({
   }, []);
 
   // Clearing needs only an authenticated server, not an active AI provider.
-  // Each coach keeps its own thread, so the history follows the chosen coach.
   const { data: historyData, isLoading: loadingHistory } = useChatHistory({
     enabled: !!baseUrl,
-    coachId: chatCoachId,
   });
   const initialMessages = historyData ?? [];
 
@@ -1510,9 +1494,9 @@ export default function ChatScreen({
   const handleClear = useCallback(() => {
     Alert.alert(
       t('chat.clearTitle', { defaultValue: 'Clear chat' }),
-      t('chat.clearThreadMessage', {
+      t('chat.clearMessage', {
         defaultValue:
-          'This permanently deletes this conversation. Conversations with other coaches are kept. This cannot be undone.',
+          'This permanently deletes your Sparky chat history. This cannot be undone.',
       }),
       [
         {
@@ -1524,10 +1508,9 @@ export default function ChatScreen({
           style: 'destructive',
           onPress: async () => {
             try {
-              // Only the thread shown is cleared; other coaches keep theirs.
-              await clearChatThread(chatCoachId);
+              await clearAllChatHistory();
               // Reset the raw (pre-select) cache so a remount seeds an empty thread.
-              queryClient.setQueryData(chatThreadQueryKey(chatCoachId), []);
+              queryClient.setQueryData(chatHistoryQueryKey, []);
               startChatConversation(serviceConfigId);
               setThreadKey((k) => k + 1);
             } catch (error) {
@@ -1548,7 +1531,7 @@ export default function ChatScreen({
         },
       ]
     );
-  }, [queryClient, serviceConfigId, startChatConversation, chatCoachId, t]);
+  }, [queryClient, serviceConfigId, startChatConversation, t]);
 
   // Clear chat is disabled while a stream runs so the server's in-flight
   // onFinish save can't resurrect the exchange after the DELETE.
@@ -1580,7 +1563,6 @@ export default function ChatScreen({
       }}
     >
       {header}
-      {!!baseUrl && !!serviceConfigId && <ChatCoachPicker disabled={running} />}
 
       {/* Padding shrinks the message list by the keyboard height so the composer
           stays pinned just above the keyboard. On iOS, RN core's
@@ -1626,7 +1608,6 @@ export default function ChatScreen({
               !!preferences && preferences.voice_input_enabled !== false
             }
             conversationId={chatConversationId}
-            coachId={chatCoachId}
             initialMessages={initialMessages}
             onRunningChange={setRunning}
             autoFocusReady={transitionComplete}

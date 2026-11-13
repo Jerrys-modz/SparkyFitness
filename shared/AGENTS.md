@@ -8,9 +8,6 @@ _Last updated: 2026-10-27_
 _Last updated: 2026-11-03_
 _Last updated: 2026-11-08_
 _Last updated: 2026-11-09_
-_Last updated: 2026-11-10_
-_Last updated: 2026-11-11_
-_Last updated: 2026-11-12_
 
 `@workspace/shared` is a source-first TypeScript workspace library package for schemas, constants, and timezone/day helpers consumed by SparkyFitnessServer, SparkyFitnessFrontend, and SparkyFitnessMobile.
 
@@ -22,7 +19,7 @@ _Last updated: 2026-11-12_
 
 ## Food Assistant State
 
-`schemas/api/FoodAssistant.api.zod.ts` and `schemas/database/FoodAssistant.zod.ts` define lasting preferences, versioned tasks, unresolved ingredients and idempotent operation records. All state is owner-only; these additive contracts do not change existing chat clients. Preferences are not limited to food: `utils/assistantMemory.ts` (`assistantPreferenceKey`, `assistantPreferenceLabel`) names the ones a person types in settings, and `schemas/api/AssistantDailySummary.api.zod.ts` is the contract for Sparky's daily summary and the `assistant_memory_enabled` preference patch (#2013). Coaches: `constants/coaches.ts` holds the built-in coaches (ids, model-facing prompts and tool categories; apps translate their names by `key`) and the limits, `schemas/api/Coaches.api.zod.ts` the contract for a person's own, and `schemas/database/Coaches.zod.ts` the table. Coach check-ins: `utils/coachTriggers.ts` is the one place that decides when a coach speaks up (`evaluateCoachTriggers`, pure, finished days only, plus `computeLoggingStreak`, which the engagement chat tool also uses); `schemas/api/CoachCheckins.api.zod.ts` is the settings and message contract.
+`schemas/api/FoodAssistant.api.zod.ts` and `schemas/database/FoodAssistant.zod.ts` define lasting preferences, versioned tasks, unresolved ingredients and idempotent operation records. All state is owner-only; these additive contracts do not change existing chat clients.
 
 ## Structure
 

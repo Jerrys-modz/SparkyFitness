@@ -165,8 +165,6 @@ export const PREFERENCE_DEFAULTS = {
   healthTrendsCardVisible: true,
   mindfulnessCardVisible: true,
   oralCareCardVisible: false,
-  // Off until the person asks for it: showing it sends a request to their AI service.
-  sparkySummaryCardVisible: false,
   labResultsCardVisible: true,
   trainingLoadCardVisible: true,
   workoutsCardVisible: true,
@@ -255,14 +253,6 @@ export const PREFERENCE_DEFAULTS = {
   compareRecentQuestions: [] as CompareQuestion[],
   chatConversationId: null as string | null,
   chatConversationServiceId: null as string | null,
-  // The coach the chat runs as (#2013): a built-in id, one of the person's own,
-  // or null for plain Sparky.
-  chatCoachId: null as string | null,
-  // Coach messages (#2013): whether a new one raises a notification on this
-  // phone, and the ids already announced so each is announced once.
-  coachMessageNotificationsEnabled: true,
-  announcedCoachMessageIds: [] as string[],
-  coachMessagesCardVisible: true,
   reportNutrientOrder: [] as string[],
   shownReportNutrients: [...DEFAULT_REPORT_NUTRIENTS] as string[],
   foodSearchOwnershipFilter: 'all' as OwnershipFilter,
@@ -310,7 +300,6 @@ export type AppPreferencesData = {
   healthTrendsCardVisible: boolean;
   mindfulnessCardVisible: boolean;
   oralCareCardVisible: boolean;
-  sparkySummaryCardVisible: boolean;
   labResultsCardVisible: boolean;
   trainingLoadCardVisible: boolean;
   workoutsCardVisible: boolean;
@@ -438,14 +427,6 @@ export type AppPreferencesData = {
   /** The AI provider the conversation ID was started with; a new provider starts a new conversation. */
   chatConversationServiceId: string | null;
   startChatConversation: (serviceConfigId: string | null) => void;
-  chatCoachId: string | null;
-  setChatCoachId: (coachId: string | null) => void;
-  coachMessageNotificationsEnabled: boolean;
-  setCoachMessageNotificationsEnabled: (value: boolean) => void;
-  announcedCoachMessageIds: string[];
-  setAnnouncedCoachMessageIds: (ids: string[]) => void;
-  coachMessagesCardVisible: boolean;
-  setCoachMessagesCardVisible: (value: boolean) => void;
   /** Order of the nutrients the Nutrition report can average; unknown ones follow in catalog order. */
   reportNutrientOrder: string[];
   /** Nutrients (standard keys or custom names) the Nutrition report's "Your nutrients" card shows. */
@@ -520,7 +501,6 @@ export interface AppPreferencesState extends AppPreferencesData {
   setHealthTrendsCardVisible: (value: boolean) => void;
   setMindfulnessCardVisible: (value: boolean) => void;
   setOralCareCardVisible: (value: boolean) => void;
-  setSparkySummaryCardVisible: (value: boolean) => void;
   setLabResultsCardVisible: (value: boolean) => void;
   setTrainingLoadCardVisible: (value: boolean) => void;
   setWorkoutsCardVisible: (value: boolean) => void;
@@ -751,8 +731,6 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
       setMindfulnessCardVisible: (value) =>
         set({ mindfulnessCardVisible: value }),
       setOralCareCardVisible: (value) => set({ oralCareCardVisible: value }),
-      setSparkySummaryCardVisible: (value) =>
-        set({ sparkySummaryCardVisible: value }),
       setLabResultsCardVisible: (value) =>
         set({ labResultsCardVisible: value }),
       setTrainingLoadCardVisible: (value) =>
@@ -940,20 +918,6 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
           chatConversationId: newUuid(),
           chatConversationServiceId: serviceConfigId,
         }),
-      setCoachMessageNotificationsEnabled: (value) =>
-        set({ coachMessageNotificationsEnabled: value }),
-      setAnnouncedCoachMessageIds: (ids) =>
-        set({ announcedCoachMessageIds: ids }),
-      setCoachMessagesCardVisible: (value) =>
-        set({ coachMessagesCardVisible: value }),
-      // A coach changes the system prompt, so the chat starts a new
-      // conversation: clearing the id makes ChatScreen begin one.
-      setChatCoachId: (coachId) =>
-        set((state) =>
-          state.chatCoachId === coachId
-            ? state
-            : { chatCoachId: coachId, chatConversationId: null }
-        ),
       setReportNutrientOrder: (order) => set({ reportNutrientOrder: order }),
       setReportNutrientShown: (key, isShown) =>
         set((state) => ({
@@ -1057,7 +1021,6 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         healthTrendsCardVisible: state.healthTrendsCardVisible,
         mindfulnessCardVisible: state.mindfulnessCardVisible,
         oralCareCardVisible: state.oralCareCardVisible,
-        sparkySummaryCardVisible: state.sparkySummaryCardVisible,
         labResultsCardVisible: state.labResultsCardVisible,
         trainingLoadCardVisible: state.trainingLoadCardVisible,
         workoutsCardVisible: state.workoutsCardVisible,
@@ -1146,11 +1109,6 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         compareRecentQuestions: state.compareRecentQuestions,
         chatConversationId: state.chatConversationId,
         chatConversationServiceId: state.chatConversationServiceId,
-        chatCoachId: state.chatCoachId,
-        coachMessageNotificationsEnabled:
-          state.coachMessageNotificationsEnabled,
-        announcedCoachMessageIds: state.announcedCoachMessageIds,
-        coachMessagesCardVisible: state.coachMessagesCardVisible,
         reportNutrientOrder: state.reportNutrientOrder,
         shownReportNutrients: state.shownReportNutrients,
         foodSearchOwnershipFilter: state.foodSearchOwnershipFilter,

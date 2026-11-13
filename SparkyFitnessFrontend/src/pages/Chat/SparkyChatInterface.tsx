@@ -1,7 +1,3 @@
-import {
-  getSelectedCoachId,
-  useSelectedCoachId,
-} from '@/utils/chatCoachSelection';
 import { formatDateToYYYYMMDD } from '@/lib/utils';
 import { useActiveAIService } from '@/hooks/AI/useAIServiceSettings';
 import { useAuth } from '@/hooks/useAuth';
@@ -152,9 +148,6 @@ const SparkyChatInner = ({
             // closure never sends a stale set). Empty => server falls back to
             // the service's profile default.
             toolCategories: hasCustomSelection ? getSelected() : undefined,
-            // The coach chosen in the composer; the server ignores an id
-            // that names no coach.
-            coachId: getSelectedCoachId() ?? undefined,
             // Stable per-conversation ID. The server pins providers that need
             // session affinity (OpenCode Go) to it.
             conversationId: await getChatConversationId(activeUserId ?? ''),
@@ -213,13 +206,9 @@ const SparkyChatInterface = () => {
     useActiveAIService(!!user);
   const { data: preferences, isLoading: isPrefsLoading } =
     useChatPreferencesQuery();
-  // Each coach keeps its own thread: the history follows the chosen coach and
-  // the chat remounts with it.
-  const coachId = useSelectedCoachId();
   const { data: history, isLoading: isHistoryLoading } = useChatHistoryQuery(
     preferences?.auto_clear_history || 'never',
-    !!user,
-    coachId
+    !!user
   );
 
   if (isActiveServiceLoading || isPrefsLoading || isHistoryLoading) {
@@ -232,7 +221,7 @@ const SparkyChatInterface = () => {
 
   return (
     <SparkyChatInner
-      key={`${activeUserId ?? ''}:${coachId ?? 'sparky'}`}
+      key={activeUserId ?? ''}
       activeAIServiceSetting={activeAIServiceSetting || null}
       history={history || []}
     />

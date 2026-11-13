@@ -8,7 +8,7 @@
     "set-version": "pnpm -w run set-version",
     "dev": "vite",
     "knip": "knip",
-    "typecheck": "node --max-old-space-size=6144 ./node_modules/typescript/bin/tsc -b",
+    "typecheck": "tsc -b",
     "format:check": "prettier . --check",
     "validate": "pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run knip",
     "build": "vite build",

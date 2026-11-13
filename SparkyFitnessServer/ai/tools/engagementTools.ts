@@ -1,5 +1,5 @@
 import { tool } from 'ai';
-import { computeLoggingStreak, todayInZone } from '@workspace/shared';
+import { addDays, todayInZone } from '@workspace/shared';
 import { log } from '../../config/logging.js';
 import engagementRepository from '../../models/engagementRepository.js';
 import { ERRORS } from './errors.js';
@@ -113,10 +113,23 @@ export function buildEngagementTools(userId: string, tz: string) {
             );
           }
 
-          // Rows arrive newest first with no duplicate days (SELECT DISTINCT).
+          // Count consecutive days, allowing the streak to start from
+          // yesterday if nothing is logged today yet. Rows arrive newest
+          // first with no duplicate days (SELECT DISTINCT).
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const days = rows.map((r: any) => dayString(r.entry_date));
-          const streak = computeLoggingStreak(days, todayInZone(tz));
+          const today = todayInZone(tz);
+          let streak = 0;
+          if (days[0] === today || days[0] === addDays(today, -1)) {
+            streak = 1;
+            for (
+              let i = 1;
+              i < days.length && days[i] === addDays(days[0], -i);
+              i++
+            ) {
+              streak++;
+            }
+          }
 
           return formatSuccess(
             {

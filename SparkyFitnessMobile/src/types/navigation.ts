@@ -478,8 +478,6 @@ export type RootStackParamList = {
   SleepDetail: { entryId: string; day: string };
   Chat: undefined;
   ChatSettings: undefined;
-  SparkyMemory: undefined;
-  Coaches: undefined;
   Logs: undefined;
   Sync: undefined;
   ImportHistory: undefined;

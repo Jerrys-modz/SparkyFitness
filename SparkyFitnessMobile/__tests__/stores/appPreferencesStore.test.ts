@@ -435,8 +435,6 @@ describe('appPreferencesStore', () => {
         'mindfulness',
         'oralCare',
         'labResults',
-        'sparkySummary',
-        'coachMessages',
       ]);
     });
 
@@ -602,29 +600,5 @@ describe('appPreferencesStore', () => {
       expect(state.activeWorkoutView).toBe('list');
       expect(state.focusMediaDefault).toBe('expanded');
     });
-  });
-});
-
-describe('chat coach', () => {
-  it('starts a new conversation when the coach changes, and only then', () => {
-    useAppPreferencesStore.getState().startChatConversation('svc-1');
-    const first = useAppPreferencesStore.getState().chatConversationId;
-    expect(first).toBeTruthy();
-
-    useAppPreferencesStore.getState().setChatCoachId('builtin:recovery');
-    expect(useAppPreferencesStore.getState().chatCoachId).toBe(
-      'builtin:recovery'
-    );
-    // Cleared so ChatScreen begins a fresh conversation for the new prompt.
-    expect(useAppPreferencesStore.getState().chatConversationId).toBeNull();
-
-    useAppPreferencesStore.getState().startChatConversation('svc-1');
-    const second = useAppPreferencesStore.getState().chatConversationId;
-    useAppPreferencesStore.getState().setChatCoachId('builtin:recovery');
-    expect(useAppPreferencesStore.getState().chatConversationId).toBe(second);
-
-    useAppPreferencesStore.getState().setChatCoachId(null);
-    expect(useAppPreferencesStore.getState().chatCoachId).toBeNull();
-    expect(useAppPreferencesStore.getState().chatConversationId).toBeNull();
   });
 });

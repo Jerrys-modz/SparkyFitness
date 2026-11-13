@@ -163,13 +163,6 @@ jest.mock('@/api/Settings/aiServiceSettingsService', () => ({
     mockGetActiveAiServiceSetting(...args),
 }));
 
-// The saved-preferences section has its own tests (SparkyAssistant.test.tsx).
-jest.mock('@/api/Chatbot/foodAssistantService', () => ({
-  loadFoodAssistantPreferences: jest.fn(async () => []),
-  saveFoodAssistantPreference: jest.fn(),
-  forgetFoodAssistantPreference: jest.fn(),
-}));
-
 jest.mock('@/api/Admin/globalSettingsService', () => ({
   globalSettingsService: {
     isUserAiConfigAllowed: (...args: unknown[]) =>

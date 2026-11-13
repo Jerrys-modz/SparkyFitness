@@ -191,46 +191,11 @@ describe('chatRepository.getChatHistoryByUserId', () => {
 
     const result = await chatRepository.getChatHistoryByUserId('user-1');
 
-    // No coach: plain Sparky's thread, which includes rows saved before
-    // coaches existed (they carry no coach id).
     expect(mockClient.query).toHaveBeenCalledWith(
-      "SELECT id, content, message_type, created_at, metadata, parts FROM (SELECT id, content, message_type, created_at, metadata, parts FROM sparky_chat_history WHERE user_id = $1 AND COALESCE(metadata->>'account_user_id', user_id::text) = $2 AND (metadata->>'coach_id') IS NOT DISTINCT FROM $3 ORDER BY created_at DESC LIMIT 50) sub ORDER BY created_at ASC",
-      ['user-1', 'user-1', null]
+      "SELECT id, content, message_type, created_at, metadata, parts FROM (SELECT id, content, message_type, created_at, metadata, parts FROM sparky_chat_history WHERE user_id = $1 AND COALESCE(metadata->>'account_user_id', user_id::text) = $2 ORDER BY created_at DESC LIMIT 50) sub ORDER BY created_at ASC",
+      ['user-1', 'user-1']
     );
     expect(result).toEqual(mockRows);
-  });
-
-  it("reads only the chosen coach's thread", async () => {
-    mockClient.query.mockResolvedValue({ rows: [] });
-    await chatRepository.getChatHistoryByUserId(
-      'user-1',
-      'user-1',
-      'builtin:recovery'
-    );
-    expect(mockClient.query.mock.calls[0][1]).toEqual([
-      'user-1',
-      'user-1',
-      'builtin:recovery',
-    ]);
-  });
-
-  it('clears one thread and leaves the others', async () => {
-    mockClient.query.mockResolvedValue({ rows: [] });
-    await chatRepository.clearChatThread(
-      'user-1',
-      'user-1',
-      'builtin:recovery'
-    );
-    const [sql, params] = mockClient.query.mock.calls[0];
-    expect(sql).toContain("(metadata->>'coach_id') IS NOT DISTINCT FROM $3");
-    expect(params).toEqual(['user-1', 'user-1', 'builtin:recovery']);
-
-    await chatRepository.clearChatThread('user-1', 'user-1', null);
-    expect(mockClient.query.mock.calls[1][1]).toEqual([
-      'user-1',
-      'user-1',
-      null,
-    ]);
   });
 });
 

@@ -300,7 +300,6 @@ function assertValidRunningCriticalPower(
 function getDefaultPreferences() {
   return {
     voice_input_enabled: true,
-    assistant_memory_enabled: true,
     active_voice_ai_service_id: null,
     calorie_goal_adjustment_mode: 'dynamic',
     adaptive_activity_separate: false,

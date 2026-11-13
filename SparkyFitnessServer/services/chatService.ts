@@ -21,16 +21,6 @@ import {
   supportsTemperature,
 } from '../ai/modelCapabilities.js';
 import { loadUserTimezone } from '../utils/timezoneLoader.js';
-import {
-  buildAssistantMemoryPromptSection,
-  loadAssistantMemory,
-} from './assistantMemoryService.js';
-import {
-  buildCoachPromptSection,
-  coachToolCategories,
-  resolveChatCoach,
-  type ChatCoach,
-} from './coachPersonaService.js';
 import { TtlCache } from '../utils/ttlCache.js';
 import {
   assertOutboundUrlShapeAndLiteralAllowed,
@@ -319,15 +309,12 @@ async function clearOldChatHistory(authenticatedUserId: string) {
 
 async function getSparkyChatHistory(
   authenticatedUserId: string,
-  accountUserId: string,
-  // The coach whose thread to read; null is plain Sparky's.
-  coachId: string | null = null
+  accountUserId: string
 ) {
   try {
     const history = await chatRepository.getChatHistoryByUserId(
       authenticatedUserId,
-      accountUserId,
-      coachId
+      accountUserId
     );
     return history;
   } catch (error) {
@@ -458,20 +445,9 @@ async function deleteSparkyChatHistoryEntry(
 
 async function clearAllSparkyChatHistory(
   authenticatedUserId: string,
-  accountUserId: string,
-  // Set to clear one thread only: a coach's id, or null for plain Sparky's.
-  // Left out, every thread is cleared.
-  thread?: { coachId: string | null }
+  accountUserId: string
 ) {
   try {
-    if (thread) {
-      await chatRepository.clearChatThread(
-        authenticatedUserId,
-        accountUserId,
-        thread.coachId
-      );
-      return { message: 'Chat history cleared successfully.' };
-    }
     await chatRepository.clearAllChatHistory(
       authenticatedUserId,
       accountUserId
@@ -522,10 +498,6 @@ const chatContextInputsCache = new TtlCache<{
   chatTz: string;
   customCategoriesList: string;
   accountName: string | null;
-  // What the person asked Sparky to remember, as a prompt section ('' when
-  // nothing is saved or memory is switched off). It changes only when a
-  // preference is edited, like the two above.
-  assistantMemorySection: string;
 }>(60_000);
 
 // Added to the system prompt when the signed-in person has switched to a
@@ -655,29 +627,18 @@ async function prepareChatContext(
   latestUserText?: string,
   // Auto mode only: tools held back from this turn's base selection (see
   // ON_DEMAND_TOOLS). Escalating their category still brings them in.
-  heldBackTools: readonly string[] = [],
-  // The chosen coach's instructions (see coachPersonaService); '' for plain
-  // Sparky. Fixed for a conversation, so the request prefix stays stable.
-  coachPromptSection = ''
+  heldBackTools: readonly string[] = []
 ) {
   const switched = userId !== authenticatedUserId;
   const loadContextInputs = async () => {
-    const [customCategories, tz, profile, memory] = await Promise.all([
+    const [customCategories, tz, profile] = await Promise.all([
       measurementRepository.getCustomCategories(userId),
       loadUserTimezone(userId),
       switched ? userRepository.getUserProfile(userId) : null,
-      // The signed-in person's own saved preferences, even in a family
-      // member's account. Memory is background, never a reason for a chat turn
-      // to fail.
-      loadAssistantMemory(authenticatedUserId).catch((error: unknown) => {
-        log('warn', 'Could not load saved assistant preferences:', error);
-        return [];
-      }),
     ]);
     return {
       accountName: switched ? (profile?.full_name ?? null) : null,
       chatTz: tz,
-      assistantMemorySection: buildAssistantMemoryPromptSection(memory),
       customCategoriesList:
         customCategories.length > 0
           ? customCategories
@@ -691,13 +652,12 @@ async function prepareChatContext(
   };
   // In a family member's account what the signed-in person can read depends
   // on a grant the owner can change at any time, so it is read every turn.
-  const { chatTz, customCategoriesList, accountName, assistantMemorySection } =
-    switched
-      ? await loadContextInputs()
-      : await chatContextInputsCache.getOrLoad(
-          authenticatedUserId,
-          loadContextInputs
-        );
+  const { chatTz, customCategoriesList, accountName } = switched
+    ? await loadContextInputs()
+    : await chatContextInputsCache.getOrLoad(
+        authenticatedUserId,
+        loadContextInputs
+      );
 
   // Per-service chat tool profile. 'core' trims the tool surface for small/local
   // models and is honored for every self-hosted service type (ollama,
@@ -820,8 +780,7 @@ async function prepareChatContext(
         // account, so this keeps the cached prompt prefix intact.
         ...(switched ? [familyAccountPrompt(accountName)] : []),
       ].join('\n\n'),
-      serviceSystemPrompt,
-      [assistantMemorySection, coachPromptSection].filter(Boolean).join('\n\n')
+      serviceSystemPrompt
     ),
     tools,
     activeToolNames,
@@ -842,46 +801,14 @@ async function prepareChatContext(
  *
  * Cache-stability: the custom prompt changes only when the service config is
  * edited, not per-turn, so it doesn't violate the prefix-caching invariant.
- *
- * The person's saved preferences (see assistantMemoryService) and the chosen
- * coach's role (see coachPersonaService) sit between the two. Preferences
- * change only when one is edited and the coach is fixed for a conversation.
  */
-/**
- * Files a saved chat message under its coach's thread, so each coach keeps
- * its own conversation. Plain Sparky's messages carry no coach id.
- */
-function coachThreadMetadata(
-  coach: ChatCoach | null
-): { coach_id: string } | undefined {
-  return coach ? { coach_id: coach.id } : undefined;
-}
-
-/** The account marker and the coach thread a saved message is filed under. */
-function chatMessageMetadata(
-  accountUserId: string,
-  authenticatedUserId: string,
-  coach: ChatCoach | null
-): { account_user_id?: string; coach_id?: string } | undefined {
-  const metadata = {
-    ...accountHistoryMetadata(accountUserId, authenticatedUserId),
-    ...coachThreadMetadata(coach),
-  };
-  return Object.keys(metadata).length > 0 ? metadata : undefined;
-}
-
-export function buildFinalSystemPrompt(
+function buildFinalSystemPrompt(
   basePrompt: string,
-  serviceSystemPrompt?: string | null,
-  // Saved preferences, then the chosen coach's role.
-  extraSections = ''
+  serviceSystemPrompt?: string | null
 ): string {
-  const withMemory = extraSections
-    ? `${basePrompt}\n\n${extraSections}`
-    : basePrompt;
   const trimmed = serviceSystemPrompt?.trim();
-  if (!trimmed) return withMemory;
-  return `${withMemory}\n\n## Additional Instructions\n${trimmed}`;
+  if (!trimmed) return basePrompt;
+  return `${basePrompt}\n\n## Additional Instructions\n${trimmed}`;
 }
 
 // INVARIANT — keep the request prefix (system prompt + tool schemas) stable
@@ -2368,9 +2295,7 @@ async function processChatMessage(
   authenticatedUserId: string,
   actorIsAdmin = false,
   toolCategories?: readonly string[],
-  conversationId?: string,
-  // The coach the person chose for this conversation (#2013), if any.
-  coachId?: string
+  conversationId?: string
 ) {
   try {
     if (!Array.isArray(messages) || messages.length === 0) {
@@ -2409,16 +2334,8 @@ async function processChatMessage(
       sessionId
     );
 
-    // A coach limits the conversation to its own tool categories, which the
-    // person's in-chat selection can only narrow.
-    const coach = await resolveChatCoach(authenticatedUserId, coachId);
-    if (coach) {
-      toolCategories = coachToolCategories(coach, toolCategories);
-    }
-
     // A non-empty toolCategories here is the user's explicit in-chat selection
-    // or the coach's list (a strict ceiling); an empty one falls through to
-    // auto-classification.
+    // (a strict ceiling); an empty one falls through to auto-classification.
     const categoriesAreManual = Boolean(
       toolCategories && toolCategories.length > 0
     );
@@ -2465,8 +2382,7 @@ async function processChatMessage(
           content: '',
         }
       ),
-      heldBackChatTools(messages),
-      coach ? buildCoachPromptSection(coach) : ''
+      heldBackChatTools(messages)
     );
 
     const chatProviderOptions = buildChatProviderOptions(
@@ -2562,7 +2478,7 @@ async function processChatMessage(
     await chatRepository
       .saveChatHistory({
         user_id: authenticatedUserId,
-        metadata: chatMessageMetadata(userId, authenticatedUserId, coach),
+        metadata: accountHistoryMetadata(userId, authenticatedUserId),
         content: userMessageContent,
         messageType: 'user',
         parts: userMessageParts,
@@ -2588,7 +2504,7 @@ async function processChatMessage(
       await chatRepository
         .saveChatHistory({
           user_id: authenticatedUserId,
-          metadata: chatMessageMetadata(userId, authenticatedUserId, coach),
+          metadata: accountHistoryMetadata(userId, authenticatedUserId),
           content: finalContent,
           messageType: 'assistant',
           parts: [{ type: 'text', text: finalContent }],
@@ -3019,9 +2935,7 @@ async function processChatMessageStream(
   authenticatedUserId: string,
   actorIsAdmin = false,
   toolCategories?: readonly string[],
-  conversationId?: string,
-  // The coach the person chose for this conversation (#2013), if any.
-  coachId?: string
+  conversationId?: string
 ) {
   try {
     if (!Array.isArray(messages) || messages.length === 0) {
@@ -3055,16 +2969,8 @@ async function processChatMessageStream(
       sessionId
     );
 
-    // A coach limits the conversation to its own tool categories, which the
-    // person's in-chat selection can only narrow.
-    const coach = await resolveChatCoach(authenticatedUserId, coachId);
-    if (coach) {
-      toolCategories = coachToolCategories(coach, toolCategories);
-    }
-
     // A non-empty toolCategories here is the user's explicit in-chat selection
-    // or the coach's list (a strict ceiling); an empty one falls through to
-    // auto-classification.
+    // (a strict ceiling); an empty one falls through to auto-classification.
     const categoriesAreManual = Boolean(
       toolCategories && toolCategories.length > 0
     );
@@ -3112,8 +3018,7 @@ async function processChatMessageStream(
           content: '',
         }
       ),
-      heldBackChatTools(messages),
-      coach ? buildCoachPromptSection(coach) : ''
+      heldBackChatTools(messages)
     );
 
     const chatProviderOptions = buildChatProviderOptions(
@@ -3222,7 +3127,7 @@ async function processChatMessageStream(
         await chatRepository
           .saveChatHistory({
             user_id: authenticatedUserId,
-            metadata: chatMessageMetadata(userId, authenticatedUserId, coach),
+            metadata: accountHistoryMetadata(userId, authenticatedUserId),
             content: userMessageContent,
             messageType: 'user',
             parts: userMessageParts,
@@ -3283,7 +3188,7 @@ async function processChatMessageStream(
         await chatRepository
           .saveChatHistory({
             user_id: authenticatedUserId,
-            metadata: chatMessageMetadata(userId, authenticatedUserId, coach),
+            metadata: accountHistoryMetadata(userId, authenticatedUserId),
             // The question is the user-visible content when the model let the
             // chips speak for it.
             content:

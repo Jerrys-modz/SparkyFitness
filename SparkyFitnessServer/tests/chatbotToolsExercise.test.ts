@@ -865,7 +865,7 @@ describe('list_exercise_diary', () => {
 
     expect(result).toBe(
       '# Exercise Diary: 2026-06-10\n\n' +
-        '**Morning Run** | 30 min | 300 kcal | 5 km (3.11 mi) | 150 bpm | 6000 steps\n  ID: ee-1\n\n' +
+        '**Morning Run** | 30 min | 300 kcal | 5 dist | 150 bpm | 6000 steps\n  ID: ee-1\n\n' +
         '**Bench Press** — 2 sets\n  Sets: 10r×60kg×RPE 8 (rest 90s); 8r×65kg (tough)\n  Notes: felt good\n  ID: ee-2'
     );
     expect(exerciseService.getExerciseEntriesByDate).toHaveBeenCalledWith(

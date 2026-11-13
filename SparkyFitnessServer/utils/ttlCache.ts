@@ -35,10 +35,6 @@ export class TtlCache<V> {
     this.map.delete(key);
   }
 
-  clear(): void {
-    this.map.clear();
-  }
-
   /** Returns the cached value or loads, stores, and returns it. */
   async getOrLoad(key: string, loader: () => Promise<V>): Promise<V> {
     const hit = this.get(key);

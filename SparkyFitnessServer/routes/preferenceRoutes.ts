@@ -1,8 +1,5 @@
 import express, { type RequestHandler } from 'express';
-import {
-  assistantMemoryPreferencesSchema,
-  voiceInputPreferencesSchema,
-} from '@workspace/shared';
+import { voiceInputPreferencesSchema } from '@workspace/shared';
 import { authenticate } from '../middleware/authMiddleware.js';
 import preferenceService from '../services/preferenceService.js';
 import { clearUserTdeeCache } from '../services/AdaptiveTdeeService.js';
@@ -63,10 +60,6 @@ const validateVoicePreferences: RequestHandler = (req, res, next) => {
   const parsed = voiceInputPreferencesSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: 'Invalid voice input preferences.' });
-    return;
-  }
-  if (!assistantMemoryPreferencesSchema.safeParse(req.body).success) {
-    res.status(400).json({ error: 'Invalid assistant memory preference.' });
     return;
   }
   next();

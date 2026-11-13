@@ -59,9 +59,6 @@ BEGIN
     'shoes',
     'plate_inventories',
     'action_tags',
-    'coaches',
-    'coach_checkin_settings',
-    'coach_messages',
     'custom_run_programs',
     'fitness_tests',
     'routes',
@@ -658,8 +655,6 @@ CREATE POLICY modify_policy ON public.profiles FOR ALL TO PUBLIC USING (authenti
 -- (heart rate zones) also follow these policies: only the owner writes them.
 -- Delegates can read the row, but the /api/v2/heart-rate-zones route is
 -- owner-only and refuses a delegated context for reads as well.
--- assistant_memory_enabled (whether Sparky uses saved preferences) follows the
--- same owner-write/delegate-read preference policies and adds no grant.
 -- voice_input_enabled and active_voice_ai_service_id follow these existing
 -- owner-write/delegate-read preference policies. Reading
 -- a provider selection does not grant access to its private ai_service_settings row.
@@ -744,13 +739,6 @@ SELECT create_owner_policy('plate_inventories');
 -- NFC tag actions can span diary, check-in and medication data, so they are
 -- owner-only: a delegate must not define an action that logs on the owner's behalf.
 SELECT create_owner_policy('action_tags');
--- A coach holds the person's own instructions to their assistant and is used
--- only in their own chats, so it is owner-only like the saved preferences.
-SELECT create_owner_policy('coaches');
--- Check-in settings and the messages they produce are written from the
--- person's own data across several domains, so they are owner-only too.
-SELECT create_owner_policy('coach_checkin_settings');
-SELECT create_owner_policy('coach_messages');
 -- Custom policy for exercise_entries to allow access if linked to an owned exercise_preset_entry
 CREATE POLICY select_exercise_preset_entry_linked_policy ON public.exercise_entries FOR SELECT TO PUBLIC
 USING (

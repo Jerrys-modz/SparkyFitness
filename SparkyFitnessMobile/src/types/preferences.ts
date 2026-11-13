@@ -81,6 +81,4 @@ export interface UserPreferences {
   /** NULL uses free platform dictation; an ID selects a server-side audio model. */
   active_voice_ai_service_id?: string | null;
   voice_input_enabled?: boolean;
-  /** Whether Sparky uses the saved preferences (server default: true). */
-  assistant_memory_enabled?: boolean;
 }

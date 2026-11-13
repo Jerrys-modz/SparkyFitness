@@ -303,26 +303,6 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
               )}
               {isConnected && (
                 <SettingsRow
-                  icon="sparkles"
-                  title={t('sparkyMemory.title', {
-                    defaultValue: 'What Sparky remembers',
-                  })}
-                  onPress={() => navigation.navigate('SparkyMemory')}
-                  iconColor={catBlue}
-                />
-              )}
-              {isConnected && (
-                <SettingsRow
-                  icon="sparkles"
-                  title={t('coaches.settings.screenTitle', {
-                    defaultValue: 'Coaches',
-                  })}
-                  onPress={() => navigation.navigate('Coaches')}
-                  iconColor={catBlue}
-                />
-              )}
-              {isConnected && (
-                <SettingsRow
                   icon="food-search-settings"
                   title={t('settings.rows.food', { defaultValue: 'Food' })}
                   onPress={() => navigation.navigate('FoodSettings')}

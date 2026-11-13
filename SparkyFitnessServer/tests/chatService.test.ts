@@ -23,10 +23,6 @@ import foodEntryService from '../services/foodEntryService.js';
 import { log } from '../config/logging.js';
 import { createOpenAI } from '@ai-sdk/openai';
 // Mock dependencies
-vi.mock('../services/assistantMemoryService.js', () => ({
-  loadAssistantMemory: vi.fn().mockResolvedValue(null),
-  buildAssistantMemoryPromptSection: vi.fn().mockReturnValue(''),
-}));
 vi.mock('../models/chatRepository');
 vi.mock('../models/userRepository');
 vi.mock('../models/measurementRepository');
@@ -326,8 +322,7 @@ describe('chatService', () => {
       // The signed-in person's history, in the account being worked in.
       expect(chatRepository.getChatHistoryByUserId).toHaveBeenCalledWith(
         mockUserId,
-        mockTargetUserId,
-        null
+        mockTargetUserId
       );
     });
     it('should get chat history entry by id', async () => {
