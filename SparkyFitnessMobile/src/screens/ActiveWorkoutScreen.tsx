@@ -62,6 +62,7 @@ import WorkoutDurationSheet, {
 } from '../components/WorkoutDurationSheet';
 import WorkoutReorderList from '../components/WorkoutReorderList';
 import FocusExercisesSheet from '../components/FocusExercisesSheet';
+import FocusSetOptionsPage from '../components/FocusSetOptionsPage';
 import ActiveWorkoutIntervalHud from '../components/ActiveWorkoutIntervalHud';
 import ActiveWorkoutGuidedCard from '../components/ActiveWorkoutGuidedCard';
 import ActiveWorkoutNowCard from '../components/ActiveWorkoutNowCard';
@@ -97,6 +98,8 @@ import {
   resolveSnapshotModality,
   isCardioModality,
   isDurationModality,
+  isMetricClampedToRpe,
+  SET_TYPE_OPTIONS,
 } from '../utils/workoutSession';
 import {
   getDefaultRestSec,
@@ -1134,6 +1137,54 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
       }
     : undefined;
 
+  // The set the Set type menu / Set options page is open for.
+  const setOptionsSet = (() => {
+    if (setTypeMenu == null) return null;
+    for (const exercise of session.exercises) {
+      const set = exercise.sets.find((s) => String(s.id) === setTypeMenu.setId);
+      if (set) return { exercise, set };
+    }
+    return null;
+  })();
+  const handleSelectSetType = (type: (typeof SET_TYPE_OPTIONS)[number]) => {
+    const setId = setTypeMenu?.setId;
+    if (setId != null) {
+      useActiveWorkoutStore
+        .getState()
+        .updateSetField(setId, { set_type: type });
+    }
+  };
+  const openSetPlateCalculator = (() => {
+    const setId = setTypeMenu?.setId;
+    if (setId == null) return undefined;
+    const target = plateTargetFor(setId);
+    if (!target) return undefined;
+    return () => {
+      setPlateCalc(target);
+      setSetTypeMenu(null);
+    };
+  })();
+  const generateDropSets = (() => {
+    const ex = setOptionsSet?.exercise;
+    if (ex == null) return undefined;
+    // Drop from the last working set with a weight, typed or assumed.
+    const baseIndex = findDropSetBaseIndex(
+      ex.sets,
+      (s) => s.weight ?? plannedSetValues[String(s.id)]?.weight
+    );
+    if (baseIndex < 0) return undefined;
+    const baseSet = ex.sets[baseIndex];
+    const weightKg = Number(
+      baseSet.weight ?? plannedSetValues[String(baseSet.id)]?.weight
+    );
+    return () => {
+      useActiveWorkoutStore
+        .getState()
+        .addDropSetsToExercise(ex.id, weightKg, weightUnit);
+      setSetTypeMenu(null);
+    };
+  })();
+
   const footerButtons = (
     <>
       <Button variant="ghost" onPress={handleAddExercise} className="mt-5 mx-1">
@@ -1509,77 +1560,74 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
         onDismiss={() => setOverflowMenu(null)}
       />
 
-      <SetTypeMenu
-        anchor={setTypeCurrent != null ? (setTypeMenu?.anchor ?? null) : null}
-        currentType={setTypeCurrent}
-        onClose={() => setSetTypeMenu(null)}
-        onSelect={(type) => {
-          const setId = setTypeMenu?.setId;
-          if (setId != null) {
-            useActiveWorkoutStore
-              .getState()
-              .updateSetField(setId, { set_type: type });
+      {focusMode ? (
+        <FocusSetOptionsPage
+          visible={setTypeCurrent != null && setTypeMenu != null}
+          setId={setTypeMenu?.setId ?? ''}
+          setNumber={setOptionsSet?.set.set_number ?? 0}
+          exerciseName={
+            setOptionsSet?.exercise.exercise_snapshot?.name ??
+            t('workout.exercise', { defaultValue: 'Exercise' })
           }
-        }}
-        onOpenPlateCalculator={(() => {
-          const setId = setTypeMenu?.setId;
-          if (setId == null) return undefined;
-          const target = plateTargetFor(setId);
-          if (!target) return undefined;
-          return () => {
-            setPlateCalc(target);
-            setSetTypeMenu(null);
-          };
-        })()}
-        currentSide={setSideCurrent}
-        onSelectSide={
-          setSideAllowed
-            ? (side) => {
-                const setId = setTypeMenu?.setId;
-                if (setId != null) {
-                  useActiveWorkoutStore
-                    .getState()
-                    .updateSetField(setId, { side });
-                }
-              }
-            : undefined
-        }
-        onAddOtherSide={
-          setSideAllowed
-            ? () => {
-                const setId = setTypeMenu?.setId;
-                if (setId != null) {
-                  useActiveWorkoutStore.getState().addOtherSideSet(setId);
-                }
-                setSetTypeMenu(null);
-              }
-            : undefined
-        }
-        onGenerateDropSets={(() => {
-          const setId = setTypeMenu?.setId;
-          if (setId == null) return undefined;
-          const ex = session.exercises.find((e) =>
-            e.sets.some((s) => String(s.id) === setId)
-          );
-          if (!ex) return undefined;
-          // Drop from the last working set with a weight, typed or assumed.
-          const baseIndex = findDropSetBaseIndex(
-            ex.sets,
-            (s) => s.weight ?? plannedSetValues[String(s.id)]?.weight
-          );
-          if (baseIndex < 0) return undefined;
-          const baseSet = ex.sets[baseIndex];
-          const weightKg = Number(
-            baseSet.weight ?? plannedSetValues[String(baseSet.id)]?.weight
-          );
-          return () => {
-            useActiveWorkoutStore
+          currentType={setTypeCurrent}
+          note={setOptionsSet?.set.notes}
+          metricColumn={metricColumn}
+          clampedToRpe={
+            setOptionsSet != null &&
+            isMetricClampedToRpe(
+              resolveSnapshotModality(setOptionsSet.exercise.exercise_snapshot)
+            )
+          }
+          onSelectType={handleSelectSetType}
+          onSelectMetric={(metric) =>
+            useAppPreferencesStore
               .getState()
-              .addDropSetsToExercise(ex.id, weightKg, weightUnit);
+              .setActiveWorkoutMetricColumn(metric)
+          }
+          onCommitField={handleCommitField}
+          onGenerateDropSets={generateDropSets}
+          onOpenPlateCalculator={openSetPlateCalculator}
+          onDelete={() => {
+            const setId = setTypeMenu?.setId;
             setSetTypeMenu(null);
-          };
-        })()}
-      />
+            if (setId != null) handleDeleteSet(setId);
+          }}
+          onClose={() => setSetTypeMenu(null)}
+        />
+      ) : (
+        <SetTypeMenu
+          anchor={setTypeCurrent != null ? (setTypeMenu?.anchor ?? null) : null}
+          currentType={setTypeCurrent}
+          onClose={() => setSetTypeMenu(null)}
+          onSelect={handleSelectSetType}
+          onOpenPlateCalculator={openSetPlateCalculator}
+          currentSide={setSideCurrent}
+          onSelectSide={
+            setSideAllowed
+              ? (side) => {
+                  const setId = setTypeMenu?.setId;
+                  if (setId != null) {
+                    useActiveWorkoutStore
+                      .getState()
+                      .updateSetField(setId, { side });
+                  }
+                }
+              : undefined
+          }
+          onAddOtherSide={
+            setSideAllowed
+              ? () => {
+                  const setId = setTypeMenu?.setId;
+                  if (setId != null) {
+                    useActiveWorkoutStore.getState().addOtherSideSet(setId);
+                  }
+                  setSetTypeMenu(null);
+                }
+              : undefined
+          }
+          onGenerateDropSets={generateDropSets}
+        />
+      )}
 
       {plateCalc != null && (
         <PlateCalculatorSheet
