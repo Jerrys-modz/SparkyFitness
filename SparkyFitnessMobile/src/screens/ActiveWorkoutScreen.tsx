@@ -1533,6 +1533,7 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
 
       <ActiveWorkoutOverflowSheet
         sheetRef={overflowSheetRef}
+        cards={focusMode}
         overflowMenu={overflowMenu}
         session={session}
         supersetRuns={supersetRuns}
