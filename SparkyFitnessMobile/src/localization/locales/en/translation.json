@@ -8832,7 +8832,13 @@
       "catchUpButton_one": "Skip {{count}} workout",
       "catchUpButton_other": "Skip {{count}} workouts",
       "tooFar_one": "You are too far behind to catch up by skipping: {{count}} workout will not fit. Add workout days or move your goal date.",
-      "tooFar_other": "You are too far behind to catch up by skipping: {{count}} workouts will not fit. Add workout days or move your goal date."
+      "tooFar_other": "You are too far behind to catch up by skipping: {{count}} workouts will not fit. Add workout days or move your goal date.",
+      "timelineTitle": "Workout timeline",
+      "todayDate": "Today · {{date}}",
+      "onTrackBadge_one": "On track (+{{count}} day)",
+      "onTrackBadge_other": "On track (+{{count}} days)",
+      "lateBadge_one": "{{count}} day late",
+      "lateBadge_other": "{{count}} days late"
     },
     "select": {
       "today": "Today's program workout",
@@ -8871,7 +8877,14 @@
         "distance": "Enter a distance above zero, or leave it empty.",
         "raceDay": "Pick the race day, or clear the race name and distance.",
         "save": "Could not save your goals. Please try again."
-      }
+      },
+      "weeklyTile": "Weekly goal",
+      "ofTarget": "/ {{target}} {{unit}}",
+      "noWeekly": "No weekly distance set.",
+      "raceTile": "Race",
+      "daysUnit_one": "day",
+      "daysUnit_other": "days",
+      "noRace": "No race set."
     },
     "openCalendar": "Open the program calendar",
     "openCalendarHint": "Every workout on a month view",
@@ -8982,7 +8995,8 @@
       "targetHint": "Use m:ss for pace and bpm for heart rate, with the two ends at least 10 apart. Empty means no target.",
       "customize": "Customize this program",
       "customizeHint": "Copy it as a plan you can edit",
-      "copyName": "{{name}} (my copy)"
+      "copyName": "{{name}} (my copy)",
+      "selfCoached": "Self-coached"
     },
     "race": {
       "distance": {
@@ -9074,6 +9088,42 @@
       "later": "Move my goal to {{date}}",
       "lower": "Plan a {{distance}} instead",
       "continue": "Continue anyway"
+    },
+    "hero": {
+      "active": "Active program",
+      "today": "Today's workout",
+      "next": "Next workout",
+      "weekOf": "Week {{week}} of {{weeks}}",
+      "duration": "Duration",
+      "minutes": "{{minutes}} min",
+      "done": "Completed",
+      "doneOf": "{{done}} / {{total}}",
+      "effort": "Effort",
+      "zone": "Zone {{zone}}",
+      "completion": "Program completion",
+      "left_one": "({{count}} left)",
+      "left_other": "({{count}} left)",
+      "daysAWeek_one": "{{count}} day a week",
+      "daysAWeek_other": "{{count}} days a week",
+      "everyDay": "Every day"
+    },
+    "focus": {
+      "easy": "Easy run",
+      "long": "Long run",
+      "tempo": "Tempo run",
+      "marathon": "Marathon pace",
+      "hills": "Hill repeats",
+      "strides": "Easy run with strides",
+      "intervals": "Intervals",
+      "runWalk": "Run/walk intervals",
+      "briskWalk": "Brisk walk"
+    },
+    "tools": {
+      "title": "Tools & plan actions",
+      "pacesHint": "Guided fitness test and pace ranges",
+      "changeHint": "Pick another built-in program",
+      "pickHint": "Jump ahead or go back in the program",
+      "skip": "Skip current workout"
     }
   },
   "speechVoice": {
