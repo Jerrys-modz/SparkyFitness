@@ -37,6 +37,7 @@ function watchPlanStructureKey(plan: WatchWorkoutStartPayload): string {
         set.setType,
         set.restSeconds,
         set.side ?? null,
+        set.restAfterSeconds,
       ]),
     ]),
     plan.setOrder,
