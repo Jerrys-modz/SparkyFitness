@@ -36,6 +36,14 @@ struct WatchRunSnapshot: Codable {
     /// Where the route tracker stood. Separate from `routeSegment`, which
     /// counts pause segments of the recorded route. Optional for older snapshots.
     var routeProgress: WatchRouteTracker.State?
+    /// Whether this indoor run writes its own distance (system collection
+    /// off, pedometer distance instead), so a relaunch turns collection off
+    /// again rather than letting Health replace the pedometer's figure.
+    /// Optional for older snapshots, which never did.
+    var selfWrittenDistance: Bool?
+    /// Metres recorded before the system's distance collection was switched
+    /// back on mid-run, which Health does not hold. Optional for older snapshots.
+    var systemDistanceOffset: Double?
 
     /// A run left this long ago is not one the wearer is still doing.
     static let maxAge: TimeInterval = 12 * 60 * 60
