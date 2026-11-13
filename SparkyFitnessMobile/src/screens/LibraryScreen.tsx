@@ -45,6 +45,7 @@ import { foodItemToFoodInfo } from '../types/foodInfo';
 import type { FoodItem } from '../types/foods';
 import type { Meal } from '../types/meals';
 import type { RootStackParamList, TabParamList } from '../types/navigation';
+import { useLargeText } from '../hooks/useLargeText';
 
 type LibraryScreenProps = CompositeScreenProps<
   BottomTabScreenProps<TabParamList, 'Library'>,
@@ -60,6 +61,7 @@ type RecentItem =
 
 const LibraryScreen: React.FC<LibraryScreenProps> = ({ navigation }) => {
   const { t } = useTranslation();
+  const largeText = useLargeText();
   const { status: storedProgram, enabled: programEnabled } = useRunProgram();
   const activeProgram = programEnabled ? storedProgram : null;
   const insets = useSafeAreaInsets();
@@ -282,7 +284,7 @@ const LibraryScreen: React.FC<LibraryScreenProps> = ({ navigation }) => {
               })
             )
           }
-          className="w-[48%] mb-3"
+          className={largeText ? 'w-full mb-3' : 'w-[48%] mb-3'}
         />
         <CreateTile
           icon="meal"
@@ -294,7 +296,7 @@ const LibraryScreen: React.FC<LibraryScreenProps> = ({ navigation }) => {
           onPress={() =>
             runNavigationAction(() => navigation.navigate('MealAdd'))
           }
-          className="w-[48%] mb-3"
+          className={largeText ? 'w-full mb-3' : 'w-[48%] mb-3'}
         />
         <CreateTile
           icon="exercise-weights"
@@ -308,7 +310,7 @@ const LibraryScreen: React.FC<LibraryScreenProps> = ({ navigation }) => {
               navigation.navigate('ExerciseForm', { mode: 'create-exercise' })
             )
           }
-          className="w-[48%] mb-3"
+          className={largeText ? 'w-full mb-3' : 'w-[48%] mb-3'}
         />
         <CreateTile
           icon="bookmark-filled"
@@ -326,7 +328,7 @@ const LibraryScreen: React.FC<LibraryScreenProps> = ({ navigation }) => {
               })
             )
           }
-          className="w-[48%] mb-3"
+          className={largeText ? 'w-full mb-3' : 'w-[48%] mb-3'}
         />
       </View>
 

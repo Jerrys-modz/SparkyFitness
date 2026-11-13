@@ -90,7 +90,7 @@ const CorrelationCard: React.FC<CorrelationCardProps> = ({ c }) => {
           const percentage = p.count ? Math.round((p.mean / max) * 100) : 0;
           return (
             <View key={p.phase} className="flex-row items-center gap-2">
-              <Text className="w-20 text-text-secondary text-sm">
+              <Text className="min-w-20 text-text-secondary text-sm">
                 {p.phase === 'menstrual'
                   ? t('cycleCorrelations.phases.menstrual', {
                       defaultValue: 'Menstrual',
@@ -119,7 +119,7 @@ const CorrelationCard: React.FC<CorrelationCardProps> = ({ c }) => {
                   style={{ width: `${percentage}%` }}
                 />
               </View>
-              <Text className="w-14 text-right text-text-primary text-sm font-semibold">
+              <Text className="min-w-14 text-right text-text-primary text-sm font-semibold">
                 {p.count ? formatMetricWithUnit(p.mean, unit) : '—'}
               </Text>
             </View>

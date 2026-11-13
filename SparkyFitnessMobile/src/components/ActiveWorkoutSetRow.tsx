@@ -1403,7 +1403,7 @@ function ActiveWorkoutSetRow({
   // value's effort tone carries into the input text so the tint survives the
   // cell being an input.
   const rpeInputCell = showRpeInput ? (
-    <View className="w-14 items-center">
+    <View className="min-w-14 items-center">
       <SetCellInput
         inputRef={rpeInputRef}
         value={rpeDraft}
@@ -1478,7 +1478,7 @@ function ActiveWorkoutSetRow({
           rpeInputCell
         ) : (
           <Text
-            className="w-14 text-center text-sm"
+            className="min-w-14 text-center text-sm"
             style={[
               { fontVariant: ['tabular-nums'] },
               { color: metricValue.color ?? textMuted },

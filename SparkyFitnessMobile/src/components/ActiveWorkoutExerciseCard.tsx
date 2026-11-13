@@ -1487,7 +1487,7 @@ function ActiveWorkoutExerciseCard({
             <View
               ref={metricAnchorRef}
               collapsable={false}
-              className="w-14 items-center"
+              className="min-w-14 items-center"
             >
               <Pressable
                 onPress={openMetricMenu}
