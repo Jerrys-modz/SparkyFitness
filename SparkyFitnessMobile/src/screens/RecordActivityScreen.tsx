@@ -57,6 +57,7 @@ import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import { useIndoorDistanceEstimate } from '../hooks/useIndoorDistanceEstimate';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import { correctTreadmillDistance } from '../utils/treadmillCorrection';
+import { usePreferencesHydrated } from '../hooks/usePreferencesHydrated';
 import { formatTreadmillPercent } from '../utils/treadmillCorrectionFormat';
 import { invalidateExerciseCache } from '../hooks/invalidateExerciseCache';
 import { usePreferences } from '../hooks/usePreferences';
@@ -1001,6 +1002,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
   const indoorDistanceInvalid =
     indoorDistance !== null &&
     (!Number.isFinite(indoorDistance) || indoorDistance < 0);
+  const preferencesHydrated = usePreferencesHydrated();
   const treadmillCorrectionEnabled = useAppPreferencesStore(
     (s) => s.treadmillCorrectionEnabled
   );
@@ -2183,7 +2185,12 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
             <Button
               loading={busy}
               disabled={
-                indoorSession && (indoorDistanceInvalid || inclineInvalid)
+                indoorSession &&
+                (indoorDistanceInvalid ||
+                  inclineInvalid ||
+                  // A typed treadmill figure is corrected with the saved
+                  // setting; not before it is read, or the raw figure is stored.
+                  !preferencesHydrated)
               }
               onPress={() => void handleSave()}
             >
