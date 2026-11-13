@@ -19,6 +19,7 @@ Longer notes for the "Widgets And Native Config" section of [`SparkyFitnessMobil
 - Not covered by CI or Jest: the Swift and the `ExpoNotifications` pod dependency the module now declares (CI does not build iOS). They are checked only by `npx expo prebuild --clean`, a build, and testing on a real iPhone with the app force-quit: Taken, Skip and Snooze from the lock screen, a group reminder, no network (the dose should land in the queue and log on the next open), and a signed-out device (JavaScript should handle the press). Attach a screen recording of that run to the PR.
 
 ## Custom widget (iOS, Edit Widget pickers)
+
 ## Custom widgets (iOS builder)
 
 - Settings > Widgets (`WidgetsScreen`, `WidgetEditorScreen`; iOS only, the row is hidden on Android) builds widgets in the app. The contract is `shared/src/utils/widgetLayout.ts`: `WidgetLayout` (family, style, up to eight metrics, accent, `showTitle`, `standByFriendly`), `WidgetDataSnapshot` (one `{ value, goal?, progress?, unit }` per `WidgetMetric`) and `normalizeWidgetLayout` / `parseStoredWidgetLayouts`. `WIDGET_FAMILY_MAX_METRICS` and `WIDGET_FAMILY_STYLES` say what each family can show; `targets/widget/customWidget.swift` repeats both tables in Swift (`customFamilyMaxMetrics`, `customFamilyStyles`), so change the three together.
