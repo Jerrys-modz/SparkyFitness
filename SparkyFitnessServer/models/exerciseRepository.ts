@@ -38,6 +38,7 @@ interface ExerciseEntrySnapshotUpdate {
   exercise_name: string;
   calories_per_hour: number | null;
   modality: string | null;
+  load_convention?: string | null;
   health_activity_type: string | null;
 }
 async function updateExerciseEntriesSnapshot(

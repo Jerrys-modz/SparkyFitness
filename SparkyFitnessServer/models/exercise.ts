@@ -615,6 +615,7 @@ interface ExerciseWriteData {
   shared_with_public?: boolean | null;
   is_quick_exercise?: unknown;
   modality?: string | null;
+  load_convention?: unknown;
   health_activity_type?: unknown;
 }
 async function createExercise(exerciseData: ExerciseWriteData) {

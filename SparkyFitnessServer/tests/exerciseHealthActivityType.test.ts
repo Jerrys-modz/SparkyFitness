@@ -13,9 +13,9 @@ vi.mock('../config/logging', () => ({
 }));
 
 // Bind positions of health_activity_type (#1750) in the two writers.
-const CREATE_PARAM = 18;
-const UPDATE_PROVIDED_PARAM = 17;
-const UPDATE_VALUE_PARAM = 18;
+const CREATE_PARAM = 19;
+const UPDATE_PROVIDED_PARAM = 18;
+const UPDATE_VALUE_PARAM = 19;
 
 interface MockClient {
   query: ReturnType<typeof vi.fn>;
@@ -75,7 +75,7 @@ describe('exercise health_activity_type writers', () => {
       await exerciseDb.updateExercise(id, uuidv4(), updateData);
       const [sql, params] = lastQuery(mockClient);
       expect(sql).toContain(
-        'health_activity_type = CASE WHEN $18::boolean THEN $19::text'
+        'health_activity_type = CASE WHEN $19::boolean THEN $20::text'
       );
       expect(params[params.length - 1]).toBe(id);
       return [params[UPDATE_PROVIDED_PARAM], params[UPDATE_VALUE_PARAM]];
