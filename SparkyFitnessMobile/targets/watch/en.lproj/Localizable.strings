@@ -159,9 +159,6 @@
 "watch.workout.deleteSet" = "Delete Set";
 "watch.workout.addSet" = "Add Set";
 "watch.common.ok" = "OK";
-"watch.keypad.toggleSign" = "Plus or minus";
-"watch.keypad.decimal" = "Decimal point";
-"watch.keypad.delete" = "Delete";
 "watch.workout.last" = "Last %@";
 "watch.workout.crownHint" = "Crown or drag · tap again to type";
 "watch.workout.superset" = "Superset · %@";
