@@ -82,6 +82,7 @@ import {
   useActiveWorkoutStore,
   type ActiveSetPatch,
 } from '../stores/activeWorkoutStore';
+import { useFocusHold } from '../hooks/useFocusHold';
 import { shouldPlaceHeaderInStatusRow } from '../utils/activeWorkoutHeaderLayout';
 import { runAfterKeyboardSettles } from '../utils/keyboardFocus';
 import {
@@ -1015,7 +1016,15 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
   const handleOpenRename = useCallback(() => setRenameVisible(true), []);
   const handleOpenLocation = useCallback(() => setLocationVisible(true), []);
 
-  const restBarVisible = restRunning || activeSetId != null;
+  // The timed hold in the focus view; its screen replaces the footer.
+  const hold = useFocusHold({
+    session,
+    activeSetId,
+    enabled: focusMode,
+    onFinish: handleCompleteSet,
+  });
+  const restBarVisible =
+    (restRunning || activeSetId != null) && hold.phase === 'idle';
   const scrollContentStyle = useMemo(() => {
     const restBarPadding = usesGlassRestBar
       ? REST_BAR_GLASS_CLEARANCE + insets.bottom
@@ -1094,6 +1103,7 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
           lastLoggedSetId != null
             ? () => handleUncomplete(lastLoggedSetId)
             : undefined,
+        onStartHold: hold.setId != null ? hold.start : undefined,
       }
     : undefined;
 
@@ -1248,6 +1258,7 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
             prSetIds={prSetIds}
             activeExerciseId={activeExerciseId}
             supersetBorders={focusSupersetBorders}
+            hold={hold}
             sessionId={sessionId}
             verifiedSourcePresetId={effectiveVerifiedSourcePresetId}
             historyScopeSettled={historyScopeSettled}
