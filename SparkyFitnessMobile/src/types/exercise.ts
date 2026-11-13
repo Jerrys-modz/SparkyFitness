@@ -11,6 +11,8 @@ export interface Exercise {
   modality?: ExerciseModality | null;
   /** How logged weight and reps count toward volume; absent on older servers, which means `total`. */
   load_convention?: ExerciseLoadConvention;
+  /** Health activity type override (#1750); null/absent is Automatic. */
+  health_activity_type?: string | null;
   equipment: string[];
   primary_muscles: string[];
   secondary_muscles: string[];

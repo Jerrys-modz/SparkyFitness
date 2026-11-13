@@ -27,6 +27,7 @@ import {
   resolveCanonicalOrCustomMuscle,
   resolveCanonicalOrCustomEquipment,
 } from '@workspace/shared';
+import { HealthActivityTypeSelect } from '@/components/HealthActivityTypeSelect';
 import { TagInput } from '@/components/ui/TagInput';
 import { localizeMuscle, localizeEquipment } from '@/utils/exerciseTaxonomy';
 import { usePreferences } from '@/contexts/PreferencesContext';
@@ -50,6 +51,8 @@ export default function AddCustomExerciseForm({
     setNewExerciseModality,
     newExerciseLoadConvention,
     setNewExerciseLoadConvention,
+    newExerciseHealthActivityType,
+    setNewExerciseHealthActivityType,
     newExerciseCalories,
     manualCaloriesPerHour,
     setManualCaloriesPerHour,
@@ -154,6 +157,33 @@ export default function AddCustomExerciseForm({
         value={newExerciseLoadConvention}
         onChange={setNewExerciseLoadConvention}
       />
+      {/* Health activity type (#1750) */}
+      <div className="grid grid-cols-4 items-start gap-4">
+        <Label htmlFor="health-activity-type" className="text-right pt-2">
+          {t(
+            'exercise.addExerciseDialog.healthActivityTypeLabel',
+            'Health activity type'
+          )}
+        </Label>
+        <div className="col-span-3 space-y-1">
+          <HealthActivityTypeSelect
+            id="health-activity-type"
+            value={newExerciseHealthActivityType}
+            onChange={setNewExerciseHealthActivityType}
+            exercise={{
+              name: newExerciseName,
+              category: newExerciseCategory,
+              modality: newExerciseModality,
+            }}
+          />
+          <p className="text-xs text-muted-foreground">
+            {t(
+              'exercise.addExerciseDialog.healthActivityTypeHint',
+              'Used when the mobile app writes your workouts to Apple Health or Health Connect.'
+            )}
+          </p>
+        </div>
+      </div>
 
       {/* Calories */}
       <div className="grid grid-cols-4 items-center gap-4">

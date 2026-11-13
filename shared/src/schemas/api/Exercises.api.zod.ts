@@ -99,6 +99,8 @@ export const exerciseLibraryItemSchema = z
     category: z.string().nullable(),
     modality: exerciseModalitySchema.optional(),
     load_convention: exerciseLoadConventionSchema.optional(),
+    /** Health activity type override (#1750); null is Automatic. Optional: older servers omit it. */
+    health_activity_type: z.string().nullable().optional(),
     images: z.array(z.string()),
     calories_per_hour: z.number().nullable(),
     description: z.string().nullable(),

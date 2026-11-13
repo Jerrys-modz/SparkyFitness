@@ -1,3 +1,4 @@
+import { AUTOMATIC_HEALTH_ACTIVITY_TYPE } from '@/utils/healthActivityType';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from '@/hooks/use-toast';
@@ -7,6 +8,7 @@ import type { Exercise } from '@/types/exercises';
 import {
   deriveExerciseModality,
   type ExerciseLoadConvention,
+  isHealthActivityType,
   type ExerciseModality,
 } from '@workspace/shared';
 
@@ -29,6 +31,9 @@ export function useAddCustomExerciseForm(
   );
   const [newExerciseLoadConvention, setNewExerciseLoadConvention] =
     useState<ExerciseLoadConvention>('total');
+  // 'automatic' (no override) or a health activity type key (#1750).
+  const [newExerciseHealthActivityType, setNewExerciseHealthActivityType] =
+    useState(AUTOMATIC_HEALTH_ACTIVITY_TYPE);
   const [newExerciseCalories, setNewExerciseCalories] = useState(300);
   const [manualCaloriesPerHour, setManualCaloriesPerHour] = useState<
     number | undefined
@@ -64,6 +69,7 @@ export function useAddCustomExerciseForm(
     setNewExerciseCategory('general');
     setPinnedModality(null);
     setNewExerciseLoadConvention('total');
+    setNewExerciseHealthActivityType(AUTOMATIC_HEALTH_ACTIVITY_TYPE);
     setNewExerciseCalories(300);
     setManualCaloriesPerHour(undefined);
     setNewExerciseDescription('');
@@ -87,6 +93,9 @@ export function useAddCustomExerciseForm(
         category: newExerciseCategory,
         modality: newExerciseModality,
         load_convention: newExerciseLoadConvention,
+        ...(isHealthActivityType(newExerciseHealthActivityType)
+          ? { health_activity_type: newExerciseHealthActivityType }
+          : {}),
         calories_per_hour:
           manualCaloriesPerHour !== undefined
             ? manualCaloriesPerHour
@@ -196,6 +205,8 @@ export function useAddCustomExerciseForm(
     setNewExerciseModality: setPinnedModality,
     newExerciseLoadConvention,
     setNewExerciseLoadConvention,
+    newExerciseHealthActivityType,
+    setNewExerciseHealthActivityType,
     newExerciseCalories,
     manualCaloriesPerHour,
     setManualCaloriesPerHour,

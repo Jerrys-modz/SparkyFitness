@@ -1,4 +1,8 @@
 // hooks/Exercises/useEditExerciseForm.ts
+import {
+  AUTOMATIC_HEALTH_ACTIVITY_TYPE,
+  healthActivityTypeSelectValue,
+} from '@/utils/healthActivityType';
 import { useState } from 'react';
 import { error } from '@/utils/logging';
 import type { Exercise as ExerciseInterface } from '@/types/exercises';
@@ -43,6 +47,9 @@ export function useEditExerciseForm() {
     useState<ExerciseModality>('weight_reps');
   const [editExerciseLoadConvention, setEditExerciseLoadConvention] =
     useState<ExerciseLoadConvention>('total');
+  // 'automatic' (no override) or a health activity type key (#1750).
+  const [editExerciseHealthActivityType, setEditExerciseHealthActivityType] =
+    useState(AUTOMATIC_HEALTH_ACTIVITY_TYPE);
   const [editExerciseCalories, setEditExerciseCalories] = useState(300);
   const [editExerciseDescription, setEditExerciseDescription] = useState('');
   const [editExerciseLevel, setEditExerciseLevel] = useState('');
@@ -84,6 +91,9 @@ export function useEditExerciseForm() {
       isExerciseLoadConvention(exercise.load_convention)
         ? exercise.load_convention
         : 'total'
+    );
+    setEditExerciseHealthActivityType(
+      healthActivityTypeSelectValue(exercise.health_activity_type)
     );
     setEditExerciseCalories(
       Math.round(
@@ -138,6 +148,8 @@ export function useEditExerciseForm() {
         category: editExerciseCategory,
         modality: editExerciseModality,
         load_convention: editExerciseLoadConvention,
+        // 'automatic' clears the override server-side.
+        health_activity_type: editExerciseHealthActivityType,
         calories_per_hour: convertEnergy(
           editExerciseCalories,
           energyUnit,
@@ -273,6 +285,8 @@ export function useEditExerciseForm() {
     setEditExerciseModality,
     editExerciseLoadConvention,
     setEditExerciseLoadConvention,
+    editExerciseHealthActivityType,
+    setEditExerciseHealthActivityType,
     editExerciseCalories,
     setEditExerciseCalories,
     editExerciseDescription,

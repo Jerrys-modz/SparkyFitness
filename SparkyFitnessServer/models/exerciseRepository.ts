@@ -49,7 +49,8 @@ async function updateExerciseEntriesSnapshot(
           exercise_name = $1,
           calories_per_hour = $2,
           modality = $3,
-          load_convention = COALESCE($6, load_convention)
+          load_convention = COALESCE($6, load_convention),
+          health_activity_type = $7
        WHERE user_id = $4 AND exercise_id = $5
        RETURNING id`,
       [
@@ -59,6 +60,7 @@ async function updateExerciseEntriesSnapshot(
         userId,
         exerciseId,
         newSnapshotData.load_convention ?? null,
+        newSnapshotData.health_activity_type ?? null,
       ]
     );
     return result.rowCount;

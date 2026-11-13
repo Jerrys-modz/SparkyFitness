@@ -40,6 +40,7 @@ export const exerciseEntriesSchema = z.object({
   // Optional: entry payloads built by clients and imports omit it, and the
   // column defaults to 'total'.
   load_convention: z.string().optional(),
+  health_activity_type: z.string().nullable(),
   // New telemetry fields
   max_heart_rate: z.number().nullable(),
   heart_rate_recovery_1min: z.number().nullable(),
@@ -130,6 +131,7 @@ export const exerciseEntriesInitializerSchema = z.object({
   superset_group: z.number().optional().nullable(),
   modality: z.string().optional().nullable(),
   load_convention: z.string().optional(),
+  health_activity_type: z.string().optional().nullable(),
   max_heart_rate: z.number().optional().nullable(),
   heart_rate_recovery_1min: z.number().optional().nullable(),
   avg_respiration_brpm: z.number().optional().nullable(),
