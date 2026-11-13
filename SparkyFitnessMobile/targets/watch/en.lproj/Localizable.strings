@@ -342,6 +342,7 @@
 "watch.run.cue.fuel" = "Time to fuel. Take %lld grams of carbs.";
 "watch.run.cue.fuelAndDrink" = "Time to fuel. Take %1$lld grams of carbs, and have about %2$lld milliliters to drink.";
 "watch.workout.metricsOnlyLine" = "Heart rate %@, %@ calories";
+"watch.workout.metricsOnlyLine" = "Heart rate %@, %@ %@";
 "watch.workout.timeLine" = "Time %@";
 "watch.effort.label" = "Effort";
 "watch.common.continue" = "Continue";
@@ -411,7 +412,6 @@
 "watch.workout.platesLighter" = "Lighter";
 "watch.workout.platesClosest" = "Closest";
 "watch.workout.holdTapToEnd" = "Tap the ring to end early";
-"watch.workout.kcalUnit" = "kcal";
 "watch.workout.keepShort" = "Keep";
 "watch.workout.logged" = "logged";
 "watch.workout.metricsTitle" = "Live";
