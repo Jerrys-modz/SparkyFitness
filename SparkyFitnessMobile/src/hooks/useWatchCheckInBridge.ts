@@ -296,6 +296,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     (s) => s.watchSetScreenMetrics
   );
   const watchUpNextPage = useAppPreferencesStore((s) => s.watchUpNextPage);
+  const watchLargerText = useAppPreferencesStore((s) => s.watchLargerText);
   const watchNewWorkout = useAppPreferencesStore((s) => s.watchNewWorkout);
   const watchWorkoutCountdown = useAppPreferencesStore(
     (s) => s.watchWorkoutCountdown
@@ -945,6 +946,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         rpeEnabled: watchRpeEnabled,
         setScreenMetrics: watchSetScreenMetrics,
         upNextPage: watchUpNextPage,
+        largerText: watchLargerText,
         newWorkout: watchNewWorkout,
         workoutCountdown: watchWorkoutCountdown,
         holdCountdown: watchHoldCountdown,
@@ -1025,6 +1027,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     watchSetScreenMetrics,
     watchUpNextPage,
     heartRateZoneFloors,
+    watchLargerText,
     watchNewWorkout,
     watchWorkoutCountdown,
     watchHoldCountdown,
