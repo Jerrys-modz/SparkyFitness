@@ -31,7 +31,13 @@ export interface UserPreferences {
    *  means power zones are estimated from the run. */
   running_critical_power_watts?: number | null;
   default_measurement_unit?: 'cm' | 'inches' | 'ft_in';
-  date_format?: 'MM/DD/YYYY' | 'DD/MM/YYYY' | 'YYYY-MM-DD' | string;
+  date_format?:
+    | 'MM/DD/YYYY'
+    | 'DD/MM/YYYY'
+    | 'DD.MM.YYYY'
+    | 'YYYY-MM-DD'
+    | 'dd.MM.yyyy'
+    | string;
   energy_unit?: 'kcal' | 'kJ';
   water_display_unit?: 'ml' | 'oz' | 'liter';
   /** Raises the daily water goal by estimated sweat loss from logged exercise. */
