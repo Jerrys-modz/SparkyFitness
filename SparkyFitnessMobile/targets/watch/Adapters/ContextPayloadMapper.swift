@@ -112,7 +112,10 @@ enum ContextPayloadMapper {
             runHeartRateZones: WatchHeartRateZones.normalized(payload["runHeartRateZoneFloors"]) ?? previous.runHeartRateZones,
             runPlans: runPlans(from: payload) ?? previous.runPlans,
             indoorDistanceScale: indoorDistanceScale(from: payload) ?? previous.indoorDistanceScale,
-            goalWeightKg: (payload["goalWeightKg"] as? NSNumber)?.doubleValue ?? previous.goalWeightKg
+            goalWeightKg: (payload["goalWeightKg"] as? NSNumber)?.doubleValue ?? previous.goalWeightKg,
+            heartRateZoneFloors: WatchHeartRateZone.normalized(
+                (payload["heartRateZoneFloors"] as? [NSNumber])?.map(\.doubleValue)
+            ) ?? previous.heartRateZoneFloors
         )
     }
 

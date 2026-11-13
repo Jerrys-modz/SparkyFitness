@@ -976,6 +976,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
           : {}),
         ...watchFuelingContext(fuelingPreference),
         runPlans,
+        ...(heartRateZoneFloors ? { heartRateZoneFloors } : {}),
         ...(indoorDistanceScale ? { indoorDistanceScale } : {}),
         startableWorkouts,
         suggestedExercises,

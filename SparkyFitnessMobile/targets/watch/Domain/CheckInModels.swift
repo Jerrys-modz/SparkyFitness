@@ -614,6 +614,11 @@ struct WatchContext: Codable, Equatable {
         guard let goalWeightKg, goalWeightKg > 0 else { return nil }
         return goalWeightKg
     }
+    /// The lowest bpm of heart rate zones 1 to 5, from the person's own
+    /// zones on the phone; the new workout view colours the live heart rate by
+    /// the zone it is in. Nil (an older phone build, or zones not loaded) keeps
+    /// the plain heart colour.
+    var heartRateZoneFloors: [Double]? = nil
 
     static let empty = WatchContext(
         today: nil,
