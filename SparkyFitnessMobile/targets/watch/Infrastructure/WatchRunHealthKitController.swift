@@ -221,9 +221,6 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
         }
     }
 
-    /// Starts the session. Returns false, leaving nothing running, when
-    /// HealthKit is unavailable or a session is already live.
-    @discardableResult
     /// The pedometer must be allowed and able to give distance, and an earlier
     /// run must not have found that Health ignores a distance written this way.
     private static var canWriteOwnDistance: Bool {
@@ -232,6 +229,9 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
             && !UserDefaults.standard.bool(forKey: selfWrittenFailedKey)
     }
 
+    /// Starts the session. Returns false, leaving nothing running, when
+    /// HealthKit is unavailable or a session is already live.
+    @discardableResult
     func start(
         _ kind: WatchRunKind,
         place: WatchRunPlace,
