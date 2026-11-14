@@ -1225,7 +1225,14 @@
       "replaceSuccess": "Exercise replaced",
       "suggestedTab": "Suggested",
       "caloriesPerHourWithUnit": "Calories/Hour ({{unit}})",
-      "caloriesPerHourHintWithUnit": "Leave blank to use system calculated calories per hour ({{newExerciseCalories}} {{unit}}/hour)."
+      "caloriesPerHourHintWithUnit": "Leave blank to use system calculated calories per hour ({{newExerciseCalories}} {{unit}}/hour).",
+      "healthActivityTypeLabel": "Health activity type",
+      "healthActivityTypeAutomatic": "Automatic ({{type}})",
+      "healthActivityTypeHint": "Used when the mobile app writes your workouts to Apple Health or Health Connect.",
+      "healthActivityTypeCommon": "Common",
+      "healthActivityTypeAll": "All activities",
+      "healthActivityTypeSearch": "Search activities",
+      "healthActivityTypeNoMatches": "No matches"
     },
     "loadConvention": {
       "total": "Total load",
