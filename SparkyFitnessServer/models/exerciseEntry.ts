@@ -1154,6 +1154,7 @@ interface ExerciseEntrySetInput {
   notes?: string | null;
   rpe?: number | null;
   rir?: number | null;
+  side?: string | null;
   completed_at?: string | Date | null;
   is_pr?: boolean | null;
   distance?: number | null;
