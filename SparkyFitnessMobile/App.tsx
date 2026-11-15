@@ -152,7 +152,6 @@ import {
   SafeWarmupSettings,
   SafeTreadmillSettings,
   SafeHeartRateZonesSettings,
-  SafeTreadmillSettings,
   SafeServerSettings,
   SafePasskeySettings,
   SafeAppSettings,
@@ -1411,11 +1410,6 @@ function AppContent() {
             name="HeartRateZonesSettings"
             component={SafeHeartRateZonesSettings}
             options={createStackScreenOptions(t('screens.heartRateZonesSettings', { defaultValue: 'Heart Rate Zones' }), { headerBackTitle: t('navigation.settings', { defaultValue: 'Settings' }) })}
-          />
-          <Stack.Screen
-            name="TreadmillSettings"
-            component={SafeTreadmillSettings}
-            options={createStackScreenOptions(t('treadmillSettings.title', { defaultValue: 'Treadmill & Stride' }), { headerBackTitle: t('screens.workoutSettings', { defaultValue: 'Workout Settings' }) })}
           />
           <Stack.Screen
             name="ServerSettings"

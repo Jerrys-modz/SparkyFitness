@@ -535,7 +535,6 @@ export type RootStackParamList = {
   WarmupSettings: undefined;
   TreadmillSettings: undefined;
   HeartRateZonesSettings: undefined;
-  TreadmillSettings: undefined;
   ServerSettings: undefined;
   PasskeySettings: undefined;
   AppSettings: undefined;
