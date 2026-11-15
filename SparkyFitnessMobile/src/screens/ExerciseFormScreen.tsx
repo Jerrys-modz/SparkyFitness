@@ -452,36 +452,6 @@ const ExerciseFormBody: React.FC<ExerciseFormBodyProps> = ({
       </View>
 
       <View className="gap-1.5">
-        {renderPicker(
-          t('workout.healthActivityType', {
-            defaultValue: 'Health activity type',
-          }),
-          healthActivityTypeOptions.options,
-          state.healthActivityType,
-          (healthActivityType) =>
-            setState((prev) => ({ ...prev, healthActivityType })),
-          {
-            sections: healthActivityTypeOptions.sections,
-            searchable: true,
-            searchPlaceholder: t('workout.healthActivityTypeSearch', {
-              defaultValue: 'Search activities',
-            }),
-          }
-        )}
-        <Text className="text-text-muted text-xs">
-          {Platform.OS === 'ios'
-            ? t('workout.healthActivityTypeHintApple', {
-                defaultValue:
-                  'Used when your workouts are written to Apple Health.',
-              })
-            : t('workout.healthActivityTypeHintHealthConnect', {
-                defaultValue:
-                  'Used when your workouts are written to Health Connect.',
-              })}
-        </Text>
-      </View>
-
-      <View className="gap-1.5">
         <Text className="text-text-secondary text-sm font-medium">
           {t('workout.caloriesPerHourWithUnit', {
             defaultValue: 'Calories per Hour ({{unit}})',
