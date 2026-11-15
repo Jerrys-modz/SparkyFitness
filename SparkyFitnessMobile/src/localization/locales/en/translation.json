@@ -7615,6 +7615,7 @@
     "show": "Show {{name}}",
     "reset": "Reset to default",
     "groups": {
+      "quickInfo": "Quick Info",
       "foodDatabase": "Food Database",
       "reportTabular": "Report (Tabular)"
     }

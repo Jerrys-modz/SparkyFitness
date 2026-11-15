@@ -31,14 +31,19 @@ type NutrientDisplaySettingsScreenProps =
 const MOBILE_PLATFORM = 'mobile';
 
 /**
- * View groups shared with web that this app reads: `food_database` drives the
+ * View groups shared with web that this app reads: `quick_info` drives the
+ * nutrient list on a diary food entry (`FoodEntryViewScreen`), `food_database` drives the
  * nutrient list on food, meal and entry detail screens (`FoodNutrientBreakdown`)
  * and `report_tabular` drives Nutrition Details. `summary` (Dashboard) and
- * `diary` have their own screens. `quick_info`, `goal` and `report_chart` have
+ * `diary` have their own screens. `goal` and `report_chart` have
  * no mobile surface yet, so they are not offered; add one here only together
  * with the screen that reads it.
  */
-const VIEW_GROUP_IDS = ['food_database', 'report_tabular'] as const;
+const VIEW_GROUP_IDS = [
+  'quick_info',
+  'food_database',
+  'report_tabular',
+] as const;
 
 /** Built-in nutrients offerable in a view group, in default order. Mirrors web. */
 const BASE_NUTRIENTS = [
@@ -89,6 +94,9 @@ const NutrientDisplaySettingsScreen: React.FC<
   const [viewGroup, setViewGroup] = useState<string>(VIEW_GROUP_IDS[0]);
 
   const groupLabels: Record<(typeof VIEW_GROUP_IDS)[number], string> = {
+    quick_info: t('nutrientDisplay.groups.quickInfo', {
+      defaultValue: 'Quick Info',
+    }),
     food_database: t('nutrientDisplay.groups.foodDatabase', {
       defaultValue: 'Food Database',
     }),
