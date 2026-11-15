@@ -172,6 +172,7 @@ export default defineConfig({
             { text: 'GPS Activity Recording', link: '/features/exercises/gps-activity-recording' },
             { text: 'Sending Workouts to Health Apps', link: '/features/exercises/workouts-to-health' },
             { text: 'Treadmill Runs', link: '/features/exercises/treadmill-runs' },
+            { text: 'Sending Workouts to Health Apps', link: '/features/exercises/workouts-to-health' },
             { text: 'Training Programs', link: '/features/exercises/training-programs' },
             { text: 'Workout Programs', link: '/features/exercises/workout-programs' },
             { text: 'Treadmill Runs', link: '/features/exercises/treadmill-runs' },
