@@ -34,6 +34,26 @@ If you pick a method that is missing what it needs (heart rate reserve with no r
 
 Time below zone 1 is not counted in any zone.
 
+## Working out your zones from a test
+
+Age formulas can be off by 10 to 15 bpm for any one person. For running, a field test gives zones that fit you. Two kinds:
+
+**Threshold heart rate (best for running zones).** Warm up for 10 to 15 minutes, then run 30 minutes alone as hard as you can hold evenly, wearing a chest strap if you have one. Your threshold heart rate is your average heart rate over the **last 20 minutes**. It is the same run as the 30-minute fitness test, which takes threshold pace from the same 20 minutes. Zones then start at:
+
+| Zone | Starts at (% of threshold heart rate) | With a threshold of 170 bpm |
+| :--- | :--- | :--- |
+| 1 | 70% | 119 |
+| 2 | 85% | 145 |
+| 3 | 90% | 153 |
+| 4 | 95% | 162 |
+| 5 | 100% | 170 |
+
+These are Joe Friel's running zones (his zones 5a to 5c are one zone here). Friel leaves zone 1 open below 85%. Sparky starts it at 70% so that standing and walking don't count as zone 1. Enter the five values under **Custom zones**. Retest every six to eight weeks, as for pace.
+
+**Max heart rate.** The highest heart rate you hold for five seconds near the end of an all-out effort (the last minute of a 5K, a Cooper test or the 30-minute run, or a few hill repeats) is a floor for your max. Your real max is at least that high. If it is above the max shown in Heart Rate Zones, enter it as your max heart rate. Only do maximal tests if you are healthy and used to hard running. Check with a doctor first if you are unsure.
+
+Field tests are free. A lab test (lactate or gas analysis) is more exact but rarely changes zones by more than a few bpm.
+
 ## Which age formula is used
 
 Everything uses the Nes formula (211 − 0.64 × age). It is the formula stored zones have always used, so zones for people who change nothing stay exactly as they were. Two places used other formulas before and now follow it: training load (220 − age) and suggested heart rate ranges for a planned run (Tanaka, 208 − 0.7 × age). Training load and suggested ranges can shift by a few bpm or a few load points for people who have not set their own max heart rate.
@@ -64,5 +84,6 @@ Zone charts say which method the workout's zones were worked out with ("Zones: H
 
 - Shared logic: `shared/src/utils/heartRateZones.ts`. `floorsFromAppleHeartRateZones` turns Apple's five preferred zones into custom floors (zone 1 with no lower bound starts at 30 bpm; any other count is ignored). The phone reads them with `modules/apple-heart-zones` on iOS 27. `bucketsFromAppleWorkoutZones` turns a finished workout's heart-rate zone group into stored rows (`zone_method` `device`) and keeps time below the first boundary as zone 1; the server uses that instead of `computeTimeInZones` when a sync or a watch post includes it. `resolveHeartRateZones` turns settings and date of birth into the five zones; `heartRateZoneRange(resolved, zone)` returns the bpm range of zone N (the top zone ends at max heart rate); `computeTimeInZones` buckets a heart rate series.
 - Reports: web `components/HeartRateZoneLegend.tsx`, `hooks/Settings/useHeartRateZones.ts` (`useResolvedHeartRateZones`) and `utils/heartRateZoneBands.ts`; mobile `components/reports/HeartRateZoneRanges.tsx`. All of them take zones from `resolveHeartRateZones` via the API, with `defaultHeartRateZones`, `heartRateZoneBands` and `heartRateDisplayBands` (the five zones or four tiers, with colors) from shared. The choice is `hr_zone_display_count` on `user_preferences` (4 or 5, default 5), sent as `display_zones` by the API. Do not add fixed bpm tiers.
+- Field tests: `shared/src/utils/heartRateFieldTest.ts`. `thresholdHeartRateFromThirtyMinuteRun(samples, startedAt)` averages minutes 10 to 30 (time-weighted, needs 80% coverage, 100 to 220 bpm), `thresholdHeartRateFloors(lthr)` gives five custom floors (70/85/90/95/100%), `peakHeartRateFromTest` the highest reading held for 5 s (one spike sets nothing), and `evaluateHeartRateFieldTest` combines them and offers the peak as a new max only when it beats the max in use. Results go into the existing `custom` method; no storage change. Not yet shown in either app. Tested in `SparkyFitnessServer/tests/heartRateFieldTest.test.ts`.
 - API: `GET` / `PUT /api/v2/heart-rate-zones` (owner-only; contract in `shared/src/schemas/api/HeartRateZones.api.zod.ts`).
 - Storage: `max_heart_rate`, `resting_heart_rate`, `hr_zone_method`, `hr_zone_custom_floors` on `user_preferences`; `zone_method` on `exercise_entry_hr_zones`.

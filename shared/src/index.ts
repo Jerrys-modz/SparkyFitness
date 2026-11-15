@@ -309,6 +309,7 @@ export * from './utils/weeklyGoalPlans.ts';
 export * from './utils/runProgramActions.ts';
 export * from './utils/racePlan.ts';
 export * from './utils/fitnessTest.ts';
+export * from './utils/heartRateFieldTest.ts';
 export * from './constants/corosSportTypes.ts';
 export * from './schemas/api/FoodAssistant.api.zod.ts';
 export * from './schemas/database/FoodAssistant.zod.ts';
