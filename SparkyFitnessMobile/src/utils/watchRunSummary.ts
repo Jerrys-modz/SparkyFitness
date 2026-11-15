@@ -74,6 +74,9 @@ export function watchRunSummary(
           },
         }
       : {}),
+    ...(payload.treadmillDisplayMeters != null
+      ? { treadmillDisplayMeters: payload.treadmillDisplayMeters }
+      : {}),
     activeEnergyKcal:
       payload.activeEnergyKcal > 0 ? payload.activeEnergyKcal : null,
     ...(payload.treadmillDisplayMeters != null

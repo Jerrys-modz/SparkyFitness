@@ -41,6 +41,10 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
     var onAutoPause: ((WatchAutoPause.Action) -> Void)?
     /// The accuracy radius (metres) of each GPS fix as it arrives, outdoors only.
     var onGpsAccuracy: ((Double) -> Void)?
+    /// Called on the main queue when a held indoor workout stops blocking a
+    /// new run: it was saved, ended, or its write failed. The store publishes
+    /// it, so Start shows again without waiting for an unrelated refresh.
+    var onHeldReleased: (() -> Void)?
     /// The newest GPS fix as it arrives, outdoors only: what a followed route
     /// is matched against. Position, accuracy radius (metres) and when it was taken.
     var onLocation: ((WatchRoutePoint, Double, Date) -> Void)?
@@ -105,7 +109,13 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
         /// unless a new run needs it first.
         var failed = false
     }
-    private var held: HeldWorkout?
+    private var held: HeldWorkout? {
+        didSet {
+            // Whatever cleared it or marked it failed, a new run may start now.
+            let wasHolding = oldValue.map { !$0.failed } ?? false
+            if wasHolding, !holdsWorkoutSession { onHeldReleased?() }
+        }
+    }
     /// Indoor runs write their own distance. Apple's collection cannot be
     /// lowered once taken, so the treadmill's final figure (the saved
     /// correction, or what the wearer typed) could only ever go up in Health.
@@ -128,6 +138,10 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
     /// Where the next pedometer reading's span begins, to weigh it against
     /// the workout's pauses.
     private var pedometerSpanStart: Date?
+    /// Finishes waiting for that relaunch gap (`recoverPedometerGap`), so the
+    /// distance it adds is in the run before the run is frozen.
+    private var gapWaiters: [() -> Void] = []
+    private static let gapWaitTimeout: TimeInterval = 5
     /// Metres recorded by the pedometer before the system's distance
     /// collection was switched back on (`fallBackToSystemDistance`, or a
     /// relaunch with no pedometer). Health never collected them, so they are
@@ -283,8 +297,7 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
             // write failed gives way to the new run (watchOS runs one session
             // at a time); one still waiting or being written does not.
             guard held.failed else { return false }
-            held.session.end()
-            self.held = nil
+            abandonHeld()
         }
 
         let configuration = HKWorkoutConfiguration()
@@ -302,10 +315,10 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
             if selfWrittenDistance { dataSource.disableCollection(for: Self.distanceType) }
             liveDataSource = dataSource
             pedometerDistance = 0
-            lastPedometerDistance = nil
             pedometerReadAt = nil
             pedometerCheckpoint = nil
             pedometerSpanStart = nil
+            gapWaiters = []
             systemDistanceOffset = 0
             // So the finish message can carry a step count. Without it the
             // phone only sees steps once Apple Health has synced, which is
@@ -421,13 +434,45 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
     /// figures and the active time. A saved indoor distance run is held for
     /// the treadmill answer instead (`holdForDistance`, then `finishHeld`).
     func end(save: Bool, completion: @escaping (WatchRunMetrics, TimeInterval, WatchRunResult?) -> Void) {
+        guard let session, builder != nil else {
+            completion(metrics, 0, nil)
+            return
+        }
+        let endedAt = Date()
+        // A relaunch may still be fetching the distance covered while the app
+        // was gone. A saved run waits for it (a few seconds at most), paused so
+        // nothing more counts, and only then is frozen; otherwise that distance
+        // would be lost from the run and from Health.
+        guard save, pedometerCheckpoint != nil else {
+            endNow(save: save, endedAt: endedAt, completion: completion)
+            return
+        }
+        if session.state == .running { session.pause() }
+        let started = DeliveryFlag()
+        let proceed: () -> Void = { [weak self] in
+            guard !started.done else { return }
+            started.done = true
+            guard let self else {
+                completion(WatchRunMetrics(), 0, nil)
+                return
+            }
+            self.endNow(save: save, endedAt: endedAt, completion: completion)
+        }
+        gapWaiters.append(proceed)
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.gapWaitTimeout, execute: proceed)
+    }
+
+    private func endNow(
+        save: Bool,
+        endedAt: Date,
+        completion: @escaping (WatchRunMetrics, TimeInterval, WatchRunResult?) -> Void
+    ) {
         guard let session, let endingBuilder = builder else {
             completion(metrics, 0, nil)
             return
         }
         let finalElapsed = endingBuilder.elapsedTime
         let endingRoute = routeBuilder
-        let endedAt = Date()
         let endingClientId = clientId
         let rows = (route: routeRows, heartRate: heartRateRows, laps: lapMarks, lapDistances: lapDistances)
         // Taken before the pedometer is stopped. The workout statistic, read
@@ -438,8 +483,9 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
         // between here and there still leaves the run to be sent on relaunch.
         if !save { WatchRunSnapshotStore.clear() }
         stopRoute()
-        // A gap still being fetched from the pedometer is not waited for.
+        // Past the wait, a gap still being fetched is given up.
         pedometerCheckpoint = nil
+        gapWaiters = []
         // An indoor run is asked for the treadmill's distance before it is
         // written, so the workout waits (`finishHeld`) for the answer. A jump
         // rope covers no distance and is never asked.
@@ -623,8 +669,10 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
 
     /// Adds the distance, ends collection where the run ended and finishes
     /// the workout, then ends the paused session. Each step is tried a few
-    /// times. A workout HealthKit refuses keeps its session for a retry at the
-    /// next launch (`giveUpOnFailure` false); a retry that fails again ends it.
+    /// times. A distance or workout HealthKit refuses is a failed write, never
+    /// a finished one: the session stays for one last attempt 30 s later or at
+    /// the next launch (`giveUpOnFailure` true), which saves the workout as it
+    /// stands, with the distance on its own, if Health still refuses.
     /// Main queue.
     private func writeHeld(giveUpOnFailure: Bool, report: @escaping (WatchRunHealthOutcome) -> Void) {
         guard var current = held, let meters = current.finalMeters else {
@@ -650,6 +698,16 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
         let endAt = current.end
         let finish: (Bool) -> Void = { added in
             DispatchQueue.main.async {
+                if sample != nil, !added, !giveUpOnFailure {
+                    // Health would not take the distance. Finishing now would
+                    // save the workout without it (a self-written run has no
+                    // other distance), so this is a failed write, not a
+                    // finished one: the paused session and builder stay, and
+                    // one last attempt follows (`retryHeldWrite`).
+                    self.heldFailed(runId: runId)
+                    report(.notSaved)
+                    return
+                }
                 if added, sample != nil, var updated = self.held, updated.clientId == runId {
                     updated.distanceAdded = true
                     self.held = updated
@@ -696,10 +754,7 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
                 held = nil
                 releaseSnapshot(of: runId, phoneQueued: current.phoneQueued)
             } else {
-                current.finishing = false
-                current.failed = true
-                held = current
-                persistSnapshot(force: true)
+                heldFailed(runId: runId)
             }
             report(.notSaved)
             return
@@ -729,6 +784,61 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
             distanceMatched: matched,
             zones: workout.map { AppleWorkoutZones.heartRateZones(of: $0) } ?? []
         ))
+    }
+
+    /// A held write failed. The session and builder stay (`failed`, so a new
+    /// run may take the session), the snapshot keeps the run for the next
+    /// launch, and one last attempt is made shortly, which saves the workout
+    /// as it stands if Health still refuses. Main queue.
+    private func heldFailed(runId: String) {
+        guard var current = held, current.clientId == runId else { return }
+        current.finishing = false
+        current.failed = true
+        held = current
+        persistSnapshot(force: true)
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.heldRetryDelay) { [weak self] in
+            guard let self, let again = self.held, again.clientId == runId, again.failed else { return }
+            self.writeHeld(giveUpOnFailure: true) { _ in }
+        }
+    }
+
+    private static let heldRetryDelay: TimeInterval = 30
+
+    /// A new run needs the watch's one session before a failed held write was
+    /// retried: end the session and save the workout as it stands, with the
+    /// distance on its own if the workout would not take it, rather than lose
+    /// the workout. Main queue.
+    private func abandonHeld() {
+        guard let current = held else { return }
+        held = nil
+        current.session.end()
+        let runId = current.clientId
+        var loose: HKQuantitySample?
+        if !current.distanceAdded, let meters = current.finalMeters {
+            if current.selfWritten {
+                if meters >= 1 { loose = Self.distanceSample(meters, start: current.start, end: current.end) }
+            } else {
+                let collected = current.builder.statistics(for: Self.distanceType)?
+                    .sumQuantity()?.doubleValue(for: .meter()) ?? 0
+                if meters - collected >= 1 {
+                    loose = Self.distanceSample(meters - collected, start: current.start, end: current.end)
+                }
+            }
+        }
+        if loose != nil, current.selfWritten {
+            UserDefaults.standard.set(true, forKey: Self.selfWrittenFailedKey)
+        }
+        current.builder.endCollection(withEnd: current.end) { _, _ in
+            self.finishHeldWorkout(current.builder) { outcome in
+                DispatchQueue.main.async {
+                    if case .saved(let workout) = outcome {
+                        if let loose { self.saveLooseDistance(loose) }
+                        if let workout { self.workoutSaved(workout, clientId: runId) }
+                    }
+                    self.releaseSnapshot(of: runId, phoneQueued: current.phoneQueued)
+                }
+            }
+        }
     }
 
     /// Health is done with run `runId`: its snapshot goes if the phone has the
@@ -965,7 +1075,6 @@ extension WatchRunHealthKitController {
                 // treadmill figure can still be lower. With the pedometer gone,
                 // the system collects again on top of what was recorded.
                 self.pedometerDistance = 0
-                self.lastPedometerDistance = nil
                 self.pedometerReadAt = nil
                 self.systemDistanceOffset = snapshot.systemDistanceOffset ?? 0
                 self.selfWrittenDistance = false
@@ -1271,6 +1380,7 @@ extension WatchRunHealthKitController {
         pedometer = counter
         pedometerSteps = 0
         pedometerLive = false
+        lastPedometerDistance = nil
         pedometerSpanStart = start
         counter.startUpdates(from: start) { [weak self, weak counter] data, error in
             DispatchQueue.main.async {
@@ -1369,6 +1479,10 @@ extension WatchRunHealthKitController {
             // Keeps the query's pedometer alive until every answer is in.
             _ = query
             guard let self, self.session != nil, self.clientId == clientId else { return }
+            // A Finish waiting for this gap goes ahead once it is counted.
+            let waiters = self.gapWaiters
+            self.gapWaiters = []
+            defer { waiters.forEach { $0() } }
             // The gap and the live readings since the relaunch are now both in
             // the figure, and the reading time is the live one: written together.
             self.pedometerCheckpoint = nil
@@ -1432,6 +1546,10 @@ extension WatchRunHealthKitController {
 
     fileprivate func stopMotion() {
         pedometerLive = false
+        // A new counter reports its distance from zero again, so its first
+        // reading must not be measured against this one's last.
+        lastPedometerDistance = nil
+        pedometerSpanStart = nil
         pedometer?.stopUpdates()
         pedometer = nil
         motionTimer?.invalidate()

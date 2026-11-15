@@ -177,9 +177,8 @@ const RunSummaryScreen: React.FC<Props> = ({ navigation, route }) => {
       // A run still waiting for its steps measures from this distance.
       void updatePendingWatchFormDistance(summary.entryId, km * METERS_PER_KM);
       setDistanceMeters(km * METERS_PER_KM);
-      await followStride(summary.entryId, km);
-
       setDisplayedMeters(corrected.applied ? corrected.displayedMeters : null);
+      await followStride(summary.entryId, km);
       // The watch's indoor estimate and the stride learn from the machine's
       // figure. Both are keyed by this run, so a figure already typed on the
       // wrist (which taught them when the run was filed) is replaced by this

@@ -578,3 +578,5 @@ export const standHoursQueryKey = (day: string) => ['standHours', day] as const;
 
 export const glucoseSamplesQueryKeyRoot = ['glucoseSamples'] as const;
 export const glucoseContextQueryKeyRoot = ['glucoseContext'] as const;
+
+export const chatMcpServersQueryKey = ['chatMcpServers'] as const;
