@@ -39,6 +39,12 @@ function thirtyDayWindowStart(end: string): string {
   return addDays(end, -29);
 }
 
+function roundedOrNull(value: string | number | null | undefined) {
+  return value === null || value === undefined
+    ? null
+    : Number(Number(value).toFixed(1));
+}
+
 async function getHealthSummary(
   userId: string,
   startDate: string,
@@ -62,6 +68,11 @@ async function getHealthSummary(
     end
   );
   const water = await coachRepository.getWaterIntakeTotal(
+    userId,
+    startDate,
+    end
+  );
+  const heart = await coachRepository.getHeartVitalsInRange(
     userId,
     startDate,
     end
@@ -91,6 +102,9 @@ async function getHealthSummary(
       latest_weight: weight
         ? { weight: Number(weight.weight), date: dayString(weight.entry_date) }
         : null,
+      avg_resting_heart_rate: roundedOrNull(heart.avg_resting_heart_rate),
+      avg_hrv_ms: roundedOrNull(heart.avg_hrv),
+      avg_workout_heart_rate: roundedOrNull(heart.avg_workout_heart_rate),
     },
     hydration: {
       total_water_ml: Number(water.total_water),
@@ -487,7 +501,7 @@ export function buildCoachTools(userId: string, tz: string) {
   return {
     sparky_get_health_summary: tool({
       description:
-        "Get a summary of the user's health status (Nutrition, Fitness, Vitals, Hydration) for a specific date range.",
+        "Get a summary of the user's health status (Nutrition, Fitness, Vitals including weight, resting heart rate, overnight HRV and average workout heart rate, Hydration) for a specific date range.",
       inputSchema: GetHealthSummarySchema,
       execute: async (rawArgs) => {
         const rawArgsWithDefaults = {

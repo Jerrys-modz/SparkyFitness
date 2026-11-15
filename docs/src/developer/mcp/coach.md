@@ -12,7 +12,7 @@ The coaching tools are designed to provide high-level insights into a user's hea
 ## Tools within Coach
 
 ### `sparky_get_health_summary`
-- **Description:** Get a summary of the user's health status (Nutrition, Fitness, Vitals) for a specific date range.
+- **Description:** Get a summary of the user's health status (Nutrition, Fitness, Vitals, Hydration) for a specific date range. Vitals include the latest weight, average resting heart rate and overnight HRV (from each day's main sleep, resting heart rate falling back to check-ins) and average workout heart rate; each is `null` when nothing was recorded.
 - **Parameters:**
     - `start_date` (string, YYYY-MM-DD): Start date for the summary.
     - `end_date` (string, YYYY-MM-DD, optional): End date for the summary. Defaults to `start_date` if not provided.
