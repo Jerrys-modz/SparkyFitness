@@ -12,6 +12,8 @@ import { useTranslation } from 'react-i18next';
 import Icon from './Icon';
 import {
   adjustLabelCrop,
+  isFullLabelCrop,
+  labelCropFromPoints,
   type LabelCrop,
   type LabelCropHandle,
 } from '../utils/labelCrop';
@@ -20,6 +22,11 @@ const CONTROL_SIZE = 44;
 // Corner targets extend half their size past the image. Keep the move target clear.
 const MOVE_CONTROL_GAP = CONTROL_SIZE / 2 + 8;
 const MOVE_CONTROL_SPACE = MOVE_CONTROL_GAP + CONTROL_SIZE;
+// A side handle only appears once the side has room for it between the corners.
+const EDGE_HANDLE_MIN_SPAN = CONTROL_SIZE * 3;
+// Movement before a touch on the photo counts as drawing a new box, so a tap
+// does not throw away the current selection.
+const DRAW_SLOP = 6;
 
 interface Props {
   photo: { uri: string; width: number; height: number };
@@ -118,11 +125,75 @@ function CropControl({
         onCropChange(adjustLabelCrop(crop, handle, dx, dy));
       }}
     >
-      {handle !== 'move' ? (
+      {handle === 'top' || handle === 'bottom' ? (
+        <View pointerEvents="none" style={styles.edgeKnobHorizontal} />
+      ) : handle === 'left' || handle === 'right' ? (
+        <View pointerEvents="none" style={styles.edgeKnobVertical} />
+      ) : handle !== 'move' ? (
         <View pointerEvents="none" style={styles.knob} />
       ) : null}
       {children}
     </View>
+  );
+}
+
+interface DrawSurfaceProps {
+  imageWidth: number;
+  imageHeight: number;
+  onCropChange: Props['onCropChange'];
+}
+
+/**
+ * Dragging anywhere on the photo outside the selection draws a new box from
+ * where the finger went down to where it is now, so framing the label is one
+ * stroke instead of four corner drags.
+ */
+function DrawSurface({
+  imageWidth,
+  imageHeight,
+  onCropChange,
+}: DrawSurfaceProps) {
+  const start = useRef({ x: 0, y: 0 });
+  const responder = useMemo(
+    () =>
+      // PanResponder stores these callbacks; ref reads occur only on touch events.
+      // eslint-disable-next-line react-hooks/refs
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => false,
+        onMoveShouldSetPanResponder: (_event, gesture) =>
+          Math.hypot(gesture.dx, gesture.dy) > DRAW_SLOP,
+        onPanResponderGrant: (event, gesture) => {
+          // The grant arrives after the slop, so step back to where the
+          // finger first touched.
+          start.current = {
+            x: (event.nativeEvent.locationX - gesture.dx) / imageWidth,
+            y: (event.nativeEvent.locationY - gesture.dy) / imageHeight,
+          };
+          onCropChange(
+            labelCropFromPoints(start.current, {
+              x: start.current.x + gesture.dx / imageWidth,
+              y: start.current.y + gesture.dy / imageHeight,
+            })
+          );
+        },
+        onPanResponderMove: (_event, gesture) => {
+          onCropChange(
+            labelCropFromPoints(start.current, {
+              x: start.current.x + gesture.dx / imageWidth,
+              y: start.current.y + gesture.dy / imageHeight,
+            })
+          );
+        },
+        onPanResponderTerminationRequest: () => false,
+      }),
+    [imageWidth, imageHeight, onCropChange]
+  );
+  return (
+    <View
+      testID="label-crop-draw-surface"
+      {...responder.panHandlers}
+      style={StyleSheet.absoluteFill}
+    />
   );
 }
 
@@ -150,6 +221,9 @@ export default function LabelPhotoCropper({
   const moveThreshold = CONTROL_SIZE + 1 / PixelRatio.get();
   const separateMove =
     selectionWidth <= moveThreshold && selectionHeight <= moveThreshold;
+  // A selection covering the whole photo has nowhere to move, so the photo is
+  // left free for drawing a new box.
+  const fullFrame = isFullLabelCrop(crop);
   const moveLabel = t('foodScan.label.cropMove', {
     defaultValue: 'Move label crop',
   });
@@ -192,6 +266,49 @@ export default function LabelPhotoCropper({
       y: bottom,
     },
   ];
+  const centerX = left + selectionWidth / 2;
+  const centerY = top + selectionHeight / 2;
+  const edgeHandles: typeof handles = [];
+  if (selectionWidth >= EDGE_HANDLE_MIN_SPAN) {
+    edgeHandles.push(
+      {
+        handle: 'top',
+        label: t('foodScan.label.cropEdgeTop', {
+          defaultValue: 'Top crop edge',
+        }),
+        x: centerX,
+        y: top,
+      },
+      {
+        handle: 'bottom',
+        label: t('foodScan.label.cropEdgeBottom', {
+          defaultValue: 'Bottom crop edge',
+        }),
+        x: centerX,
+        y: bottom,
+      }
+    );
+  }
+  if (selectionHeight >= EDGE_HANDLE_MIN_SPAN) {
+    edgeHandles.push(
+      {
+        handle: 'left',
+        label: t('foodScan.label.cropEdgeLeft', {
+          defaultValue: 'Left crop edge',
+        }),
+        x: left,
+        y: centerY,
+      },
+      {
+        handle: 'right',
+        label: t('foodScan.label.cropEdgeRight', {
+          defaultValue: 'Right crop edge',
+        }),
+        x: right,
+        y: centerY,
+      }
+    );
+  }
 
   return (
     <View
@@ -247,7 +364,12 @@ export default function LabelPhotoCropper({
                 { left, top, width: selectionWidth, height: selectionHeight },
               ]}
             />
-            {!separateMove ? (
+            <DrawSurface
+              imageWidth={width}
+              imageHeight={height}
+              onCropChange={onCropChange}
+            />
+            {!separateMove && !fullFrame ? (
               <CropControl
                 handle="move"
                 label={moveLabel}
@@ -264,7 +386,7 @@ export default function LabelPhotoCropper({
                 }}
               />
             ) : null}
-            {handles.map(({ handle, label, x, y }) => (
+            {[...edgeHandles, ...handles].map(({ handle, label, x, y }) => (
               <CropControl
                 key={handle}
                 handle={handle}
@@ -326,6 +448,18 @@ const styles = StyleSheet.create({
     height: CONTROL_SIZE,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  edgeKnobHorizontal: {
+    width: 28,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#fff',
+  },
+  edgeKnobVertical: {
+    width: 6,
+    height: 28,
+    borderRadius: 3,
+    backgroundColor: '#fff',
   },
   knob: {
     width: 20,
