@@ -1,4 +1,9 @@
-import { adjustLabelCrop, labelCropPixels } from '../../src/utils/labelCrop';
+import {
+  adjustLabelCrop,
+  isFullLabelCrop,
+  labelCropFromPoints,
+  labelCropPixels,
+} from '../../src/utils/labelCrop';
 
 describe('nutrition label crop geometry', () => {
   it('maps the selected region to landscape and portrait pixels without letterboxing', () => {
@@ -69,5 +74,56 @@ describe('nutrition label crop geometry', () => {
         { width: 101, height: 203 }
       )
     ).toEqual({ originX: 34, originY: 68, width: 67, height: 135 });
+  });
+
+  it('moves a single edge when a side handle is dragged', () => {
+    const crop = { x: 0.25, y: 0.25, width: 0.5, height: 0.5 };
+    expect(adjustLabelCrop(crop, 'top', 0.3, 0.1)).toEqual({
+      x: 0.25,
+      y: 0.35,
+      width: 0.5,
+      height: 0.4,
+    });
+    const right = adjustLabelCrop(crop, 'right', -0.1, 0.3);
+    expect(right.x).toBe(0.25);
+    expect(right.y).toBe(0.25);
+    expect(right.width).toBeCloseTo(0.4);
+    expect(right.height).toBe(0.5);
+  });
+
+  it('draws a box between two points in any direction', () => {
+    expect(labelCropFromPoints({ x: 0.2, y: 0.3 }, { x: 0.6, y: 0.8 })).toEqual(
+      {
+        x: 0.2,
+        y: 0.3,
+        width: expect.closeTo(0.4),
+        height: expect.closeTo(0.5),
+      }
+    );
+    expect(labelCropFromPoints({ x: 0.6, y: 0.8 }, { x: 0.2, y: 0.3 })).toEqual(
+      {
+        x: 0.2,
+        y: 0.3,
+        width: expect.closeTo(0.4),
+        height: expect.closeTo(0.5),
+      }
+    );
+  });
+
+  it('clamps a drawn box to the image and keeps it at least the minimum size', () => {
+    expect(
+      labelCropFromPoints({ x: 0.5, y: 0.5 }, { x: 1.4, y: -0.2 })
+    ).toEqual({ x: 0.5, y: 0, width: 0.5, height: 0.5 });
+    const tiny = labelCropFromPoints({ x: 0.99, y: 0.5 }, { x: 1, y: 0.5 });
+    expect(tiny.x).toBeCloseTo(0.95);
+    expect(tiny.width).toBeCloseTo(0.05);
+    expect(tiny.height).toBeCloseTo(0.05);
+  });
+
+  it('recognises a selection covering the whole photo', () => {
+    expect(isFullLabelCrop({ x: 0, y: 0, width: 1, height: 1 })).toBe(true);
+    expect(isFullLabelCrop({ x: 0.1, y: 0, width: 0.9, height: 1 })).toBe(
+      false
+    );
   });
 });

@@ -9,7 +9,18 @@ export interface LabelCrop {
 }
 
 export type LabelCropHandle =
-  'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'move';
+  | 'top-left'
+  | 'top-right'
+  | 'bottom-left'
+  | 'bottom-right'
+  | 'top'
+  | 'bottom'
+  | 'left'
+  | 'right'
+  | 'move';
+
+/** Smallest selection side, as a fraction of the image. */
+const MINIMUM_CROP = 0.05;
 
 const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value));
@@ -33,13 +44,52 @@ export function adjustLabelCrop(
   let right = left + crop.width;
   let bottom = top + crop.height;
   // Keep a usable selection even if a handle is dragged past its opposite edge.
-  const minimum = 0.05;
-  if (handle === 'top-left' || handle === 'bottom-left')
-    left = clamp(left + dx, 0, right - minimum);
-  else right = clamp(right + dx, left + minimum, 1);
-  if (handle === 'top-left' || handle === 'top-right')
-    top = clamp(top + dy, 0, bottom - minimum);
-  else bottom = clamp(bottom + dy, top + minimum, 1);
+  const minimum = MINIMUM_CROP;
+  const movesLeft =
+    handle === 'top-left' || handle === 'bottom-left' || handle === 'left';
+  const movesRight =
+    handle === 'top-right' || handle === 'bottom-right' || handle === 'right';
+  const movesTop =
+    handle === 'top-left' || handle === 'top-right' || handle === 'top';
+  const movesBottom =
+    handle === 'bottom-left' ||
+    handle === 'bottom-right' ||
+    handle === 'bottom';
+  if (movesLeft) left = clamp(left + dx, 0, right - minimum);
+  if (movesRight) right = clamp(right + dx, left + minimum, 1);
+  if (movesTop) top = clamp(top + dy, 0, bottom - minimum);
+  if (movesBottom) bottom = clamp(bottom + dy, top + minimum, 1);
+  return { x: left, y: top, width: right - left, height: bottom - top };
+}
+
+export const isFullLabelCrop = (crop: LabelCrop) =>
+  crop.x <= 0 && crop.y <= 0 && crop.width >= 1 && crop.height >= 1;
+
+/**
+ * The selection between two points (fractions of the image) dragged across the
+ * photo, in any direction. Clamped to the image and never smaller than the
+ * minimum, so a short drag still leaves a box the handles can grab.
+ */
+export function labelCropFromPoints(
+  start: { x: number; y: number },
+  end: { x: number; y: number }
+): LabelCrop {
+  const span = (a: number, b: number) => {
+    let low = clamp(Math.min(a, b), 0, 1);
+    let high = clamp(Math.max(a, b), 0, 1);
+    if (high - low < MINIMUM_CROP) {
+      // Grow away from the starting point, staying inside the image.
+      if (b >= a) high = Math.min(1, low + MINIMUM_CROP);
+      else low = Math.max(0, high - MINIMUM_CROP);
+      if (high - low < MINIMUM_CROP) {
+        if (low === 0) high = MINIMUM_CROP;
+        else low = 1 - MINIMUM_CROP;
+      }
+    }
+    return [low, high] as const;
+  };
+  const [left, right] = span(start.x, end.x);
+  const [top, bottom] = span(start.y, end.y);
   return { x: left, y: top, width: right - left, height: bottom - top };
 }
 

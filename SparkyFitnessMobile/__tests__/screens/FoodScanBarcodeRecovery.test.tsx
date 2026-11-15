@@ -57,6 +57,7 @@ const navigation = {
   dispatch: jest.fn(),
   goBack: jest.fn(),
   isFocused: jest.fn(() => true),
+  setOptions: jest.fn(),
 };
 const makeScreen = (params?: Props['route']['params']) => (
   <SafeAreaProvider
