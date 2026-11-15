@@ -9534,6 +9534,21 @@
       "outdoor": "Outdoor",
       "inclineAdjusted": "Treadmill, {{incline}}% incline, adjusted",
       "inclineNotAdjusted": "Treadmill, {{incline}}% incline, not adjusted"
+    },
+    "heartRate": {
+      "title": "Your heart rate zones",
+      "none": "Not enough heart rate was recorded in the last 20 minutes. Wear a heart rate monitor next time to get zones from this test.",
+      "threshold": "Threshold heart rate {{bpm}} bpm, your average over the last 20 minutes.",
+      "zone": "Zone {{zone}}",
+      "range": "{{from}}–{{to}} bpm",
+      "rangeTop": "{{from}}+ bpm",
+      "inUse": "These are your heart rate zones now.",
+      "useBody": "Saved as custom zones. Past workouts keep the zones they were recorded with.",
+      "use": "Use these zones",
+      "peak": "You reached {{bpm}} bpm. Your max heart rate is at least that.",
+      "peakAbove": "You reached {{bpm}} bpm, above the {{current}} bpm max your zones use. Your max is at least {{bpm}}.",
+      "setMax": "Set max to {{bpm}} bpm",
+      "saveError": "Could not save your zones"
     }
   },
   "routes": {

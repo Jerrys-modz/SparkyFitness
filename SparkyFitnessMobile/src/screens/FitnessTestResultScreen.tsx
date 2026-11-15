@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import { comparePaces } from '@workspace/shared';
 import Button from '../components/ui/Button';
+import FitnessTestHeartRateCard from '../components/recording/FitnessTestHeartRateCard';
 import FitnessTestPaceList from '../components/recording/FitnessTestPaceList';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { usePreferences } from '../hooks/usePreferences';
@@ -31,8 +32,9 @@ import {
 type Props = RootStackScreenProps<'FitnessTestResult'>;
 
 /**
- * One fitness test: the result, the training paces it set and, when there is
- * an earlier test, how the paces moved since.
+ * One fitness test: the result, the training paces it set, the heart rate
+ * zones its recording gives and, when there is an earlier test, how the paces
+ * moved since.
  */
 const FitnessTestResultScreen: React.FC<Props> = ({ navigation, route }) => {
   const { t } = useTranslation();
@@ -210,6 +212,8 @@ const FitnessTestResultScreen: React.FC<Props> = ({ navigation, route }) => {
                 change={change}
               />
             </View>
+
+            <FitnessTestHeartRateCard test={test} />
 
             <View className="mt-4">
               <Button

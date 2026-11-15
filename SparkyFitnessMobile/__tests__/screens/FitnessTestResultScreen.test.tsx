@@ -19,6 +19,10 @@ jest.mock('../../src/services/fitnessTestService', () => ({
   useFitnessTests: jest.fn(),
   removeFitnessTest: jest.fn(() => Promise.resolve()),
 }));
+jest.mock('../../src/components/recording/FitnessTestHeartRateCard', () => ({
+  __esModule: true,
+  default: () => null,
+}));
 jest.mock('../../src/hooks/useRefetchOnFocus', () => ({
   useRefetchOnFocus: jest.fn(),
 }));
