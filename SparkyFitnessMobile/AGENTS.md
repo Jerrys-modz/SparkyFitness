@@ -1,6 +1,6 @@
 # AGENTS.md
 
-_Last updated: 2026-11-15_
+_Last updated: 2026-11-16_
 
 SparkyFitness Mobile is a React Native 0.86 + Expo SDK 57 app for syncing Apple Health / Health Connect data with the SparkyFitness backend, tracking nutrition, hydration, fasting, measurements, exercise, saved foods, meal templates, custom exercises, workout presets, iOS / Android widgets, the active workout HUD, and the Sparky AI chat.
 
@@ -275,6 +275,7 @@ npx expo prebuild --clean
 - Siri and Shortcuts actions: see [dashboard-diary-measurements-and-nutrients.md](agent-docs/dashboard-diary-measurements-and-nutrients.md#siri-and-shortcuts-actions).
 - iOS water widget (`targets/widget/waterWidget.swift`, kind `waterWidget`; Home Screen small/medium plus the three Lock Screen shapes): `useWidgetSync(summary, water)` writes a `waterSnapshot` (`consumedMl`, `goalMl`, `drinkMl`, `unit`, `canLog` — numbers only, 0 means none/off) from the Dashboard. The `−` and `+` buttons are `Button(intent: RemoveWaterIntent())` (change_drinks -1, not offered in Siri or Shortcuts) and `Button(intent: LogWaterIntent())` (iOS 17+) and appear only when `canLog`, which the Dashboard sets, so a snapshot written without it shows no button; `WaterSnapshotWriter` in `ShortcutIntents.swift` adds the drink to the snapshot and reloads the widget so it updates before the app next syncs.
 - Android water widget: see [dashboard-diary-measurements-and-nutrients.md](agent-docs/dashboard-diary-measurements-and-nutrients.md#android-water-widget).
+- Weight plateau card: `components/WeightPlateauCard.tsx` under the Health Trends pager on `DashboardScreen` and under the weight chart on `MeasurementsReportScreen`, fed by `hooks/useWeightPlateau.ts` (the last 90 days through `measurementsRangeQueryKey`, the Goal Mode from `usePreferences`, the shared `detectWeightPlateau`). Dismissing stores the plateau's `endDate` as `weightPlateauDismissedEnd` in the preferences store; the shared `isWeightPlateauDismissed` keeps it hidden until a new plateau starts. Nothing shows at maintenance or recomp. Wording stays neutral (#2215).
 - `DiaryScreen` owns meal type sections, measurement summaries, serving quick-adjust, swipe/long-press deletes, and AddSheet date propagation.
 - `DailyNutritionDetailsScreen`'s top macro card (`NutritionMacroCard`, via `onMacroPress`) makes Protein, Carbs and Fat rows open `NutrientTrends` like the breakdown rows below it; the net carbs row stays untappable.
 - `DashboardSettingsScreen` controls dashboard card visibility and custom nutrient display preferences, and is the entry point to `HealthTrendsSettingsScreen`.

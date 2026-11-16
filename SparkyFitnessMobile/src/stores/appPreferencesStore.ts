@@ -189,6 +189,7 @@ export const PREFERENCE_DEFAULTS = {
   reportDefaultRange: DEFAULT_REPORT_RANGE as TrendRange,
   hiddenReportSections: [] as ReportSectionKey[],
   compareRecentQuestions: [] as CompareQuestion[],
+  weightPlateauDismissedEnd: null as string | null,
   chatConversationId: null as string | null,
   chatConversationServiceId: null as string | null,
   reportNutrientOrder: [] as string[],
@@ -319,6 +320,9 @@ export type AppPreferencesData = {
   /** Recent Compare questions, newest first (at most five). */
   compareRecentQuestions: CompareQuestion[];
   addCompareRecentQuestion: (q: CompareQuestion) => void;
+  /** `endDate` of the weight plateau card last dismissed; the card stays hidden for that plateau. */
+  weightPlateauDismissedEnd: string | null;
+  setWeightPlateauDismissedEnd: (day: string | null) => void;
   /** The Sparky chat conversation ID, kept across reopening the chat; null until first use. */
   chatConversationId: string | null;
   /** The AI provider the conversation ID was started with; a new provider starts a new conversation. */
@@ -691,6 +695,8 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
           hiddenReports: withMembership(state.hiddenReports, key, isHidden),
         })),
       setReportDefaultRange: (value) => set({ reportDefaultRange: value }),
+      setWeightPlateauDismissedEnd: (day) =>
+        set({ weightPlateauDismissedEnd: day }),
       addCompareRecentQuestion: (q) =>
         set((state) => ({
           compareRecentQuestions: withRecentQuestion(
@@ -871,6 +877,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         reportDefaultRange: state.reportDefaultRange,
         hiddenReportSections: state.hiddenReportSections,
         compareRecentQuestions: state.compareRecentQuestions,
+        weightPlateauDismissedEnd: state.weightPlateauDismissedEnd,
         chatConversationId: state.chatConversationId,
         chatConversationServiceId: state.chatConversationServiceId,
         reportNutrientOrder: state.reportNutrientOrder,

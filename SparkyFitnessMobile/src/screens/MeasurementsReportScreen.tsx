@@ -16,6 +16,7 @@ import ReportHighlights, {
 } from '../components/reports/ReportHighlights';
 import MeasurementTimelineCard from '../components/reports/MeasurementTimelineCard';
 import WeightLineChart from '../components/WeightLineChart';
+import WeightPlateauCard from '../components/WeightPlateauCard';
 import StepsBarChart from '../components/StepsBarChart';
 import StatusView from '../components/StatusView';
 import { resolveWeightGoal } from '../utils/healthTrendGoals';
@@ -375,6 +376,9 @@ const MeasurementsReportScreen: React.FC<
               unit={chartUnit}
               goal={weightGoal}
             />
+          ) : null}
+          {isSectionShown('measurements.weightChart') ? (
+            <WeightPlateauCard enabled={isConnected} />
           ) : null}
           {isSectionShown('measurements.weight') && weightRows.length > 0 ? (
             <ReportSummaryCard

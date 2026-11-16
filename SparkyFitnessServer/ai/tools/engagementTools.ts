@@ -1,7 +1,14 @@
 import { tool } from 'ai';
-import { addDays, todayInZone } from '@workspace/shared';
+import {
+  addDays,
+  detectWeightPlateau,
+  todayInZone,
+  weightGoalDirection,
+} from '@workspace/shared';
 import { log } from '../../config/logging.js';
+import { actorUserIdFor } from '../../db/poolManager.js';
 import engagementRepository from '../../models/engagementRepository.js';
+import preferenceService from '../../services/preferenceService.js';
 import { ERRORS } from './errors.js';
 import { dayString, formatSuccess } from './formatting.js';
 import {
@@ -11,6 +18,9 @@ import {
 } from './schemas/engagement.js';
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
+
+/** Weigh-ins read for the plateau check; longer than any plateau worth reporting needs. */
+const PLATEAU_LOOKBACK_DAYS = 90;
 
 // Whole days between two day strings. Day strings parse as UTC midnight per
 // the ES spec, so the difference is exact and DST-free.
@@ -50,20 +60,35 @@ export function buildEngagementTools(userId: string, tz: string) {
             });
           }
 
-          // Weight plateau (no change across the last 7 weigh-ins)
-          const recentWeights =
-            await engagementRepository.getRecentWeights(userId);
-          if (recentWeights.length >= 2) {
-            const weights = recentWeights.map((r: any) => Number(r.weight));
-            const min = Math.min(...weights);
-            const max = Math.max(...weights);
-            if (max - min < 0.3) {
-              triggers.push({
-                type: 'weight_plateau',
-                message:
-                  "Your weight has been stable for the past week. Consider adjusting your routine if you're trying to change.",
-              });
-            }
+          // Weight plateau: the same shared check the web and mobile weight
+          // charts use, so the assistant and the app never disagree.
+          const today = todayInZone(tz);
+          const [weightRows, prefs] = await Promise.all([
+            engagementRepository.getWeightsSince(
+              userId,
+              addDays(today, -(PLATEAU_LOOKBACK_DAYS - 1))
+            ),
+            preferenceService.getUserPreferences(
+              actorUserIdFor(userId),
+              userId
+            ),
+          ]);
+          const direction = weightGoalDirection(prefs);
+          const plateau = detectWeightPlateau(
+            weightRows.map((r) => ({
+              date: dayString(r.entry_date),
+              weight: Number(r.weight),
+            })),
+            direction,
+            { today }
+          );
+          if (plateau) {
+            const goal =
+              plateau.direction === 'lose' ? 'losing weight' : 'gaining weight';
+            triggers.push({
+              type: 'weight_plateau',
+              message: `The weight trend has been flat for ${plateau.days} days (${plateau.weighIns} weigh-ins) while the goal is ${goal}. This is common: check that logging is complete, see whether the adaptive TDEE is still adjusting, allow for water and scale noise, or consider a stretch at maintenance.`,
+            });
           }
 
           // Achievements (logged days in the past week)

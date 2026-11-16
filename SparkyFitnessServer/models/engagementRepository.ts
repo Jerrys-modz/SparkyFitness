@@ -23,16 +23,27 @@ async function getLastExerciseDate(
   }
 }
 
-async function getRecentWeights(userId: string, limit = 7) {
+interface WeightRow {
+  // pg returns NUMERIC as a string and DATE as a Date.
+  weight: string | number;
+  entry_date: Date | string;
+}
+
+// Every weigh-in from `startDate` (a user-timezone day string) on, oldest first,
+// for the shared plateau check.
+async function getWeightsSince(
+  userId: string,
+  startDate: string
+): Promise<WeightRow[]> {
   const client = await getClient(userId);
   try {
     const result = await client.query(
       `SELECT weight, entry_date FROM check_in_measurements
-       WHERE user_id = $1 AND weight IS NOT NULL
-       ORDER BY entry_date DESC LIMIT $2`,
-      [userId, limit]
+       WHERE user_id = $1 AND weight IS NOT NULL AND entry_date >= $2
+       ORDER BY entry_date ASC`,
+      [userId, startDate]
     );
-    return result.rows;
+    return result.rows as WeightRow[];
   } finally {
     client.release();
   }
@@ -129,14 +140,14 @@ async function getTodayActivityCounts(
 
 export {
   getLastExerciseDate,
-  getRecentWeights,
+  getWeightsSince,
   getWeeklyLoggedDayCount,
   getLoggedDates,
   getTodayActivityCounts,
 };
 export default {
   getLastExerciseDate,
-  getRecentWeights,
+  getWeightsSince,
   getWeeklyLoggedDayCount,
   getLoggedDates,
   getTodayActivityCounts,
