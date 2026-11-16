@@ -30,11 +30,9 @@ const handlers = () => ({
     endDay: null as string | null,
   },
   onSchedule: jest.fn(),
-  onPickWorkout: jest.fn(),
   onToggle: jest.fn(),
   onSelect: jest.fn(),
   onRestart: jest.fn(),
-  onSkip: jest.fn(),
 });
 
 const active = (next: number) =>
@@ -94,7 +92,7 @@ describe('RunProgramCard', () => {
     expect(screen.queryByText('Skip')).toBeNull();
   });
 
-  it('shows the workout that is due and lets it be chosen, skipped or restarted', () => {
+  it('shows the workout that is due with its stats and lets it be chosen', () => {
     const h = handlers();
     render(
       <RunProgramCard
@@ -105,14 +103,42 @@ describe('RunProgramCard', () => {
         {...h}
       />
     );
-    expect(screen.getByText('Beginner 5K · Week 2, run 2')).toBeTruthy();
-    expect(screen.getByText(/Workout 4 of 27 done/)).toBeTruthy();
+    expect(screen.getByText('Active program')).toBeTruthy();
+    expect(screen.getByText('Beginner 5K')).toBeTruthy();
+    expect(screen.getByText('Week 2, run 2')).toBeTruthy();
+    expect(screen.getByText('Week 2 of 9')).toBeTruthy();
+    expect(screen.getByTestId('run-program-stat-done')).toHaveTextContent(
+      'Completed4 / 27'
+    );
+    expect(screen.getByTestId('run-program-stat-focus')).toHaveTextContent(
+      /Zone \d/
+    );
+    expect(screen.getByTestId('run-program-completion')).toHaveTextContent(
+      '14% (23 left)'
+    );
+    // Every day is a workout day while none are picked.
+    expect(screen.getByText("Today's workout")).toBeTruthy();
+    expect(screen.getByText('Every day')).toBeTruthy();
     fireEvent.press(screen.getByText('Do this workout'));
-    fireEvent.press(screen.getByText('Skip'));
-    fireEvent.press(screen.getByText('Start over'));
     expect(h.onSelect).toHaveBeenCalled();
-    expect(h.onSkip).toHaveBeenCalled();
-    expect(h.onRestart).toHaveBeenCalled();
+    // Skip and Start over live in the Tools card now.
+    expect(screen.queryByText('Start over')).toBeNull();
+  });
+
+  it('says Next workout on a day that is not a workout day', () => {
+    const today = new Date().getDay();
+    render(
+      <RunProgramCard
+        status={active(4)}
+        loaded
+        selected={false}
+        enabled
+        {...handlers()}
+        schedule={{ days: [(today + 1) % 7], startDay: null, endDay: null }}
+      />
+    );
+    expect(screen.getByText('Next workout')).toBeTruthy();
+    expect(screen.getByText('1 day a week')).toBeTruthy();
   });
 
   it('says so when chosen and when the program is finished', () => {
@@ -156,7 +182,8 @@ describe('Zone 2 program', () => {
         programId="zone2Base"
       />
     );
-    expect(screen.getByText('Zone 2 base · Week 4, run 2')).toBeTruthy();
+    expect(screen.getByText('Zone 2 base')).toBeTruthy();
+    expect(screen.getByText('Week 4, run 2')).toBeTruthy();
     expect(screen.getByText(/Zone check: run this one/)).toBeTruthy();
     rerender(
       <RunProgramCard
@@ -355,7 +382,7 @@ describe('choosing a program', () => {
         enabled
       />
     );
-    expect(screen.getByText('Marathon · Week 2, run 2')).toBeTruthy();
-    expect(screen.getByText('Change program')).toBeTruthy();
+    expect(screen.getByText('Marathon')).toBeTruthy();
+    expect(screen.getByText('Week 2, run 2')).toBeTruthy();
   });
 });
