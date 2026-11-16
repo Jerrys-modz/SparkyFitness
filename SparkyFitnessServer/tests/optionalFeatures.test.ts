@@ -25,9 +25,22 @@ function keys(count: number, value: boolean | null = true) {
 }
 
 describe('optional features registry', () => {
-  it('lists cycle, stored in cycle_settings', () => {
-    expect(FEATURE_KEYS).toEqual(['cycle']);
+  it('lists cycle, stored in cycle_settings, and appetite', () => {
+    expect(FEATURE_KEYS).toEqual(['cycle', 'appetite']);
     expect(featureStorage('cycle')).toBe('cycleSettings');
+    expect(featureStorage('appetite')).toBe('choices');
+  });
+
+  it('shows the appetite check-in until it is turned off', () => {
+    const none = { choices: undefined, cycleEnabled: undefined };
+    expect(isFeatureEnabled('appetite', 'web', none)).toBe(true);
+    const off = {
+      choices: { mobile: { appetite: false } },
+      cycleEnabled: undefined,
+    };
+    expect(isFeatureEnabled('appetite', 'mobile', off)).toBe(false);
+    expect(isFeatureEnabled('appetite', 'web', off)).toBe(true);
+    expect(isFeatureExplicitlyOff('appetite', 'mobile', off)).toBe(true);
   });
 
   it('keeps choices for the website and the mobile app', () => {

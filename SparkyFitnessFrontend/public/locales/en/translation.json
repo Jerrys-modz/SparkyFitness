@@ -4818,7 +4818,17 @@
     "mindfulnessSection": {
       "hrvMs": "HRV {{hrv_rmssd}} ms"
     },
-    "failedToCalculateBodyFatWithError": "Failed to calculate body fat: {{error}}"
+    "failedToCalculateBodyFatWithError": "Failed to calculate body fat: {{error}}",
+    "appetite": {
+      "title": "Hunger & fullness",
+      "subtitle": "How hungry, full and snacky you felt today, from 0 (not at all) to 10 (extremely). Shown next to your calories in Reports.",
+      "metric": {
+        "hunger": "Hunger",
+        "food_noise": "Cravings",
+        "fullness": "Fullness",
+        "energy": "Energy"
+      }
+    }
   },
   "mindfulness": {
     "title": "Mindfulness",
@@ -5895,7 +5905,14 @@
       "resetZoom": "Reset zoom",
       "windowEvents": "Events in view"
     },
-    "oralCareTab": "Oral care"
+    "oralCareTab": "Oral care",
+    "appetite": {
+      "title": "Hunger & fullness vs calories",
+      "description_one": "Average scores (0-10) over {{count}} logged day, next to the calories you ate each day.",
+      "description_other": "Average scores (0-10) over {{count}} logged days, next to the calories you ate each day.",
+      "hungerCalories": "On your hungrier days you ate {{high}} on average, against {{low}} on the others.",
+      "caloriesEaten": "Eaten ({{unit}})"
+    }
   },
   "sleepHealth": {
     "hrvStatus": "HRV Status",

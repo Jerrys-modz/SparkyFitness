@@ -24,6 +24,9 @@ import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import { resolveKeyOrder } from '../utils/reorderUtils';
 import MacroSplitBar from '../components/reports/MacroSplitBar';
 import CaloriesBarChart from '../components/CaloriesBarChart';
+import AppetiteReportCard from '../components/reports/AppetiteReportCard';
+import { useAppetiteTrend } from '../hooks/useAppetiteTrend';
+import { useMobileFeatureEnabled } from '../hooks/useFeatureEnabled';
 import StatusView from '../components/StatusView';
 import Icon from '../components/Icon';
 import { formatTooltipDate } from '../components/charts/chartFormatting';
@@ -53,6 +56,22 @@ const NutritionReportScreen: React.FC<NutritionReportScreenProps> = ({
     window: reportWindow,
   });
   const days = reportWindow.days;
+  const appetiteShown =
+    useMobileFeatureEnabled('appetite') && isSectionShown('nutrition.appetite');
+  const appetiteNutrition = useMemo(
+    () =>
+      (report?.series ?? []).map((point) => ({
+        date: point.day,
+        calories: point.calories,
+      })),
+    [report]
+  );
+  const appetite = useAppetiteTrend({
+    startDate: reportWindow.startDate,
+    endDate: reportWindow.endDate,
+    nutrition: appetiteNutrition,
+    enabled: appetiteShown,
+  });
 
   const header = useScreenHeader({
     title: t('nutritionReport.title', { defaultValue: 'Nutrition' }),
@@ -370,6 +389,13 @@ const NutritionReportScreen: React.FC<NutritionReportScreenProps> = ({
           range={reportWindow.chartRange}
           averageCalories={averageCalories}
           goals={report?.goals}
+        />
+      ) : null}
+      {appetiteShown ? (
+        <AppetiteReportCard
+          days={appetite.days}
+          summary={appetite.summary}
+          formatEnergy={kcal}
         />
       ) : null}
       {insights && insights.loggedDays > 0 && insights.averages ? (

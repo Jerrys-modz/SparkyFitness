@@ -76,7 +76,7 @@ import type {
   MedicationSchedule,
 } from '@/types/medications';
 import { MedTypeIcon } from './AddMedicationDialog';
-import GlpDailyCheckIn from './GlpDailyCheckIn';
+import AppetiteCheckIn from '@/pages/CheckIn/AppetiteCheckIn';
 import Glp1QuickLogDialog from './Glp1QuickLogDialog';
 import MedicationLogCalendar from './MedicationLogCalendar';
 
@@ -995,7 +995,7 @@ export default function TodayMedications({
           </Card>
           {hasGlpMed &&
             (canViewGlpCheckIn ? (
-              <GlpDailyCheckIn selectedDate={selectedDate} />
+              <AppetiteCheckIn variant="glp1" selectedDate={selectedDate} />
             ) : (
               <Card className="border-amber-300 bg-amber-50 dark:border-amber-900/50 dark:bg-amber-950/30">
                 <CardContent className="flex items-start gap-3 py-4">

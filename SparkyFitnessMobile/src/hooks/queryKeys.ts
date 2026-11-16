@@ -581,3 +581,11 @@ export const glucoseSamplesQueryKeyRoot = ['glucoseSamples'] as const;
 export const glucoseContextQueryKeyRoot = ['glucoseContext'] as const;
 
 export const chatMcpServersQueryKey = ['chatMcpServers'] as const;
+
+/** Hunger, fullness and cravings scores over a report range. */
+export const appetiteTrendQueryKeyRoot = ['appetiteTrend'] as const;
+export const appetiteTrendQueryKey = (startDate: string, endDate: string) =>
+  [...appetiteTrendQueryKeyRoot, startDate, endDate] as const;
+
+/** The person's optional-feature choices (#3487), both platforms. */
+export const featureChoicesQueryKey = ['featureChoices'] as const;

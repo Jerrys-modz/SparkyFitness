@@ -61,6 +61,10 @@ const SECTION_LABELS: Record<
     t('reportsSettings.sections.nutritionAverages', {
       defaultValue: 'Daily averages',
     }),
+  'nutrition.appetite': (t) =>
+    t('reportsSettings.sections.appetite', {
+      defaultValue: 'Hunger & fullness',
+    }),
   'nutrition.macroSplit': (t) =>
     t('reportsSettings.sections.macroSplit', { defaultValue: 'Macro split' }),
   'nutrition.goal': (t) =>

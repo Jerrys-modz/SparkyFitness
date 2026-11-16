@@ -165,6 +165,7 @@ export * from './constants/nutrientGoalDefaults.ts';
 export * from './constants/chatToolCategories.ts';
 export * from './constants/webTabs.ts';
 export * from './features/optionalFeatures.ts';
+export * from './utils/appetiteCheckIn.ts';
 export * from './constants/exercise.ts';
 export * from './constants/exerciseTaxonomy.ts';
 export * from './constants/healthActivityTypes.ts';

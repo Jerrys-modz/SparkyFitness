@@ -51,6 +51,8 @@ import {
   exportFoodDiary,
 } from '@/utils/reportUtil';
 import { CustomCategoryReport } from './CustomCategoryReport';
+import { AppetiteTrendCard } from './AppetiteTrendCard';
+import { useWebFeatureEnabled } from '@/hooks/Settings/useFeatureChoices';
 import { ChartErrorBoundary } from '../Errors/ChartErrorFallback';
 import { CustomCategoriesResponse, parseBodyFatGoal } from '@workspace/shared';
 import { useDailyGoalsRange } from '@/hooks/Goals/useGoals';
@@ -177,6 +179,8 @@ const Reports = () => {
     titrationSteps = [],
   } = reportsData || {};
 
+  const appetiteEnabled = useWebFeatureEnabled('appetite');
+
   const { data: goalData } = useDailyGoalsRange(startDate, endDate, true, true);
 
   const measurementChartWidgets = useMeasurementChartWidgets({
@@ -294,6 +298,15 @@ const Reports = () => {
                 measurementsData={customMeasurementsData}
               />
             </ChartErrorBoundary>
+            {appetiteEnabled && (
+              <ChartErrorBoundary>
+                <AppetiteTrendCard
+                  customCategories={customCategories}
+                  customMeasurementsData={customMeasurementsData}
+                  nutritionData={nutritionData}
+                />
+              </ChartErrorBoundary>
+            )}
             <ChartErrorBoundary>
               <CustomCategoryReport
                 customCategories={customCategories}

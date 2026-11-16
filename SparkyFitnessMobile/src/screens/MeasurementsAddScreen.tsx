@@ -50,6 +50,7 @@ import {
   MAX_MEASURED_BMR_KCAL,
   calculateAge,
   energyFromKcal,
+  isAppetiteCategoryName,
   normalizeEnergyUnit,
 } from '@workspace/shared';
 import {
@@ -91,6 +92,8 @@ import type { RootStackScreenProps } from '../types/navigation';
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { useGuidedCheckIn } from '../hooks/useGuidedCheckIn';
+import { useMobileFeatureEnabled } from '../hooks/useFeatureEnabled';
+import AppetiteCheckInCard from '../components/AppetiteCheckInCard';
 import { useDiaryDateStore } from '../stores/diaryDateStore';
 import {
   useCustomCategories,
@@ -316,9 +319,18 @@ const MeasurementsAddScreen: React.FC<Props> = ({ navigation, route }) => {
    * syncCustomForm / buildCustomOps / delete lookup / reconciliation / dirty
    * preservation — never the presentation partition, so a value typed inside
    * "More categories" is always part of the form regardless of expansion. */
+  // While the hunger & fullness card shows, its categories are logged there,
+  // never also as plain custom fields (the guided check-in keeps them here).
+  const appetiteFeatureEnabled = useMobileFeatureEnabled('appetite');
+  const showAppetiteCard = appetiteFeatureEnabled && !guidedCheckIn;
   const dailyCustomCategories = useMemo(
-    () => (customCategories ?? []).filter(isDailyCustomCategory),
-    [customCategories]
+    () =>
+      (customCategories ?? []).filter(
+        (cat) =>
+          isDailyCustomCategory(cat) &&
+          !(showAppetiteCard && isAppetiteCategoryName(cat.name, 'appetite'))
+      ),
+    [customCategories, showAppetiteCard]
   );
 
   /**
@@ -1562,6 +1574,14 @@ const MeasurementsAddScreen: React.FC<Props> = ({ navigation, route }) => {
             />
           </TouchableOpacity>
         )}
+
+        {showAppetiteCard ? (
+          <AppetiteCheckInCard
+            key={selectedDate}
+            date={selectedDate}
+            variant="appetite"
+          />
+        ) : null}
 
         {isLoading || isPreferencesLoading ? (
           <View className="py-12 items-center">

@@ -30,6 +30,9 @@ import Tooth from '@/components/icons/Tooth';
 import { useTranslation } from 'react-i18next';
 import { MindfulnessSection } from './MindfulnessSection';
 import { OralCareSection } from './OralCareSection';
+import AppetiteCheckIn from './AppetiteCheckIn';
+import { useWebFeatureEnabled } from '@/hooks/Settings/useFeatureChoices';
+import { isAppetiteCategoryName } from '@workspace/shared';
 
 const CheckIn = () => {
   const { user } = useAuth();
@@ -88,6 +91,14 @@ const CheckIn = () => {
 
   const [searchParams, setSearchParams] = useSearchParams();
   const { t } = useTranslation();
+  const appetiteEnabled = useWebFeatureEnabled('appetite');
+  // While the hunger & fullness card shows, its categories are logged there
+  // and not again as plain custom measurements in the form below.
+  const formCustomCategories = appetiteEnabled
+    ? customCategories.filter(
+        (c) => !isAppetiteCategoryName(c.name, 'appetite')
+      )
+    : customCategories;
   const photoDates = useCheckInPhotoDates();
 
   const [editingFast, setEditingFast] = useState<FastingLog | null>(null);
@@ -233,13 +244,20 @@ const CheckIn = () => {
           value="measurements"
           className="focus-visible:outline-none space-y-6"
         >
+          {appetiteEnabled && (
+            <AppetiteCheckIn
+              key={selectedDate}
+              variant="appetite"
+              selectedDate={selectedDate}
+            />
+          )}
           <CheckInForm
             bodyFatPercentage={bodyFatPercentage}
             boneMassKg={boneMassKg}
             bodyWaterPercentage={bodyWaterPercentage}
             muscleMassKg={muscleMassKg}
             bmr={bmr}
-            customCategories={customCategories}
+            customCategories={formCustomCategories}
             customNotes={customNotes}
             customPlaceholders={customPlaceholders}
             customValues={customValues}

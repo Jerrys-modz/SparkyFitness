@@ -33,6 +33,34 @@ jest.mock('../../src/components/DateRangeSheet', () => {
 jest.mock('../../src/hooks/useNutritionReport', () => ({
   useNutritionReport: (args: unknown) => mockUseNutritionReport(args),
 }));
+let mockAppetiteFeatureOn = false;
+jest.mock('../../src/hooks/useFeatureEnabled', () => ({
+  useMobileFeatureEnabled: () => mockAppetiteFeatureOn,
+}));
+const mockAppetiteTrend = {
+  days: [
+    {
+      date: '2026-11-01',
+      hunger: 8,
+      fullness: 4,
+      food_noise: 6,
+      energy: null,
+      calories: 2400,
+    },
+  ],
+  summary: {
+    daysLogged: 1,
+    averageHunger: 8,
+    averageFullness: 4,
+    averageCravings: 6,
+    caloriesOnHungrierDays: null,
+    caloriesOnLessHungryDays: null,
+  },
+  isLoading: false,
+};
+jest.mock('../../src/hooks/useAppetiteTrend', () => ({
+  useAppetiteTrend: () => mockAppetiteTrend,
+}));
 jest.mock('../../src/hooks/useServerConnection', () => ({
   useServerConnection: () => ({ isConnected: true }),
 }));
@@ -197,5 +225,22 @@ describe('NutritionReportScreen nutrient cards', () => {
     expect(queryByText('Fat breakdown')).toBeNull();
     expect(queryByText('Vitamins and minerals')).toBeNull();
     expect(queryByTestId('nutrition-nutrient-saturated_fat')).toBeNull();
+  });
+
+  it('shows hunger & fullness beside the calories while the feature is on', () => {
+    mockAppetiteFeatureOn = true;
+    try {
+      const { getByText, getByTestId } = renderScreen();
+      expect(getByText('Hunger & fullness averages')).toBeTruthy();
+      expect(getByText('Cravings')).toBeTruthy();
+      expect(getByTestId('appetite-bar-2026-11-01')).toBeTruthy();
+    } finally {
+      mockAppetiteFeatureOn = false;
+    }
+  });
+
+  it('leaves hunger & fullness out while the feature is off', () => {
+    const { queryByText } = renderScreen();
+    expect(queryByText('Hunger & fullness averages')).toBeNull();
   });
 });

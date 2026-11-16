@@ -52,6 +52,10 @@ interface FeatureDefinition {
 
 export const OPTIONAL_FEATURES = {
   cycle: { group: 'health', defaultEnabled: false, storage: 'cycleSettings' },
+  // Hunger, fullness and cravings check-in and its report
+  // (`utils/appetiteCheckIn.ts`). On by default: it existed before the switch
+  // for GLP-1 users, whose Medications check-in does not follow it.
+  appetite: { group: 'nutrition', defaultEnabled: true, storage: 'choices' },
 } as const satisfies Record<string, FeatureDefinition>;
 
 export type FeatureKey = keyof typeof OPTIONAL_FEATURES;

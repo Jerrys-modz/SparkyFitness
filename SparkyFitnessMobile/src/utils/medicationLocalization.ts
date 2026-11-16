@@ -1,6 +1,7 @@
 import type { TFunction } from 'i18next';
 import {
   formatDose,
+  type AppetiteMetricKey,
   type Medication,
   type SharedScheduleRule,
 } from '@workspace/shared';
@@ -150,7 +151,7 @@ export function injectionSiteLabel(siteId: string, t: TFunction): string {
 }
 
 export function glp1CheckInMetricLabel(
-  metricKey: 'hunger' | 'food_noise' | 'fullness' | 'energy',
+  metricKey: AppetiteMetricKey,
   t: TFunction
 ): string {
   switch (metricKey) {

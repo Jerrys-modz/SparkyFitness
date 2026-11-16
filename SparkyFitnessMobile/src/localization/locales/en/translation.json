@@ -9435,7 +9435,8 @@
       "measurementTimeline": "Measurement timeline",
       "oralCareBrushesChart": "Brushes per day chart",
       "oralCareMinutesChart": "Minutes brushing chart",
-      "oralCareSummary": "Streaks and other care"
+      "oralCareSummary": "Streaks and other care",
+      "appetite": "Hunger & fullness"
     },
     "hydrationSections": "Hydration report",
     "measurementsSections": "Measurements report",
@@ -12011,5 +12012,28 @@
     "cancelled": "Cancelled tool",
     "error": "Error:",
     "cancelledReason": "Cancelled reason:"
+  },
+  "appetite": {
+    "title": "Hunger & fullness",
+    "subtitle": "How hungry, full and snacky you felt today, from 0 (not at all) to 10 (extremely).",
+    "save": "Save check-in",
+    "saved": "Check-in saved",
+    "saveFailed": "Failed to save check-in",
+    "metric": {
+      "hunger": "Hunger",
+      "food_noise": "Cravings",
+      "fullness": "Fullness",
+      "energy": "Energy"
+    },
+    "report": {
+      "title": "Hunger & fullness",
+      "daysLogged_one": "Average of {{count}} logged day, from 0 to 10",
+      "daysLogged_other": "Average of {{count}} logged days, from 0 to 10",
+      "score": "{{value}} / 10",
+      "hungrierDays": "Eaten on hungrier days",
+      "otherDays": "Eaten on other days",
+      "chartLabel": "Hunger by day, next to calories eaten",
+      "averages": "Hunger & fullness averages"
+    }
   }
 }

@@ -4,7 +4,7 @@ import { View, Text, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useActiveWorkoutBarPadding } from '../components/ActiveWorkoutBar';
 import MedicalDisclaimer from '../components/MedicalDisclaimer';
-import Glp1CheckInCard from '../components/glp1/Glp1CheckInCard';
+import AppetiteCheckInCard from '../components/AppetiteCheckInCard';
 import Glp1InventoryCard from '../components/glp1/Glp1InventoryCard';
 import Glp1LogInjectionCard from '../components/glp1/Glp1LogInjectionCard';
 import Glp1RecentInjectionsCard from '../components/glp1/Glp1RecentInjectionsCard';
@@ -73,7 +73,11 @@ const Glp1TrackerScreen: React.FC<Glp1TrackerScreenProps> = ({
           <Text className="text-2xl font-bold text-text-primary mb-3">
             {med.name}
           </Text>
-          <Glp1CheckInCard key={selectedDate} date={selectedDate} />
+          <AppetiteCheckInCard
+            key={selectedDate}
+            date={selectedDate}
+            variant="glp1"
+          />
           {isInjectable && <Glp1LogInjectionCard med={med} />}
           <Glp1SerumCard medicationId={med.id} title={med.name} />
           {isInjectable && (
