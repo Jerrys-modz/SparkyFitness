@@ -44,6 +44,8 @@ import type {
 } from '../utils/foodEntrySnapshot.js';
 import type { WaterContainerResponse } from '@workspace/shared';
 import hydrationTotalsService from './hydrationTotalsService.js';
+import { checkDietPhaseTargetsAfterWeight } from './dietPhaseService.js';
+import { TYPE_ALIASES } from './healthDataHandlers.js';
 
 /**
  * The parts of a linked container's food and variant this path actually reads.
@@ -500,6 +502,16 @@ async function processHealthData(
       'DEBUG',
       `[processHealthData] Timezone metadata present by type: ${details}`
     );
+  }
+  // A synced weight can end a diet phase whose target the trend reached.
+  if (
+    Array.isArray(healthDataArray) &&
+    healthDataArray.some((entry: { type?: unknown } | null) => {
+      const type = typeof entry?.type === 'string' ? entry.type : '';
+      return (TYPE_ALIASES[type] ?? type) === 'weight';
+    })
+  ) {
+    await checkDietPhaseTargetsAfterWeight(userId, actingUserId);
   }
   // Per-record error contract: the request succeeded even if individual
   // records did not, so per-record failures are reported in the body rather
@@ -1089,6 +1101,9 @@ async function upsertCheckInMeasurements(
       entryDate,
       measurements
     );
+    if (measurements?.weight !== undefined && measurements?.weight !== null) {
+      await checkDietPhaseTargetsAfterWeight(authenticatedUserId, actingUserId);
+    }
     return result;
   } catch (error) {
     log(
@@ -1196,6 +1211,9 @@ async function updateCheckInMeasurements(
       'info',
       `[measurementService] Successfully updated check-in measurement for user ${authenticatedUserId} on date: ${entryDate}`
     );
+    if (updateData?.weight !== undefined && updateData?.weight !== null) {
+      await checkDietPhaseTargetsAfterWeight(authenticatedUserId, actingUserId);
+    }
     return updatedMeasurement;
   } catch (error) {
     log(

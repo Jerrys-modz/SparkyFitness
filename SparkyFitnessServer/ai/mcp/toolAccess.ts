@@ -105,7 +105,7 @@ export const MCP_TOOL_READ_ACCESS: Readonly<Record<string, ToolReadAccess>> = {
     'get_metrics',
   ],
   // goals
-  sparky_manage_goals: ['get_goals', 'list_goal_timeline'],
+  sparky_manage_goals: ['get_goals', 'list_goal_timeline', 'get_diet_phases'],
   sparky_get_goal_snapshot: 'read',
   // coaching
   sparky_get_health_summary: 'read',

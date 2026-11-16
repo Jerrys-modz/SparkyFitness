@@ -1527,7 +1527,7 @@ const CalculationSettings = () => {
             <span className="block mt-1 font-medium text-foreground">
               {t(
                 'settings.goalMode.dietPhaseActive',
-                'A diet phase sets your Goal Mode today. This setting applies again on days outside your phases (Goals → Diet Phases).'
+                "A diet phase sets your Goal Mode today, so today's target in the Diary uses the phase's weekly change. The setting and preview here apply on days outside your phases (Goals → Diet Phases)."
               )}
             </span>
           )}

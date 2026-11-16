@@ -18,6 +18,7 @@ import dietPhaseRepository from '../models/dietPhaseRepository.js';
 import { loadUserTimezone } from '../utils/timezoneLoader.js';
 import {
   DietPhaseValidationError,
+  checkDietPhaseTargetsAfterWeight,
   getDietPhaseOverview,
   loadDietPhasesForCalories,
   planDietPhaseSave,
@@ -578,6 +579,13 @@ describe('loading phases', () => {
     const [resolved] = await loadDietPhasesForCalories('u1');
     expect(resolved?.target_reached_on).toBeNull();
     expect(repo.markDietPhaseTargetReached).not.toHaveBeenCalled();
+  });
+
+  it('a failed check after a weight save is logged, never thrown', async () => {
+    repo.getDietPhases.mockRejectedValue(new Error('database down'));
+    await expect(
+      checkDietPhaseTargetsAfterWeight('u1', 'u1')
+    ).resolves.toBeUndefined();
   });
 
   it('uses the profile timezone for today', async () => {

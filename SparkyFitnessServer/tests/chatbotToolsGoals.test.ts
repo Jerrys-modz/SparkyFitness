@@ -5,6 +5,7 @@ import goalService from '../services/goalService.js';
 import goalRepository from '../models/goalRepository.js';
 import nutrientGoalPreferenceService from '../services/nutrientGoalPreferenceService.js';
 import { toolOpts } from './helpers/toolExecutionOptions.js';
+import { getDietPhaseOverview } from '../services/dietPhaseService.js';
 
 vi.mock('../services/goalService', () => ({
   default: {
@@ -21,6 +22,9 @@ vi.mock('../services/nutrientGoalPreferenceService', () => ({
   default: {
     getEffectiveGoalTypes: vi.fn(),
   },
+}));
+vi.mock('../services/dietPhaseService.js', () => ({
+  getDietPhaseOverview: vi.fn(),
 }));
 vi.mock('../config/logging', () => ({
   log: vi.fn(),
@@ -673,5 +677,86 @@ describe('sparky_get_goal_snapshot', () => {
     const result = await tools.sparky_get_goal_snapshot.execute!({}, opts);
 
     expect(result).toBe(DB_ERROR_TEXT);
+  });
+});
+
+describe('sparky_manage_goals get_diet_phases', () => {
+  const cut = {
+    id: 'cut',
+    phase_type: 'loss' as const,
+    weekly_change_kg: 0.5,
+    start_date: '2026-01-05',
+    end_date: null,
+    duration_weeks: 4,
+    target_weight_kg: 80,
+    target_reached_on: null,
+    label: 'Winter cut',
+    effective_end_date: '2026-02-01',
+  };
+  const maintain = {
+    ...cut,
+    id: 'maintain',
+    phase_type: 'maintenance' as const,
+    weekly_change_kg: 0,
+    start_date: '2026-02-02',
+    end_date: '2026-02-15',
+    duration_weeks: null,
+    target_weight_kg: null,
+    label: null,
+    effective_end_date: '2026-02-15',
+  };
+
+  it("describes today's phase, the next one and the plan", async () => {
+    vi.mocked(getDietPhaseOverview).mockResolvedValue({
+      today: '2026-01-30',
+      phases: [cut, maintain],
+      status: {
+        current: cut,
+        days_left: 3,
+        next: maintain,
+        change_on: '2026-02-02',
+        days_until_change: 3,
+        change_soon: true,
+      },
+    });
+    const result = await tools.sparky_manage_goals.execute!(
+      { action: 'get_diet_phases' },
+      opts
+    );
+    expect(getDietPhaseOverview).toHaveBeenCalledWith('user-1');
+    expect(result).toBe(
+      '**Diet phases** (today 2026-01-30)\n' +
+        'Current phase: 2026-01-05 to 2026-02-01: "Winter cut" loss 0.5 kg/week, target 80 kg (3 days left)\n' +
+        'Next phase: 2026-02-02 to 2026-02-15: maintenance\n' +
+        'Goal Mode changes on 2026-02-02.\n' +
+        '\n' +
+        'All phases:\n' +
+        '- 2026-01-05 to 2026-02-01: "Winter cut" loss 0.5 kg/week, target 80 kg\n' +
+        '- 2026-02-02 to 2026-02-15: maintenance\n' +
+        '\n' +
+        'During a phase its weekly weight change replaces Goal Mode; other settings and calorie cycling still apply. Phases are edited on the Goals page.'
+    );
+  });
+
+  it('says when no phases are planned', async () => {
+    vi.mocked(getDietPhaseOverview).mockResolvedValue({
+      today: '2026-01-30',
+      phases: [],
+      status: {
+        current: null,
+        days_left: null,
+        next: null,
+        change_on: null,
+        days_until_change: null,
+        change_soon: false,
+      },
+    });
+    const result = await tools.sparky_manage_goals.execute!(
+      { action: 'get_diet_phases' },
+      opts
+    );
+    expect(result).toBe(
+      'No diet phases are planned. Every day uses the Goal Mode from Calculation Settings.'
+    );
   });
 });

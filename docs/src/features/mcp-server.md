@@ -65,7 +65,7 @@ Monitor your weight, sleep, mood, and daily habits.
 Set targets and get consolidated performance reviews.
 
 - **Habit Tracking** (`sparky_manage_habits`): "Did I take my vitamins today?"
-- **Goal Management** (`sparky_manage_goals`): "Set a new weight goal of 175 lbs by July."
+- **Goal Management** (`sparky_manage_goals`): "Set a new weight goal of 175 lbs by July." The read-only `get_diet_phases` action answers "Which diet phase am I in, and when does it end?"
 - **Weekly Reports** (`sparky_get_report`): "Give me a weekly performance summary."
 - **Profile Settings** (`sparky_manage_profile`): "Change my energy unit to kJ."
 

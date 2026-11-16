@@ -3020,7 +3020,8 @@
       "cut15Unreachable": "Cut (-15%) — not reachable",
       "highCut20Unreachable": "High Cut (-20%) — not reachable",
       "proteinPerKgTip": "To have your protein target follow your weight, set it in g per kg on the Goals page.",
-      "dietPhaseActive": "A diet phase sets your Goal Mode today. This setting applies again on days outside your phases (Goals → Diet Phases)."
+      "dietPhaseActive": "A diet phase sets your Goal Mode today. This setting applies again on days outside your phases (Goals → Diet Phases).",
+      "dietPhaseActive": "A diet phase sets your Goal Mode today, so today's target in the Diary uses the phase's weekly change. The setting and preview here apply on days outside your phases (Goals → Diet Phases)."
     },
     "mfa": {
       "confirmPassword": "Confirm Password to Continue",
@@ -4076,7 +4077,6 @@
       "empty": "No diet phases planned. Your Goal Mode applies every day.",
       "timeline": "Phase timeline",
       "today": "Today",
-      "targetReached": "target reached",
       "target": "Target {{weight}}",
       "reachedOn": "Reached on {{date}}",
       "endToday": "End today",
@@ -4100,7 +4100,8 @@
       "errorPastLocked": "Past days keep the settings they were logged with. A phase that has started can only change from today on.",
       "saveError": "Failed to save diet phases.",
       "saveErrorTitle": "Diet phases not saved",
-      "saved": "Diet phases saved."
+      "saved": "Diet phases saved.",
+      "rangeOpen": "From {{start}} until the target is reached"
     }
   },
   "common": {
