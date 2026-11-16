@@ -55,6 +55,12 @@ interface ActiveWorkoutHeaderProps {
    * button included, stops at that edge instead of a fixed width.
    */
   statusCluster?: { left: number } | null;
+  /**
+   * The focus view's pill bar: shown instead of the title block, with the
+   * viewed exercise's position and a list button. Ignored when the buttons
+   * live in a side strip.
+   */
+  focusBar?: { position: number; total: number; onOpenList?: () => void };
 }
 
 /**
@@ -224,6 +230,7 @@ function ActiveWorkoutHeader({
   openMenuRef,
   inStatusRow = false,
   statusCluster = null,
+  focusBar,
 }: ActiveWorkoutHeaderProps) {
   const { t } = useTranslation();
   const { width: windowWidth } = useWindowDimensions();

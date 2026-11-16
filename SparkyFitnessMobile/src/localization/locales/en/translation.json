@@ -675,9 +675,10 @@
         "end": "End the hold and log the set",
         "getReady": "Get ready",
         "tapToStart": "Tap the ring to start now.",
-        "tapToEnd": "Tap the ring to end early. At 0 the set is logged.",
+        "tapToEnd": "Tap the ring to end. At 0 it keeps going until you tap.",
         "tapToStop": "Tap the ring to stop and log the set.",
-        "setOf": "Set {{number}}/{{total}}"
+        "setOf": "Set {{number}}/{{total}}",
+        "tapToEndOver": "Past the plan. Tap the ring when you are done to log the set."
       },
       "exercises": {
         "title": "Exercises",
@@ -9268,7 +9269,7 @@
       "saved": "Body fat goal saved.",
       "cleared": "Body fat goal cleared.",
       "failed": "Could not save the body fat goal."
-  },
+    },
     "perKg": {
       "title": "Grams per kg of body weight",
       "proteinSwitch": "Set protein per kg",
@@ -9293,7 +9294,7 @@
       "previewLogged": "Today's grams from your latest logged weight of {{kg}} kg: protein {{protein}} g, carbs {{carbs}} g, fat {{fat}} g.",
       "calorieMismatch": "The per-kg macros add up to {{locked}} {{unit}}, but the calorie target leaves {{available}} {{unit}} for macros.",
       "invalidReference": "Enter a reference weight in the allowed range."
-  },
+    },
     "dietPhases": {
       "typeLoss": "Loss",
       "typeGain": "Gain",

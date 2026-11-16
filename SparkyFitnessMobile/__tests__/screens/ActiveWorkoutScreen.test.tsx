@@ -326,6 +326,36 @@ jest.mock('../../src/components/ExerciseSetRestSheet', () => {
   };
 });
 
+// The post-set effort sheet and PR card have component tests; here only when
+// the screen shows them and what Save writes.
+const mockEffortSheet: { props: any } = { props: null };
+jest.mock('../../src/components/FocusEffortSheet', () => ({
+  __esModule: true,
+  effortStartValue: (metric: string) => (metric === 'rir' ? 2 : 8),
+  default: (props: any) => {
+    mockEffortSheet.props = props;
+    return null;
+  },
+}));
+const mockPrCard: { props: any } = { props: null };
+jest.mock('../../src/components/FocusPrCard', () => ({
+  __esModule: true,
+  default: (props: any) => {
+    mockPrCard.props = props;
+    return null;
+  },
+}));
+
+// The Exercises sheet has its own component test; here only its wiring.
+const mockExercisesSheet: { props: any } = { props: null };
+jest.mock('../../src/components/FocusExercisesSheet', () => ({
+  __esModule: true,
+  default: (props: any) => {
+    mockExercisesSheet.props = props;
+    return null;
+  },
+}));
+
 // Captures the custom-duration sheet's props and present args so tests can
 // assert the long-workout adjust wiring and drive onSave directly.
 const mockDurationSheet: {

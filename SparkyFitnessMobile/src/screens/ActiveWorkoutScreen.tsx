@@ -64,6 +64,14 @@ import ExerciseSetRestSheet from '../components/ExerciseSetRestSheet';
 import WorkoutDurationSheet, {
   type WorkoutDurationSheetRef,
 } from '../components/WorkoutDurationSheet';
+import FocusExercisesSheet from '../components/FocusExercisesSheet';
+import FocusSetOptionsPage from '../components/FocusSetOptionsPage';
+import FocusEffortSheet, {
+  effortStartValue,
+  type EffortMetric,
+} from '../components/FocusEffortSheet';
+import FocusPrCard from '../components/FocusPrCard';
+import { formatLocalizedNumber } from '../localization';
 import ActiveWorkoutIntervalHud from '../components/ActiveWorkoutIntervalHud';
 import ActiveWorkoutGuidedCard from '../components/ActiveWorkoutGuidedCard';
 import ActiveWorkoutNowCard from '../components/ActiveWorkoutNowCard';
@@ -87,6 +95,7 @@ import {
   useActiveWorkoutStore,
   type ActiveSetPatch,
 } from '../stores/activeWorkoutStore';
+import { useFocusHold } from '../hooks/useFocusHold';
 import {
   shouldPlaceHeaderInStatusRow,
   statusRowCluster,
@@ -392,6 +401,9 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
     [warmupWeightKg, weightUnit, session]
   );
 
+  const handleReorderMove = useCallback((from: number, to: number) => {
+    useActiveWorkoutStore.getState().reorderExercises(from, to);
+  }, []);
   const [exercisesSheetVisible, setExercisesSheetVisible] = useState(false);
   const handleOpenExercisesSheet = useCallback(() => {
     Keyboard.dismiss();
@@ -1437,6 +1449,16 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
           startedAt={startedAt}
           progress={progress}
           progressInSubtitle={focusMode}
+          focusBar={
+            focusMode
+              ? {
+                  position:
+                    Math.min(focusIndex, session.exercises.length - 1) + 1,
+                  total: session.exercises.length,
+                  onOpenList: handleOpenExercisesSheet,
+                }
+              : undefined
+          }
           onBack={safeGoBack}
           onDiscard={handleDiscard}
           onEndWorkout={handleConfirmEnd}
