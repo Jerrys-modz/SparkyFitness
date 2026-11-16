@@ -29,8 +29,10 @@ export interface ExpandedGoals {
   fat_percentage: number | null;
   /** Grams per kg of body weight or lean mass; null = grams or percentage. */
   protein_per_kg?: number | null;
+  carbs_per_kg?: number | null;
   fat_per_kg?: number | null;
   macro_per_kg_basis?: MacroWeightBasis;
+  macro_reference_weight_kg?: number | null;
   breakfast_percentage: number;
   lunch_percentage: number;
   dinner_percentage: number;
@@ -71,8 +73,10 @@ export interface GoalPreset {
   fat_percentage: number | null;
   /** Grams per kg of body weight or lean mass; null = grams or percentage. */
   protein_per_kg?: number | null;
+  carbs_per_kg?: number | null;
   fat_per_kg?: number | null;
   macro_per_kg_basis?: MacroWeightBasis;
+  macro_reference_weight_kg?: number | null;
   breakfast_percentage: number;
   lunch_percentage: number;
   dinner_percentage: number;

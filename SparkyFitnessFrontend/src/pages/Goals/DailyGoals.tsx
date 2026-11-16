@@ -126,7 +126,7 @@ export const DailyGoals = ({
   const perKgPreview = useMacroPerKgPreview(goals, macroInputType, today);
   const lockedMacros = {
     protein: goals.protein_per_kg != null,
-    carbs: false,
+    carbs: goals.carbs_per_kg != null,
     fat: goals.fat_per_kg != null,
   };
   // With protein or fat per kg the percentages only weight the remainder.

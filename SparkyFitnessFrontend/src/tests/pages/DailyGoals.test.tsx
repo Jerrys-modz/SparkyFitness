@@ -13,6 +13,8 @@ jest.mock('@/contexts/PreferencesContext', () => ({
     energyUnit: 'kcal',
     convertEnergy: (val: number) => val,
     getEnergyUnitString: () => 'kcal',
+    weightUnit: 'kg',
+    convertWeight: (val: number) => val,
   }),
 }));
 
@@ -121,7 +123,7 @@ describe('DailyGoals - protein per kg', () => {
     // 160 g protein; 2000 - 640 = 1360 kcal shared 40:30 by carbs and fat.
     expect(
       screen.getByText(
-        "Today's grams from 80 kg: protein 160 g, carbs 194 g, fat 65 g."
+        "Today's grams from your latest logged weight of 80 kg: protein 160 g, carbs 194 g, fat 65 g."
       )
     ).toBeInTheDocument();
     // Percentages only weight the remainder, so no 100% total is required.
@@ -154,6 +156,50 @@ describe('DailyGoals - protein per kg', () => {
 
     expect(
       screen.getByText(/body weight is used instead of lean mass/)
+    ).toBeInTheDocument();
+  });
+
+  it('uses a fixed reference weight instead of the latest weight', () => {
+    mockLatestCheckIn.data = { weight: 90, body_fat_percentage: null };
+    renderGoals({
+      ...(DEFAULT_GOALS as ExpandedGoals),
+      protein: 150,
+      carbs: 200,
+      fat: 70,
+      protein_percentage: null,
+      carbs_percentage: null,
+      fat_percentage: null,
+      protein_per_kg: 2,
+      macro_reference_weight_kg: 75,
+    });
+
+    expect(
+      screen.getByText(
+        /Grams from your reference weight of 75 kg: protein 150 g/
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText('Reference weight (kg)')).toHaveValue(75);
+  });
+
+  it('locks carbs per kg and notes when the per-kg macros exceed the target', () => {
+    mockLatestCheckIn.data = { weight: 80, body_fat_percentage: null };
+    renderGoals({
+      ...(DEFAULT_GOALS as ExpandedGoals),
+      calories: 2000,
+      dietary_fiber: 0,
+      protein_percentage: 30,
+      carbs_percentage: 40,
+      fat_percentage: 30,
+      protein_per_kg: 2,
+      carbs_per_kg: 4,
+      fat_per_kg: 1,
+    });
+
+    expect(screen.getByText(/carbs 320 g/)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'The per-kg macros add up to 2640 kcal, but the calorie target leaves 2000 kcal for macros.'
+      )
     ).toBeInTheDocument();
   });
 

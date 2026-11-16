@@ -48,7 +48,9 @@ import {
 import customNutrientService from './customNutrientService.js';
 import {
   bodyMeasurementsOnOrBefore,
+  followsLoggedWeight,
   macroGramsToStore,
+  macroPerKgTargetInput,
   readMacroPerKgInput,
   storedMacroPerKgFields,
 } from '../utils/macroPerKgGoal.js';
@@ -750,9 +752,11 @@ async function getUserGoalsForRange(
         );
         macroCalories += credit;
       }
-      // Protein or fat per kg (#1955): locked at grams from the latest weight
-      // on or before the day; the other macros share what is left.
-      if (perKgMode) await loadMeasurements();
+      // Macros per kg (#3617, #1955): locked at grams from the fixed reference
+      // weight, or the latest weight on or before the day; the other macros
+      // share what is left.
+      const usesLoggedWeight = perKgMode && followsLoggedWeight(perKgFields);
+      if (usesLoggedWeight) await loadMeasurements();
       const targets = computeMacroTargets({
         calories: macroCalories,
         dietaryFiber: processedGoals.dietary_fiber as number | null,
@@ -760,13 +764,11 @@ async function getUserGoalsForRange(
         carbs: processedGoals.carbs as number | null,
         fat: processedGoals.fat as number | null,
         ...macroGoal,
-        proteinPerKg: perKgFields.protein_per_kg,
-        fatPerKg: perKgFields.fat_per_kg,
-        basis: perKgFields.macro_per_kg_basis,
-        weightKg: perKgMode
+        ...macroPerKgTargetInput(perKgFields),
+        weightKg: usesLoggedWeight
           ? getMeasurementFieldForDate(dateStr, 'weight')
           : null,
-        bodyFatPercentage: perKgMode
+        bodyFatPercentage: usesLoggedWeight
           ? getMeasurementFieldForDate(dateStr, 'body_fat_percentage')
           : null,
       });
@@ -933,14 +935,17 @@ async function manageGoalTimeline(authenticatedUserId: string, goalData: any) {
         `manageGoalTimeline - Using provided grams: Protein ${protein_to_store}, Carbs ${protein_to_store}, Fat ${fat_to_store}. Percentages were not all valid numbers.`
       );
     }
-    // Protein or fat per kg: lock the grams from the weight on the start day.
+    // Macros per kg: lock the grams from the fixed reference weight, or the
+    // weight on the start day.
     // Those grams are saved with the goal, as the fallback for a day with no
     // weight logged and for older clients. A client that predates per-kg goals
     // sends none of the fields; keep the setting already in force that day.
     const perKgInput = readMacroPerKgInput(goalData, {
       protein: 'p_protein_per_kg',
+      carbs: 'p_carbs_per_kg',
       fat: 'p_fat_per_kg',
       basis: 'p_macro_per_kg_basis',
+      referenceWeight: 'p_macro_reference_weight_kg',
     });
     const perKgFields = perKgInput.supplied
       ? perKgInput.fields
@@ -967,7 +972,9 @@ async function manageGoalTimeline(authenticatedUserId: string, goalData: any) {
           fatPercentage: p_fat_percentage,
         },
         perKgFields,
-        await bodyMeasurementsOnOrBefore(authenticatedUserId, p_start_date)
+        followsLoggedWeight(perKgFields)
+          ? await bodyMeasurementsOnOrBefore(authenticatedUserId, p_start_date)
+          : { weightKg: null, bodyFatPercentage: null }
       );
       protein_to_store = grams.protein;
       carbs_to_store = grams.carbs;

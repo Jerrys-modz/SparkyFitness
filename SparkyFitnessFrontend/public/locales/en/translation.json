@@ -4031,7 +4031,6 @@
     },
     "perKg": {
       "title": "Grams per kg of body weight",
-      "description": "Protein and fat can follow your weight: the grams are worked out each day from the latest weight logged on or before it.",
       "proteinSwitch": "Set protein per kg",
       "fatSwitch": "Set fat per kg",
       "proteinInput": "Protein (g/kg)",
@@ -4039,11 +4038,21 @@
       "basisLabel": "Per kg of",
       "bodyWeight": "Body weight",
       "leanMass": "Lean mass (uses body fat %)",
-      "noWeight": "No weight logged yet. Log your weight in Check-In to use this goal; until then the grams saved with it are used ({{protein}} g protein).",
-      "preview": "Today's grams from {{kg}} kg: protein {{protein}} g, carbs {{carbs}} g, fat {{fat}} g.",
       "leanMassFallback": "No body fat % logged, so body weight is used instead of lean mass.",
       "remainderPercentages": "Per-kg macros are fixed first. The calories left go to the other macros in proportion to their percentages, so the percentages no longer need to add up to 100.",
-      "remainderGrams": "The other macros keep the grams you enter."
+      "remainderGrams": "The other macros keep the grams you enter.",
+      "descriptionAll": "Set protein, carbs or fat in grams per kg. They can follow your latest logged weight, or a reference weight you enter.",
+      "carbsSwitch": "Set carbs per kg",
+      "carbsInput": "Carbs (g/kg)",
+      "referenceLabel": "Weight to use",
+      "followLogged": "Follow my logged weight",
+      "fixedReference": "Fixed reference weight",
+      "referenceWeight": "Reference weight ({{unit}})",
+      "referenceLeanMass": "Reference lean mass ({{unit}})",
+      "noWeightAll": "No weight logged yet. Log your weight in Check-In or enter a fixed reference weight; until then the grams saved with the goal are used.",
+      "previewFixed": "Grams from your reference weight of {{kg}} kg: protein {{protein}} g, carbs {{carbs}} g, fat {{fat}} g. They change only when you save a new reference weight.",
+      "previewLogged": "Today's grams from your latest logged weight of {{kg}} kg: protein {{protein}} g, carbs {{carbs}} g, fat {{fat}} g.",
+      "calorieMismatch": "The per-kg macros add up to {{locked}} {{unit}}, but the calorie target leaves {{available}} {{unit}} for macros."
     }
   },
   "common": {

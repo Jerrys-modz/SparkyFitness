@@ -176,7 +176,7 @@ const EditGoalsForm = ({
   );
   const lockedMacros = {
     protein: goals.protein_per_kg != null,
-    carbs: false,
+    carbs: goals.carbs_per_kg != null,
     fat: goals.fat_per_kg != null,
   };
   // With protein or fat per kg the percentages only weight the remainder.
@@ -536,6 +536,7 @@ const EditGoalsForToday = ({ selectedDate }: EditGoalsProps) => {
       !clear &&
       // Per-kg grams are already worked out from the weight by the form.
       finalGoals.protein_per_kg == null &&
+      finalGoals.carbs_per_kg == null &&
       finalGoals.fat_per_kg == null &&
       finalGoals.protein_percentage !== null &&
       finalGoals.protein_percentage !== undefined

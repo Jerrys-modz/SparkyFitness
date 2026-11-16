@@ -54,6 +54,8 @@ import {
   hasMacroPercentages,
   isMacroWeightBasis,
   normalizeMacroPerKg,
+  normalizeMacroReferenceWeight,
+  resolveMacroBasisWeight,
   DEFAULT_MACRO_WEIGHT_BASIS,
   type AlgorithmBundle,
   type UserNutrientData,
@@ -73,6 +75,8 @@ import {
   WATER_UNIT_LABELS,
   volumeFromMl,
   volumeToMl,
+  weightFromKg,
+  weightToKg,
 } from '../utils/unitConversions';
 import { energyUnitLabel, roundedEnergy } from '../utils/energyUnit';
 import EnergyFormInput from '../components/EnergyFormInput';
@@ -172,19 +176,38 @@ const toDrafts = (
 
 const parseDraft = (text: string): number => Number(text.replace(',', '.'));
 
-// The per-kg protein/fat setting a goal row carries (NUMERIC may arrive as a
+// The per-kg macro setting a goal row carries (NUMERIC may arrive as a
 // string from the server).
 const toPerKg = (goals: DailyGoals): MacroPerKgValue => ({
   protein_per_kg: normalizeMacroPerKg('protein', goals.protein_per_kg),
+  carbs_per_kg: normalizeMacroPerKg('carbs', goals.carbs_per_kg),
   fat_per_kg: normalizeMacroPerKg('fat', goals.fat_per_kg),
   macro_per_kg_basis: isMacroWeightBasis(goals.macro_per_kg_basis)
     ? goals.macro_per_kg_basis
     : DEFAULT_MACRO_WEIGHT_BASIS,
+  macro_reference_weight_kg: normalizeMacroReferenceWeight(
+    goals.macro_reference_weight_kg
+  ),
 });
 
-const toPerKgDrafts = (value: MacroPerKgValue): MacroPerKgDrafts => ({
-  protein: value.protein_per_kg === null ? '' : String(value.protein_per_kg),
-  fat: value.fat_per_kg === null ? '' : String(value.fat_per_kg),
+const draftNumber = (value: number | null): string =>
+  value === null ? '' : String(value);
+
+const toPerKgDrafts = (
+  value: MacroPerKgValue,
+  weightUnit: 'kg' | 'lbs'
+): MacroPerKgDrafts => ({
+  protein: draftNumber(value.protein_per_kg),
+  carbs: draftNumber(value.carbs_per_kg),
+  fat: draftNumber(value.fat_per_kg),
+  reference:
+    value.macro_reference_weight_kg === null
+      ? ''
+      : String(
+          Math.round(
+            weightFromKg(value.macro_reference_weight_kg, weightUnit) * 10
+          ) / 10
+        ),
 });
 
 const positiveOrNull = (value: unknown): number | null => {
@@ -230,9 +253,17 @@ const PRESET_KEYS: (keyof DailyGoals)[] = [
   'custom_meal_percentages',
   'custom_nutrients',
   'protein_per_kg',
+  'carbs_per_kg',
   'fat_per_kg',
   'macro_per_kg_basis',
+  'macro_reference_weight_kg',
 ];
+
+const PER_KG_FIELD = {
+  protein: 'protein_per_kg',
+  carbs: 'carbs_per_kg',
+  fat: 'fat_per_kg',
+} as const;
 
 const pickPresetValues = (goals: DailyGoals): DailyGoals =>
   Object.fromEntries(
@@ -342,9 +373,15 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
   const { profile } = useProfile();
   const { latestMeasurements } = useLatestMeasurementsOnOrBefore({ date });
   const [base, setBase] = useState(goals);
+  // Stones are typed as pounds, as elsewhere.
+  const weightUnit: 'kg' | 'lbs' =
+    preferences?.default_weight_unit === 'lbs' ||
+    preferences?.default_weight_unit === 'st_lbs'
+      ? 'lbs'
+      : 'kg';
   const [perKg, setPerKg] = useState(() => toPerKg(goals));
   const [perKgDrafts, setPerKgDrafts] = useState(() =>
-    toPerKgDrafts(toPerKg(goals))
+    toPerKgDrafts(toPerKg(goals), weightUnit)
   );
   const [initialDrafts, setInitialDrafts] = useState(() =>
     toDrafts(goals, waterUnit)
@@ -540,7 +577,7 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
 
   const { plans } = useWeeklyGoalPlans();
 
-  // Protein/fat per kg (the server works the day's grams out the same way).
+  // Macros per kg (the server works the day's grams out the same way).
   const macroPercentages = {
     proteinPercentage: base.protein_percentage ?? null,
     carbsPercentage: base.carbs_percentage ?? null,
@@ -555,13 +592,22 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
     fat: parseDraft(drafts.fat),
     ...macroPercentages,
     proteinPerKg: perKg.protein_per_kg,
+    carbsPerKg: perKg.carbs_per_kg,
     fatPerKg: perKg.fat_per_kg,
     basis: perKg.macro_per_kg_basis,
+    referenceWeightKg: perKg.macro_reference_weight_kg,
     weightKg: positiveOrNull(latestMeasurements?.weight),
     bodyFatPercentage: positiveOrNull(latestMeasurements?.body_fat_percentage),
   });
+  // The latest weight in the chosen basis: what a fixed one is prefilled with.
+  const latestBasisKg = resolveMacroBasisWeight(
+    positiveOrNull(latestMeasurements?.weight),
+    positiveOrNull(latestMeasurements?.body_fat_percentage),
+    perKg.macro_per_kg_basis
+  ).basisKg;
   const perKgLocked = {
     protein: perKg.protein_per_kg !== null,
+    carbs: perKg.carbs_per_kg !== null,
     fat: perKg.fat_per_kg !== null,
   };
 
@@ -634,8 +680,22 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
         };
       }
     }
-    for (const macro of ['protein', 'fat'] as const) {
-      const field = macro === 'protein' ? 'protein_per_kg' : 'fat_per_kg';
+    const referenceDraftInvalid =
+      perKg.macro_reference_weight_kg !== null &&
+      normalizeMacroReferenceWeight(
+        weightToKg(parseDraft(perKgDrafts.reference), weightUnit)
+      ) === null;
+    if (referenceDraftInvalid) {
+      Toast.show({
+        type: 'error',
+        text1: t('goals.perKg.invalidReference', {
+          defaultValue: 'Enter a reference weight in the allowed range.',
+        }),
+      });
+      return null;
+    }
+    for (const macro of ['protein', 'carbs', 'fat'] as const) {
+      const field = PER_KG_FIELD[macro];
       if (
         perKg[field] !== null &&
         normalizeMacroPerKg(macro, parseDraft(perKgDrafts[macro])) === null
@@ -650,8 +710,10 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
       }
     }
     next.protein_per_kg = perKg.protein_per_kg;
+    next.carbs_per_kg = perKg.carbs_per_kg;
     next.fat_per_kg = perKg.fat_per_kg;
     next.macro_per_kg_basis = perKg.macro_per_kg_basis;
+    next.macro_reference_weight_kg = perKg.macro_reference_weight_kg;
     if (perKgPreview.perKg) {
       next.protein = Math.round(perKgPreview.protein);
       next.carbs = Math.round(perKgPreview.carbs);
@@ -681,6 +743,7 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
     perKg,
     perKgDrafts,
     perKgPreview,
+    weightUnit,
     t,
   ]);
 
@@ -840,7 +903,7 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
     setBase(nextBase);
     const nextPerKg = toPerKg(nextBase);
     setPerKg(nextPerKg);
-    setPerKgDrafts(toPerKgDrafts(nextPerKg));
+    setPerKgDrafts(toPerKgDrafts(nextPerKg, weightUnit));
     setInitialDrafts(nextDrafts);
     setDrafts(nextDrafts);
     setInitialCustomDrafts(nextCustomDrafts);
@@ -963,7 +1026,8 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
             accessibilityLabel={labels[field]}
             testID={`goal-input-${field}`}
           />
-        ) : (field === 'protein' || field === 'fat') && perKgLocked[field] ? (
+        ) : (field === 'protein' || field === 'carbs' || field === 'fat') &&
+          perKgLocked[field] ? (
           // Set per kg: shows the grams for today's weight, edited below.
           <FormInput
             value={String(Math.round(perKgPreview[field]))}
@@ -1098,6 +1162,8 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
         value={perKg}
         drafts={perKgDrafts}
         preview={perKgPreview}
+        latestBasisKg={latestBasisKg}
+        weightUnit={weightUnit}
         percentMode={percentMode}
         onChange={(value, nextDrafts) => {
           setPerKg(value);

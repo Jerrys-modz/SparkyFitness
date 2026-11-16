@@ -4,13 +4,17 @@ import { MACRO_WEIGHT_BASES } from '../../utils/macroPerKg.ts';
 /** How a day's per-kg protein/fat goal was turned into grams. */
 export const macroPerKgResolutionSchema = z.object({
   protein_per_kg: z.number().nullable(),
+  carbs_per_kg: z.number().nullable().optional(),
   fat_per_kg: z.number().nullable(),
   requested_basis: z.enum(MACRO_WEIGHT_BASES),
   basis_used: z.enum(MACRO_WEIGHT_BASES).nullable(),
   basis_kg: z.number().nullable(),
   weight_kg: z.number().nullable(),
+  reference: z.enum(['fixed', 'logged']).optional(),
   missing_weight: z.boolean(),
   lean_mass_fallback: z.boolean(),
+  locked_kcal: z.number().optional(),
+  available_kcal: z.number().optional(),
 });
 
 export const dailyGoalsResponseSchema = z.object({
@@ -42,7 +46,9 @@ export const dailyGoalsResponseSchema = z.object({
   fat_percentage: z.number().nullable(),
   // Optional so older servers still parse: grams per kg of body weight or lean mass.
   protein_per_kg: z.number().nullable().optional(),
+  carbs_per_kg: z.number().nullable().optional(),
   fat_per_kg: z.number().nullable().optional(),
+  macro_reference_weight_kg: z.number().nullable().optional(),
   macro_per_kg_basis: z.enum(MACRO_WEIGHT_BASES).optional(),
   macro_per_kg: macroPerKgResolutionSchema.nullable().optional(),
   breakfast_percentage: z.number(),

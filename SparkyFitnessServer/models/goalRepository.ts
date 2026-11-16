@@ -13,7 +13,8 @@ async function getGoalByDate(userId: any, selectedDate: any) {
                protein_percentage, carbs_percentage, fat_percentage,
                breakfast_percentage, lunch_percentage, dinner_percentage, snacks_percentage,
                custom_meal_percentages, custom_nutrients,
-               protein_per_kg, fat_per_kg, macro_per_kg_basis
+               protein_per_kg, carbs_per_kg, fat_per_kg, macro_per_kg_basis,
+               macro_reference_weight_kg
         FROM user_goals
         WHERE user_id = $1 AND goal_date = $2
         ORDER BY updated_at DESC, created_at DESC -- Prioritize most recently updated/created
@@ -41,7 +42,8 @@ async function getAllHistoricalGoals(userId: string) {
               protein_percentage, carbs_percentage, fat_percentage,
               breakfast_percentage, lunch_percentage, dinner_percentage, snacks_percentage,
               custom_meal_percentages, custom_nutrients,
-               protein_per_kg, fat_per_kg, macro_per_kg_basis
+               protein_per_kg, carbs_per_kg, fat_per_kg, macro_per_kg_basis,
+               macro_reference_weight_kg
        FROM user_goals
        WHERE user_id = $1
        ORDER BY goal_date DESC, updated_at DESC, created_at DESC`,
@@ -72,7 +74,8 @@ async function getGoalsInRange(
               protein_percentage, carbs_percentage, fat_percentage,
               breakfast_percentage, lunch_percentage, dinner_percentage, snacks_percentage,
               custom_meal_percentages, custom_nutrients,
-               protein_per_kg, fat_per_kg, macro_per_kg_basis
+               protein_per_kg, carbs_per_kg, fat_per_kg, macro_per_kg_basis,
+               macro_reference_weight_kg
        FROM user_goals
        WHERE user_id = $1
          AND goal_date BETWEEN $2 AND $3
@@ -99,7 +102,8 @@ async function getMostRecentGoalBeforeDate(userId: any, selectedDate: any) {
                protein_percentage, carbs_percentage, fat_percentage,
                breakfast_percentage, lunch_percentage, dinner_percentage, snacks_percentage,
                custom_meal_percentages, custom_nutrients,
-               protein_per_kg, fat_per_kg, macro_per_kg_basis
+               protein_per_kg, carbs_per_kg, fat_per_kg, macro_per_kg_basis,
+               macro_reference_weight_kg
         FROM user_goals
         WHERE user_id = $1 AND (goal_date < $2 OR goal_date IS NULL)
         ORDER BY goal_date DESC NULLS LAST
@@ -126,9 +130,10 @@ async function upsertGoal(goalData: any) {
         breakfast_percentage, lunch_percentage, dinner_percentage, snacks_percentage,
         custom_meal_percentages, custom_nutrients, created_at, updated_at,
         caffeine_mg, alcohol_g, target_steps,
-        protein_per_kg, fat_per_kg, macro_per_kg_basis
+        protein_per_kg, fat_per_kg, macro_per_kg_basis,
+        carbs_per_kg, macro_reference_weight_kg
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $38, $39, COALESCE($40, 'body_weight'))
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $38, $39, COALESCE($40, 'body_weight'), $41, $42)
       ON CONFLICT (user_id, COALESCE(goal_date, '1900-01-01'::date))
       DO UPDATE SET
         calories = EXCLUDED.calories,
@@ -167,6 +172,8 @@ async function upsertGoal(goalData: any) {
         protein_per_kg = EXCLUDED.protein_per_kg,
         fat_per_kg = EXCLUDED.fat_per_kg,
         macro_per_kg_basis = EXCLUDED.macro_per_kg_basis,
+        carbs_per_kg = EXCLUDED.carbs_per_kg,
+        macro_reference_weight_kg = EXCLUDED.macro_reference_weight_kg,
         updated_at = now()
       RETURNING *`,
       [
@@ -210,6 +217,8 @@ async function upsertGoal(goalData: any) {
         goalData.protein_per_kg ?? null,
         goalData.fat_per_kg ?? null,
         goalData.macro_per_kg_basis ?? null,
+        goalData.carbs_per_kg ?? null,
+        goalData.macro_reference_weight_kg ?? null,
       ]
     );
     return result.rows[0];

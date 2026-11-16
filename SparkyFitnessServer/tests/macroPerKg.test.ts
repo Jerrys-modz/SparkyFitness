@@ -3,6 +3,7 @@ import {
   computeMacroTargets,
   hasMacroPerKg,
   normalizeMacroPerKg,
+  normalizeMacroReferenceWeight,
   resolveMacroBasisWeight,
 } from '@workspace/shared';
 
@@ -183,5 +184,97 @@ describe('computeMacroTargets', () => {
     expect(result.carbs).toBe(0);
     expect(result.protein).toBe(300);
     expect(result.fat).toBe(150);
+  });
+});
+
+describe('computeMacroTargets with carbs and a fixed reference weight (#3617)', () => {
+  const percentages = {
+    proteinPercentage: 30,
+    carbsPercentage: 40,
+    fatPercentage: 30,
+  };
+
+  it('uses the fixed reference weight instead of the logged weight', () => {
+    const result = computeMacroTargets({
+      calories: 2000,
+      ...percentages,
+      proteinPerKg: 2,
+      referenceWeightKg: 80,
+      weightKg: 76,
+    });
+    expect(result.protein).toBe(160);
+    expect(result.perKg).toMatchObject({
+      reference: 'fixed',
+      basis_kg: 80,
+      weight_kg: 80,
+      missing_weight: false,
+    });
+  });
+
+  it('works without any logged weight when the reference is fixed', () => {
+    const result = computeMacroTargets({
+      calories: 2000,
+      protein: 100,
+      proteinPerKg: 2,
+      referenceWeightKg: 70,
+      weightKg: null,
+    });
+    expect(result.protein).toBe(140);
+    expect(result.perKg?.missing_weight).toBe(false);
+  });
+
+  it('treats a fixed reference weight as the lean mass for the lean-mass basis', () => {
+    const result = computeMacroTargets({
+      calories: 2000,
+      proteinPerKg: 2.5,
+      basis: 'lean_mass',
+      referenceWeightKg: 60,
+      weightKg: 80,
+      bodyFatPercentage: 20,
+    });
+    expect(result.protein).toBe(150);
+    expect(result.perKg).toMatchObject({
+      basis_used: 'lean_mass',
+      lean_mass_fallback: false,
+    });
+  });
+
+  it('locks carbs per kg and splits the rest between protein and fat', () => {
+    const result = computeMacroTargets({
+      calories: 2400,
+      ...percentages,
+      carbsPerKg: 4,
+      weightKg: 70,
+    });
+    expect(result.carbs).toBe(280);
+    // 2400 - 1120 = 1280 kcal, protein and fat 30:30.
+    expect(result.protein).toBeCloseTo(640 / 4);
+    expect(result.fat).toBeCloseTo(640 / 9);
+    expect(result.perKg?.carbs_per_kg).toBe(4);
+  });
+
+  it('reports the calories of the per-kg macros against the target', () => {
+    const result = computeMacroTargets({
+      calories: 2000,
+      ...percentages,
+      proteinPerKg: 2,
+      carbsPerKg: 4,
+      fatPerKg: 1,
+      weightKg: 80,
+    });
+    expect(result.protein).toBe(160);
+    expect(result.carbs).toBe(320);
+    expect(result.fat).toBe(80);
+    // 640 + 1280 + 720 kcal, more than the 2000 kcal target.
+    expect(result.perKg?.locked_kcal).toBe(2640);
+    expect(result.perKg?.available_kcal).toBe(2000);
+  });
+
+  it('checks the carbs and reference weight limits', () => {
+    expect(normalizeMacroPerKg('carbs', 0.4)).toBeNull();
+    expect(normalizeMacroPerKg('carbs', 12)).toBe(12);
+    expect(normalizeMacroReferenceWeight(19)).toBeNull();
+    expect(normalizeMacroReferenceWeight('80.50')).toBe(80.5);
+    expect(hasMacroPerKg({ carbs_per_kg: '5' })).toBe(true);
   });
 });
