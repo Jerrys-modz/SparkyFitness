@@ -3,6 +3,7 @@ import {
   fetchGoalWeightPlan,
   fetchProfile,
   saveTargetWeight,
+  updateTargetBodyFat,
 } from '../services/api/profileApi';
 import { goalWeightPlanQueryKey, profileQueryKey } from './queryKeys';
 
@@ -55,4 +56,15 @@ export function useGoalWeightPlan(enabled: boolean) {
     enabled,
   });
   return { plan: query.data, isLoading: query.isLoading };
+}
+
+/** Saves or clears the body fat goal, then refreshes the profile it is read from. */
+export function useSetTargetBodyFat() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (targetBodyFatPercentage: number | null) =>
+      updateTargetBodyFat(targetBodyFatPercentage),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: profileQueryKey }),
+  });
 }

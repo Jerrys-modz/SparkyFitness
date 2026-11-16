@@ -3,6 +3,7 @@ import {
   getGoalWeightPlan,
   getOnboardingStatus,
   resetOnboardingStatus,
+  setTargetBodyFat,
   setTargetWeight,
   skipOnboarding,
   submitOnboardingData,
@@ -136,6 +137,31 @@ export const useGoalWeightPlan = (enabled: boolean) => {
       errorMessage: t(
         'goals.goalsSettings.goalWeightPlanLoadFailed',
         'Failed to load the goal weight plan.'
+      ),
+    },
+  });
+};
+
+export const useSetTargetBodyFat = (userId: string) => {
+  const queryClient = useQueryClient();
+  const { t } = useTranslation();
+
+  return useMutation({
+    mutationFn: (targetBodyFatPercentage: number | null) =>
+      setTargetBodyFat(targetBodyFatPercentage),
+    onSuccess: () => {
+      return queryClient.invalidateQueries({
+        queryKey: userKeys.profile(userId),
+      });
+    },
+    meta: {
+      errorMessage: t(
+        'goals.goalsSettings.bodyFatGoalSaveFailed',
+        'Failed to save body fat goal.'
+      ),
+      successMessage: t(
+        'goals.goalsSettings.bodyFatGoalSaved',
+        'Body fat goal saved.'
       ),
     },
   });

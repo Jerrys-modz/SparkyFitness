@@ -227,6 +227,77 @@ describe('Onboarding Routes', () => {
     });
   });
 
+  // --- PUT /onboarding/target-body-fat ---
+  describe('PUT /onboarding/target-body-fat', () => {
+    it('saves a target rounded to one decimal', async () => {
+      // @ts-expect-error TS(2339)
+      onboardingService.setTargetBodyFat.mockResolvedValue(undefined);
+
+      const res = await request(app)
+        .put('/onboarding/target-body-fat')
+        .send({ targetBodyFatPercentage: 15.04 });
+
+      expect(res.statusCode).toEqual(200);
+      expect(res.body).toEqual({ targetBodyFatPercentage: 15 });
+      expect(onboardingService.setTargetBodyFat).toHaveBeenCalledWith(
+        'testUserId',
+        15
+      );
+    });
+
+    it('clears the target with null', async () => {
+      // @ts-expect-error TS(2339)
+      onboardingService.setTargetBodyFat.mockResolvedValue(undefined);
+
+      const res = await request(app)
+        .put('/onboarding/target-body-fat')
+        .send({ targetBodyFatPercentage: null });
+
+      expect(res.statusCode).toEqual(200);
+      expect(onboardingService.setTargetBodyFat).toHaveBeenCalledWith(
+        'testUserId',
+        null
+      );
+    });
+
+    it.each([2.9, 60.1, -5, 'twenty', undefined])(
+      'refuses %s with 400',
+      async (value) => {
+        const res = await request(app)
+          .put('/onboarding/target-body-fat')
+          .send({ targetBodyFatPercentage: value });
+
+        expect(res.statusCode).toEqual(400);
+        expect(onboardingService.setTargetBodyFat).not.toHaveBeenCalled();
+      }
+    );
+
+    it('accepts the range ends', async () => {
+      // @ts-expect-error TS(2339)
+      onboardingService.setTargetBodyFat.mockResolvedValue(undefined);
+
+      for (const value of [3, 60]) {
+        const res = await request(app)
+          .put('/onboarding/target-body-fat')
+          .send({ targetBodyFatPercentage: value });
+        expect(res.statusCode).toEqual(200);
+      }
+    });
+
+    it('returns 500 when the service throws', async () => {
+      // @ts-expect-error TS(2339)
+      onboardingService.setTargetBodyFat.mockRejectedValue(
+        new Error('DB failure')
+      );
+
+      const res = await request(app)
+        .put('/onboarding/target-body-fat')
+        .send({ targetBodyFatPercentage: 20 });
+
+      expect(res.statusCode).toEqual(500);
+    });
+  });
+
   // --- GET /onboarding/status ---
   describe('GET /onboarding/status', () => {
     it('should return onboardingComplete and onboardingSkipped when not complete', async () => {
@@ -385,6 +456,13 @@ describe('Onboarding Routes', () => {
         '/onboarding/target-weight',
         { targetWeight: 70 },
         'setTargetWeight',
+      ],
+      [
+        'setting the body fat goal',
+        'put',
+        '/onboarding/target-body-fat',
+        { targetBodyFatPercentage: 18 },
+        'setTargetBodyFat',
       ],
       [
         'skipping onboarding',

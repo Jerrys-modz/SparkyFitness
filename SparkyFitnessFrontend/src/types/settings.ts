@@ -85,6 +85,8 @@ export interface Profile {
   target_weight?: string | number | null;
   /** YYYY-MM-DD day to reach the goal weight, when set. */
   target_weight_date?: string | null;
+  /** NUMERIC(4,1) percent, so it arrives as a string. */
+  target_body_fat_percentage?: string | number | null;
 }
 
 export interface ProfileFormState {

@@ -10,4 +10,9 @@ export interface UserProfile {
   target_weight: string | number | null;
   /** YYYY-MM-DD day to reach the goal weight; absent from older servers. */
   target_weight_date?: string | null;
+  /**
+   * Body fat goal in percent, a NUMERIC(4,1) column (so a string). Optional:
+   * a server from before the body fat goal does not send it.
+   */
+  target_body_fat_percentage?: string | number | null;
 }

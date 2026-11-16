@@ -8954,7 +8954,8 @@
       "useLossPace": "Use lose {{pace}} {{unit}} a week",
       "useGainPace": "Use gain {{pace}} {{unit}} a week",
       "useHighCut": "Use {{mode}}",
-      "switchToMaintain": "Switch calorie goal to {{mode}}"
+      "switchToMaintain": "Switch calorie goal to {{mode}}",
+      "bodyFat": "Body fat goal"
     },
     "meals": {
       "mustBe100": "Meal percentages must total 100%.",
@@ -9085,7 +9086,18 @@
     "adaptiveNoteTodayWithUnit": "Adaptive mode is on, so your calorie goal changes daily. Today it is {{calories}} {{unit}}. The baseline below sets how far above or below your estimated maintenance you aim to be; it is not a fixed daily target.",
     "cyclingNoteTodayWithUnit": "Calorie cycling is on, so the calories below are your base target and each day is higher or lower. Today it is {{calories}} {{unit}}.",
     "cyclingPausedWeeklyPlan": "Calorie cycling is paused today by an active weekly goal plan. The calories below set today’s plan target directly.",
-    "adjustedGoalFailed": "Could not load today’s adjusted goal target."
+    "adjustedGoalFailed": "Could not load today’s adjusted goal target.",
+    "bodyFat": {
+      "description": "Your target body fat percentage, for body recomposition. The Body fat chart in Reports draws it as a goal line, projects when you will reach it and estimates the weight it means at your current lean mass.",
+      "methodNote": "Body fat readings vary a lot between methods (smart scales, calipers, tape formulas, DEXA) and even day to day on the same scale. Compare readings from one method, taken the same way.",
+      "placeholder": "Body fat goal (%)",
+      "invalid": "Enter a body fat goal from {{min}}% to {{max}}%.",
+      "save": "Save body fat goal",
+      "clear": "Clear",
+      "saved": "Body fat goal saved.",
+      "cleared": "Body fat goal cleared.",
+      "failed": "Could not save the body fat goal."
+    }
   },
   "reports": {
     "title": "Reports",
@@ -9486,7 +9498,13 @@
     "insightWaistDown": "Your waist is down {{amount}}.",
     "insightWaistUp": "Your waist is up {{amount}}.",
     "insightToGoal": "You are {{amount}} from your goal weight.",
-    "insightSteps": "You averaged {{steps}} steps on the days you recorded them."
+    "insightSteps": "You averaged {{steps}} steps on the days you recorded them.",
+    "bodyFatGoal": "Body fat goal",
+    "bodyFatToGoal": "{{amount}} points to go",
+    "impliedGoalWeight": "Goal weight at this lean mass",
+    "impliedGoalWeightHint": "An estimate: your latest weight and body fat, with lean mass kept the same. Body fat readings vary by method.",
+    "bodyFatChartTitle": "Body fat",
+    "bodyFatChartEmpty": "No body fat readings for this period"
   },
   "substancesReport": {
     "title": "Caffeine and alcohol",

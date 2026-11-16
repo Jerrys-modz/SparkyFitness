@@ -52,7 +52,7 @@ import {
 } from '@/utils/reportUtil';
 import { CustomCategoryReport } from './CustomCategoryReport';
 import { ChartErrorBoundary } from '../Errors/ChartErrorFallback';
-import { CustomCategoriesResponse } from '@workspace/shared';
+import { CustomCategoriesResponse, parseBodyFatGoal } from '@workspace/shared';
 import { useDailyGoalsRange } from '@/hooks/Goals/useGoals';
 import { useSearchParams } from 'react-router-dom';
 import { CompareReport } from '@/pages/Reports/Compare/CompareReport';
@@ -188,6 +188,7 @@ const Reports = () => {
     targetWeightKg: profile?.target_weight
       ? Number(profile.target_weight)
       : null,
+    targetBodyFatPercent: parseBodyFatGoal(profile?.target_body_fat_percentage),
   });
 
   const legacyReportChartPref = nutrientDisplayPreferences.find(

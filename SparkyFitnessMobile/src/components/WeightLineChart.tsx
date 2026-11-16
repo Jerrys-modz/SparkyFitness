@@ -35,8 +35,16 @@ type WeightLineChartProps = {
   isError: boolean;
   range: HealthTrendDateRange;
   unit: string;
-  /** The user's target weight, already converted to `unit`. */
+  /** The user's target, already converted to `unit`. */
   goal?: number | null;
+  /**
+   * The chart plots any one positive daily measurement with a goal (the body
+   * fat chart passes percent in `weight`); these default to the weight copy.
+   */
+  title?: string;
+  emptyText?: string;
+  /** Prefix for the summary test IDs; `weight` by default. */
+  testIDPrefix?: string;
 };
 
 const X_TICK_COUNT: Record<HealthTrendDateRange, number> = {
@@ -95,6 +103,9 @@ const WeightLineChart: React.FC<WeightLineChartProps> = ({
   range,
   unit,
   goal,
+  title,
+  emptyText,
+  testIDPrefix = 'weight',
 }) => {
   const { t } = useTranslation();
   const font = useChartFont(CHART_LABEL_FONT_SIZE);
@@ -216,7 +227,7 @@ const WeightLineChart: React.FC<WeightLineChartProps> = ({
   return (
     <View className="bg-surface rounded-xl p-4 my-2 shadow-sm">
       <Text className="text-text-primary text-lg font-semibold mb-2">
-        {t('charts.weight.title', { defaultValue: 'Weight' })}
+        {title ?? t('charts.weight.title', { defaultValue: 'Weight' })}
       </Text>
 
       <WeightTooltip text={tooltipText} />
@@ -238,9 +249,10 @@ const WeightLineChart: React.FC<WeightLineChartProps> = ({
       ) : !hasData ? (
         <View className="h-50 justify-center items-center">
           <Text className="text-text-muted text-sm">
-            {t('charts.weight.empty', {
-              defaultValue: 'No weight data for this period',
-            })}
+            {emptyText ??
+              t('charts.weight.empty', {
+                defaultValue: 'No weight data for this period',
+              })}
           </Text>
         </View>
       ) : (
@@ -306,20 +318,23 @@ const WeightLineChart: React.FC<WeightLineChartProps> = ({
             layout={touchLayout}
             onSelect={handleSelectPoint}
             onClear={handleClearSelection}
-            testIDPrefix="weight-touch-overlay"
+            testIDPrefix={`${testIDPrefix}-touch-overlay`}
           />
         </View>
       )}
 
       {!isLoading && !isError && hasData && summary != null && (
-        <View className="flex-row mt-3" testID="weight-forecast-summary">
+        <View
+          className="flex-row mt-3"
+          testID={`${testIDPrefix}-forecast-summary`}
+        >
           <SummaryTile
-            testID="weight-forecast-trend"
+            testID={`${testIDPrefix}-forecast-trend`}
             label={t('charts.weight.trend', { defaultValue: 'Trend' })}
             value={`${formatWeightValue(summary.currentTrend)} ${unit}`}
           />
           <SummaryTile
-            testID="weight-forecast-rate"
+            testID={`${testIDPrefix}-forecast-rate`}
             label={t('charts.weight.perWeek', { defaultValue: 'Per week' })}
             value={
               summary.weeklyRate == null
@@ -329,7 +344,7 @@ const WeightLineChart: React.FC<WeightLineChartProps> = ({
           />
           {goal != null && goal > 0 && (
             <SummaryTile
-              testID="weight-forecast-goal"
+              testID={`${testIDPrefix}-forecast-goal`}
               label={t('charts.weight.goalDate', { defaultValue: 'Goal date' })}
               value={
                 goalForecast.status === 'toward-goal' && goalForecast.forecast

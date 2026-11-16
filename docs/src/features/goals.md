@@ -6,7 +6,7 @@ SparkyFitness allows you to set and track various fitness and nutrition goals, h
 
 ## Goal Weight
 
-Set your goal weight under **Goals**. It was previously only asked once during onboarding. Enter it in your preferred weight unit (stones and pounds users enter pounds); it is stored in kilograms. **Clear** removes it. The mobile Weight chart uses it for the dashed goal line and the projected goal date.
+Set your goal weight under **Goals**. It was previously only asked once during onboarding. Enter it in your preferred weight unit (stones and pounds users enter pounds); it is stored in kilograms. **Clear** removes it. The mobile Weight chart uses it for the dashed goal line and the projected goal date. To aim for a body composition instead, see [Body Fat Goal](#body-fat-goal).
 
 ### Target date
 
@@ -20,6 +20,16 @@ You can also pick an optional **target date**: the day you want to reach your go
 When your setting is too slow, too fast, or points the wrong way, you can tap **Use … a week** to switch your calorie goal to **Weekly weight change** at that pace (or **Use High cut** when its pace is close). Nothing changes until you tap. Once the date passes, you are asked to pick a new one; the date is never moved for you. When your trend reaches the goal, you are offered to switch the calorie goal to Maintain.
 
 The destination weight and the desired weekly pace are separate settings. Under [Calculation Settings → Goal Mode](/features/settings/calculation-settings#_4-goal-mode-caloric-deficits), select **Weekly weight change** to choose maintenance, loss, or gain in kg or g per week. The weekly pace adjusts the calorie target; it does not change the saved destination weight.
+
+## Body Fat Goal
+
+If you are doing body recomposition (losing fat while keeping or building muscle), your weight can stay flat while your body changes, so a goal weight alone does not show progress. Set a **Body Fat Goal** under **Goals**, next to Goal Weight, on the website or in the mobile app (Settings → Goals). Enter a percentage from 3% to 60%, to one decimal place; **Clear** removes it.
+
+- **Charts**: the Body Fat % chart (website: Reports → Measurements; mobile: Reports → Measurements) draws the goal as a dashed line, shows your smoothed trend and weekly rate of change, and projects the date you will reach the goal at that rate. The projection uses the same smoothing and rules as the weight goal date: it needs about two weeks of readings and at least four of them, and says so when you are holding steady, moving away from the goal, or more than two years out.
+- **Implied goal weight**: next to the goal, SparkyFitness estimates the weight that goal means if your lean mass stays the same: lean mass = weight × (1 − body fat %), and goal weight = lean mass ÷ (1 − goal body fat %). For example, 80 kg at 25% is 60 kg of lean mass, so a 15% goal means about 70.6 kg. It is labelled as an estimate: lean mass changes during a cut or a bulk, so treat it as a guide, not a target.
+- **Measurement method**: body fat readings vary a lot between methods (smart scales, calipers, tape formulas, DEXA), and a bathroom scale can move several points from day to day with hydration. Compare readings from one method, taken the same way (for example, every morning before eating), and expect the trend, not any single reading, to tell you where you are.
+
+The body fat goal does not change your calorie target; the weekly weight-change setting in Calculation Settings still does that. Like the goal weight, only you can change it, but someone with access to your reports sees it on your charts.
 
 ## Nutrient Goal Direction (Minimum / Maximum / Target)
 

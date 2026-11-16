@@ -19,6 +19,7 @@ import WeightLineChart from '../components/WeightLineChart';
 import StepsBarChart from '../components/StepsBarChart';
 import StatusView from '../components/StatusView';
 import { resolveWeightGoal } from '../utils/healthTrendGoals';
+import { impliedGoalWeight, parseBodyFatGoal } from '@workspace/shared';
 import type {
   MeasurementMetric,
   MeasurementTrend,
@@ -107,6 +108,11 @@ const MeasurementsReportScreen: React.FC<
     weight: weightFromKg(point.value, chartUnit),
   }));
   const weightGoal = resolveWeightGoal(profile?.target_weight, chartUnit);
+  const bodyFatGoal = parseBodyFatGoal(profile?.target_body_fat_percentage);
+  // The chart plots any single positive series; percent rides in `weight`.
+  const bodyFatSeries = (report?.metrics.body_fat_percentage.points ?? []).map(
+    (point) => ({ day: point.day, weight: point.value })
+  );
 
   const trendRows = (
     metric: MeasurementMetric,
@@ -151,6 +157,42 @@ const MeasurementsReportScreen: React.FC<
       (kg) => weightChangeText(kg)
     ),
   ];
+  const latestBodyFat = m?.body_fat_percentage.latest ?? null;
+  // Kilograms in, so `weightText` handles the user's unit.
+  const impliedWeightKg = impliedGoalWeight(
+    weight?.latest,
+    latestBodyFat,
+    bodyFatGoal
+  );
+  if (bodyFatGoal !== null) {
+    bodyRows.push({
+      label: t('measurementsReport.bodyFatGoal', {
+        defaultValue: 'Body fat goal',
+      }),
+      value: percentText(bodyFatGoal),
+      hint:
+        latestBodyFat === null
+          ? undefined
+          : t('measurementsReport.bodyFatToGoal', {
+              defaultValue: '{{amount}} points to go',
+              amount: fmt(Math.abs(latestBodyFat - bodyFatGoal)),
+            }),
+      testID: 'measurements-body-fat-goal',
+    });
+  }
+  if (impliedWeightKg !== null) {
+    bodyRows.push({
+      label: t('measurementsReport.impliedGoalWeight', {
+        defaultValue: 'Goal weight at this lean mass',
+      }),
+      value: `≈ ${weightText(impliedWeightKg)}`,
+      hint: t('measurementsReport.impliedGoalWeightHint', {
+        defaultValue:
+          'An estimate: your latest weight and body fat, with lean mass kept the same. Body fat readings vary by method.',
+      }),
+      testID: 'measurements-implied-goal-weight',
+    });
+  }
   const tapeAmount = (cm: number) =>
     `${fmt(Math.abs(lengthFromCm(cm, lengthUnit)))} ${lengthUnit === 'cm' ? 'cm' : 'in'}`;
   const tapeChange = (cm: number) => withSign(cm, tapeAmount(cm));
@@ -380,6 +422,24 @@ const MeasurementsReportScreen: React.FC<
             <ReportSummaryCard
               title={t('measurementsReport.weight', { defaultValue: 'Weight' })}
               rows={weightRows}
+            />
+          ) : null}
+          {isSectionShown('measurements.bodyComposition') &&
+          bodyFatSeries.length > 0 ? (
+            <WeightLineChart
+              data={bodyFatSeries}
+              isLoading={false}
+              isError={false}
+              range={reportWindow.chartRange}
+              unit="%"
+              goal={bodyFatGoal}
+              title={t('measurementsReport.bodyFatChartTitle', {
+                defaultValue: 'Body fat',
+              })}
+              emptyText={t('measurementsReport.bodyFatChartEmpty', {
+                defaultValue: 'No body fat readings for this period',
+              })}
+              testIDPrefix="body-fat"
             />
           ) : null}
           {isSectionShown('measurements.bodyComposition') &&

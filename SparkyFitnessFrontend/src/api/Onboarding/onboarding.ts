@@ -101,3 +101,19 @@ export const setTargetWeight = async (
 export const getGoalWeightPlan = async (): Promise<GoalWeightPlanResponse> => {
   return apiCall('/onboarding/target-weight/plan', { method: 'GET' });
 };
+
+/**
+ * Sets or clears the user's body fat % goal.
+ * @param targetBodyFatPercentage Target body fat in percent, or null to clear it.
+ */
+export const setTargetBodyFat = async (
+  targetBodyFatPercentage: number | null
+) => {
+  return apiCall('/onboarding/target-body-fat', {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ targetBodyFatPercentage }),
+  });
+};

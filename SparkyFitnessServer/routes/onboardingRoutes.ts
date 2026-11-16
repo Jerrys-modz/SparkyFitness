@@ -4,10 +4,16 @@ import { createRequireSelfActor } from '../middleware/requireSelfMiddleware.js';
 import { setGoalWeightBodySchema } from '@workspace/shared';
 import onboardingService from '../services/onboardingService.js';
 import goalWeightPlanService from '../services/goalWeightPlanService.js';
+import {
+  BODY_FAT_GOAL_MAX_PERCENT,
+  BODY_FAT_GOAL_MIN_PERCENT,
+  isValidBodyFatGoal,
+  roundBodyFatPercent,
+} from '@workspace/shared';
 const router = express.Router();
 router.use(express.json());
 // Only the account owner can answer, skip or reset their onboarding, or set
-// their goal weight: RLS lets only the owner write onboarding_status and
+// their goal weight or body fat goal: RLS lets only the owner write onboarding_status and
 // onboarding_data, so for someone acting for them a skip or reset would match
 // no row and still answer 200. The status stays readable to them.
 const selfOnly = createRequireSelfActor({
@@ -134,6 +140,64 @@ router.put('/target-weight', authenticate, selfOnly, async (req, res, next) => {
     next(error);
   }
 });
+const targetBodyFatBodySchema = z.object({
+  // Percent, rounded to the NUMERIC(4,1) column's one decimal and kept inside
+  // the shared sane range. Null clears the goal.
+  targetBodyFatPercentage: z
+    .number()
+    .nullable()
+    .refine((pct) => pct === null || isValidBodyFatGoal(pct))
+    .transform((pct) => (pct === null ? null : roundBodyFatPercent(pct))),
+});
+/**
+ * @swagger
+ * /onboarding/target-body-fat:
+ *   put:
+ *     summary: Set or clear the user's target body fat percentage
+ *     tags: [Goals & Personalization]
+ *     security:
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               targetBodyFatPercentage: { type: number, nullable: true, minimum: 3, maximum: 60 }
+ *             required: [targetBodyFatPercentage]
+ *     responses:
+ *       200:
+ *         description: Target body fat saved.
+ *       400:
+ *         description: Invalid target body fat.
+ *       403:
+ *         description: Acting for another account; only the owner can set their body fat goal.
+ */
+router.put(
+  '/target-body-fat',
+  authenticate,
+  selfOnly,
+  async (req, res, next) => {
+    try {
+      const parsed = targetBodyFatBodySchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({
+          error: `targetBodyFatPercentage must be a number from ${BODY_FAT_GOAL_MIN_PERCENT} to ${BODY_FAT_GOAL_MAX_PERCENT}, or null.`,
+        });
+      }
+      await onboardingService.setTargetBodyFat(
+        req.userId,
+        parsed.data.targetBodyFatPercentage
+      );
+      res.status(200).json({
+        targetBodyFatPercentage: parsed.data.targetBodyFatPercentage,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
 /**
  * @swagger
  * /onboarding/target-weight/plan:

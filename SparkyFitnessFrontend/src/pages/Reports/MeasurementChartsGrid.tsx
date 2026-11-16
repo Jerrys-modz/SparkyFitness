@@ -10,6 +10,7 @@ import {
   ResponsiveContainer,
   BarChart,
   Bar,
+  ReferenceLine,
 } from 'recharts';
 import { Scale, Ruler, Percent, Activity, Flame, Droplet } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -18,9 +19,11 @@ import { usePreferences } from '@/contexts/PreferencesContext';
 import { info, error } from '@/utils/logging';
 import { formatWeight, formatMeasurement } from '@/utils/numberFormatting';
 import {
+  computeMeasurementTrend,
   computeWeightTrend,
   forecastGoalDate,
   getPrecision,
+  impliedGoalWeight,
   summarizeWeightTrend,
 } from '@workspace/shared';
 import {
@@ -114,6 +117,8 @@ interface UseMeasurementChartWidgetsArgs {
   measurementData?: CheckInMeasurementsResponse[];
   /** Profile target weight in kg; enables the projected goal date. */
   targetWeightKg?: number | null;
+  /** Profile body fat goal in percent; draws the Body Fat % goal line. */
+  targetBodyFatPercent?: number | null;
 }
 
 /**
@@ -125,6 +130,7 @@ interface UseMeasurementChartWidgetsArgs {
 export function useMeasurementChartWidgets({
   measurementData = EMPTY_MEASUREMENTS,
   targetWeightKg = null,
+  targetBodyFatPercent = null,
 }: UseMeasurementChartWidgetsArgs): Widget[] {
   const { t } = useTranslation();
   const {
@@ -155,6 +161,23 @@ export function useMeasurementChartWidgets({
     [trendPoints]
   );
 
+  // Body fat goes through the same smoothing and goal forecast as weight.
+  const bodyFatTrendPoints = React.useMemo(
+    () =>
+      computeMeasurementTrend(
+        measurementData.flatMap((d) =>
+          d.body_fat_percentage
+            ? [{ date: d.entry_date, value: Number(d.body_fat_percentage) }]
+            : []
+        )
+      ),
+    [measurementData]
+  );
+  const bodyFatTrendByDate = React.useMemo(
+    () => new Map(bodyFatTrendPoints.map((p) => [p.date, p.trend])),
+    [bodyFatTrendPoints]
+  );
+
   const displayWeightUnit = weightUnit === 'st_lbs' ? 'lbs' : weightUnit;
 
   // Kept in kg: the summary line passes these to `formatWeight`, which takes
@@ -170,6 +193,24 @@ export function useMeasurementChartWidgets({
       forecastDate: forecast?.date ?? null,
     };
   }, [trendPoints, targetWeightKg]);
+
+  // Implied goal weight stays in kg for `formatWeight`, like the weight summary.
+  const bodyFatTrendSummary = React.useMemo(() => {
+    const summary = summarizeWeightTrend(bodyFatTrendPoints);
+    if (!summary) return null;
+    const forecast = forecastGoalDate(bodyFatTrendPoints, targetBodyFatPercent);
+    const latestWeightTrend = trendPoints[trendPoints.length - 1]?.trend;
+    return {
+      currentTrend: summary.currentTrend,
+      weeklyRate: summary.weeklyRate,
+      forecastDate: forecast?.date ?? null,
+      impliedWeightKg: impliedGoalWeight(
+        latestWeightTrend,
+        summary.currentTrend,
+        targetBodyFatPercent
+      ),
+    };
+  }, [bodyFatTrendPoints, trendPoints, targetBodyFatPercent]);
 
   const chartData = React.useMemo(() => {
     const rows = measurementData.map((d) => ({
@@ -221,6 +262,10 @@ export function useMeasurementChartWidgets({
         : 0,
       rawBodyFat: d.body_fat_percentage,
       body_fat_percentage: d.body_fat_percentage || 0,
+      rawBodyFatTrend: bodyFatTrendByDate.get(d.entry_date),
+      bodyFatTrend: bodyFatTrendByDate.get(d.entry_date) ?? 0,
+      // Repeated on each row so the y axis domain takes the goal line in.
+      bodyFatGoal: targetBodyFatPercent ?? undefined,
       rawMuscleMass: d.muscle_mass_kg,
       muscle_mass_kg: d.muscle_mass_kg
         ? convertWeight(
@@ -248,6 +293,8 @@ export function useMeasurementChartWidgets({
   }, [
     measurementData,
     trendByDate,
+    bodyFatTrendByDate,
+    targetBodyFatPercent,
     displayWeightUnit,
     weightUnit,
     measurementUnit,
@@ -285,7 +332,7 @@ export function useMeasurementChartWidgets({
   );
 
   const getYAxisDomain = React.useCallback(
-    (data: unknown[], dataKey: string) => {
+    (data: unknown[], dataKey: string, additionalKeys?: string[]) => {
       const config = getChartConfig(dataKey);
       return calculateSmartYAxisDomain(
         data as unknown as ChartDataPoint[],
@@ -294,6 +341,7 @@ export function useMeasurementChartWidgets({
           marginPercent: config.marginPercent,
           minRangeThreshold: config.minRangeThreshold,
           useZeroBaseline: config.useZeroBaseline,
+          additionalKeys,
         }
       );
     },
@@ -390,6 +438,9 @@ export function useMeasurementChartWidgets({
         stroke: '#1abc9c',
         icon: Percent,
         showHeaderIcon: false,
+        trendKey: 'bodyFatTrend',
+        trendRawKey: 'rawBodyFatTrend',
+        goalKey: 'bodyFatGoal',
         formatValue: (val: number) => `${val.toFixed(1)}%`,
         axisTickFormat: (value: number) => value.toFixed(1),
       },
@@ -512,7 +563,72 @@ export function useMeasurementChartWidgets({
                   )}
                   {t(metric.titleKey, metric.defaultTitle)} ({metric.unit})
                 </CardTitle>
-                {metric.trendKey && weightTrendSummary && (
+                {metric.key === 'body_fat_percentage' &&
+                  bodyFatTrendSummary && (
+                    <div
+                      className="text-xs text-muted-foreground space-y-0.5"
+                      data-testid="body-fat-trend-summary"
+                    >
+                      <p>
+                        {(() => {
+                          const value = `${bodyFatTrendSummary.currentTrend.toFixed(1)}%`;
+                          const rate =
+                            bodyFatTrendSummary.weeklyRate !== null
+                              ? `${bodyFatTrendSummary.weeklyRate > 0 ? '+' : ''}${bodyFatTrendSummary.weeklyRate.toFixed(1)}%`
+                              : null;
+                          const date = bodyFatTrendSummary.forecastDate
+                            ? formatDateInUserTimezone(
+                                bodyFatTrendSummary.forecastDate,
+                                'PP'
+                              )
+                            : null;
+                          if (rate && date)
+                            return t(
+                              'reports.bodyFatTrendRateAndForecast',
+                              'Trend {{value}} · {{rate}} per week · Goal projected {{date}}',
+                              { value, rate, date }
+                            );
+                          if (rate)
+                            return t(
+                              'reports.bodyFatTrendWithRate',
+                              'Trend {{value}} · {{rate}} per week',
+                              { value, rate }
+                            );
+                          if (date)
+                            return t(
+                              'reports.bodyFatTrendWithForecast',
+                              'Trend {{value}} · Goal projected {{date}}',
+                              { value, date }
+                            );
+                          return t(
+                            'reports.bodyFatTrendSummary',
+                            'Trend {{value}}',
+                            { value }
+                          );
+                        })()}
+                      </p>
+                      {targetBodyFatPercent != null && (
+                        <p data-testid="body-fat-goal-line">
+                          {bodyFatTrendSummary.impliedWeightKg !== null
+                            ? t(
+                                'reports.bodyFatGoalWithImpliedWeight',
+                                'Goal {{goal}} · about {{weight}} at your current lean mass (estimate)',
+                                {
+                                  goal: `${targetBodyFatPercent.toFixed(1)}%`,
+                                  weight: formatWeight(
+                                    bodyFatTrendSummary.impliedWeightKg,
+                                    weightUnit
+                                  ),
+                                }
+                              )
+                            : t('reports.bodyFatGoal', 'Goal {{goal}}', {
+                                goal: `${targetBodyFatPercent.toFixed(1)}%`,
+                              })}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                {metric.key === 'weight' && weightTrendSummary && (
                   <p
                     className="text-xs text-muted-foreground"
                     data-testid="weight-trend-summary"
@@ -606,7 +722,10 @@ export function useMeasurementChartWidgets({
                             chartData.filter(
                               (d) => d[metric.dataKey as keyof typeof d]
                             ),
-                            metric.dataKey
+                            metric.dataKey,
+                            'goalKey' in metric && metric.goalKey
+                              ? [metric.goalKey]
+                              : undefined
                           ) || undefined
                         }
                         tickFormatter={metric.axisTickFormat}
@@ -645,6 +764,22 @@ export function useMeasurementChartWidgets({
                         dot={false}
                         isAnimationActive={false}
                       />
+                      {'goalKey' in metric &&
+                        metric.goalKey &&
+                        targetBodyFatPercent != null && (
+                          <ReferenceLine
+                            y={targetBodyFatPercent}
+                            stroke="hsl(var(--muted-foreground))"
+                            strokeDasharray="6 4"
+                            ifOverflow="extendDomain"
+                            label={{
+                              value: t('reports.goalLine', 'Goal'),
+                              position: 'insideTopRight',
+                              fontSize: 10,
+                              fill: 'hsl(var(--muted-foreground))',
+                            }}
+                          />
+                        )}
                       {metric.trendKey && (
                         <Line
                           type="monotone"
@@ -753,6 +888,8 @@ export function useMeasurementChartWidgets({
     metrics,
     chartData,
     weightTrendSummary,
+    bodyFatTrendSummary,
+    targetBodyFatPercent,
     weightUnit,
     t,
     formatDateForChart,
