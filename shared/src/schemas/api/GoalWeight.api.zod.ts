@@ -65,7 +65,13 @@ export const goalWeightPlanResponseSchema = z.object({
       requiredDailyKcal: z.number().nullable(),
       suggestedCalories: z.number().nullable(),
       belowFloor: z.boolean(),
+      /** The floor the pace was judged against (kcal a day); optional for older servers. */
+      floorKcal: z.number().nullable().optional(),
+      /** False when the person turned the safety floor off; optional for older servers (read as true). */
+      floorEnforced: z.boolean().optional(),
       earliestDate: z.string().nullable(),
+      /** Fastest signed pace the floor allows (kg a week), when below it. */
+      fastestKgPerWeek: z.number().nullable().optional(),
       settingKgPerWeek: z.number().nullable(),
       settingReachDate: z.string().nullable(),
       highCutKgPerWeek: z.number().nullable(),

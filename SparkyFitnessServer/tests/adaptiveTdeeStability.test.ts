@@ -32,6 +32,8 @@ vi.mock('../models/measurementRepository.js', () => ({
   default: {
     getCheckInMeasurementsByDateRange: mocks.getMeasurements,
     getLatestMeasurement: mocks.getLatestMeasurement,
+    // The calorie safety floor reads the latest weight and height through it.
+    getLatestCheckInMeasurementsOnOrBeforeDate: mocks.getLatestMeasurement,
   },
 }));
 vi.mock('../models/reportRepository.js', () => ({

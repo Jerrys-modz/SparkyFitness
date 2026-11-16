@@ -78,6 +78,26 @@ describe('buildGoalWeightPlan', () => {
     });
     expect(plan.belowFloor).toBe(true);
     expect(plan.earliestDate).toBe('2027-01-25');
+    expect(plan.floorKcal).toBe(1500);
+    expect(plan.floorEnforced).toBe(true);
+    expect(plan.fastestKgPerWeek).toBe(-1.17);
+  });
+
+  it('keeps the warning but marks the floor as not enforced when it is turned off', () => {
+    const plan = buildGoalWeightPlan({
+      ...base,
+      goalKg: 76,
+      targetDate: '2027-01-15',
+      floorEnforced: false,
+    });
+    expect(plan.belowFloor).toBe(true);
+    expect(plan.floorEnforced).toBe(false);
+  });
+
+  it('has no fastest pace when the pace is above the floor', () => {
+    const plan = buildGoalWeightPlan(base);
+    expect(plan.fastestKgPerWeek).toBeNull();
+    expect(plan.floorEnforced).toBe(true);
   });
 
   it('offers High cut when its pace is close to the required pace', () => {

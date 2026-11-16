@@ -154,10 +154,19 @@ export const GoalWeightPlanPanel = ({ data }: GoalWeightPlanPanelProps) => {
     (plan.status === 'needs_faster' ||
       plan.status === 'needs_slower' ||
       plan.status === 'wrong_direction');
+  // The calorie engine holds the target at the safety floor, so a pace that
+  // needs calories under it cannot be reached by applying it. With the floor
+  // turned off (`floorEnforced` false) nothing holds it back: warn, but keep
+  // the button. Older servers send no flag and always held the floor.
+  const floorBlocks = plan.belowFloor && plan.floorEnforced !== false;
   const suggested =
-    plan.requiredKgPerWeek === null
+    plan.requiredKgPerWeek === null || floorBlocks
       ? null
       : storableWeeklyChangeKg(plan.requiredKgPerWeek);
+  const fastestAllowed =
+    floorBlocks && showPaceActions && plan.fastestKgPerWeek != null
+      ? storableWeeklyChangeKg(plan.fastestKgPerWeek)
+      : null;
 
   return (
     <div
@@ -224,17 +233,22 @@ export const GoalWeightPlanPanel = ({ data }: GoalWeightPlanPanelProps) => {
         </p>
       )}
       {plan.belowFloor && (
-        <p className="text-destructive">
-          {plan.earliestDate
-            ? t('goals.goalsSettings.goalWeightPlan.belowFloorEarliest', {
-                date: formatDate(plan.earliestDate),
+        <p className="text-destructive" data-testid="goal-weight-below-floor">
+          {!floorBlocks
+            ? t('goals.goalsSettings.goalWeightPlan.belowFloorOff', {
                 defaultValue:
-                  'This pace would put calories under the safe minimum. The earliest date reachable above it is about {{date}}.',
+                  'This pace would put calories under the standard safe minimum. Your safety floor is off, so nothing will hold it back.',
               })
-            : t('goals.goalsSettings.goalWeightPlan.belowFloor', {
-                defaultValue:
-                  'This pace would put calories under the safe minimum.',
-              })}
+            : plan.earliestDate
+              ? t('goals.goalsSettings.goalWeightPlan.belowFloorEarliest', {
+                  date: formatDate(plan.earliestDate),
+                  defaultValue:
+                    'This pace would put calories under the safe minimum. The earliest date reachable above it is about {{date}}.',
+                })
+              : t('goals.goalsSettings.goalWeightPlan.belowFloor', {
+                  defaultValue:
+                    'This pace would put calories under the safe minimum.',
+                })}
         </p>
       )}
       <div className="flex flex-wrap gap-2">
@@ -261,7 +275,27 @@ export const GoalWeightPlanPanel = ({ data }: GoalWeightPlanPanelProps) => {
             )}
           </Button>
         )}
+        {fastestAllowed !== null && (
+          <Button
+            size="sm"
+            disabled={applying}
+            onClick={() =>
+              apply({
+                goalMode: 'weekly',
+                goalModeWeeklyChangeKg: fastestAllowed,
+              })
+            }
+          >
+            {t('goals.goalsSettings.goalWeightPlan.useFastestAllowed', {
+              pace: pace(fastestAllowed),
+              unit,
+              defaultValue:
+                'Use the fastest allowed: lose {{pace}} {{unit}} a week',
+            })}
+          </Button>
+        )}
         {showPaceActions &&
+          !floorBlocks &&
           plan.highCutKgPerWeek !== null &&
           data.goalMode !== 'high_cut' && (
             <Button

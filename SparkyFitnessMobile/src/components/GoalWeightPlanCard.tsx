@@ -121,12 +121,22 @@ const GoalWeightPlanCard: React.FC<GoalWeightPlanCardProps> = ({
   const goal = `${weight(data.goalKg)} ${weightUnit}`;
   const targetDate = formatDayLabel(data.targetDate, 'short');
   const required = plan.requiredKgPerWeek;
-  const suggested = required === null ? null : storableWeeklyChangeKg(required);
-  const showPaceActions =
-    suggested !== null &&
-    (plan.status === 'needs_faster' ||
-      plan.status === 'needs_slower' ||
-      plan.status === 'wrong_direction');
+  // The calorie engine holds the target at the safety floor, so a pace that
+  // needs calories under it cannot be reached by applying it. With the floor
+  // turned off (`floorEnforced` false) nothing holds it back: warn, but keep
+  // the button. Older servers send no flag and always held the floor.
+  const floorBlocks = plan.belowFloor && plan.floorEnforced !== false;
+  const paceNeedsAction =
+    plan.status === 'needs_faster' ||
+    plan.status === 'needs_slower' ||
+    plan.status === 'wrong_direction';
+  const suggested =
+    required === null || floorBlocks ? null : storableWeeklyChangeKg(required);
+  const showPaceActions = suggested !== null && paceNeedsAction;
+  const fastestAllowed =
+    floorBlocks && paceNeedsAction && plan.fastestKgPerWeek != null
+      ? storableWeeklyChangeKg(plan.fastestKgPerWeek)
+      : null;
 
   const lines: { key: string; text: string; tone?: 'warn' | 'danger' }[] = [];
   if (plan.status === 'reached') {
@@ -264,16 +274,21 @@ const GoalWeightPlanCard: React.FC<GoalWeightPlanCardProps> = ({
       lines.push({
         key: 'floor',
         tone: 'danger',
-        text: plan.earliestDate
-          ? t('goals.goalWeightPlan.belowFloorEarliest', {
-              date: formatDayLabel(plan.earliestDate, 'short'),
+        text: !floorBlocks
+          ? t('goals.goalWeightPlan.belowFloorOff', {
               defaultValue:
-                'This pace would put calories under the safe minimum. The earliest date reachable above it is about {{date}}.',
+                'This pace would put calories under the standard safe minimum. Your safety floor is off, so nothing will hold it back.',
             })
-          : t('goals.goalWeightPlan.belowFloor', {
-              defaultValue:
-                'This pace would put calories under the safe minimum.',
-            }),
+          : plan.earliestDate
+            ? t('goals.goalWeightPlan.belowFloorEarliest', {
+                date: formatDayLabel(plan.earliestDate, 'short'),
+                defaultValue:
+                  'This pace would put calories under the safe minimum. The earliest date reachable above it is about {{date}}.',
+              })
+            : t('goals.goalWeightPlan.belowFloor', {
+                defaultValue:
+                  'This pace would put calories under the safe minimum.',
+              }),
       });
     }
   }
@@ -321,6 +336,26 @@ const GoalWeightPlanCard: React.FC<GoalWeightPlanCardProps> = ({
                   unit: weightUnit,
                   defaultValue: 'Use gain {{pace}} {{unit}} a week',
                 })}
+          </Button>
+        )}
+        {fastestAllowed !== null && (
+          <Button
+            variant="primary"
+            disabled={apply.isPending}
+            onPress={() =>
+              apply.mutate({
+                goal_mode: 'weekly',
+                goal_mode_weekly_change_kg: fastestAllowed,
+              })
+            }
+            testID="goal-weight-plan-use-fastest"
+          >
+            {t('goals.goalWeightPlan.useFastestAllowed', {
+              pace: pace(fastestAllowed),
+              unit: weightUnit,
+              defaultValue:
+                'Use the fastest allowed: lose {{pace}} {{unit}} a week',
+            })}
           </Button>
         )}
         {showPaceActions &&

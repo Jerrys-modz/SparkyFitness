@@ -1,5 +1,4 @@
 import {
-  getClinicalCalorieMinimum,
   isAdaptiveTdeeMature,
   reviewCalorieTarget,
   todayInZone,
@@ -7,9 +6,9 @@ import {
   ADAPTIVE_TDEE_ESTIMATE_WINDOW_DAYS,
 } from '@workspace/shared';
 import type { CalorieTargetReview } from '@workspace/shared';
-import userRepository from '../models/userRepository.js';
 import adaptiveTdeeService from './AdaptiveTdeeService.js';
 import goalService from './goalService.js';
+import { getEffectiveCalorieSafetyFloor } from './calorieSafetyFloorService.js';
 import { loadUserTimezone } from '../utils/timezoneLoader.js';
 
 /**
@@ -27,14 +26,12 @@ async function getCalorieTargetReview(
 ): Promise<CalorieTargetReview> {
   const timezone = await loadUserTimezone(userId);
   const today = todayInZone(timezone);
-  const [tdee, goals, profile] = await Promise.all([
+  const [tdee, goals, safetyFloor] = await Promise.all([
     adaptiveTdeeService.calculateAdaptiveTdee(userId, today),
     goalService.getUserGoals(userId, today) as Promise<Record<string, unknown>>,
-    userRepository.getUserProfile(userId),
+    getEffectiveCalorieSafetyFloor(userId, today),
   ]);
   const target = Number(goals?.calories);
-  const gender =
-    profile?.gender?.toLowerCase() === 'female' ? 'female' : 'male';
   const observedSpan = tdee.weightObservationSpanDays;
   // Matched food counts describe the observed interval, not the entire
   // selection window. A shorter fully logged interval is not missing food.
@@ -64,7 +61,9 @@ async function getCalorieTargetReview(
     dailyWeightChangeKg: tdee.dailyWeightChangeKg ?? null,
     currentTargetKcal: Number.isFinite(target) && target > 0 ? target : null,
     desiredKgPerWeek,
-    floorKcal: getClinicalCalorieMinimum(gender),
+    // The floor the engine holds the target at; none when it is turned off, so
+    // the review does not warn about a level the engine would never apply.
+    floorKcal: safetyFloor.enforcedKcal,
   });
 }
 
