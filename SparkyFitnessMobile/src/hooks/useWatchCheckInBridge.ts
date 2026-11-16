@@ -1028,7 +1028,6 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     watchHoldCountdown,
     watchWorkoutTopLine,
     runPlans,
-    heartRateZoneFloors,
     indoorDistanceScale,
     fuelingPreference,
     startableWorkouts,

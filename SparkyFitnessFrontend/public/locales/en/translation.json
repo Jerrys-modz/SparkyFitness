@@ -3600,7 +3600,7 @@
         "policy": "This address is not allowed by the network policy.",
         "other": "The server did not list its tools ({{reason}})."
       }
-  },
+    },
     "weeklyCalorieBudget": {
       "title": "Weekly calorie budget",
       "description": "Carry what you ate above or below your targets earlier in the week over the days left. Your week's budget is the sum of its daily targets.",
@@ -4055,7 +4055,7 @@
       "previewFixed": "Grams from your reference weight of {{kg}} kg: protein {{protein}} g, carbs {{carbs}} g, fat {{fat}} g. They change only when you save a new reference weight.",
       "previewLogged": "Today's grams from your latest logged weight of {{kg}} kg: protein {{protein}} g, carbs {{carbs}} g, fat {{fat}} g.",
       "calorieMismatch": "The per-kg macros add up to {{locked}} {{unit}}, but the calorie target leaves {{available}} {{unit}} for macros."
-  },
+    },
     "dietPhases": {
       "typeLoss": "Loss",
       "typeGain": "Gain",
@@ -6023,7 +6023,7 @@
       "description_other": "Average scores (0-10) over {{count}} logged days, next to the calories you ate each day.",
       "hungerCalories": "On your hungrier days you ate {{high}} on average, against {{low}} on the others.",
       "caloriesEaten": "Eaten ({{unit}})"
-  },
+    },
     "weightProgress": {
       "sourceCustom": "start you chose",
       "sourceOnboarding": "from your setup",

@@ -17,7 +17,15 @@ import {
 } from '@workspace/shared';
 import type { CalorieRuleHistoryRow } from '../models/calorieRuleHistoryRepository.js';
 
+// No diet phases: the calorie maths is exactly as without the feature.
+vi.mock('../services/dietPhaseService.js', () => ({
+  loadDietPhasesForCalories: vi.fn(async () => []),
+}));
 vi.mock('../models/goalRepository.js');
+vi.mock('../models/calorieMaintenancePeriodRepository.js', () => ({
+  default: { getCalorieMaintenancePeriods: vi.fn().mockResolvedValue([]) },
+  getCalorieMaintenancePeriods: vi.fn().mockResolvedValue([]),
+}));
 vi.mock('../models/weeklyGoalPlanRepository.js');
 vi.mock('../models/goalPresetRepository.js');
 vi.mock('../models/userRepository.js');
