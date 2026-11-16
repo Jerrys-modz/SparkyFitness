@@ -34,10 +34,14 @@ const mockDismiss = Notifications.dismissNotificationAsync as jest.Mock;
 const mockHasPermission = hasNotificationPermission as jest.Mock;
 const mockToday = getTodayDate as jest.Mock;
 
-function scheduledDays(): string[] {
-  return mockSchedule.mock.calls.map(
-    ([request]) => (request.content.data as { day: string }).day
-  );
+function triggers(): { type: string; weekday?: number; date?: Date }[] {
+  return mockSchedule.mock.calls.map(([request]) => request.trigger);
+}
+
+function weeklyDays(): number[] {
+  return triggers()
+    .filter((t) => t.type === 'weekly')
+    .map((t) => t.weekday as number);
 }
 
 describe('scheduleWeighInReminders', () => {
@@ -46,40 +50,41 @@ describe('scheduleWeighInReminders', () => {
     mockGetAllScheduled.mockResolvedValue([]);
   });
 
-  it('schedules one-shot reminders with neutral copy and the day in data', async () => {
+  it('schedules a repeating weekly reminder per day with neutral copy', async () => {
     const ids = await scheduleWeighInReminders({
       time: '07:30',
       weekdays: [1, 3],
-      skipDay: null,
-      now: new Date(2026, 10, 16, 6, 0),
+      skipToday: false,
       today: '2026-11-16',
     });
     expect(ids).toHaveLength(2);
-    expect(scheduledDays()).toEqual(['2026-11-16', '2026-11-18']);
     const [first] = mockSchedule.mock.calls[0];
-    expect(first.identifier).toBe('weigh_in_0');
+    expect(first.identifier).toBe('weigh_in_weekly_1');
     expect(first.content.title).toBe('Weigh-in');
-    expect(first.content.data.kind).toBe('weigh-in');
+    expect(first.content.data).toEqual({ kind: 'weigh-in' });
+    // Expo weekdays count from 1 = Sunday: Monday is 2.
     expect(first.trigger).toEqual({
-      type: 'date',
-      date: new Date(2026, 10, 16, 7, 30),
+      type: 'weekly',
+      weekday: 2,
+      hour: 7,
+      minute: 30,
       channelId: 'weigh-in',
     });
+    expect(weeklyDays()).toEqual([2, 4]);
   });
 
   it('cancels what it scheduled when a later one fails', async () => {
     mockSchedule
-      .mockResolvedValueOnce('weigh_in_0')
+      .mockResolvedValueOnce('weigh_in_weekly_0')
       .mockRejectedValueOnce(new Error('boom'));
     const ids = await scheduleWeighInReminders({
       time: '07:30',
       weekdays: [0, 1, 2, 3, 4, 5, 6],
-      skipDay: null,
-      now: new Date(2026, 10, 16, 6, 0),
+      skipToday: false,
       today: '2026-11-16',
     });
     expect(ids).toEqual([]);
-    expect(mockCancel).toHaveBeenCalledWith('weigh_in_0');
+    expect(mockCancel).toHaveBeenCalledWith('weigh_in_weekly_0');
   });
 });
 
@@ -93,7 +98,9 @@ describe('cancelWeighInReminders', () => {
     ]);
     await cancelWeighInReminders();
     const cancelled = mockCancel.mock.calls.map(([id]) => id);
-    expect(cancelled).toEqual(expect.arrayContaining(['weigh_in_0', 'legacy']));
+    expect(cancelled).toEqual(
+      expect.arrayContaining(['weigh_in_weekly_0', 'weigh_in_skip_1', 'legacy'])
+    );
     expect(cancelled).not.toContain('other');
   });
 });
@@ -101,7 +108,6 @@ describe('cancelWeighInReminders', () => {
 describe('reconcileWeighInReminders', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    jest.useFakeTimers({ now: new Date(2026, 10, 16, 6, 0) });
     mockToday.mockReturnValue('2026-11-16');
     __resetAppPreferencesStoreForTests();
     mockGetAllScheduled.mockResolvedValue([]);
@@ -114,8 +120,6 @@ describe('reconcileWeighInReminders', () => {
     });
   });
 
-  afterEach(() => jest.useRealTimers());
-
   it('is off by default', async () => {
     __resetAppPreferencesStoreForTests();
     await reconcileWeighInReminders(null);
@@ -123,21 +127,31 @@ describe('reconcileWeighInReminders', () => {
     expect(mockCancel).toHaveBeenCalled();
   });
 
-  it('includes today when no weight is logged yet', async () => {
+  it('repeats on every day when no weight is logged yet', async () => {
     await reconcileWeighInReminders(false);
-    expect(scheduledDays()[0]).toBe('2026-11-16');
+    expect(weeklyDays()).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    expect(triggers().some((t) => t.type === 'date')).toBe(false);
     expect(mockDismiss).not.toHaveBeenCalled();
   });
 
   it('skips today and clears its delivered reminder once a weight is logged', async () => {
     mockGetPresented.mockResolvedValue([
       {
+        date: new Date(2026, 10, 16, 7, 30).getTime(),
         request: {
-          identifier: 'weigh_in_0',
-          content: { data: { kind: 'weigh-in', day: '2026-11-16' } },
+          identifier: 'weigh_in_weekly_1',
+          content: { data: { kind: 'weigh-in' } },
         },
       },
       {
+        date: new Date(2026, 10, 15, 7, 30).getTime(),
+        request: {
+          identifier: 'yesterday',
+          content: { data: { kind: 'weigh-in' } },
+        },
+      },
+      {
+        date: new Date(2026, 10, 16, 8, 0).getTime(),
         request: {
           identifier: 'mood_checkin_0',
           content: { data: { kind: 'mood-checkin' } },
@@ -145,10 +159,16 @@ describe('reconcileWeighInReminders', () => {
       },
     ]);
     await reconcileWeighInReminders(true);
-    expect(scheduledDays()).not.toContain('2026-11-16');
-    expect(scheduledDays()[0]).toBe('2026-11-17');
+    // Monday (expo weekday 2) drops out of the repeating set...
+    expect(weeklyDays()).toEqual([1, 3, 4, 5, 6, 7]);
+    // ...and the following Mondays are one-shots, so they keep coming.
+    const dates = triggers()
+      .filter((t) => t.type === 'date')
+      .map((t) => t.date);
+    expect(dates[0]).toEqual(new Date(2026, 10, 23, 7, 30));
+    expect(dates).toHaveLength(8);
     expect(mockDismiss).toHaveBeenCalledTimes(1);
-    expect(mockDismiss).toHaveBeenCalledWith('weigh_in_0');
+    expect(mockDismiss).toHaveBeenCalledWith('weigh_in_weekly_1');
   });
 
   it('only cancels without notification permission', async () => {

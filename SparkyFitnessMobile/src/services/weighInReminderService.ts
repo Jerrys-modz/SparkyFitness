@@ -7,11 +7,11 @@ import {
   WEIGH_IN_CHANNEL_ID,
 } from './notifications';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
-import { getTodayDate } from '../utils/dateUtils';
+import { getTodayDate, toLocalDateString } from '../utils/dateUtils';
 import {
-  computeWeighInReminderSlots,
+  planWeighInReminders,
   WEIGH_IN_REMINDER_KIND,
-  WEIGH_IN_REMINDER_LOOKAHEAD_DAYS,
+  WEIGH_IN_SKIP_FALLBACK_WEEKS,
 } from '../utils/weighInReminder';
 import { addLog } from './LogService';
 import {
@@ -20,14 +20,22 @@ import {
   createReminderQueue,
 } from './reminderScheduling';
 
-function reminderIdentifier(offset: number): string {
-  return `weigh_in_${offset}`;
+/** Repeating reminder for one weekday (0 = Sunday). */
+function weeklyIdentifier(weekday: number): string {
+  return `weigh_in_weekly_${weekday}`;
 }
 
-const KNOWN_IDS = Array.from(
-  { length: WEIGH_IN_REMINDER_LOOKAHEAD_DAYS },
-  (_, offset) => reminderIdentifier(offset)
-);
+/** One-shot reminder `week` weeks after a skipped day. */
+function skipFallbackIdentifier(week: number): string {
+  return `weigh_in_skip_${week}`;
+}
+
+const KNOWN_IDS = [
+  ...Array.from({ length: 7 }, (_, weekday) => weeklyIdentifier(weekday)),
+  ...Array.from({ length: WEIGH_IN_SKIP_FALLBACK_WEEKS }, (_, i) =>
+    skipFallbackIdentifier(i + 1)
+  ),
+];
 
 /** Cancels every scheduled weigh-in reminder, however it was identified. */
 export async function cancelWeighInReminders(): Promise<void> {
@@ -38,7 +46,7 @@ export async function cancelWeighInReminders(): Promise<void> {
   );
 }
 
-/** Clears weigh-in reminders already shown for `day` from the tray. */
+/** Clears weigh-in reminders delivered on `day` from the tray. */
 async function dismissPresentedWeighInReminders(day: string): Promise<void> {
   try {
     const presented = await Notifications.getPresentedNotificationsAsync();
@@ -47,7 +55,7 @@ async function dismissPresentedWeighInReminders(day: string): Promise<void> {
         .filter(
           (n) =>
             n.request.content.data?.kind === WEIGH_IN_REMINDER_KIND &&
-            n.request.content.data?.day === day
+            toLocalDateString(new Date(n.date)) === day
         )
         .map((n) =>
           Notifications.dismissNotificationAsync(n.request.identifier).catch(
@@ -63,55 +71,69 @@ async function dismissPresentedWeighInReminders(day: string): Promise<void> {
   }
 }
 
+function reminderContent(): Notifications.NotificationContentInput {
+  return {
+    // Neutral wording: an invitation, never a judgement (#2215).
+    title: notificationCopy('notifications.weighIn.title', 'Weigh-in'),
+    body: notificationCopy(
+      'notifications.weighIn.body',
+      "Log today's weight when it suits you. It's fine to skip a day."
+    ),
+    sound: true,
+    data: { kind: WEIGH_IN_REMINDER_KIND },
+  };
+}
+
 /**
- * Schedules one-shot weigh-in reminders for the selected weekdays over the
- * lookahead window and returns their ids. `skipDay` (today, once a weight is
- * logged) gets none. All or nothing: on a failure what was scheduled is
- * cancelled and `[]` is returned. Never prompts for permission.
+ * Schedules a repeating weekly reminder per selected weekday and returns the
+ * ids. With `skipToday`, today's weekday instead gets one-shot reminders on
+ * that weekday of the following weeks (see `planWeighInReminders`). All or
+ * nothing: on a failure what was scheduled is cancelled and `[]` is returned.
+ * Never prompts for permission.
  */
 export async function scheduleWeighInReminders({
   time,
   weekdays,
-  skipDay,
-  now = new Date(),
+  skipToday,
   today = getTodayDate(),
 }: {
   time: string;
   weekdays: readonly number[];
-  skipDay: string | null;
-  now?: Date;
+  skipToday: boolean;
   today?: string;
 }): Promise<string[]> {
   const ids: string[] = [];
   try {
     await ensureWeighInChannel();
-    const slots = computeWeighInReminderSlots({
-      now,
-      today,
-      time,
-      weekdays,
-      skipDay,
-    });
-    for (const slot of slots) {
-      const id = await Notifications.scheduleNotificationAsync({
-        identifier: reminderIdentifier(slot.offset),
-        content: {
-          // Neutral wording: an invitation, never a judgement (#2215).
-          title: notificationCopy('notifications.weighIn.title', 'Weigh-in'),
-          body: notificationCopy(
-            'notifications.weighIn.body',
-            "Log today's weight when it suits you. It's fine to skip a day."
-          ),
-          sound: true,
-          data: { kind: WEIGH_IN_REMINDER_KIND, day: slot.day },
-        },
-        trigger: {
-          type: Notifications.SchedulableTriggerInputTypes.DATE,
-          date: slot.at,
-          channelId: WEIGH_IN_CHANNEL_ID,
-        },
-      });
-      ids.push(id);
+    const plan = planWeighInReminders({ today, time, weekdays, skipToday });
+    for (const weekday of plan.weekly) {
+      ids.push(
+        await Notifications.scheduleNotificationAsync({
+          identifier: weeklyIdentifier(weekday),
+          content: reminderContent(),
+          trigger: {
+            type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
+            // Expo counts weekdays from 1 = Sunday.
+            weekday: weekday + 1,
+            hour: plan.hour,
+            minute: plan.minute,
+            channelId: WEIGH_IN_CHANNEL_ID,
+          },
+        })
+      );
+    }
+    for (const oneShot of plan.oneShots) {
+      ids.push(
+        await Notifications.scheduleNotificationAsync({
+          identifier: skipFallbackIdentifier(oneShot.week),
+          content: reminderContent(),
+          trigger: {
+            type: Notifications.SchedulableTriggerInputTypes.DATE,
+            date: oneShot.at,
+            channelId: WEIGH_IN_CHANNEL_ID,
+          },
+        })
+      );
     }
     return ids;
   } catch (err) {
@@ -150,7 +172,7 @@ export function reconcileWeighInReminders(
     await scheduleWeighInReminders({
       time: prefs.weighInReminderTime,
       weekdays: prefs.weighInReminderWeekdays,
-      skipDay: weightLoggedToday ? today : null,
+      skipToday: weightLoggedToday === true,
       today,
     });
   });

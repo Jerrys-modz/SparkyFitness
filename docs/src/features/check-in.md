@@ -96,8 +96,8 @@ Adaptive TDEE and the weight trend work best with regular weigh-ins, so the mobi
 
 Tapping the reminder opens the **Measurements** step of Check-In on today, with the weight field ready to type in.
 
-If a weight is already logged for today, whether you entered it or it synced from Apple Health or Health Connect, today's reminder is skipped, or removed from your notifications if it was already shown. The app checks when it opens, when you return to it, after you save a check-in, and during background sync. A weight logged elsewhere (on the website, for example) while the app stays closed and background sync does not run can't be seen in time, so that day's reminder may still arrive.
+Reminders repeat every week on the days you picked, so they keep coming even if you don't open the app for a while.
 
-Reminders are set up on your phone for the next seven days, and are topped up each time the app opens or background sync runs. If the app is not opened and background sync does not run for a week, reminders pause until the next time the app opens.
+If a weight is already logged for today, whether you entered it or it synced from Apple Health or Health Connect, today's reminder is skipped, or removed from your notifications if it was already shown, and the following weeks carry on as usual. The app checks when it opens, when you return to it, after you save a check-in, and during background sync. On iPhone, with background sync and weight syncing on, a weight your scale writes to Apple Health wakes the app to check right away. A weight logged on the website or another device while the app is closed is only seen at the next background sync, so if none runs before the reminder time, that day's reminder still arrives.
 
 The reminder is phrased as an invitation, never a judgement, and skipping a day is fine. Like the other reminders it needs **Allow Notifications** on and notification permission granted, and the setting stays on the phone.

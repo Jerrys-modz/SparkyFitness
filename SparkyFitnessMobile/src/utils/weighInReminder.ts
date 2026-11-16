@@ -8,12 +8,13 @@ export const DEFAULT_WEIGH_IN_REMINDER_TIME = '07:30';
 /** Day-of-week indices, 0 = Sunday … 6 = Saturday. Default: every day. */
 export const ALL_WEEKDAYS: readonly number[] = [0, 1, 2, 3, 4, 5, 6];
 /**
- * Reminders are one-shot notifications for the next days, not a repeating
- * trigger, so today's can be left out once a weight is logged. The window is
- * rolled forward whenever the app opens or background sync runs; iOS keeps only
- * the 64 soonest pending notifications, so it stays short.
+ * When today's reminder is skipped, today's weekday loses its repeating
+ * trigger (a repeating trigger cannot skip one occurrence) and gets one-shot
+ * reminders for this many following weeks instead. The next reconcile on
+ * another day (app open, background sync) restores the repeating trigger, so
+ * this only bounds how long that weekday keeps reminding with neither.
  */
-export const WEIGH_IN_REMINDER_LOOKAHEAD_DAYS = 7;
+export const WEIGH_IN_SKIP_FALLBACK_WEEKS = 8;
 
 const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 
@@ -31,49 +32,63 @@ export function normalizeWeighInReminderWeekdays(
   ].sort((a, b) => a - b);
 }
 
-export interface WeighInReminderSlot {
-  /** Days from today, 0 = today; unique within one schedule. */
-  offset: number;
-  /** Local calendar day, `YYYY-MM-DD`. */
-  day: string;
-  /** When the reminder fires, in device-local time. */
-  at: Date;
+/** Weekday of a `YYYY-MM-DD` calendar day, 0 = Sunday. */
+function weekdayOfCalendarDay(day: string): number {
+  const [year, month, date] = day.split('-').map(Number);
+  return new Date(year, month - 1, date).getDay();
+}
+
+export interface WeighInReminderPlan {
+  hour: number;
+  minute: number;
+  /** Weekdays (0 = Sunday) that get a repeating weekly trigger. */
+  weekly: number[];
+  /** One-shot reminders standing in for today's weekday after a skip. */
+  oneShots: { week: number; day: string; at: Date }[];
 }
 
 /**
- * The reminders to schedule from `now`: one per selected weekday over the
- * lookahead window, at `time`, skipping times already past and `skipDay` (today
- * once a weight is logged).
+ * What to schedule: a repeating weekly reminder per selected weekday, except
+ * that when `skipToday` is set (a weight is logged for today) today's weekday
+ * gets one-shot reminders on the same weekday of the following weeks instead,
+ * so today's is left out without stopping the later ones.
  */
-export function computeWeighInReminderSlots({
-  now,
+export function planWeighInReminders({
   today,
   time,
   weekdays,
-  skipDay,
-  lookaheadDays = WEIGH_IN_REMINDER_LOOKAHEAD_DAYS,
+  skipToday,
+  fallbackWeeks = WEIGH_IN_SKIP_FALLBACK_WEEKS,
 }: {
-  now: Date;
-  /** `now`'s local calendar day, `YYYY-MM-DD`. */
+  /** The device's local calendar day, `YYYY-MM-DD`. */
   today: string;
   time: string;
   weekdays: readonly number[];
-  skipDay: string | null;
-  lookaheadDays?: number;
-}): WeighInReminderSlot[] {
+  skipToday: boolean;
+  fallbackWeeks?: number;
+}): WeighInReminderPlan {
   const [hour, minute] = normalizeWeighInReminderTime(time)
     .split(':')
     .map(Number);
-  const selected = new Set(normalizeWeighInReminderWeekdays(weekdays));
-  const slots: WeighInReminderSlot[] = [];
-  for (let offset = 0; offset < lookaheadDays; offset++) {
-    const day = addDays(today, offset);
-    if (day === skipDay) continue;
-    const [year, month, date] = day.split('-').map(Number);
-    const at = new Date(year, month - 1, date, hour, minute);
-    if (!selected.has(at.getDay())) continue;
-    if (at.getTime() <= now.getTime()) continue;
-    slots.push({ offset, day, at });
+  const selected = normalizeWeighInReminderWeekdays(weekdays);
+  const todayWeekday = weekdayOfCalendarDay(today);
+  const skipping = skipToday && selected.includes(todayWeekday);
+  const oneShots: WeighInReminderPlan['oneShots'] = [];
+  if (skipping) {
+    for (let week = 1; week <= fallbackWeeks; week++) {
+      const day = addDays(today, week * 7);
+      const [year, month, date] = day.split('-').map(Number);
+      oneShots.push({
+        week,
+        day,
+        at: new Date(year, month - 1, date, hour, minute),
+      });
+    }
   }
-  return slots;
+  return {
+    hour,
+    minute,
+    weekly: skipping ? selected.filter((d) => d !== todayWeekday) : selected,
+    oneShots,
+  };
 }
