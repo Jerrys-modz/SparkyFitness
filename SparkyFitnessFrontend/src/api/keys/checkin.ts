@@ -3,6 +3,9 @@ export const checkInKeys = {
   customCategories: (userId?: string) =>
     [...checkInKeys.all, 'customCategories', userId] as const,
   recentCustom: () => [...checkInKeys.all, 'recentCustom'] as const,
+  // Every check-in day, for weight progress and waist-to-height ratio.
+  measurementHistory: (userId?: string | null) =>
+    [...checkInKeys.all, 'measurementHistory', userId] as const,
   recentStandard: (startDate: string, endDate: string) =>
     [...checkInKeys.all, 'recentStandard', startDate, endDate] as const,
   latestCheckIn: (date: string) =>

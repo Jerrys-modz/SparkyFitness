@@ -146,6 +146,46 @@ describe('Onboarding Routes', () => {
   });
 
   // --- GET /onboarding/status ---
+  describe('GET /onboarding/start-weight', () => {
+    it('returns the onboarding weight for the active profile', async () => {
+      vi.mocked(onboardingService.getStartWeight).mockResolvedValue({
+        weightKg: 92.5,
+        date: '2026-01-15',
+      });
+
+      const res = await request(app).get('/onboarding/start-weight');
+
+      expect(res.statusCode).toEqual(200);
+      expect(res.body).toEqual({ weightKg: 92.5, date: '2026-01-15' });
+      expect(onboardingService.getStartWeight).toHaveBeenCalledWith(
+        'testUserId'
+      );
+    });
+
+    it('stays readable while acting for the owner', async () => {
+      auth.actorUserId = 'delegateUserId';
+      vi.mocked(onboardingService.getStartWeight).mockResolvedValue({
+        weightKg: null,
+        date: null,
+      });
+
+      const res = await request(app).get('/onboarding/start-weight');
+
+      expect(res.statusCode).toEqual(200);
+      expect(res.body).toEqual({ weightKg: null, date: null });
+    });
+
+    it('passes errors on', async () => {
+      vi.mocked(onboardingService.getStartWeight).mockRejectedValue(
+        new Error('DB failure')
+      );
+
+      const res = await request(app).get('/onboarding/start-weight');
+
+      expect(res.statusCode).toEqual(500);
+    });
+  });
+
   describe('GET /onboarding/status', () => {
     it('should return onboardingComplete and onboardingSkipped when not complete', async () => {
       // @ts-expect-error TS(2339)
