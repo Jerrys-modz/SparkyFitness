@@ -123,6 +123,9 @@ export const goalPresetsQueryKey = ['goalPresets'] as const;
 
 export const weeklyGoalPlansQueryKey = ['weeklyGoalPlans'] as const;
 
+/** The diet phase plan (cut -> maintain -> cut) and today's status. */
+export const dietPhasesQueryKey = ['dietPhases'] as const;
+
 export const goalsRangeQueryKey = (
   startDate: string,
   endDate: string,

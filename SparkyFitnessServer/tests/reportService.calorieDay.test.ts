@@ -15,6 +15,10 @@ import symptomRepository from '../models/symptomRepository.js';
 import injectionRepository from '../models/injectionRepository.js';
 import titrationRepository from '../models/titrationRepository.js';
 
+// No diet phases: the calorie maths is exactly as without the feature.
+vi.mock('../services/dietPhaseService.js', () => ({
+  loadDietPhasesForCalories: vi.fn(async () => []),
+}));
 vi.mock('../models/reportRepository.js');
 vi.mock('../models/measurementRepository.js');
 vi.mock('../models/userRepository.js');

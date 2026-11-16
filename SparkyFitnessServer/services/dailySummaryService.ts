@@ -6,8 +6,10 @@ import hydrationTotalsService from './hydrationTotalsService.js';
 import foodRepository from '../models/foodMisc.js';
 import userRepository from '../models/userRepository.js';
 import preferenceRepository from '../models/preferenceRepository.js';
-import calorieRuleHistoryRepository from '../models/calorieRuleHistoryRepository.js';
-import { preferencesOnDay } from './calorieRuleHistoryService.js';
+import {
+  loadCalorieRuleTimeline,
+  preferencesOnTimelineDay,
+} from './calorieRuleHistoryService.js';
 import * as genericHealthRepository from '../models/genericHealthRepository.js';
 import { log } from '../config/logging.js';
 import {
@@ -49,7 +51,7 @@ export async function getDailySummary({
     waterResult,
     userProfile,
     userPreferences,
-    calorieRuleHistory,
+    calorieRuleTimeline,
     measurements,
     supplementTotals,
     deviceTotalRows,
@@ -75,11 +77,7 @@ export async function getDailySummary({
       : null,
     userRepository.getUserProfile(targetUserId),
     preferenceRepository.getUserPreferences(targetUserId),
-    calorieRuleHistoryRepository.getCalorieRuleHistory(
-      targetUserId,
-      date,
-      date
-    ),
+    loadCalorieRuleTimeline(targetUserId, date, date),
     includeCheckin
       ? measurementRepository
           .getLatestCheckInMeasurementsOnOrBeforeDate(targetUserId, date)
@@ -165,7 +163,7 @@ export async function getDailySummary({
 
   const dayPreferences =
     userPreferences &&
-    preferencesOnDay(userPreferences, calorieRuleHistory, date);
+    preferencesOnTimelineDay(userPreferences, calorieRuleTimeline, date);
   const calorieBalance = computeCalorieBalance({
     date,
     eatenCalories:

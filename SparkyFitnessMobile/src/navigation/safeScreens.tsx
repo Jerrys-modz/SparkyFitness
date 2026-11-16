@@ -72,6 +72,7 @@ import PresetSearchScreen from '../screens/PresetSearchScreen';
 import CalorieSettingsScreen from '../screens/CalorieSettingsScreen';
 import GoalsScreen from '../screens/GoalsScreen';
 import WeeklyGoalPlanEditScreen from '../screens/WeeklyGoalPlanEditScreen';
+import DietPhaseEditScreen from '../screens/DietPhaseEditScreen';
 import MealTypeSettingsScreen from '../screens/MealTypeSettingsScreen';
 import EquipmentScreen from '../screens/EquipmentScreen';
 import ShoesScreen from '../screens/ShoesScreen';
@@ -255,6 +256,7 @@ export const SafeChat = withErrorBoundary(ChatScreen, 'Chat', { canGoBack: true 
 export const SafeChatSettings = withErrorBoundary(ChatSettingsScreen, 'ChatSettings', { canGoBack: true });
 export const SafeGoals = withErrorBoundary(GoalsScreen, 'Goals', { canGoBack: true });
 export const SafeWeeklyGoalPlanEdit = withErrorBoundary(WeeklyGoalPlanEditScreen, 'WeeklyGoalPlanEdit', { canGoBack: true });
+export const SafeDietPhaseEdit = withErrorBoundary(DietPhaseEditScreen, 'DietPhaseEdit', { canGoBack: true });
 export const SafeCalorieSettings = withErrorBoundary(CalorieSettingsScreen, 'CalorieSettings', { canGoBack: true });
 export const SafeMealTypeSettings = withErrorBoundary(MealTypeSettingsScreen, 'MealTypeSettings', { canGoBack: true });
 export const SafeEquipment = withErrorBoundary(EquipmentScreen, 'Equipment', { canGoBack: true });

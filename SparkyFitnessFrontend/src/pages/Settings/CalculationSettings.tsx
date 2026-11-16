@@ -107,7 +107,7 @@ import {
 import { CalorieCyclingSettings } from '@/components/CalorieCyclingSettings';
 import { WeeklyCalorieBudgetSettings } from '@/components/WeeklyCalorieBudgetSettings';
 import { isCalorieCyclingPatternUseful } from '@/utils/calorieCycling';
-import { useWeeklyGoalPlans } from '@/hooks/Goals/useGoals';
+import { useDietPhases, useWeeklyGoalPlans } from '@/hooks/Goals/useGoals';
 
 /** The Daily Calorie Goal Adjustment choices shown as cards. */
 const ADJUSTMENT_MODE_CARDS: {
@@ -565,6 +565,7 @@ const CalculationSettings = () => {
   const { data: adaptiveTdeeData } = useAdaptiveTdee(todayStr);
   const { data: goalsData } = useDiaryGoals(todayStr, false);
   const { data: weeklyGoalPlans } = useWeeklyGoalPlans();
+  const { data: dietPhases } = useDietPhases();
 
   const { user } = useAuth();
   const { data: userProfile } = useProfileQuery(user?.id);
@@ -1521,6 +1522,14 @@ const CalculationSettings = () => {
           {t(
             'settings.goalMode.subtitle',
             'Adjust your daily calorie target based on your body composition goal.'
+          )}
+          {dietPhases?.status.current && (
+            <span className="block mt-1 font-medium text-foreground">
+              {t(
+                'settings.goalMode.dietPhaseActive',
+                'A diet phase sets your Goal Mode today. This setting applies again on days outside your phases (Goals → Diet Phases).'
+              )}
+            </span>
           )}
           {calorieGoalAdjustmentMode === 'tdee' && (
             <span className="block mt-1">

@@ -12,6 +12,9 @@ export const goalKeys = {
     one: (id: string) => [...goalKeys.presets.all(), id] as const,
   },
 
+  /** The diet phase plan (cut -> maintain -> cut) and today's status. */
+  dietPhases: () => [...goalKeys.all, 'dietPhases'] as const,
+
   plans: {
     all: () => [...goalKeys.all, 'plans'] as const,
     one: (id: string) => [...goalKeys.plans.all(), id] as const,

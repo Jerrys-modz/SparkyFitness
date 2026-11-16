@@ -13,6 +13,7 @@ import {
 } from '@/hooks/Goals/useGoals';
 import { WeeklyGoalPlanDialog } from './WeeklyGoalPlanDialog';
 import { WeeklyGoalPlansSection } from './WeeklyGoalPlansSection';
+import { DietPhasesSection } from './DietPhasesSection';
 import { GoalPresetsSection } from './GoalPresetsSection';
 import { DailyGoals } from './DailyGoals';
 import { GoalWeight } from './GoalWeight';
@@ -161,6 +162,9 @@ export const GoalsContent = ({
 
       {/* Reset Onboarding */}
       <ResetOnboarding />
+
+      {/* Diet phases: Goal Mode by date range */}
+      <DietPhasesSection />
 
       {/* Daily Goals */}
       <DailyGoals

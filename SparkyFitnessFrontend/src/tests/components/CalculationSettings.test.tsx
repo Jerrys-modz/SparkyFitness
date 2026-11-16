@@ -134,6 +134,7 @@ jest.mock('@/hooks/Diary/useFoodEntries', () => ({
 let mockWeeklyGoalPlans: unknown[] = [];
 jest.mock('@/hooks/Goals/useGoals', () => ({
   useWeeklyGoalPlans: () => ({ data: mockWeeklyGoalPlans }),
+  useDietPhases: () => ({ data: undefined }),
 }));
 jest.mock('@/hooks/CheckIn/useCheckIn', () => ({
   useMostRecentMeasurement: () => ({ data: undefined }),

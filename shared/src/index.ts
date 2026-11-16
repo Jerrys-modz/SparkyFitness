@@ -415,3 +415,6 @@ export * from './utils/goalWeightPlan.ts';
 export * from './utils/macroPerKg.ts';
 export * from './schemas/api/OnboardingStartWeight.api.zod.ts';
 export * from './utils/weightProgress.ts';
+export * from './schemas/api/DietPhases.api.zod.ts';
+export * from './utils/dietPhases.ts';
+export * from './schemas/database/DietPhases.zod.ts';
