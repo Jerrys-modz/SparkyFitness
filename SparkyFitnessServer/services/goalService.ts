@@ -33,8 +33,17 @@ import {
   getRecommendedCalorieSafetyFloor,
   type CalorieCyclingDay,
   type CalorieTargetResult,
+  computeMacroTargets,
+  hasMacroPercentages,
+  hasMacroPerKg,
 } from '@workspace/shared';
 import customNutrientService from './customNutrientService.js';
+import {
+  bodyMeasurementsOnOrBefore,
+  macroGramsToStore,
+  readMacroPerKgInput,
+  storedMacroPerKgFields,
+} from '../utils/macroPerKgGoal.js';
 import { DEFAULT_GOALS } from '../constants/goals.js';
 import { Goals } from '../types/goals.js';
 import { getAdaptiveActivityCalories } from './adaptiveActivityService.js';
@@ -141,11 +150,12 @@ async function getUserGoalsForRange(
   let userPreferences = null;
   let allMeasurements: GoalMeasurement[] = [];
 
-  if (adjust) {
-    [userProfile, userPreferences] = await Promise.all([
-      userRepository.getUserProfile(userId),
-      preferenceRepository.getUserPreferences(userId),
-    ]);
+  // Check-in measurements for the range, newest first. Loaded for adjusted
+  // goals, and on demand for a protein or fat goal set per kg.
+  let measurementsLoaded = false;
+  const loadMeasurements = async () => {
+    if (measurementsLoaded) return;
+    measurementsLoaded = true;
     const [initialMeasurement, rangeMeasurements] = await Promise.all([
       measurementRepository.getLatestCheckInMeasurementsOnOrBeforeDate(
         userId,
@@ -164,6 +174,14 @@ async function getUserGoalsForRange(
       (a, b) =>
         new Date(b.entry_date).getTime() - new Date(a.entry_date).getTime()
     );
+  };
+
+  if (adjust) {
+    [userProfile, userPreferences] = await Promise.all([
+      userRepository.getUserProfile(userId),
+      preferenceRepository.getUserPreferences(userId),
+    ]);
+    await loadMeasurements();
   }
 
   const preferencesOn = adjust
@@ -545,22 +563,20 @@ async function getUserGoalsForRange(
       processedGoals.calories = goalCalories;
     }
 
-    if (
-      [
-        processedGoals.protein_percentage,
-        processedGoals.carbs_percentage,
-        processedGoals.fat_percentage,
-      ].every(
-        (value) =>
-          value !== null &&
-          value !== undefined &&
-          Number.isFinite(Number(value))
-      )
-    ) {
+    const macroGoal = {
+      proteinPercentage: processedGoals.protein_percentage as number | null,
+      carbsPercentage: processedGoals.carbs_percentage as number | null,
+      fatPercentage: processedGoals.fat_percentage as number | null,
+    };
+    const perKgFields = storedMacroPerKgFields(processedGoals);
+    const percentMode = hasMacroPercentages(macroGoal);
+    const perKgMode = hasMacroPerKg(perKgFields);
+    processedGoals = { ...processedGoals, ...perKgFields, macro_per_kg: null };
+    if (percentMode || perKgMode) {
       // Grams follow the day's target before cycling; cycling then moves only carbs.
       let macroCalories = Number(processedGoals.calories) - cyclingDeltaKcal;
       const dayPreferences = adjust ? preferencesOn(dateStr) : null;
-      if (dayPreferences?.adjust_macros_with_exercise) {
+      if (percentMode && dayPreferences?.adjust_macros_with_exercise) {
         // Use the same budget policy as the diary, including adaptive suppression
         // and Device Projection. Resting BMR is not exercise earn-back.
         const credit = computeExerciseMacroCredit({
@@ -597,19 +613,32 @@ async function getUserGoalsForRange(
         });
         macroCalories += credit;
       }
-      const { protein_grams, carbs_grams, fat_grams } =
-        calculateGramsFromPercentages(
-          macroCalories,
-          processedGoals.protein_percentage,
-          processedGoals.carbs_percentage,
-          processedGoals.fat_percentage,
-          processedGoals.dietary_fiber
-        );
+      // Protein or fat per kg (#1955): locked at grams from the latest weight
+      // on or before the day; the other macros share what is left.
+      if (perKgMode) await loadMeasurements();
+      const targets = computeMacroTargets({
+        calories: macroCalories,
+        dietaryFiber: processedGoals.dietary_fiber as number | null,
+        protein: processedGoals.protein as number | null,
+        carbs: processedGoals.carbs as number | null,
+        fat: processedGoals.fat as number | null,
+        ...macroGoal,
+        proteinPerKg: perKgFields.protein_per_kg,
+        fatPerKg: perKgFields.fat_per_kg,
+        basis: perKgFields.macro_per_kg_basis,
+        weightKg: perKgMode
+          ? getMeasurementFieldForDate(dateStr, 'weight')
+          : null,
+        bodyFatPercentage: perKgMode
+          ? getMeasurementFieldForDate(dateStr, 'body_fat_percentage')
+          : null,
+      });
       processedGoals = {
         ...processedGoals,
-        protein: protein_grams,
-        carbs: carbs_grams,
-        fat: fat_grams,
+        protein: targets.protein,
+        carbs: targets.carbs,
+        fat: targets.fat,
+        macro_per_kg: targets.perKg,
       };
     }
     if (
@@ -768,6 +797,46 @@ async function manageGoalTimeline(authenticatedUserId: string, goalData: any) {
         `manageGoalTimeline - Using provided grams: Protein ${protein_to_store}, Carbs ${protein_to_store}, Fat ${fat_to_store}. Percentages were not all valid numbers.`
       );
     }
+    // Protein or fat per kg: lock the grams from the weight on the start day.
+    // Those grams are saved with the goal, as the fallback for a day with no
+    // weight logged and for older clients. A client that predates per-kg goals
+    // sends none of the fields; keep the setting already in force that day.
+    const perKgInput = readMacroPerKgInput(goalData, {
+      protein: 'p_protein_per_kg',
+      fat: 'p_fat_per_kg',
+      basis: 'p_macro_per_kg_basis',
+    });
+    const perKgFields = perKgInput.supplied
+      ? perKgInput.fields
+      : storedMacroPerKgFields(
+          (await goalRepository.getGoalByDate(
+            authenticatedUserId,
+            p_start_date
+          )) ??
+            (await goalRepository.getMostRecentGoalBeforeDate(
+              authenticatedUserId,
+              p_start_date
+            ))
+        );
+    if (hasMacroPerKg(perKgFields)) {
+      const grams = macroGramsToStore(
+        {
+          calories: Number(p_calories) || 0,
+          dietaryFiber: p_dietary_fiber,
+          protein: Number(p_protein),
+          carbs: Number(p_carbs),
+          fat: Number(p_fat),
+          proteinPercentage: p_protein_percentage,
+          carbsPercentage: p_carbs_percentage,
+          fatPercentage: p_fat_percentage,
+        },
+        perKgFields,
+        await bodyMeasurementsOnOrBefore(authenticatedUserId, p_start_date)
+      );
+      protein_to_store = grams.protein;
+      carbs_to_store = grams.carbs;
+      fat_to_store = grams.fat;
+    }
     // Helper to convert NaN to 0 for numeric fields, or null if specified
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const cleanNumber = (value: any, allow_null = false) => {
@@ -866,6 +935,7 @@ async function manageGoalTimeline(authenticatedUserId: string, goalData: any) {
       snacks_percentage: cleanNumber(p_snacks_percentage, true),
       custom_meal_percentages: custom_meal_percentages || {},
       custom_nutrients: filteredCustomNutrients,
+      ...perKgFields,
     };
     // If cascade is false, or if editing a past date, only update that specific date
     if (

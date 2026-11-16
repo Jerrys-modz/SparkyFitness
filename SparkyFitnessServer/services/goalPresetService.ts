@@ -1,5 +1,13 @@
 import goalPresetRepository from '../models/goalPresetRepository.js';
 import { log } from '../config/logging.js';
+import { hasMacroPercentages, todayInZone } from '@workspace/shared';
+import { loadUserTimezone } from '../utils/timezoneLoader.js';
+import {
+  bodyMeasurementsOnOrBefore,
+  macroGramsToStore,
+  readMacroPerKgInput,
+  storedMacroPerKgFields,
+} from '../utils/macroPerKgGoal.js';
 // Convert water_goal_ml to the correct repository field name
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapWaterGoalMlToDb(presetData: any) {
@@ -16,57 +24,66 @@ function mapDbToWaterGoalMl(presetData: any) {
   const { water_goal, ...rest } = presetData;
   return {
     ...rest,
+    ...storedMacroPerKgFields(presetData),
     water_goal_ml: water_goal,
   };
 }
-// Helper function to calculate grams from percentages
-function calculateGramsFromPercentages(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  calories: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  protein_percentage: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  carbs_percentage: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  fat_percentage: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  dietary_fiber?: any
+// Works out the grams saved with a preset: from its percentages, and for
+// protein or fat set per kg from the person's latest weight (the fallback for
+// a day with no weight logged, and what older clients display). The per-kg
+// fields are validated here; `supplied` is false for an older client that
+// sent none of them.
+async function applyPresetMacros(
+  userId: string,
+  presetData: Record<string, unknown>
 ) {
-  const fiber = Number(dietary_fiber) || 0;
-  const adjustedCalories = Math.max(0, (Number(calories) || 0) - fiber * 2);
-  const protein_grams = (adjustedCalories * (protein_percentage / 100)) / 4;
-  const carbs_grams = (adjustedCalories * (carbs_percentage / 100)) / 4;
-  const fat_grams = (adjustedCalories * (fat_percentage / 100)) / 9;
-  return { protein_grams, carbs_grams, fat_grams };
+  const perKg = readMacroPerKgInput(presetData);
+  delete presetData.protein_per_kg;
+  delete presetData.fat_per_kg;
+  delete presetData.macro_per_kg_basis;
+  const usesPerKg =
+    perKg.fields.protein_per_kg !== null || perKg.fields.fat_per_kg !== null;
+  const hasCalories =
+    presetData.calories !== null && presetData.calories !== undefined;
+  const goal = {
+    calories: Number(presetData.calories) || 0,
+    dietaryFiber: presetData.dietary_fiber as number | null | undefined,
+    protein: presetData.protein as number | null | undefined,
+    carbs: presetData.carbs as number | null | undefined,
+    fat: presetData.fat as number | null | undefined,
+    proteinPercentage: presetData.protein_percentage as number | null,
+    carbsPercentage: presetData.carbs_percentage as number | null,
+    fatPercentage: presetData.fat_percentage as number | null,
+  };
+  // Without calories the percentage maths has nothing to share out.
+  if ((hasCalories && hasMacroPercentages(goal)) || usesPerKg) {
+    const measurements = usesPerKg
+      ? await bodyMeasurementsOnOrBefore(
+          userId,
+          todayInZone(await loadUserTimezone(userId))
+        )
+      : { weightKg: null, bodyFatPercentage: null };
+    const grams = macroGramsToStore(
+      hasCalories ? goal : { ...goal, proteinPercentage: null },
+      perKg.fields,
+      measurements
+    );
+    presetData.protein = grams.protein;
+    presetData.carbs = grams.carbs;
+    presetData.fat = grams.fat;
+  }
+  return perKg;
 }
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function createGoalPreset(userId: any, presetData: any) {
+  // Outside the try, so a bad per-kg value answers 400, not "Failed to ...".
+  const perKg = await applyPresetMacros(userId, presetData);
   try {
-    // If percentages are provided, calculate grams.
-    // Also guard calories — without it the multiplication produces NaN.
-    if (
-      presetData.calories !== null &&
-      presetData.calories !== undefined &&
-      presetData.protein_percentage !== null &&
-      presetData.protein_percentage !== undefined &&
-      presetData.carbs_percentage !== null &&
-      presetData.carbs_percentage !== undefined &&
-      presetData.fat_percentage !== null &&
-      presetData.fat_percentage !== undefined
-    ) {
-      const { protein_grams, carbs_grams, fat_grams } =
-        calculateGramsFromPercentages(
-          presetData.calories,
-          presetData.protein_percentage,
-          presetData.carbs_percentage,
-          presetData.fat_percentage,
-          presetData.dietary_fiber
-        );
-      presetData.protein = protein_grams;
-      presetData.carbs = carbs_grams;
-      presetData.fat = fat_grams;
-    }
-    const dbPresetData = mapWaterGoalMlToDb({ ...presetData, user_id: userId });
+    const dbPresetData = mapWaterGoalMlToDb({
+      ...presetData,
+      ...perKg.fields,
+      user_id: userId,
+    });
     const newPreset = await goalPresetRepository.createGoalPreset(dbPresetData);
     return newPreset;
   } catch (error) {
@@ -109,32 +126,28 @@ async function getGoalPreset(presetId: any, userId: any) {
 }
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function updateGoalPreset(presetId: any, userId: any, presetData: any) {
-  try {
-    // If percentages are provided, calculate grams.
-    // Also guard calories — without it the multiplication produces NaN.
-    if (
-      presetData.calories !== null &&
-      presetData.calories !== undefined &&
-      presetData.protein_percentage !== null &&
-      presetData.protein_percentage !== undefined &&
-      presetData.carbs_percentage !== null &&
-      presetData.carbs_percentage !== undefined &&
-      presetData.fat_percentage !== null &&
-      presetData.fat_percentage !== undefined
-    ) {
-      const { protein_grams, carbs_grams, fat_grams } =
-        calculateGramsFromPercentages(
-          presetData.calories,
-          presetData.protein_percentage,
-          presetData.carbs_percentage,
-          presetData.fat_percentage,
-          presetData.dietary_fiber
-        );
-      presetData.protein = protein_grams;
-      presetData.carbs = carbs_grams;
-      presetData.fat = fat_grams;
+  if (
+    presetData.protein_per_kg === undefined &&
+    presetData.fat_per_kg === undefined
+  ) {
+    // An older client: keep the stored per-kg setting, and work the grams out
+    // from it, so its stale gram fields do not become the fallback.
+    const stored = await goalPresetRepository.getGoalPresetById(
+      presetId,
+      userId
+    );
+    if (stored && presetData.macro_per_kg_basis === undefined) {
+      Object.assign(presetData, storedMacroPerKgFields(stored));
     }
-    const dbPresetData = mapWaterGoalMlToDb({ ...presetData, user_id: userId });
+  }
+  const perKg = await applyPresetMacros(userId, presetData);
+  try {
+    const dbPresetData = mapWaterGoalMlToDb({
+      ...presetData,
+      ...perKg.fields,
+      macro_per_kg_supplied: true,
+      user_id: userId,
+    });
     const updatedPreset = await goalPresetRepository.updateGoalPreset(
       presetId,
       dbPresetData

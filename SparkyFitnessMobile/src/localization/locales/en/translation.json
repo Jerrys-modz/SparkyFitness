@@ -8471,7 +8471,23 @@
     },
     "cyclingNoteTodayWithUnit": "Calorie cycling is on, so the calories below are your base target and each day is higher or lower. Today it is {{calories}} {{unit}}.",
     "cyclingPausedWeeklyPlan": "Calorie cycling is paused today by an active weekly goal plan. The calories below set today’s plan target directly.",
-    "adjustedGoalFailed": "Could not load today’s adjusted goal target."
+    "adjustedGoalFailed": "Could not load today’s adjusted goal target.",
+    "perKg": {
+      "title": "Grams per kg of body weight",
+      "description": "Protein and fat can follow your weight: the grams are worked out each day from the latest weight logged on or before it.",
+      "proteinSwitch": "Set protein per kg",
+      "fatSwitch": "Set fat per kg",
+      "proteinInput": "Protein (g/kg)",
+      "fatInput": "Fat (g/kg)",
+      "bodyWeight": "Body weight",
+      "leanMass": "Lean mass",
+      "noWeight": "No weight logged yet. Log your weight to use this goal; until then the grams saved with it are used ({{protein}} g protein).",
+      "preview": "Today's grams from {{kg}} kg: protein {{protein}} g, carbs {{carbs}} g, fat {{fat}} g.",
+      "leanMassFallback": "No body fat % logged, so body weight is used instead of lean mass.",
+      "remainderPercentages": "Per-kg macros are fixed first. The calories left go to the other macros in proportion to their percentages.",
+      "remainderGrams": "The other macros keep the grams you enter.",
+      "invalid": "Enter a g/kg value in the allowed range."
+    }
   },
   "reports": {
     "title": "Reports",

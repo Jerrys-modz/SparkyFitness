@@ -12,7 +12,8 @@ async function getGoalByDate(userId: any, selectedDate: any) {
                target_exercise_calories_burned, target_exercise_duration_minutes, target_steps,
                protein_percentage, carbs_percentage, fat_percentage,
                breakfast_percentage, lunch_percentage, dinner_percentage, snacks_percentage,
-               custom_meal_percentages, custom_nutrients
+               custom_meal_percentages, custom_nutrients,
+               protein_per_kg, fat_per_kg, macro_per_kg_basis
         FROM user_goals
         WHERE user_id = $1 AND goal_date = $2
         ORDER BY updated_at DESC, created_at DESC -- Prioritize most recently updated/created
@@ -39,7 +40,8 @@ async function getAllHistoricalGoals(userId: string) {
               target_exercise_calories_burned, target_exercise_duration_minutes, target_steps,
               protein_percentage, carbs_percentage, fat_percentage,
               breakfast_percentage, lunch_percentage, dinner_percentage, snacks_percentage,
-              custom_meal_percentages, custom_nutrients
+              custom_meal_percentages, custom_nutrients,
+               protein_per_kg, fat_per_kg, macro_per_kg_basis
        FROM user_goals
        WHERE user_id = $1
        ORDER BY goal_date DESC, updated_at DESC, created_at DESC`,
@@ -69,7 +71,8 @@ async function getGoalsInRange(
               target_exercise_calories_burned, target_exercise_duration_minutes, target_steps,
               protein_percentage, carbs_percentage, fat_percentage,
               breakfast_percentage, lunch_percentage, dinner_percentage, snacks_percentage,
-              custom_meal_percentages, custom_nutrients
+              custom_meal_percentages, custom_nutrients,
+               protein_per_kg, fat_per_kg, macro_per_kg_basis
        FROM user_goals
        WHERE user_id = $1
          AND goal_date BETWEEN $2 AND $3
@@ -95,7 +98,8 @@ async function getMostRecentGoalBeforeDate(userId: any, selectedDate: any) {
                target_exercise_calories_burned, target_exercise_duration_minutes, target_steps,
                protein_percentage, carbs_percentage, fat_percentage,
                breakfast_percentage, lunch_percentage, dinner_percentage, snacks_percentage,
-               custom_meal_percentages, custom_nutrients
+               custom_meal_percentages, custom_nutrients,
+               protein_per_kg, fat_per_kg, macro_per_kg_basis
         FROM user_goals
         WHERE user_id = $1 AND (goal_date < $2 OR goal_date IS NULL)
         ORDER BY goal_date DESC NULLS LAST
@@ -121,9 +125,10 @@ async function upsertGoal(goalData: any) {
         protein_percentage, carbs_percentage, fat_percentage,
         breakfast_percentage, lunch_percentage, dinner_percentage, snacks_percentage,
         custom_meal_percentages, custom_nutrients, created_at, updated_at,
-        caffeine_mg, alcohol_g, target_steps
+        caffeine_mg, alcohol_g, target_steps,
+        protein_per_kg, fat_per_kg, macro_per_kg_basis
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $38, $39, COALESCE($40, 'body_weight'))
       ON CONFLICT (user_id, COALESCE(goal_date, '1900-01-01'::date))
       DO UPDATE SET
         calories = EXCLUDED.calories,
@@ -159,6 +164,9 @@ async function upsertGoal(goalData: any) {
         alcohol_g = EXCLUDED.alcohol_g,
         -- A client that predates the steps goal omits it; keep the stored value.
         target_steps = CASE WHEN $37::boolean THEN EXCLUDED.target_steps ELSE user_goals.target_steps END,
+        protein_per_kg = EXCLUDED.protein_per_kg,
+        fat_per_kg = EXCLUDED.fat_per_kg,
+        macro_per_kg_basis = EXCLUDED.macro_per_kg_basis,
         updated_at = now()
       RETURNING *`,
       [
@@ -199,6 +207,9 @@ async function upsertGoal(goalData: any) {
         goalData.alcohol_g,
         goalData.target_steps ?? null,
         goalData.target_steps !== undefined,
+        goalData.protein_per_kg ?? null,
+        goalData.fat_per_kg ?? null,
+        goalData.macro_per_kg_basis ?? null,
       ]
     );
     return result.rows[0];

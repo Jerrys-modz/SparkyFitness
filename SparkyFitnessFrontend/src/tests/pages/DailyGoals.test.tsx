@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import type { ExpandedGoals } from '@/types/goals';
 import '@testing-library/jest-dom';
 import { DailyGoals } from '@/pages/Goals/DailyGoals';
 import { DEFAULT_GOALS } from '@/constants/goals';
@@ -32,6 +33,13 @@ jest.mock('@/hooks/Goals/useGoals', () => ({
 
 jest.mock('@/hooks/Diary/useDailyProgress', () => ({
   useDailySummary: () => ({ data: undefined }),
+}));
+
+const mockLatestCheckIn: {
+  data: { weight: number; body_fat_percentage: number | null } | null;
+} = { data: null };
+jest.mock('@/hooks/CheckIn/useCheckIn', () => ({
+  useLatestCheckInMeasurements: () => mockLatestCheckIn,
 }));
 
 jest.mock('@/hooks/Goals/useNutrientAutoCalculate', () => ({
@@ -78,5 +86,80 @@ describe('DailyGoals - Water Goal Exclusivity (Gate 3)', () => {
         (text) => text?.includes('Water') && !text.includes('Water Goal')
       )
     ).toBe(false);
+  });
+});
+
+describe('DailyGoals - protein per kg', () => {
+  const renderGoals = (goals: ExpandedGoals) =>
+    render(
+      <DailyGoals
+        goals={goals}
+        setGoals={jest.fn()}
+        visibleNutrients={[]}
+        today="2026-11-16"
+      />
+    );
+
+  afterEach(() => {
+    mockLatestCheckIn.data = null;
+  });
+
+  it('previews grams from the latest weight and splits the rest by percentage', () => {
+    mockLatestCheckIn.data = { weight: 80, body_fat_percentage: null };
+    renderGoals({
+      ...(DEFAULT_GOALS as ExpandedGoals),
+      calories: 2000,
+      dietary_fiber: 0,
+      protein_percentage: 30,
+      carbs_percentage: 40,
+      fat_percentage: 30,
+      protein_per_kg: 2,
+      fat_per_kg: null,
+      macro_per_kg_basis: 'body_weight',
+    });
+
+    // 160 g protein; 2000 - 640 = 1360 kcal shared 40:30 by carbs and fat.
+    expect(
+      screen.getByText(
+        "Today's grams from 80 kg: protein 160 g, carbs 194 g, fat 65 g."
+      )
+    ).toBeInTheDocument();
+    // Percentages only weight the remainder, so no 100% total is required.
+    expect(screen.queryByText(/Must be 100% to save/)).not.toBeInTheDocument();
+  });
+
+  it('shows a hint when no weight is logged', () => {
+    renderGoals({
+      ...(DEFAULT_GOALS as ExpandedGoals),
+      protein: 150,
+      protein_percentage: null,
+      carbs_percentage: null,
+      fat_percentage: null,
+      protein_per_kg: 1.8,
+    });
+
+    expect(screen.getByText(/No weight logged yet/)).toBeInTheDocument();
+  });
+
+  it('says when lean mass falls back to body weight', () => {
+    mockLatestCheckIn.data = { weight: 80, body_fat_percentage: null };
+    renderGoals({
+      ...(DEFAULT_GOALS as ExpandedGoals),
+      protein_percentage: null,
+      carbs_percentage: null,
+      fat_percentage: null,
+      protein_per_kg: 2,
+      macro_per_kg_basis: 'lean_mass',
+    });
+
+    expect(
+      screen.getByText(/body weight is used instead of lean mass/)
+    ).toBeInTheDocument();
+  });
+
+  it('shows no per-kg preview for a goal set in grams', () => {
+    renderGoals({ ...(DEFAULT_GOALS as ExpandedGoals) });
+    expect(screen.queryByText(/Today's grams from/)).not.toBeInTheDocument();
+    expect(screen.getByText('Set protein per kg')).toBeInTheDocument();
   });
 });
