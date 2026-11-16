@@ -160,6 +160,23 @@ jest.mock('react-i18next', () => ({
   }),
 }));
 
+jest.mock('../../src/components/FamilyDashboardSummary', () => {
+  const { Text } = require('react-native');
+  return {
+    __esModule: true,
+    default: ({ summary }: { summary: { caloriesConsumed: number } }) => (
+      <Text>{`Dashboard ${Math.round(summary.caloriesConsumed)} kcal`}</Text>
+    ),
+  };
+});
+
+const emptyDay = {
+  goals: { calories: 2000 },
+  foodEntries: [],
+  exerciseSessions: [],
+  waterIntake: 0,
+};
+
 const mockUseFamilyDailySummary = useFamilyDailySummary as jest.MockedFunction<
   typeof useFamilyDailySummary
 >;
@@ -197,7 +214,7 @@ describe('FamilyDiaryScreen', () => {
 
   test('opens the copied target date from navigation without changing the own diary', () => {
     mockUseFamilyDailySummary.mockReturnValue({
-      data: { foodEntries: [] },
+      data: { ...emptyDay },
       isLoading: false,
       isError: false,
       refetch: jest.fn(),
@@ -211,7 +228,7 @@ describe('FamilyDiaryScreen', () => {
 
   test('returns to the copied target date when navigation reuses a diary that has browsed elsewhere', () => {
     mockUseFamilyDailySummary.mockReturnValue({
-      data: { foodEntries: [] },
+      data: { ...emptyDay },
       isLoading: false,
       isError: false,
       refetch: jest.fn(),
@@ -231,7 +248,7 @@ describe('FamilyDiaryScreen', () => {
 
   test('shows every raw family component and opens its meal', () => {
     mockUseFamilyDailySummary.mockReturnValue({
-      data: { foodEntries: [pasta, sauce] },
+      data: { ...emptyDay, foodEntries: [pasta, sauce] },
       isLoading: false,
       isError: false,
       refetch: jest.fn(),
@@ -259,7 +276,7 @@ describe('FamilyDiaryScreen', () => {
 
   test('updates the source-specific query when browsing days or selecting a calendar date', () => {
     mockUseFamilyDailySummary.mockReturnValue({
-      data: { foodEntries: [] },
+      data: { ...emptyDay },
       isLoading: false,
       isError: false,
       refetch: jest.fn(),
@@ -298,9 +315,20 @@ describe('FamilyDiaryScreen', () => {
     expect(renderFamilyDiary().getByText('Loading family diary…')).toBeTruthy();
   });
 
+  test('shows the family member dashboard above the diary', () => {
+    mockUseFamilyDailySummary.mockReturnValue({
+      data: { ...emptyDay, foodEntries: [pasta, sauce] },
+      isLoading: false,
+      isError: false,
+      refetch: jest.fn(),
+    } as ReturnType<typeof useFamilyDailySummary>);
+
+    expect(renderFamilyDiary().getByText(/^Dashboard \d+ kcal$/)).toBeTruthy();
+  });
+
   test('uses an explicit date-specific empty state', () => {
     mockUseFamilyDailySummary.mockReturnValue({
-      data: { foodEntries: [] },
+      data: { ...emptyDay },
       isLoading: false,
       isError: false,
       refetch: jest.fn(),

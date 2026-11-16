@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,6 +9,7 @@ import CalendarSheet, {
 } from '../components/CalendarSheet';
 import DateNavigator from '../components/DateNavigator';
 import Icon from '../components/Icon';
+import FamilyDashboardSummary from '../components/FamilyDashboardSummary';
 import StatusView from '../components/StatusView';
 import Button from '../components/ui/Button';
 import { useFamilyDailySummary } from '../hooks';
@@ -23,6 +24,10 @@ import {
   groupFamilyFoodEntries,
 } from '../utils/familyDiary';
 import { addDays, formatDate, getTodayDate } from '../utils/dateUtils';
+import {
+  buildDailySummary,
+  rawFromDailySummaryResponse,
+} from '../services/dailySummaryService';
 import { useEnergyUnit } from '../hooks/useEnergyUnit';
 import { energyUnitLabel, roundedEnergy } from '../utils/energyUnit';
 
@@ -71,6 +76,13 @@ const FamilyDiaryScreen: React.FC<FamilyDiaryScreenProps> = ({
   }, [error, isError, queryClient]);
 
   const groups = groupFamilyFoodEntries(data?.foodEntries ?? []);
+  const summary = useMemo(
+    () =>
+      data
+        ? buildDailySummary(selectedDate, rawFromDailySummaryResponse(data))
+        : null,
+    [data, selectedDate]
+  );
 
   const content = isLoading ? (
     <StatusView
@@ -102,14 +114,6 @@ const FamilyDiaryScreen: React.FC<FamilyDiaryScreenProps> = ({
         {t('familyDiary.back', { defaultValue: 'Back' })}
       </Button>
     </View>
-  ) : groups.length === 0 ? (
-    <StatusView
-      icon="food"
-      iconTone="muted"
-      title={t('familyDiary.emptyForDate', {
-        defaultValue: 'No food entries for this date',
-      })}
-    />
   ) : (
     <ScrollView
       contentContainerStyle={{
@@ -117,12 +121,20 @@ const FamilyDiaryScreen: React.FC<FamilyDiaryScreenProps> = ({
         paddingBottom: insets.bottom + activeWorkoutBarPadding + 24,
       }}
     >
+      {summary ? <FamilyDashboardSummary summary={summary} /> : null}
       <Text className="mb-3 text-sm text-text-secondary">
         {t('familyDiary.diaryForDate', {
           date: formatDate(selectedDate, locale),
           defaultValue: 'Family diary · {{date}}',
         })}
       </Text>
+      {groups.length === 0 ? (
+        <Text className="py-6 text-center text-text-secondary">
+          {t('familyDiary.emptyForDate', {
+            defaultValue: 'No food entries for this date',
+          })}
+        </Text>
+      ) : null}
       {groups.map((group) => {
         const totals = calculateFamilyCopyTotals(
           group.entries.map((entry) => ({ entry, quantity: entry.quantity }))
