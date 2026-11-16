@@ -25,6 +25,7 @@ const HOME_TAB: Record<DashboardCardKey, DashboardTab | null> = {
   macros: 'nutrition',
   hydration: 'nutrition',
   caffeine: 'nutrition',
+  bloodAlcohol: 'nutrition',
   fasting: 'nutrition',
   meals: 'nutrition',
   activityRings: 'activity',
