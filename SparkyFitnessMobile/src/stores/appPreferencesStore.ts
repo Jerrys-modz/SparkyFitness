@@ -177,6 +177,8 @@ export const PREFERENCE_DEFAULTS = {
   mindfulnessCardVisible: true,
   oralCareCardVisible: false,
   labResultsCardVisible: true,
+  // Off until chosen: weight figures on the first screen are not for everyone.
+  weightProgressCardVisible: false,
   trainingLoadCardVisible: true,
   workoutsCardVisible: true,
   mealsCardVisible: true,
@@ -321,6 +323,7 @@ export type AppPreferencesData = {
   mindfulnessCardVisible: boolean;
   oralCareCardVisible: boolean;
   labResultsCardVisible: boolean;
+  weightProgressCardVisible: boolean;
   trainingLoadCardVisible: boolean;
   workoutsCardVisible: boolean;
   mealsCardVisible: boolean;
@@ -543,6 +546,7 @@ export interface AppPreferencesState extends AppPreferencesData {
   setMindfulnessCardVisible: (value: boolean) => void;
   setOralCareCardVisible: (value: boolean) => void;
   setLabResultsCardVisible: (value: boolean) => void;
+  setWeightProgressCardVisible: (value: boolean) => void;
   setTrainingLoadCardVisible: (value: boolean) => void;
   setWorkoutsCardVisible: (value: boolean) => void;
   setMealsCardVisible: (value: boolean) => void;
@@ -783,6 +787,8 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
       setOralCareCardVisible: (value) => set({ oralCareCardVisible: value }),
       setLabResultsCardVisible: (value) =>
         set({ labResultsCardVisible: value }),
+      setWeightProgressCardVisible: (value) =>
+        set({ weightProgressCardVisible: value }),
       setTrainingLoadCardVisible: (value) =>
         set({ trainingLoadCardVisible: value }),
       setWorkoutsCardVisible: (value) => set({ workoutsCardVisible: value }),
@@ -1089,6 +1095,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         mindfulnessCardVisible: state.mindfulnessCardVisible,
         oralCareCardVisible: state.oralCareCardVisible,
         labResultsCardVisible: state.labResultsCardVisible,
+        weightProgressCardVisible: state.weightProgressCardVisible,
         trainingLoadCardVisible: state.trainingLoadCardVisible,
         workoutsCardVisible: state.workoutsCardVisible,
         mealsCardVisible: state.mealsCardVisible,

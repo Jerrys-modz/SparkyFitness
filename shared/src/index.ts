@@ -413,3 +413,5 @@ export * from './utils/chatTools.ts';
 export * from './schemas/api/GoalWeight.api.zod.ts';
 export * from './utils/goalWeightPlan.ts';
 export * from './utils/macroPerKg.ts';
+export * from './schemas/api/OnboardingStartWeight.api.zod.ts';
+export * from './utils/weightProgress.ts';

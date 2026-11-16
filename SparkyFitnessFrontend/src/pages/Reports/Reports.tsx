@@ -13,7 +13,13 @@ import WidgetGrid from '@/components/widgets/WidgetGrid';
 import {
   generateReportsMeasurementsDefaultLayouts,
   useMeasurementChartWidgets,
+  WAIST_TO_HEIGHT_WIDGET_KEY,
+  WEIGHT_PROGRESS_WIDGET_KEY,
 } from '@/pages/Reports/MeasurementChartsGrid';
+import WeightProgressCard from '@/pages/Reports/WeightProgressCard';
+import WaistToHeightCard from '@/pages/Reports/WaistToHeightCard';
+import type { Widget } from '@/components/widgets/WidgetGrid';
+import { Ruler, TrendingDown } from 'lucide-react';
 import {
   generateReportsNutrientsDefaultLayouts,
   isNutrientWidgetKey,
@@ -196,6 +202,30 @@ const Reports = () => {
     targetBodyFatPercent: parseBodyFatGoal(profile?.target_body_fat_percentage),
   });
 
+  const targetWeightKg = profile?.target_weight
+    ? Number(profile.target_weight)
+    : null;
+  // Both cards read the whole history, not the report range, so they sit in
+  // the same hideable grid but ignore the date picker.
+  const measurementWidgets = useMemo<Widget[]>(
+    () => [
+      {
+        key: WEIGHT_PROGRESS_WIDGET_KEY,
+        title: t('reports.weightProgress.title', 'Weight progress'),
+        icon: TrendingDown,
+        render: () => <WeightProgressCard targetWeightKg={targetWeightKg} />,
+      },
+      {
+        key: WAIST_TO_HEIGHT_WIDGET_KEY,
+        title: t('reports.waistToHeight.title', 'Waist-to-height ratio'),
+        icon: Ruler,
+        render: () => <WaistToHeightCard />,
+      },
+      ...measurementChartWidgets,
+    ],
+    [measurementChartWidgets, targetWeightKg, t]
+  );
+
   const legacyReportChartPref = nutrientDisplayPreferences.find(
     (p) => p.view_group === 'report_chart' && p.platform === platform
   );
@@ -284,7 +314,7 @@ const Reports = () => {
             <ChartErrorBoundary>
               <WidgetGrid
                 pageKey="reports-measurements"
-                widgets={measurementChartWidgets}
+                widgets={measurementWidgets}
                 generateDefaultLayouts={
                   generateReportsMeasurementsDefaultLayouts
                 }

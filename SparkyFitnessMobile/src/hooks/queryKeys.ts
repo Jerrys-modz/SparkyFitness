@@ -589,3 +589,10 @@ export const appetiteTrendQueryKey = (startDate: string, endDate: string) =>
 
 /** The person's optional-feature choices (#3487), both platforms. */
 export const featureChoicesQueryKey = ['featureChoices'] as const;
+
+/** The setup wizard's weight, the weight progress start before any weigh-in. */
+export const onboardingStartWeightQueryKey = ['onboardingStartWeight'] as const;
+
+/** Today's estimated daily expenditure, for the weight progress fat estimate. */
+export const adaptiveTdeeQueryKey = (date: string) =>
+  ['adaptiveTdee', date] as const;

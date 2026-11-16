@@ -263,6 +263,33 @@ router.get('/status', authenticate, async (req, res, next) => {
 });
 /**
  * @swagger
+ * /onboarding/start-weight:
+ *   get:
+ *     summary: Get the weight given in the setup wizard and the day it was given
+ *     description: Used as the weight progress starting weight when it predates every weigh-in. Readable by the owner and by anyone acting for them with profile read access.
+ *     tags: [Goals & Personalization]
+ *     security:
+ *       - cookieAuth: []
+ *     responses:
+ *       200:
+ *         description: The onboarding weight in kg and its day (YYYY-MM-DD); both null when there is none.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 weightKg: { type: number, nullable: true }
+ *                 date: { type: string, format: date, nullable: true }
+ */
+router.get('/start-weight', authenticate, async (req, res, next) => {
+  try {
+    res.status(200).json(await onboardingService.getStartWeight(req.userId));
+  } catch (error) {
+    next(error);
+  }
+});
+/**
+ * @swagger
  * /onboarding/skip:
  *   post:
  *     summary: Mark onboarding as skipped for the user

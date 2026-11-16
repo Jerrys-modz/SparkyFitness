@@ -159,6 +159,14 @@ const SECTION_LABELS: Record<
     t('reportsSettings.sections.insights', { defaultValue: 'What stood out' }),
   'measurements.overview': (t) =>
     t('reportsSettings.sections.overview', { defaultValue: 'Key figures' }),
+  'measurements.progress': (t) =>
+    t('reportsSettings.sections.weightProgress', {
+      defaultValue: 'Weight progress',
+    }),
+  'measurements.waistToHeight': (t) =>
+    t('reportsSettings.sections.waistToHeight', {
+      defaultValue: 'Waist-to-height ratio',
+    }),
   'measurements.weightChart': (t) =>
     t('reportsSettings.sections.weightChart', { defaultValue: 'Weight chart' }),
   'measurements.weight': (t) =>

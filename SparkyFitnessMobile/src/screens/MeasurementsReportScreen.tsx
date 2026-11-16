@@ -15,6 +15,8 @@ import ReportHighlights, {
   type ReportHighlight,
 } from '../components/reports/ReportHighlights';
 import MeasurementTimelineCard from '../components/reports/MeasurementTimelineCard';
+import WeightProgressCard from '../components/reports/WeightProgressCard';
+import WaistToHeightCard from '../components/reports/WaistToHeightCard';
 import WeightLineChart from '../components/WeightLineChart';
 import WeightPlateauCard from '../components/WeightPlateauCard';
 import StepsBarChart from '../components/StepsBarChart';
@@ -390,6 +392,18 @@ const MeasurementsReportScreen: React.FC<
           startDate={reportWindow.startDate}
           endDate={reportWindow.endDate}
         />
+      )}
+      {/* Both read the whole history, so they show whatever the period. */}
+      {isSectionShown('measurements.progress') && (
+        <WeightProgressCard
+          targetWeightKg={
+            profile?.target_weight ? Number(profile.target_weight) : null
+          }
+          weightMode={weightMode}
+        />
+      )}
+      {isSectionShown('measurements.waistToHeight') && (
+        <WaistToHeightCard lengthUnit={lengthUnit} />
       )}
       {!hasAnything ? (
         <StatusView

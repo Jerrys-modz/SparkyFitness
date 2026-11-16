@@ -1,8 +1,10 @@
 import { apiCall } from '@/api/api';
 import { OnboardingData } from '@/types/onboarding';
-import type {
-  GoalWeightPlanResponse,
-  SetGoalWeightResponse,
+import {
+  onboardingStartWeightResponseSchema,
+  type OnboardingStartWeightResponse,
+  type GoalWeightPlanResponse,
+  type SetGoalWeightResponse,
 } from '@workspace/shared';
 
 /**
@@ -117,3 +119,18 @@ export const setTargetBodyFat = async (
     body: JSON.stringify({ targetBodyFatPercentage }),
   });
 };
+
+/**
+ * The weight given in the setup wizard and its day, the weight progress start
+ * when it predates every weigh-in. An older server without the route answers
+ * 404, read as no onboarding weight.
+ */
+export const fetchOnboardingStartWeight =
+  async (): Promise<OnboardingStartWeightResponse> => {
+    const response = await apiCall('/onboarding/start-weight', {
+      method: 'GET',
+      suppress404Toast: true,
+    });
+    if (!response) return { weightKg: null, date: null };
+    return onboardingStartWeightResponseSchema.parse(response);
+  };

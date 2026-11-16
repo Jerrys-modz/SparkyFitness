@@ -12,6 +12,7 @@ The Reports page is available from the top navigation bar when using SparkyFitne
 The Android and iOS apps display health trends for your steps, weight, sleep, and hydration. These trends appear at the bottom of the Dashboard screen for 7-, 30-, and 90-day periods.
 
 The app's **Nutrition** report shows a **Hunger & fullness** section right under the calorie chart once you have logged a [hunger & fullness check-in](/features/check-in#hunger-fullness) in the selected range: a day-by-day hunger strip, your average hunger, fullness and cravings, and how much you ate on your hungrier days compared with the others. Hide it with Customize Reports like any other section.
+**Reports → Measurements** in the app also has the **Weight progress** and **Waist-to-height ratio** cards (hide or reorder them in the report's settings). The Weight progress card can also go on the Dashboard: turn it on under **Settings → Dashboard**.
 
 ## Web interface
 The below reports are available when using SparkyFitness in a web browser.
@@ -57,6 +58,11 @@ The **Measurements** tab shows your body measurements and synced health metrics,
 - **Your custom measurement categories:** every category you create in [Measurements](/features/measurements) also has a trend chart.
 - **Health sync metrics:** information provided by your health sync provider (e.g. Google Health, Apple Health, etc.) is also reported. This includes steps, distance, heart rate, blood pressure, etc.
 - **Hunger & fullness vs calories:** once you have logged a [hunger & fullness check-in](/features/check-in#hunger-fullness) in the range, a card shows your average hunger, fullness and cravings (0–10), a chart of the three scores over the calories you ate each day, and how much you ate on your hungrier days compared with the others. These scores are not repeated among the custom category charts.
+
+- **Weight progress:** starting weight, change and share of your starting weight, progress toward your goal weight, milestones and a fat estimate from your food log. See [Measurements → Weight progress](/features/measurements#weight-progress).
+- **Waist-to-height ratio:** your latest ratio against the screening bands, with a trend chart when you have more than one waist measurement. See [Measurements → Waist-to-height ratio](/features/measurements#waist-to-height-ratio).
+
+These two cards always cover your whole history, so the report's date range does not change them.
 
 The grid is **resizable**: drag widgets to rearrange or resize them, and your layout is saved, so the tab looks the same way next time you visit.
 

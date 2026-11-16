@@ -48,6 +48,15 @@ import { GRID_COLS } from '@/utils/dashboardLayout';
 
 /** Stable widget keys for the reports-measurements dashboard layout. */
 export const STEPS_WIDGET_KEY = 'steps';
+/** The weight progress and waist-to-height cards, laid out above the charts. */
+export const WEIGHT_PROGRESS_WIDGET_KEY = 'weightProgress';
+export const WAIST_TO_HEIGHT_WIDGET_KEY = 'waistToHeight';
+const SUMMARY_WIDGET_KEYS = [
+  WEIGHT_PROGRESS_WIDGET_KEY,
+  WAIST_TO_HEIGHT_WIDGET_KEY,
+] as const;
+const isSummaryWidgetKey = (key: string) =>
+  (SUMMARY_WIDGET_KEYS as readonly string[]).includes(key);
 const METRIC_WIDGET_KEYS = [
   'weight',
   'neck',
@@ -70,22 +79,58 @@ const METRIC_WIDGET_KEYS = [
 export function generateReportsMeasurementsDefaultLayouts(
   widgetKeys: string[]
 ): DashboardLayouts {
-  const metricKeys = widgetKeys.filter((key) => key !== STEPS_WIDGET_KEY);
+  const metricKeys = widgetKeys.filter(
+    (key) => key !== STEPS_WIDGET_KEY && !isSummaryWidgetKey(key)
+  );
   const hasSteps = widgetKeys.includes(STEPS_WIDGET_KEY);
+  const hasProgress = widgetKeys.includes(WEIGHT_PROGRESS_WIDGET_KEY);
+  const hasWaistToHeight = widgetKeys.includes(WAIST_TO_HEIGHT_WIDGET_KEY);
   const CARD_H = 10;
   const STEPS_H = 12;
+  const PROGRESS_H = 16;
+  const WAIST_H = 12;
 
   const buildBreakpoint = (cols: number, perRow: number): WidgetLayout[] => {
     const w = Math.max(1, Math.floor(cols / perRow));
-    const items: WidgetLayout[] = metricKeys.map((key, index) => ({
-      i: key,
-      x: (index % perRow) * w,
-      y: Math.floor(index / perRow) * CARD_H,
-      w,
-      h: CARD_H,
-      minW: 2,
-      minH: 6,
-    }));
+    // Weight progress beside waist-to-height on wide screens, stacked below.
+    const items: WidgetLayout[] = [];
+    const sideBySide = perRow >= 4;
+    const progressW = sideBySide ? Math.round((cols * 2) / 3) : cols;
+    if (hasProgress) {
+      items.push({
+        i: WEIGHT_PROGRESS_WIDGET_KEY,
+        x: 0,
+        y: 0,
+        w: hasWaistToHeight ? progressW : cols,
+        h: PROGRESS_H,
+        minW: 2,
+        minH: 8,
+      });
+    }
+    if (hasWaistToHeight) {
+      const beside = sideBySide && hasProgress;
+      items.push({
+        i: WAIST_TO_HEIGHT_WIDGET_KEY,
+        x: beside ? progressW : 0,
+        y: beside || !hasProgress ? 0 : PROGRESS_H,
+        w: beside ? cols - progressW : cols,
+        h: beside ? PROGRESS_H : WAIST_H,
+        minW: 2,
+        minH: 6,
+      });
+    }
+    const top = items.reduce((m, it) => Math.max(m, it.y + it.h), 0);
+    metricKeys.forEach((key, index) => {
+      items.push({
+        i: key,
+        x: (index % perRow) * w,
+        y: top + Math.floor(index / perRow) * CARD_H,
+        w,
+        h: CARD_H,
+        minW: 2,
+        minH: 6,
+      });
+    });
     const maxY = items.reduce((m, it) => Math.max(m, it.y + it.h), 0);
     if (hasSteps) {
       items.push({

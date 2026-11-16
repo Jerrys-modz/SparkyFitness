@@ -2,6 +2,10 @@ import onboardingRepository from '../models/onboardingRepository.js';
 import { todayInZone } from '@workspace/shared';
 import { log } from '../config/logging.js';
 import { loadUserTimezone } from '../utils/timezoneLoader.js';
+import {
+  instantToDay,
+  type OnboardingStartWeightResponse,
+} from '@workspace/shared';
 /**
  * Processes and saves the user's onboarding data.
  * @param {string} userId - The UUID of the user.
@@ -116,7 +120,26 @@ async function setTargetBodyFat(
     throw new Error('Failed to save target body fat.', { cause: error });
   }
 }
+/**
+ * The setup wizard's weight, with the day it was given in the profile
+ * timezone, for the weight progress start point. Nulls when there is none.
+ */
+async function getStartWeight(
+  userId: string
+): Promise<OnboardingStartWeightResponse> {
+  const row = await onboardingRepository.getOnboardingStartWeight(userId);
+  const raw = row?.current_weight;
+  const weight = raw === null || raw === undefined ? NaN : Number(raw);
+  if (!row || !Number.isFinite(weight) || weight <= 0) {
+    return { weightKg: null, date: null };
+  }
+  const date = row.created_at
+    ? instantToDay(row.created_at, await loadUserTimezone(userId))
+    : null;
+  return { weightKg: weight, date };
+}
 export { processOnboardingData };
+export { getStartWeight };
 export { setTargetWeight };
 export { setTargetBodyFat };
 export { checkOnboardingStatus };
@@ -124,6 +147,7 @@ export { resetOnboardingStatus };
 export { skipOnboarding };
 export default {
   processOnboardingData,
+  getStartWeight,
   setTargetWeight,
   setTargetBodyFat,
   checkOnboardingStatus,

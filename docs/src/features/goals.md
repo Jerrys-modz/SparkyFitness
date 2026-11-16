@@ -19,6 +19,8 @@ You can also pick an optional **target date**: the day you want to reach your go
 
 When your setting is too slow, too fast, or points the wrong way, you can tap **Use … a week** to switch your calorie goal to **Weekly weight change** at that pace (or **Use High cut** when its pace is close). Nothing changes until you tap. Once the date passes, you are asked to pick a new one; the date is never moved for you. When your trend reaches the goal, you are offered to switch the calorie goal to Maintain.
 
+Your goal weight also drives the **Toward goal** figure and the halfway and goal milestones of the [Weight progress](/features/measurements#weight-progress) card in Reports → Measurements.
+
 The destination weight and the desired weekly pace are separate settings. Under [Calculation Settings → Goal Mode](/features/settings/calculation-settings#_4-goal-mode-caloric-deficits), select **Weekly weight change** to choose maintenance, loss, or gain in kg or g per week. The weekly pace adjusts the calorie target; it does not change the saved destination weight.
 
 ## Body Fat Goal

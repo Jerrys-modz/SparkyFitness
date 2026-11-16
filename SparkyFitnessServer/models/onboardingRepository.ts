@@ -250,7 +250,27 @@ async function setTargetBodyFat(
     client.release();
   }
 }
+/**
+ * The weight given in the setup wizard and when the row was created. RLS lets
+ * the owner and anyone with profile read access see it.
+ */
+async function getOnboardingStartWeight(userId: string): Promise<{
+  current_weight: string | number | null;
+  created_at: Date | null;
+} | null> {
+  const client = await getClient(userId);
+  try {
+    const result = await client.query(
+      'SELECT current_weight, created_at FROM onboarding_data WHERE user_id = $1',
+      [userId]
+    );
+    return result.rows[0] ?? null;
+  } finally {
+    client.release();
+  }
+}
 export { saveOnboardingData };
+export { getOnboardingStartWeight };
 export { setTargetWeight };
 export { getGoalWeight };
 export { setTargetBodyFat };
@@ -259,6 +279,7 @@ export { resetOnboardingStatus };
 export { setOnboardingSkipped };
 export default {
   saveOnboardingData,
+  getOnboardingStartWeight,
   setTargetWeight,
   getGoalWeight,
   setTargetBodyFat,
