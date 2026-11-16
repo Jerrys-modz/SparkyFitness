@@ -7,7 +7,12 @@ import userRepository from '../models/userRepository.js';
 import measurementRepository from '../models/measurementRepository.js';
 import bmrService from '../services/bmrService.js';
 import adaptiveTdeeService from '../services/AdaptiveTdeeService.js';
+import { loadDietPhasesForCalories } from '../services/dietPhaseService.js';
 
+// No diet phases: the calorie maths is exactly as without the feature.
+vi.mock('../services/dietPhaseService.js', () => ({
+  loadDietPhasesForCalories: vi.fn(async () => []),
+}));
 vi.mock('../models/calorieRuleHistoryRepository.js', () => ({
   default: { getCalorieRuleHistory: async () => [] },
 }));
@@ -82,6 +87,57 @@ describe('weekly weight goal daily targets', () => {
       );
     }
   );
+
+  it('a diet phase covering the day replaces Goal Mode with its weekly rate', async () => {
+    vi.mocked(preferenceRepository.getUserPreferences).mockResolvedValue({
+      calorie_goal_adjustment_mode: 'dynamic',
+      goal_mode: 'maintain',
+      goal_mode_calculation_method: 'adaptive',
+      activity_level: 'not_much',
+      timezone: 'UTC',
+      calorie_safety_floor_mode: 'standard',
+    });
+    vi.mocked(loadDietPhasesForCalories).mockResolvedValueOnce([
+      {
+        id: 'cut',
+        phase_type: 'loss',
+        weekly_change_kg: 0.5,
+        start_date: '2026-10-19',
+        end_date: '2026-10-22',
+        duration_weeks: null,
+        target_weight_kg: null,
+        target_reached_on: null,
+        label: null,
+      },
+    ]);
+    const next = '2026-10-23';
+    vi.mocked(adaptiveTdeeService.calculateAdaptiveTdeeRange).mockResolvedValue(
+      Object.fromEntries(
+        [date, next].map((day) => [
+          day,
+          {
+            tdee: 2600,
+            confidence: 'HIGH',
+            isFallback: false,
+            daysOfData: 30,
+            lastCalculated: day,
+          },
+        ])
+      )
+    );
+    const goals = await goalService.getUserGoalsForRange(
+      'user-1',
+      date,
+      next,
+      true
+    );
+    // Last day of the cut: 0.5 kg/week below the baseline.
+    expect((goals[date] as { calories: number }).calories).toBe(
+      Math.round(2600 - (0.5 * 6000) / 7)
+    );
+    // The day after falls back to the person's own Goal Mode (maintain).
+    expect((goals[next] as { calories: number }).calories).toBe(2600);
+  });
 
   it.each(['dynamic', 'fixed', 'percentage'])(
     'applies the weekly change once to the manual baseline in %s mode',

@@ -3,8 +3,10 @@ import measurementRepository from '../models/measurementRepository.js';
 import userRepository from '../models/userRepository.js';
 import goalService from './goalService.js';
 import preferenceRepository from '../models/preferenceRepository.js';
-import calorieRuleHistoryRepository from '../models/calorieRuleHistoryRepository.js';
-import { preferencesOnDay } from './calorieRuleHistoryService.js';
+import {
+  loadCalorieRuleTimeline,
+  preferencesOnTimelineDay,
+} from './calorieRuleHistoryService.js';
 import bmrService from './bmrService.js';
 import sleepAnalyticsService from './sleepAnalyticsService.js';
 import customNutrientService from './customNutrientService.js';
@@ -170,7 +172,7 @@ async function getReportsData(
       customCategoriesResult,
       userProfile,
       userPreferences,
-      calorieRuleHistory,
+      calorieRuleTimeline,
       sleepAnalyticsData,
       medications,
       medicationEntries,
@@ -195,11 +197,7 @@ async function getReportsData(
       measurementRepository.getCustomCategories(targetUserId),
       userRepository.getUserProfile(targetUserId),
       preferenceRepository.getUserPreferences(targetUserId),
-      calorieRuleHistoryRepository.getCalorieRuleHistory(
-        targetUserId,
-        startDate,
-        endDate
-      ),
+      loadCalorieRuleTimeline(targetUserId, startDate, endDate),
       sleepAnalyticsService.getSleepAnalytics(targetUserId, startDate, endDate),
       medicationRepository.listMedications(targetUserId),
       medicationEntryRepository.listEntries(targetUserId, {
@@ -322,9 +320,9 @@ async function getReportsData(
       const gender = userProfile.gender;
       nutritionData.forEach((day: Record<string, unknown>) => {
         // The settings in force on that day, not today's (#1795).
-        const dayPreferences = preferencesOnDay(
+        const dayPreferences = preferencesOnTimelineDay(
           userPreferences,
-          calorieRuleHistory,
+          calorieRuleTimeline,
           String(day.date).slice(0, 10)
         );
         const bmrAlgorithm = dayPreferences.bmr_algorithm;

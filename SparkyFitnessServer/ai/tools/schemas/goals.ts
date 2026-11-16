@@ -115,10 +115,17 @@ const listGoalTimelineSchema = z
   })
   .strict();
 
+const getDietPhasesSchema = z
+  .object({
+    action: z.literal('get_diet_phases'),
+  })
+  .strict();
+
 export const manageGoalsSchema = z.discriminatedUnion('action', [
   getGoalsSchema,
   setGoalsSchema,
   listGoalTimelineSchema,
+  getDietPhasesSchema,
 ]);
 
 export type ManageGoalsInput = z.infer<typeof manageGoalsSchema>;
@@ -127,7 +134,7 @@ export type ManageGoalsInput = z.infer<typeof manageGoalsSchema>;
 // validation still runs in the tool handler via `manageGoalsSchema.safeParse`.
 export const manageGoalsInput = z.object({
   action: z
-    .enum(['get_goals', 'set_goals', 'list_goal_timeline'])
+    .enum(['get_goals', 'set_goals', 'list_goal_timeline', 'get_diet_phases'])
     .optional()
     .describe(
       'Action to perform; see the tool description for the fields each action needs.'

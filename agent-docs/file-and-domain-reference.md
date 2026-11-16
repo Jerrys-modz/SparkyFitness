@@ -82,6 +82,7 @@ Paths are relative to each package root. `—` means that layer does not exist f
 |---------|---------|----------|--------|--------|
 | **Daily Summary** | `routes/dailySummaryRoutes.ts`, `services/dailySummaryService.ts` `services/DashboardService.ts` (no dedicated repository) | `pages/Reports/` `api/Diary/dailySummaryService.ts` | `screens/DashboardScreen.tsx` `services/api/dailySummaryApi.ts` `hooks/useDailySummary.ts` | `schemas/api/DailySummary.api.zod.ts` |
 | **Goals** | `routes/goalRoutes.ts` `routes/goalPresetRoutes.ts` `routes/v2/goalPresetRoutes.ts`, `services/goalService.ts` `services/goalPresetService.ts`, `models/goalRepository.ts` `models/goalPresetRepository.ts` | `pages/Goals/` `api/Goals/` `hooks/Goals/` | `services/api/goalsApi.ts` | `schemas/database/GoalPresets.zod.ts` `schemas/api/DailyGoals.api.zod.ts` |
+| **Diet phases** | `routes/v2/dietPhaseRoutes.ts`, `services/dietPhaseService.ts` (applied per day by `services/calorieRuleHistoryService.ts`), `models/dietPhaseRepository.ts` | `pages/Goals/DietPhasesSection.tsx` `pages/Goals/DietPhaseDialog.tsx` `api/Goals/dietPhases.ts` `hooks/Goals/useGoals.ts` | `components/DietPhasesSection.tsx` `screens/DietPhaseEditScreen.tsx` `services/api/dietPhasesApi.ts` | `schemas/database/DietPhases.zod.ts` `schemas/api/DietPhases.api.zod.ts` `utils/dietPhases.ts` |
 | **Reports** | `routes/reportRoutes.ts`, `services/reportService.ts`, `models/reportRepository.ts` | `pages/Reports/` `api/Reports/` `hooks/Reports/` | dashboard + detail screens | — |
 
 ### Auth, Settings, Admin

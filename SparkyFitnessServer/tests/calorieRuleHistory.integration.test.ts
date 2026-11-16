@@ -8,7 +8,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import pg from 'pg';
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { CALORIE_RULE_FIELDS, todayInZone } from '@workspace/shared';
@@ -216,6 +216,41 @@ describe.runIf(RUN)('calorie rule history', () => {
     ]);
   });
 
+  const MACRO_MIGRATION = '20261024170000_add_exercise_macro_adjustment.sql';
+  const migrationsDir = new URL('../db/migrations/', import.meta.url);
+
+  /**
+   * Re-running the macro migration puts back its own version of the
+   * record_calorie_rule_change trigger and function, which predates later
+   * calorie rules such as calorie cycling. Re-apply, in order, every later
+   * migration that redefines them, so the database is left as the migrations
+   * leave it and a second run of this file (or a later file) still records
+   * every rule.
+   */
+  const restoreLaterRuleTriggers = async () => {
+    const names = (await readdir(migrationsDir))
+      .filter((name) => name.endsWith('.sql') && name > MACRO_MIGRATION)
+      .sort();
+    for (const name of names) {
+      const sql = await readFile(new URL(name, migrationsDir), 'utf8');
+      if (sql.includes('record_calorie_rule_change')) await db.query(sql);
+    }
+  };
+
+  it('restoring later migrations brings back every rule in the trigger', async () => {
+    await db.query(
+      await readFile(new URL(MACRO_MIGRATION, migrationsDir), 'utf8')
+    );
+    await restoreLaterRuleTriggers();
+    const trigger = await db.query(
+      `SELECT pg_get_triggerdef(oid) AS def FROM pg_trigger
+       WHERE tgname = 'record_calorie_rule_change'`
+    );
+    for (const field of CALORIE_RULE_FIELDS) {
+      expect(trigger.rows[0].def, field).toContain(field);
+    }
+  });
+
   it.each([true, false])(
     'reapplies the macro migration with existing history %s without changing past opt-ins',
     async (hasHistory) => {
@@ -230,10 +265,7 @@ describe.runIf(RUN)('calorie rule history', () => {
         [userId]
       );
       const migration = await readFile(
-        new URL(
-          '../db/migrations/20261024170000_add_exercise_macro_adjustment.sql',
-          import.meta.url
-        ),
+        new URL(MACRO_MIGRATION, migrationsDir),
         'utf8'
       );
       const enabledHistory = [
@@ -245,19 +277,23 @@ describe.runIf(RUN)('calorie rule history', () => {
         },
       ];
 
-      await db.query(migration);
-      expect(await history()).toEqual(enabledHistory);
-      await db.query(migration);
-      expect(await history()).toEqual(enabledHistory);
+      try {
+        await db.query(migration);
+        expect(await history()).toEqual(enabledHistory);
+        await db.query(migration);
+        expect(await history()).toEqual(enabledHistory);
 
-      await preferenceRepository.updateUserPreferences(userId, {
-        adjust_macros_with_exercise: false,
-      });
-      await db.query(migration);
-      expect(await history()).toEqual([
-        { ...before, effective_date: '-infinity' },
-        { ...before, effective_date: todayInZone('UTC') },
-      ]);
+        await preferenceRepository.updateUserPreferences(userId, {
+          adjust_macros_with_exercise: false,
+        });
+        await db.query(migration);
+        expect(await history()).toEqual([
+          { ...before, effective_date: '-infinity' },
+          { ...before, effective_date: todayInZone('UTC') },
+        ]);
+      } finally {
+        await restoreLaterRuleTriggers();
+      }
     }
   );
 

@@ -50,6 +50,35 @@ A **goal preset** is a saved set of goals (calories, macros and the rest), such 
 
 Weekly plans use fixed numbers. If you want training days higher and rest days lower while still following your Adaptive TDEE and keeping the weekly total, use [calorie cycling](/features/settings/calculation-settings#calorie-cycling) instead. When both are on, a day a plan sets uses the plan's preset and calorie cycling is paused that day.
 
+## Diet Phases
+
+A **diet phase** plan changes your Goal Mode by date: for example a 12-week cut, two weeks of maintenance, then another cut. Plan it under **Goals → Diet Phases** on the web or **Settings → Goals → Diet phases** in the mobile app.
+
+Each phase has:
+
+- **A type and weekly rate:** lose, maintain or gain, with the same weekly weight change you set in [Goal Mode → Weekly weight change](/features/settings/calculation-settings#weekly-weight-change) (kg, g, lb or st + lb per week, up to 2 kg). Maintenance has no rate.
+- **A start date and an end:** a last day, or a number of whole weeks counted from the start day (4 weeks from Monday 5 January ends on Sunday 1 February).
+- **An optional target weight (loss and gain only):** the phase ends as soon as your smoothed weight trend (the same 7-day trend the weight chart and Adaptive TDEE use) reaches it, at or below the target for a loss phase, at or above it for a gain phase. A phase can also run with only a target and no end date, until the trend gets there. It ends on the day SparkyFitness sees the trend reach the target (when you log or sync a weight, or when the plan or a day's calorie target is next loaded), never earlier, so weighing in late cannot change a day you already logged.
+
+While a phase covers a day, it **replaces your Goal Mode** for that day with **Weekly weight change** at the phase's rate. Everything else in Calculation Settings still applies as you set it: the calculation method (Adaptive or Manual), the daily calorie goal adjustment mode, the safety floor and calorie cycling. Days outside every phase, including gaps between phases, use your Goal Mode from Calculation Settings. With no phases planned, nothing changes.
+
+**Rules for a plan:**
+
+- **Phases cannot overlap.** Each day belongs to at most one phase. A phase with only a target weight (no end) must be the last one.
+- **Past days keep their targets.** A phase that has started can only change its end: you can end it today (or yesterday) or move its end later, but not change its type, rate or start, or delete it. New phases start today or later. This keeps every logged day on the target it was logged against, like every other calculation setting.
+
+The Goals page shows the current phase, the days left in it and what comes next, and warns you three days before a phase starts or ends. Calculation Settings notes when a phase sets your Goal Mode today; its live preview still shows the Goal Mode chosen there, while the Diary shows today's target with the phase. The AI assistant can read your plan ("Which diet phase am I in?"), but phases are edited on the Goals page.
+
+### How phases, weekly plans, presets and calorie cycling fit together
+
+For each day, in this order:
+
+1. **The day's base goal** comes from an active [weekly goal plan](#goal-presets-and-weekly-plans) (its preset for that weekday), else your daily goals. Phases do not change it.
+2. **Goal Mode** comes from the diet phase covering the day, else from Calculation Settings. It adjusts the base goal as described in [Goal Mode](/features/settings/calculation-settings#_4-goal-mode-caloric-deficits).
+3. **Calorie cycling** then spreads the result over the week, unless a weekly plan sets the day (cycling is paused on those days).
+
+So a weekly plan and a diet phase work together: the plan picks the numbers you start from on each weekday, and the phase picks how much to add or cut.
+
 ---
 
 ## Interactions with Calculation Settings

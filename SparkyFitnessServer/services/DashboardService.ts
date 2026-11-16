@@ -4,8 +4,10 @@ import exerciseEntryRepository from '../models/exerciseEntry.js';
 import measurementRepository from '../models/measurementRepository.js';
 import userRepository from '../models/userRepository.js';
 import preferenceRepository from '../models/preferenceRepository.js';
-import calorieRuleHistoryRepository from '../models/calorieRuleHistoryRepository.js';
-import { preferencesOnDay } from './calorieRuleHistoryService.js';
+import {
+  loadCalorieRuleTimeline,
+  preferencesOnTimelineDay,
+} from './calorieRuleHistoryService.js';
 import nutrientGoalPreferenceService from './nutrientGoalPreferenceService.js';
 import * as genericHealthRepository from '../models/genericHealthRepository.js';
 import { log } from '../config/logging.js';
@@ -38,7 +40,7 @@ async function getDashboardStats(
       exerciseSplits,
       userProfile,
       userPreferences,
-      calorieRuleHistory,
+      calorieRuleTimeline,
       effectiveGoalTypes,
       measurements,
       checkInMeasurements,
@@ -66,7 +68,7 @@ async function getDashboardStats(
       ),
       userRepository.getUserProfile(userId),
       preferenceRepository.getUserPreferences(userId),
-      calorieRuleHistoryRepository.getCalorieRuleHistory(userId, date, date),
+      loadCalorieRuleTimeline(userId, date, date),
       nutrientGoalPreferenceService.getEffectiveGoalTypes(userId),
       includeCheckin
         ? measurementRepository.getLatestCheckInMeasurementsOnOrBeforeDate(
@@ -137,7 +139,7 @@ async function getDashboardStats(
       userProfile,
       userPreferences:
         userPreferences &&
-        preferencesOnDay(userPreferences, calorieRuleHistory, date),
+        preferencesOnTimelineDay(userPreferences, calorieRuleTimeline, date),
       measurements,
       ...deviceProjectionSnapshot,
     });

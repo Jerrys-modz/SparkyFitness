@@ -501,6 +501,7 @@ export type RootStackParamList = {
    */
   Goals: { presetId?: string; newPreset?: boolean } | undefined;
   WeeklyGoalPlanEdit: { planId?: string } | undefined;
+  DietPhaseEdit: { phaseId?: string } | undefined;
   MealTypeSettings: undefined;
   Equipment: undefined;
   Shoes: undefined;

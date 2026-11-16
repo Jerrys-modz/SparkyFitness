@@ -83,6 +83,7 @@ BEGIN
     'oauth_authorization_revocation',
     'oauth_client_assertion',
     'user_calorie_rule_history',
+    'diet_phases',
     'user_goals',
     'user_ignored_updates',
     'user_meal_visibilities',
@@ -674,6 +675,14 @@ WITH CHECK (authenticated_user_id() = user_id);
 -- user_preferences changes, so they follow the same owner-write/delegate-read rules.
 CREATE POLICY select_policy ON public.user_calorie_rule_history FOR SELECT TO PUBLIC USING (has_profile_read_access(user_id));
 CREATE POLICY modify_policy ON public.user_calorie_rule_history FOR ALL TO PUBLIC
+USING (authenticated_user_id() = user_id)
+WITH CHECK (authenticated_user_id() = user_id);
+
+-- Diet phases decide Goal Mode and its rate per day, so they follow the same
+-- rules as Goal Mode on user_preferences: anyone who may read the profile reads
+-- them (the calorie target a delegate sees uses them), only the owner writes.
+CREATE POLICY select_policy ON public.diet_phases FOR SELECT TO PUBLIC USING (has_profile_read_access(user_id));
+CREATE POLICY modify_policy ON public.diet_phases FOR ALL TO PUBLIC
 USING (authenticated_user_id() = user_id)
 WITH CHECK (authenticated_user_id() = user_id);
 

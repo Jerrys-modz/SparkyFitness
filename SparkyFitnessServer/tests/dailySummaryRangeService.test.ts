@@ -19,6 +19,10 @@ import foodRepository from '../models/foodMisc.js';
 import * as genericHealthRepository from '../models/genericHealthRepository.js';
 import bmrService from '../services/bmrService.js';
 
+// No diet phases: the calorie maths is exactly as without the feature.
+vi.mock('../services/dietPhaseService.js', () => ({
+  loadDietPhasesForCalories: vi.fn(async () => []),
+}));
 vi.mock('../models/calorieRuleHistoryRepository.js', () => ({
   default: { getCalorieRuleHistory: async () => [] },
 }));

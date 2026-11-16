@@ -7,6 +7,7 @@ import FormScreenChrome from '../components/FormScreenChrome';
 import GoalPresetsSection from '../components/GoalPresetsSection';
 import GoalWeightSection from '../components/GoalWeightSection';
 import WeeklyGoalPlansSection from '../components/WeeklyGoalPlansSection';
+import DietPhasesSection from '../components/DietPhasesSection';
 import MealDistributionEditor from '../components/MealDistributionEditor';
 import NutrientDirectionGuide from '../components/NutrientDirectionGuide';
 import SegmentedControl, { type Segment } from '../components/SegmentedControl';
@@ -255,6 +256,7 @@ interface GoalsFormProps {
   onDone: () => void;
   onEditPreset: (presetId?: string) => void;
   onEditPlan: (planId?: string) => void;
+  onEditPhase: (phaseId?: string) => void;
 }
 
 const GoalsForm: React.FC<GoalsFormProps> = ({
@@ -267,6 +269,7 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
   onDone,
   onEditPreset,
   onEditPlan,
+  onEditPhase,
 }) => {
   const [presetName, setPresetName] = useState(preset?.preset_name ?? '');
   const { t } = useTranslation();
@@ -1108,6 +1111,10 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
             onCreate={() => onEditPlan()}
             onEdit={(plan) => onEditPlan(plan.id)}
           />
+          {sectionTitle(
+            t('goals.sections.dietPhases', { defaultValue: 'Diet phases' })
+          )}
+          <DietPhasesSection onEdit={onEditPhase} />
         </>
       )}
     </FormScreenChrome>
@@ -1141,6 +1148,10 @@ const GoalsScreen: React.FC<GoalsScreenProps> = ({ navigation, route }) => {
   );
   const editPlan = useCallback(
     (planId?: string) => navigation.navigate('WeeklyGoalPlanEdit', { planId }),
+    [navigation]
+  );
+  const editPhase = useCallback(
+    (phaseId?: string) => navigation.navigate('DietPhaseEdit', { phaseId }),
     [navigation]
   );
 
@@ -1196,6 +1207,7 @@ const GoalsScreen: React.FC<GoalsScreenProps> = ({ navigation, route }) => {
       onDone={goBack}
       onEditPreset={editPreset}
       onEditPlan={editPlan}
+      onEditPhase={editPhase}
     />
   );
 };

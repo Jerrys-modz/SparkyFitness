@@ -21,6 +21,8 @@ import {
   fetchWeeklyGoalPlans,
   updateWeeklyGoalPlan,
 } from '../services/api/weeklyGoalPlansApi';
+import { fetchDietPhases, saveDietPhases } from '../services/api/dietPhasesApi';
+import type { SaveDietPhasesBody } from '@workspace/shared';
 import type { DailyGoals, GoalPreset, WeeklyGoalPlan } from '../types/goals';
 import {
   dailySummaryRootQueryKey,
@@ -28,6 +30,7 @@ import {
   goalsQueryKey,
   goalsRangeQueryKey,
   weeklyGoalPlansQueryKey,
+  dietPhasesQueryKey,
 } from './queryKeys';
 
 export function useGoalsQuery(date: string, { enabled = true } = {}) {
@@ -185,4 +188,34 @@ export function useWeeklyGoalPlanMutations() {
     deletePlan: remove.mutateAsync,
     isPending: create.isPending || update.isPending || remove.isPending,
   };
+}
+
+export function useDietPhases({ enabled = true } = {}) {
+  const query = useQuery({
+    queryKey: dietPhasesQueryKey,
+    queryFn: fetchDietPhases,
+    enabled,
+  });
+  return {
+    dietPhases: query.data ?? null,
+    isLoading: query.isLoading,
+    isError: query.isError,
+    refetch: query.refetch,
+  };
+}
+
+/** Saves the whole plan; phases decide each day's Goal Mode. */
+export function useSaveDietPhases() {
+  const queryClient = useQueryClient();
+  const save = useMutation({
+    mutationFn: (body: SaveDietPhasesBody) => saveDietPhases(body),
+    onSuccess: (data) => {
+      queryClient.setQueryData(dietPhasesQueryKey, data);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: dietPhasesQueryKey });
+      invalidateResolvedGoals(queryClient);
+    },
+  });
+  return { savePhases: save.mutateAsync, isPending: save.isPending };
 }

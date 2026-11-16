@@ -332,7 +332,12 @@ describe('published (flat) chatbot tool schemas', () => {
         'alcohol_g',
         'custom_nutrients',
       ],
-      actions: ['get_goals', 'set_goals', 'list_goal_timeline'],
+      actions: [
+        'get_goals',
+        'set_goals',
+        'list_goal_timeline',
+        'get_diet_phases',
+      ],
     },
     {
       name: 'manageProfileInput',
