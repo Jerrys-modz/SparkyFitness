@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import Icon from './Icon';
 import { View, Text } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { useCSSVariable } from 'uniwind';
 import {
   activeCaffeineAt,
   caffeineCurve,
@@ -33,6 +34,7 @@ const CaffeineCard: React.FC<CaffeineCardProps> = ({
   isLoading,
 }) => {
   const { t } = useTranslation();
+  const accentColor = useCSSVariable('--color-accent-primary') as string;
   const { preferences } = usePreferences();
 
   const clockLabel = (value: number | string | Date) => {
