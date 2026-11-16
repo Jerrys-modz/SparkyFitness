@@ -1468,10 +1468,21 @@ const options = {
               description:
                 'Protein goal in grams per kg of body weight or lean mass (0.1-5).',
             },
+            carbs_per_kg: {
+              type: 'number',
+              nullable: true,
+              description: 'Carbohydrate goal in grams per kg (0.5-12).',
+            },
             fat_per_kg: {
               type: 'number',
               nullable: true,
               description: 'Fat goal in grams per kg (0.1-3).',
+            },
+            macro_reference_weight_kg: {
+              type: 'number',
+              nullable: true,
+              description:
+                'Fixed reference weight in kg (lean mass for the lean_mass basis, 20-400); null follows the latest logged weight.',
             },
             macro_per_kg_basis: {
               type: 'string',
@@ -1505,10 +1516,21 @@ const options = {
               description:
                 'Protein goal in grams per kg of body weight or lean mass (0.1-5).',
             },
+            carbs_per_kg: {
+              type: 'number',
+              nullable: true,
+              description: 'Carbohydrate goal in grams per kg (0.5-12).',
+            },
             fat_per_kg: {
               type: 'number',
               nullable: true,
               description: 'Fat goal in grams per kg (0.1-3).',
+            },
+            macro_reference_weight_kg: {
+              type: 'number',
+              nullable: true,
+              description:
+                'Fixed reference weight in kg (lean mass for the lean_mass basis, 20-400); null follows the latest logged weight.',
             },
             macro_per_kg_basis: {
               type: 'string',

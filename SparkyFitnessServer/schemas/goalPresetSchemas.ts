@@ -5,15 +5,25 @@ import {
   nullableNumber,
   nullableInt,
 } from './schema.utils.js';
-import { MACRO_PER_KG_LIMITS, MACRO_WEIGHT_BASES } from '@workspace/shared';
+import {
+  MACRO_PER_KG_LIMITS,
+  MACRO_REFERENCE_WEIGHT_LIMITS,
+  MACRO_WEIGHT_BASES,
+} from '@workspace/shared';
 
 // Per-kg macro goals. Optional on both create and update: a client that
-// predates them omits all three and the stored values are kept.
+// predates them omits all of them and the stored values are kept.
 const macroPerKgFields = {
   protein_per_kg: z
     .number()
     .min(MACRO_PER_KG_LIMITS.protein.min)
     .max(MACRO_PER_KG_LIMITS.protein.max)
+    .nullable()
+    .optional(),
+  carbs_per_kg: z
+    .number()
+    .min(MACRO_PER_KG_LIMITS.carbs.min)
+    .max(MACRO_PER_KG_LIMITS.carbs.max)
     .nullable()
     .optional(),
   fat_per_kg: z
@@ -23,6 +33,13 @@ const macroPerKgFields = {
     .nullable()
     .optional(),
   macro_per_kg_basis: z.enum(MACRO_WEIGHT_BASES).optional(),
+  // Null follows the logged weight; a value is a fixed reference weight.
+  macro_reference_weight_kg: z
+    .number()
+    .min(MACRO_REFERENCE_WEIGHT_LIMITS.min)
+    .max(MACRO_REFERENCE_WEIGHT_LIMITS.max)
+    .nullable()
+    .optional(),
 };
 
 const GoalPresetFieldsSchema = z.object({

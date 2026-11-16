@@ -3,7 +3,10 @@ import {
   DEFAULT_MACRO_WEIGHT_BASIS,
   isMacroWeightBasis,
   MACRO_PER_KG_LIMITS,
+  MACRO_REFERENCE_WEIGHT_LIMITS,
   normalizeMacroPerKg,
+  normalizeMacroReferenceWeight,
+  type MacroPerKgKey,
   type MacroTargetInput,
   type MacroTargets,
   type MacroWeightBasis,
@@ -14,12 +17,32 @@ import { ValidationError } from './errors.js';
 /** The per-kg goal columns of `user_goals` and `goal_presets`. */
 export interface MacroPerKgFields {
   protein_per_kg: number | null;
+  carbs_per_kg: number | null;
   fat_per_kg: number | null;
   macro_per_kg_basis: MacroWeightBasis;
+  /** Fixed reference weight in kg; null follows the logged weight. */
+  macro_reference_weight_kg: number | null;
 }
 
+/** Request body keys of the per-kg fields. */
+export interface MacroPerKgKeys {
+  protein: string;
+  carbs: string;
+  fat: string;
+  basis: string;
+  referenceWeight: string;
+}
+
+const DEFAULT_KEYS: MacroPerKgKeys = {
+  protein: 'protein_per_kg',
+  carbs: 'carbs_per_kg',
+  fat: 'fat_per_kg',
+  basis: 'macro_per_kg_basis',
+  referenceWeight: 'macro_reference_weight_kg',
+};
+
 export interface MacroPerKgInput {
-  /** False when the request sent none of the three fields (an older client). */
+  /** False when the request sent none of the fields (an older client). */
   supplied: boolean;
   fields: MacroPerKgFields;
 }
@@ -29,16 +52,25 @@ const isBlank = (value: unknown) =>
   value === undefined ||
   (typeof value === 'string' && value.trim() === '');
 
-function readPerKg(
-  macro: keyof typeof MACRO_PER_KG_LIMITS,
-  value: unknown
-): number | null {
+function readPerKg(macro: MacroPerKgKey, value: unknown): number | null {
   if (isBlank(value)) return null;
   const normalized = normalizeMacroPerKg(macro, value);
   if (normalized === null) {
     const { min, max } = MACRO_PER_KG_LIMITS[macro];
     throw new ValidationError(
       `${macro}_per_kg must be a number from ${min} to ${max}.`
+    );
+  }
+  return normalized;
+}
+
+function readReferenceWeight(value: unknown): number | null {
+  if (isBlank(value)) return null;
+  const normalized = normalizeMacroReferenceWeight(value);
+  if (normalized === null) {
+    const { min, max } = MACRO_REFERENCE_WEIGHT_LIMITS;
+    throw new ValidationError(
+      `macro_reference_weight_kg must be a number from ${min} to ${max}.`
     );
   }
   return normalized;
@@ -51,20 +83,9 @@ function readPerKg(
  */
 export function readMacroPerKgInput(
   body: Record<string, unknown>,
-  keys: {
-    protein: string;
-    fat: string;
-    basis: string;
-  } = {
-    protein: 'protein_per_kg',
-    fat: 'fat_per_kg',
-    basis: 'macro_per_kg_basis',
-  }
+  keys: MacroPerKgKeys = DEFAULT_KEYS
 ): MacroPerKgInput {
-  const supplied =
-    body[keys.protein] !== undefined ||
-    body[keys.fat] !== undefined ||
-    body[keys.basis] !== undefined;
+  const supplied = Object.values(keys).some((key) => body[key] !== undefined);
   const basisValue = body[keys.basis];
   if (!isBlank(basisValue) && !isMacroWeightBasis(basisValue)) {
     throw new ValidationError(
@@ -75,10 +96,14 @@ export function readMacroPerKgInput(
     supplied,
     fields: {
       protein_per_kg: readPerKg('protein', body[keys.protein]),
+      carbs_per_kg: readPerKg('carbs', body[keys.carbs]),
       fat_per_kg: readPerKg('fat', body[keys.fat]),
       macro_per_kg_basis: isMacroWeightBasis(basisValue)
         ? basisValue
         : DEFAULT_MACRO_WEIGHT_BASIS,
+      macro_reference_weight_kg: readReferenceWeight(
+        body[keys.referenceWeight]
+      ),
     },
   };
 }
@@ -89,11 +114,36 @@ export function storedMacroPerKgFields(
 ): MacroPerKgFields {
   return {
     protein_per_kg: normalizeMacroPerKg('protein', row?.protein_per_kg),
+    carbs_per_kg: normalizeMacroPerKg('carbs', row?.carbs_per_kg),
     fat_per_kg: normalizeMacroPerKg('fat', row?.fat_per_kg),
     macro_per_kg_basis: isMacroWeightBasis(row?.macro_per_kg_basis)
       ? row.macro_per_kg_basis
       : DEFAULT_MACRO_WEIGHT_BASIS,
+    macro_reference_weight_kg: normalizeMacroReferenceWeight(
+      row?.macro_reference_weight_kg
+    ),
   };
+}
+
+/** The shared calculation's per-kg inputs for stored fields. */
+export function macroPerKgTargetInput(
+  fields: MacroPerKgFields
+): Pick<
+  MacroTargetInput,
+  'proteinPerKg' | 'carbsPerKg' | 'fatPerKg' | 'basis' | 'referenceWeightKg'
+> {
+  return {
+    proteinPerKg: fields.protein_per_kg,
+    carbsPerKg: fields.carbs_per_kg,
+    fatPerKg: fields.fat_per_kg,
+    basis: fields.macro_per_kg_basis,
+    referenceWeightKg: fields.macro_reference_weight_kg,
+  };
+}
+
+/** True when the goal follows the logged weight (no fixed reference weight). */
+export function followsLoggedWeight(fields: MacroPerKgFields): boolean {
+  return fields.macro_reference_weight_kg === null;
 }
 
 export interface BodyMeasurementsOnDay {
@@ -128,20 +178,22 @@ export async function bodyMeasurementsOnOrBefore(
 }
 
 /**
- * The grams to save with a goal or preset that sets protein or fat per kg,
- * worked out from the weight on the given day. They are the fallback for a
- * day with no weight logged, and what older clients display.
+ * The grams to save with a goal or preset that sets a macro per kg, worked
+ * out from the fixed reference weight or the weight on the given day. They
+ * are the fallback for a day with no weight logged, and what older clients
+ * display.
  */
 export function macroGramsToStore(
-  goal: Omit<MacroTargetInput, 'proteinPerKg' | 'fatPerKg' | 'basis'>,
+  goal: Omit<
+    MacroTargetInput,
+    'proteinPerKg' | 'carbsPerKg' | 'fatPerKg' | 'basis' | 'referenceWeightKg'
+  >,
   fields: MacroPerKgFields,
   measurements: BodyMeasurementsOnDay
 ): MacroTargets {
   return computeMacroTargets({
     ...goal,
-    proteinPerKg: fields.protein_per_kg,
-    fatPerKg: fields.fat_per_kg,
-    basis: fields.macro_per_kg_basis,
+    ...macroPerKgTargetInput(fields),
     weightKg: measurements.weightKg,
     bodyFatPercentage: measurements.bodyFatPercentage,
   });

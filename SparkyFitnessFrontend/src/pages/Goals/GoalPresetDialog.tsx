@@ -142,7 +142,7 @@ export const GoalPresetDialog = ({
   );
   const lockedMacros = {
     protein: formData?.protein_per_kg != null,
-    carbs: false,
+    carbs: formData?.carbs_per_kg != null,
     fat: formData?.fat_per_kg != null,
   };
 
@@ -152,7 +152,9 @@ export const GoalPresetDialog = ({
     const toSave = {
       ...formData,
       protein_per_kg: formData.protein_per_kg ?? null,
+      carbs_per_kg: formData.carbs_per_kg ?? null,
       fat_per_kg: formData.fat_per_kg ?? null,
+      macro_reference_weight_kg: formData.macro_reference_weight_kg ?? null,
       macro_per_kg_basis: formData.macro_per_kg_basis ?? 'body_weight',
     };
 

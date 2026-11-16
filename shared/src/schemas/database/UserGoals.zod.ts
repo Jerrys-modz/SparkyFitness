@@ -40,7 +40,9 @@ export const userGoalsSchema = z.object({
   custom_nutrients: z.unknown().nullable(),
   custom_meal_percentages: z.unknown().nullable(),
   protein_per_kg: z.number().nullable(),
+  carbs_per_kg: z.number().nullable(),
   fat_per_kg: z.number().nullable(),
+  macro_reference_weight_kg: z.number().nullable(),
   macro_per_kg_basis: z.string(),
 });
 
@@ -83,7 +85,9 @@ export const userGoalsInitializerSchema = z.object({
   custom_nutrients: z.unknown().optional().nullable(),
   custom_meal_percentages: z.unknown().optional().nullable(),
   protein_per_kg: z.number().optional().nullable(),
+  carbs_per_kg: z.number().optional().nullable(),
   fat_per_kg: z.number().optional().nullable(),
+  macro_reference_weight_kg: z.number().optional().nullable(),
   macro_per_kg_basis: z.string().optional(),
 });
 
@@ -126,7 +130,9 @@ export const userGoalsMutatorSchema = z.object({
   custom_nutrients: z.unknown().optional().nullable(),
   custom_meal_percentages: z.unknown().optional().nullable(),
   protein_per_kg: z.number().optional().nullable(),
+  carbs_per_kg: z.number().optional().nullable(),
   fat_per_kg: z.number().optional().nullable(),
+  macro_reference_weight_kg: z.number().optional().nullable(),
   macro_per_kg_basis: z.string().optional(),
 });
 

@@ -33,8 +33,11 @@ export interface DailyGoals {
   fat_percentage?: number;
   /** Grams per kg of body weight or lean mass; null = grams or percentage. */
   protein_per_kg?: number | null;
+  carbs_per_kg?: number | null;
   fat_per_kg?: number | null;
   macro_per_kg_basis?: MacroWeightBasis;
+  /** Fixed reference weight in kg; null follows the latest logged weight. */
+  macro_reference_weight_kg?: number | null;
   /** How the day's per-kg goal was resolved (sent by newer servers). */
   macro_per_kg?: MacroPerKgResolution | null;
   breakfast_percentage?: number;

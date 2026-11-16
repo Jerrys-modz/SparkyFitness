@@ -127,6 +127,23 @@ describe('getUserGoalsForRange with protein per kg', () => {
     expect(days[monday].macro_per_kg?.lean_mass_fallback).toBe(true);
   });
 
+  it('keeps a fixed reference weight however the weight changes', async () => {
+    vi.mocked(goalRepository.getGoalsInRange).mockResolvedValue([
+      { ...perKgGoal, macro_reference_weight_kg: '80.00' },
+    ]);
+    vi.mocked(
+      measurementRepository.getCheckInMeasurementsByDateRange
+    ).mockResolvedValue([{ entry_date: '2026-11-03', weight: '70' }]);
+
+    const days = await range();
+
+    expect(days[monday].protein).toBe(160);
+    expect(days[wednesday].protein).toBe(160);
+    expect(
+      measurementRepository.getCheckInMeasurementsByDateRange
+    ).not.toHaveBeenCalled();
+  });
+
   it('leaves goals without a per-kg setting alone and loads no measurements', async () => {
     const { protein_per_kg: _p, ...gramsGoal } = perKgGoal;
     vi.mocked(goalRepository.getGoalsInRange).mockResolvedValue([
@@ -246,6 +263,61 @@ describe('manageGoalTimeline with per-kg goals', () => {
     expect(goalRepository.upsertGoal).toHaveBeenCalledWith(
       expect.objectContaining({ protein: 150, protein_per_kg: null })
     );
+  });
+
+  it('saves a fixed reference weight and carbs per kg without reading the weight', async () => {
+    await goalService.manageGoalTimeline('user-1', {
+      ...body,
+      p_protein_per_kg: 2,
+      p_carbs_per_kg: 3,
+      p_fat_per_kg: null,
+      p_macro_per_kg_basis: 'body_weight',
+      p_macro_reference_weight_kg: 75,
+    });
+
+    expect(
+      measurementRepository.getLatestCheckInMeasurementsOnOrBeforeDate
+    ).not.toHaveBeenCalled();
+    expect(goalRepository.upsertGoal).toHaveBeenCalledWith(
+      expect.objectContaining({
+        protein: 150,
+        carbs: 225,
+        fat: 70,
+        protein_per_kg: 2,
+        carbs_per_kg: 3,
+        macro_reference_weight_kg: 75,
+      })
+    );
+  });
+
+  it('keeps a stored fixed reference weight when an older client omits it', async () => {
+    vi.mocked(goalRepository.getMostRecentGoalBeforeDate).mockResolvedValue({
+      protein_per_kg: '2.00',
+      carbs_per_kg: '3.00',
+      macro_per_kg_basis: 'body_weight',
+      macro_reference_weight_kg: '80.00',
+    });
+
+    await goalService.manageGoalTimeline('user-1', body);
+
+    expect(goalRepository.upsertGoal).toHaveBeenCalledWith(
+      expect.objectContaining({
+        protein: 160,
+        carbs: 240,
+        carbs_per_kg: 3,
+        macro_reference_weight_kg: 80,
+      })
+    );
+  });
+
+  it('refuses a reference weight out of range', async () => {
+    await expect(
+      goalService.manageGoalTimeline('user-1', {
+        ...body,
+        p_protein_per_kg: 2,
+        p_macro_reference_weight_kg: 5,
+      })
+    ).rejects.toMatchObject({ name: 'ValidationError' });
   });
 
   it('refuses a value out of range', async () => {

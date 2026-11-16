@@ -23,9 +23,10 @@ async function createGoalPreset(presetData: any) {
         breakfast_percentage, lunch_percentage, dinner_percentage, snacks_percentage,
         custom_nutrients, custom_meal_percentages,
         caffeine_mg, alcohol_g, target_steps,
-        protein_per_kg, fat_per_kg, macro_per_kg_basis
+        protein_per_kg, fat_per_kg, macro_per_kg_basis,
+        carbs_per_kg, macro_reference_weight_kg
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, COALESCE($37, 'body_weight'))
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, COALESCE($37, 'body_weight'), $38, $39)
       RETURNING *`,
       [
         presetData.user_id,
@@ -65,6 +66,8 @@ async function createGoalPreset(presetData: any) {
         presetData.protein_per_kg ?? null,
         presetData.fat_per_kg ?? null,
         presetData.macro_per_kg_basis ?? null,
+        presetData.carbs_per_kg ?? null,
+        presetData.macro_reference_weight_kg ?? null,
       ]
     );
     return result.rows[0];
@@ -125,6 +128,8 @@ async function updateGoalPreset(presetId: any, presetData: any) {
         protein_per_kg = CASE WHEN $37::boolean THEN $38::numeric ELSE protein_per_kg END,
         fat_per_kg = CASE WHEN $37::boolean THEN $39::numeric ELSE fat_per_kg END,
         macro_per_kg_basis = CASE WHEN $37::boolean THEN COALESCE($40, 'body_weight') ELSE macro_per_kg_basis END,
+        carbs_per_kg = CASE WHEN $37::boolean THEN $41::numeric ELSE carbs_per_kg END,
+        macro_reference_weight_kg = CASE WHEN $37::boolean THEN $42::numeric ELSE macro_reference_weight_kg END,
         updated_at = now()
       WHERE id = $35 AND user_id = $36
       RETURNING *`,
@@ -170,6 +175,8 @@ async function updateGoalPreset(presetId: any, presetData: any) {
         presetData.protein_per_kg ?? null,
         presetData.fat_per_kg ?? null,
         presetData.macro_per_kg_basis ?? null,
+        presetData.carbs_per_kg ?? null,
+        presetData.macro_reference_weight_kg ?? null,
       ]
     );
     return result.rows[0];

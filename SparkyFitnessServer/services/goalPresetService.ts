@@ -1,9 +1,14 @@
 import goalPresetRepository from '../models/goalPresetRepository.js';
 import { log } from '../config/logging.js';
-import { hasMacroPercentages, todayInZone } from '@workspace/shared';
+import {
+  hasMacroPercentages,
+  hasMacroPerKg,
+  todayInZone,
+} from '@workspace/shared';
 import { loadUserTimezone } from '../utils/timezoneLoader.js';
 import {
   bodyMeasurementsOnOrBefore,
+  followsLoggedWeight,
   macroGramsToStore,
   readMacroPerKgInput,
   storedMacroPerKgFields,
@@ -39,10 +44,11 @@ async function applyPresetMacros(
 ) {
   const perKg = readMacroPerKgInput(presetData);
   delete presetData.protein_per_kg;
+  delete presetData.carbs_per_kg;
   delete presetData.fat_per_kg;
   delete presetData.macro_per_kg_basis;
-  const usesPerKg =
-    perKg.fields.protein_per_kg !== null || perKg.fields.fat_per_kg !== null;
+  delete presetData.macro_reference_weight_kg;
+  const usesPerKg = hasMacroPerKg(perKg.fields);
   const hasCalories =
     presetData.calories !== null && presetData.calories !== undefined;
   const goal = {
@@ -57,12 +63,13 @@ async function applyPresetMacros(
   };
   // Without calories the percentage maths has nothing to share out.
   if ((hasCalories && hasMacroPercentages(goal)) || usesPerKg) {
-    const measurements = usesPerKg
-      ? await bodyMeasurementsOnOrBefore(
-          userId,
-          todayInZone(await loadUserTimezone(userId))
-        )
-      : { weightKg: null, bodyFatPercentage: null };
+    const measurements =
+      usesPerKg && followsLoggedWeight(perKg.fields)
+        ? await bodyMeasurementsOnOrBefore(
+            userId,
+            todayInZone(await loadUserTimezone(userId))
+          )
+        : { weightKg: null, bodyFatPercentage: null };
     const grams = macroGramsToStore(
       hasCalories ? goal : { ...goal, proteinPercentage: null },
       perKg.fields,
@@ -126,19 +133,14 @@ async function getGoalPreset(presetId: any, userId: any) {
 }
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function updateGoalPreset(presetId: any, userId: any, presetData: any) {
-  if (
-    presetData.protein_per_kg === undefined &&
-    presetData.fat_per_kg === undefined
-  ) {
+  if (!readMacroPerKgInput(presetData).supplied) {
     // An older client: keep the stored per-kg setting, and work the grams out
     // from it, so its stale gram fields do not become the fallback.
     const stored = await goalPresetRepository.getGoalPresetById(
       presetId,
       userId
     );
-    if (stored && presetData.macro_per_kg_basis === undefined) {
-      Object.assign(presetData, storedMacroPerKgFields(stored));
-    }
+    if (stored) Object.assign(presetData, storedMacroPerKgFields(stored));
   }
   const perKg = await applyPresetMacros(userId, presetData);
   try {

@@ -32,6 +32,8 @@ export const DEFAULT_GOALS = {
   custom_meal_percentages: {},
   custom_nutrients: {},
   protein_per_kg: null,
+  carbs_per_kg: null,
   fat_per_kg: null,
   macro_per_kg_basis: 'body_weight',
+  macro_reference_weight_kg: null,
 };
