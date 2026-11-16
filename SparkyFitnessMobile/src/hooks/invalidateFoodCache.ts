@@ -1,8 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query';
 import {
   glucoseContextQueryKeyRoot,
-  caffeineActiveQueryKey,
-  caffeineActiveRootQueryKey,
   dailySummaryQueryKey,
   dailySummaryRootQueryKey,
   familyCopySourceQueryKey,
@@ -12,6 +10,7 @@ import {
   foodsQueryKey,
   waterIntakeLogQueryKey,
 } from './queryKeys';
+import { invalidateIntakeKinetics } from './invalidateIntakeKinetics';
 
 /**
  * Invalidates every cache a food diary change can move. The returned promise
@@ -35,8 +34,7 @@ export function invalidateFoodCache(
         queryKey: dailySummaryQueryKey(entryDate),
         refetchType: 'all',
       }),
-      queryClient.invalidateQueries({
-        queryKey: caffeineActiveQueryKey(entryDate),
+      invalidateIntakeKinetics(queryClient, entryDate, {
         refetchType: 'all',
       }),
       queryClient.invalidateQueries({
@@ -54,8 +52,7 @@ export function invalidateFoodCache(
         queryKey: dailySummaryRootQueryKey,
         refetchType: 'all',
       }),
-      queryClient.invalidateQueries({
-        queryKey: caffeineActiveRootQueryKey,
+      invalidateIntakeKinetics(queryClient, undefined, {
         refetchType: 'all',
       })
     );

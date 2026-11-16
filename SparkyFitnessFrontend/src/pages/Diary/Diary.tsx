@@ -10,6 +10,7 @@ import WaterIntake from './WaterIntake';
 import CaffeineCard from './CaffeineCard';
 import WeightProgressCard from '@/pages/Reports/WeightProgressCard';
 import { useProfileQuery } from '@/hooks/Settings/useProfile';
+import BloodAlcoholCard from './BloodAlcoholCard';
 import MealCard from './MealCard';
 import ExerciseCard from './ExerciseCard';
 import DiaryWidgetGrid, { type DiaryWidget } from './DiaryWidgetGrid';
@@ -19,6 +20,7 @@ import {
   Salad,
   Droplet,
   Coffee,
+  Wine,
   UtensilsCrossed,
   Dumbbell,
   HeartPulse,
@@ -86,7 +88,7 @@ const DiaryWeightProgress = ({ userId }: { userId: string | null }) => {
 
 const Diary = () => {
   const { t } = useTranslation();
-  const { activeUserId } = useActiveUser();
+  const { activeUserId, isActingOnBehalf } = useActiveUser();
   const location = useLocation();
   const navigate = useNavigate();
   const { timezone, loggingLevel, energyUnit, convertEnergy } =
@@ -545,6 +547,16 @@ const Diary = () => {
       icon: Scale,
       render: () => <DiaryWeightProgress userId={activeUserId} />,
     });
+    // Owner only: the estimate needs the person's own body data, and the
+    // server refuses it to a delegate.
+    if (!isActingOnBehalf) {
+      list.push({
+        key: 'bloodAlcohol',
+        title: t('diary.bloodAlcohol.title', 'Estimated Blood Alcohol'),
+        icon: Wine,
+        render: () => <BloodAlcoholCard date={selectedDate} />,
+      });
+    }
 
     return list;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -563,6 +575,7 @@ const Diary = () => {
     openFoodSearchForMealType,
     todaysHealthMetrics,
     loadingHealthMetrics,
+    isActingOnBehalf,
     t,
   ]);
 

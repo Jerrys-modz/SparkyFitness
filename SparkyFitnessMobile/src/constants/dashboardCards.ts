@@ -14,6 +14,7 @@ export const DASHBOARD_CARD_KEYS = [
   'hydration',
   'caffeine',
   'meals',
+  'bloodAlcohol',
   'fasting',
   'sleep',
   'readiness',
@@ -52,6 +53,10 @@ export const DASHBOARD_CARD_TITLES: Record<
     t('dashboardSettings.hydration', { defaultValue: 'Hydration' }),
   caffeine: (t) =>
     t('dashboardSettings.caffeine', { defaultValue: 'Caffeine' }),
+  bloodAlcohol: (t) =>
+    t('dashboardSettings.bloodAlcohol', {
+      defaultValue: 'Blood Alcohol Estimate',
+    }),
   fasting: (t) => t('dashboardSettings.fasting', { defaultValue: 'Fasting' }),
   cycle: (t) =>
     t('dashboardSettings.cyclePregnancy', {
@@ -127,6 +132,11 @@ export const DASHBOARD_CARD_SUBTITLES: Record<
   caffeine: (t) =>
     t('dashboardSettings.caffeineSubtitle', {
       defaultValue: 'Show the active caffeine card on the Dashboard',
+    }),
+  bloodAlcohol: (t) =>
+    t('dashboardSettings.bloodAlcoholSubtitle', {
+      defaultValue:
+        'Show a rough blood alcohol estimate from logged drinks on the Dashboard',
     }),
   fasting: (t) =>
     t('dashboardSettings.fastingSubtitle', {

@@ -103,6 +103,7 @@ import {
   SafeActivityAdd,
   SafeWorkoutDetail,
   SafeActiveWorkout,
+  SafeWorkoutReorder,
   SafeWorkoutComplete,
   SafeActivityDetail,
   SafeFastingDetail,
@@ -1146,6 +1147,13 @@ function AppContent() {
               headerShown: false,
               gestureEnabled: true,
             }}
+          />
+          <Stack.Screen
+            name="WorkoutReorder"
+            component={SafeWorkoutReorder}
+            options={createStackScreenOptions(t('workoutReorder.title', { defaultValue: 'Reorder exercises' }), {
+              presentation: 'modal',
+            })}
           />
           <Stack.Screen
             name="WorkoutComplete"

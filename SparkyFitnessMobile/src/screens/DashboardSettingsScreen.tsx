@@ -103,6 +103,12 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
   const setCaffeineCardVisible = useAppPreferencesStore(
     (s) => s.setCaffeineCardVisible
   );
+  const bloodAlcoholCardVisible = useAppPreferencesStore(
+    (s) => s.bloodAlcoholCardVisible
+  );
+  const setBloodAlcoholCardVisible = useAppPreferencesStore(
+    (s) => s.setBloodAlcoholCardVisible
+  );
   const askSparkyVisible = useAppPreferencesStore((s) => s.askSparkyVisible);
   const setAskSparkyVisible = useAppPreferencesStore(
     (s) => s.setAskSparkyVisible
@@ -251,6 +257,7 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
     pinnedMetrics: pinnedMetricsCardVisible,
     hydration: hydrationCardVisible,
     caffeine: caffeineCardVisible,
+    bloodAlcohol: bloodAlcoholCardVisible,
     fasting: fastingCardVisible,
     cycle: cycleCardVisible,
     medications: medicationsCardVisible,
@@ -291,6 +298,9 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
           break;
         case 'caffeine':
           setCaffeineCardVisible(isVisible);
+          break;
+        case 'bloodAlcohol':
+          setBloodAlcoholCardVisible(isVisible);
           break;
         case 'fasting':
           setFastingCardVisible(isVisible);
@@ -363,6 +373,7 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
       setPinnedMetricsCardVisible,
       setHydrationCardVisible,
       setCaffeineCardVisible,
+      setBloodAlcoholCardVisible,
       setFastingCardVisible,
       setCycleCardVisible,
       setMedicationsCardVisible,

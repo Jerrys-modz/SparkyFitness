@@ -150,6 +150,9 @@ async function updateUserPreferences(
         running_critical_power_watts = CASE WHEN $66 THEN $65::integer ELSE running_critical_power_watts END,
         weekly_calorie_budget_enabled = COALESCE($67, weekly_calorie_budget_enabled),
         weekly_calorie_budget_max_shift_percent = COALESCE($68, weekly_calorie_budget_max_shift_percent),
+        bac_distribution_formula = COALESCE($69, bac_distribution_formula),
+        bac_elimination_rate = COALESCE($70, bac_elimination_rate),
+        bac_display_unit = COALESCE($71, bac_display_unit),
         measurement_decimal_places = COALESCE($40, measurement_decimal_places),
         added_sugar_algorithm = COALESCE($43, added_sugar_algorithm),
         calorie_safety_floor_mode = COALESCE($45, calorie_safety_floor_mode),
@@ -227,6 +230,9 @@ async function updateUserPreferences(
         'running_critical_power_watts' in preferenceData,
         preferenceData.weekly_calorie_budget_enabled,
         preferenceData.weekly_calorie_budget_max_shift_percent,
+        preferenceData.bac_distribution_formula,
+        preferenceData.bac_elimination_rate,
+        preferenceData.bac_display_unit,
       ]
     );
     return result.rows[0];
@@ -337,6 +343,9 @@ async function upsertUserPreferences(
        running_critical_power_watts,
        weekly_calorie_budget_enabled,
        weekly_calorie_budget_max_shift_percent,
+       bac_distribution_formula,
+       bac_elimination_rate,
+       bac_display_unit,
        created_at, updated_at
      ) VALUES (
        $1, COALESCE($2, 'yyyy-MM-dd'), COALESCE($44, 'HH:mm'), COALESCE($3, 'lbs'), COALESCE($4, 'in'), COALESCE($5, 'km'),
@@ -388,6 +397,9 @@ async function upsertUserPreferences(
        $65::integer,
        COALESCE($67, FALSE),
        COALESCE($68::smallint, 20),
+       COALESCE($69, 'watson'),
+       COALESCE($70, 0.150),
+       COALESCE($71, 'permille'),
        now(), now()
      )
      ON CONFLICT (user_id) DO UPDATE SET
@@ -442,6 +454,10 @@ async function upsertUserPreferences(
        running_critical_power_watts = CASE WHEN $66 THEN $65::integer ELSE user_preferences.running_critical_power_watts END,
        weekly_calorie_budget_enabled = COALESCE($67, user_preferences.weekly_calorie_budget_enabled),
        weekly_calorie_budget_max_shift_percent = COALESCE($68, user_preferences.weekly_calorie_budget_max_shift_percent),
+       -- Read $69-$71 directly rather than EXCLUDED, for the same reason as $47.
+       bac_distribution_formula = COALESCE($69, user_preferences.bac_distribution_formula),
+       bac_elimination_rate = COALESCE($70, user_preferences.bac_elimination_rate),
+       bac_display_unit = COALESCE($71, user_preferences.bac_display_unit),
        measurement_decimal_places = COALESCE(EXCLUDED.measurement_decimal_places, user_preferences.measurement_decimal_places),
        added_sugar_algorithm = COALESCE(EXCLUDED.added_sugar_algorithm, user_preferences.added_sugar_algorithm),
        calorie_safety_floor_mode = COALESCE($45, user_preferences.calorie_safety_floor_mode),
@@ -530,6 +546,9 @@ async function upsertUserPreferences(
         'running_critical_power_watts' in preferenceData,
         preferenceData.weekly_calorie_budget_enabled,
         preferenceData.weekly_calorie_budget_max_shift_percent,
+        preferenceData.bac_distribution_formula,
+        preferenceData.bac_elimination_rate,
+        preferenceData.bac_display_unit,
       ]
     );
     return result.rows[0];

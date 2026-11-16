@@ -454,6 +454,7 @@ describe('appPreferencesStore', () => {
         'hydration',
         'caffeine',
         'meals',
+        'bloodAlcohol',
         'fasting',
         'sleep',
         'readiness',
@@ -476,6 +477,16 @@ describe('appPreferencesStore', () => {
       store.setWeightProgressCardVisible(true);
       expect(useAppPreferencesStore.getState().weightProgressCardVisible).toBe(
         true
+      );
+    });
+
+    it('shows the blood alcohol estimate card by default and can hide it', () => {
+      expect(useAppPreferencesStore.getState().bloodAlcoholCardVisible).toBe(
+        true
+      );
+      useAppPreferencesStore.getState().setBloodAlcoholCardVisible(false);
+      expect(useAppPreferencesStore.getState().bloodAlcoholCardVisible).toBe(
+        false
       );
     });
 
