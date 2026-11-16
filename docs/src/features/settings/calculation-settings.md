@@ -152,6 +152,10 @@ Loss subtracts calories; gain adds them. The daily adjustment stays the same whe
 
 This choice works with Adaptive Goal, Dynamic Goal, Fixed Goal, Percentage Earn-Back, and Device Projection. The selected calculation method still determines the non-device baseline, while each goal adjustment mode keeps its existing handling of activity. Device Projection applies the weekly daily adjustment once to its projected device TDEE.
 
+### Diet phases
+
+A [diet phase plan](/features/goals#diet-phases) sets Goal Mode by date range (for example cut, then maintain, then cut). On a day a phase covers, its weekly weight change replaces the Goal Mode chosen here; on every other day this setting applies. Calculation Settings shows a note when a phase sets your Goal Mode today. The precedence with weekly goal plans, goal presets and calorie cycling is described [there](/features/goals#how-phases-weekly-plans-presets-and-calorie-cycling-fit-together).
+
 ### Percentage-Based Modes
 
 The existing presets and custom percentage remain available. **Positive adds calories, negative cuts them.** Switching back to them restores percentage-based behavior; the saved weekly amount is ignored until Weekly weight change is selected again.
@@ -261,6 +265,7 @@ The week total under the chart shows the seven days against your daily target ×
 - **The safety floor still applies.** A rest day is never set below your [safety floor](#_5-metabolic-safety-floors). If one would be, it is held at the floor and the difference comes off the other days, so the week still matches.
 - **Each day follows that day's target.** Every day is worked out from its own target. While your target stays the same and your cycling pattern does not change midweek, the week totals your target × 7 (give or take a few calories of rounding). When your target moves during the week (for example as Adaptive TDEE updates), cycling is enabled/adjusted midweek, the safety floor moves, or an active weekly plan overrides specific days, the week can differ from 7 × today's target.
 - **Skipping a training day changes nothing.** Targets come from the weekday, not from logged workouts. If you miss Monday's session you can still eat Monday's amount and the week balances out, or move the session and adjust yourself.
+- **Diet phases change only Goal Mode.** A [diet phase](/features/goals#diet-phases) sets the day's target before cycling, so cycling spreads the phase's target.
 - **Weekly goal plans come first.** On a day an active [weekly goal plan](/features/goals#goal-presets-and-weekly-plans) sets, that plan's preset is used and cycling is paused.
 - **Past days keep their targets.** A change applies from today, like every other calculation setting.
 

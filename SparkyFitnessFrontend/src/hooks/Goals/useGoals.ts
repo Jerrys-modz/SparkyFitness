@@ -18,6 +18,10 @@ import {
   getWeeklyGoalPlans,
   updateWeeklyGoalPlan,
 } from '@/api/Goals/goals';
+import { fetchDietPhases, saveDietPhases } from '@/api/Goals/dietPhases';
+import { HttpApiError } from '@/api/api';
+import { toast } from '@/hooks/use-toast';
+import type { DietPhasesResponse, SaveDietPhasesBody } from '@workspace/shared';
 import type { ExpandedGoals, GoalPreset, WeeklyGoalPlan } from '@/types/goals';
 import { DEFAULT_GOALS } from '@/constants/goals';
 
@@ -255,6 +259,65 @@ export const useDeleteWeeklyPlanMutation = () => {
         'goals.goalsSettings.errorDeletingWeeklyPlan',
         'Failed to delete weekly plan.'
       ),
+    },
+  });
+};
+
+// --- DIET PHASES ---
+
+export const useDietPhases = () => {
+  return useQuery<DietPhasesResponse>({
+    queryKey: goalKeys.dietPhases(),
+    queryFn: fetchDietPhases,
+    meta: {
+      errorMessage: i18n.t(
+        'goals.dietPhases.loadError',
+        'Failed to load diet phases.'
+      ),
+    },
+  });
+};
+
+/** The message for a refused plan, by the server's `code`. */
+function dietPhaseErrorMessage(error: unknown): string {
+  const code = error instanceof HttpApiError ? error.code : undefined;
+  if (code === 'overlap') {
+    return i18n.t(
+      'goals.dietPhases.errorOverlap',
+      'Phases overlap: each day can belong to one phase only.'
+    );
+  }
+  if (code === 'past_locked') {
+    return i18n.t(
+      'goals.dietPhases.errorPastLocked',
+      'Past days keep the settings they were logged with. A phase that has started can only change from today on.'
+    );
+  }
+  return i18n.t('goals.dietPhases.saveError', 'Failed to save diet phases.');
+}
+
+/**
+ * Saves the whole plan. Phases decide each day's Goal Mode, so the resolved
+ * goals, the Diary summary and reports are refreshed with it.
+ */
+export const useSaveDietPhasesMutation = () => {
+  const queryClient = useQueryClient();
+  const { t } = useTranslation();
+  return useMutation({
+    mutationFn: (body: SaveDietPhasesBody) => saveDietPhases(body),
+    onSuccess: (data) => {
+      queryClient.setQueryData(goalKeys.dietPhases(), data);
+      return invalidateResolvedGoals(queryClient, goalKeys.dietPhases());
+    },
+    onError: (error) => {
+      toast({
+        title: t('goals.dietPhases.saveErrorTitle', 'Diet phases not saved'),
+        description: dietPhaseErrorMessage(error),
+        variant: 'destructive',
+      });
+    },
+    meta: {
+      successMessage: t('goals.dietPhases.saved', 'Diet phases saved.'),
     },
   });
 };

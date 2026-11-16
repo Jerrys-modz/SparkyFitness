@@ -4,8 +4,10 @@ import measurementRepository from '../models/measurementRepository.js';
 import reportRepository from '../models/reportRepository.js';
 import userRepository from '../models/userRepository.js';
 import preferenceRepository from '../models/preferenceRepository.js';
-import calorieRuleHistoryRepository from '../models/calorieRuleHistoryRepository.js';
-import { preferencesOnDay } from './calorieRuleHistoryService.js';
+import {
+  loadCalorieRuleTimeline,
+  preferencesOnTimelineDay,
+} from './calorieRuleHistoryService.js';
 import bmrService from './bmrService.js';
 import { getAdaptiveActivityCalories } from './adaptiveActivityService.js';
 import {
@@ -324,18 +326,14 @@ async function calculateAdaptiveTdee(
     const [
       userProfile,
       currentPreferences,
-      calorieRuleHistory,
+      calorieRuleTimeline,
       checkInMeasurements,
       nutritionData,
       latestMeasurement,
     ] = await Promise.all([
       userRepository.getUserProfile(userId),
       preferenceRepository.getUserPreferences(userId),
-      calorieRuleHistoryRepository.getCalorieRuleHistory(
-        userId,
-        endDateStr,
-        endDateStr
-      ),
+      loadCalorieRuleTimeline(userId, endDateStr, endDateStr),
       measurementRepository.getCheckInMeasurementsByDateRange(
         userId,
         startDateStr,
@@ -347,7 +345,11 @@ async function calculateAdaptiveTdee(
     // The settings in force on the calculation day, not today's (#1795).
     const userPreferences =
       currentPreferences &&
-      preferencesOnDay(currentPreferences, calorieRuleHistory, endDateStr);
+      preferencesOnTimelineDay(
+        currentPreferences,
+        calorieRuleTimeline,
+        endDateStr
+      );
 
     const result = computeAdaptiveTdeeFromData(
       {
@@ -428,18 +430,14 @@ async function calculateAdaptiveTdeeRange(
     const [
       userProfile,
       userPreferences,
-      calorieRuleHistory,
+      calorieRuleTimeline,
       checkInMeasurements,
       nutritionData,
       latestMeasurement,
     ] = await Promise.all([
       userRepository.getUserProfile(userId),
       preferenceRepository.getUserPreferences(userId),
-      calorieRuleHistoryRepository.getCalorieRuleHistory(
-        userId,
-        startDateStr,
-        endDateStr
-      ),
+      loadCalorieRuleTimeline(userId, startDateStr, endDateStr),
       measurementRepository.getCheckInMeasurementsByDateRange(
         userId,
         fetchStartDateStr,
@@ -457,7 +455,7 @@ async function calculateAdaptiveTdeeRange(
     // Each day uses the settings in force on it, not today's (#1795).
     const preferencesOn = (dateStr: string) =>
       userPreferences &&
-      preferencesOnDay(userPreferences, calorieRuleHistory, dateStr);
+      preferencesOnTimelineDay(userPreferences, calorieRuleTimeline, dateStr);
     const activityCaloriesByDate = days.some((day) => {
       const dayPreferences = preferencesOn(format(day, 'yyyy-MM-dd'));
       return isAdaptiveActivitySeparated(

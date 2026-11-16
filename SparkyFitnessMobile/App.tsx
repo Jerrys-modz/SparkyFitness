@@ -117,6 +117,7 @@ import {
   SafeCalorieSettings,
   SafeGoals,
   SafeWeeklyGoalPlanEdit,
+  SafeDietPhaseEdit,
   SafeMealTypeSettings,
   SafeEquipment,
   SafeShoes,
@@ -1202,6 +1203,11 @@ function AppContent() {
             name="WeeklyGoalPlanEdit"
             component={SafeWeeklyGoalPlanEdit}
             options={createStackScreenOptions(t('goals.weekly.editTitle', { defaultValue: 'Weekly plan' }), { headerBackTitle: t('goals.title', { defaultValue: 'Goals' }) })}
+          />
+          <Stack.Screen
+            name="DietPhaseEdit"
+            component={SafeDietPhaseEdit}
+            options={createStackScreenOptions(t('goals.dietPhases.editTitle', { defaultValue: 'Diet phase' }), { headerBackTitle: t('goals.title', { defaultValue: 'Goals' }) })}
           />
           <Stack.Screen
             name="CalorieSettings"
