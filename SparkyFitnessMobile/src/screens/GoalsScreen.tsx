@@ -5,6 +5,7 @@ import Toast from 'react-native-toast-message';
 import FormInput from '../components/FormInput';
 import FormScreenChrome from '../components/FormScreenChrome';
 import GoalPresetsSection from '../components/GoalPresetsSection';
+import GoalWeightSection from '../components/GoalWeightSection';
 import WeeklyGoalPlansSection from '../components/WeeklyGoalPlansSection';
 import DietPhasesSection from '../components/DietPhasesSection';
 import MealDistributionEditor from '../components/MealDistributionEditor';
@@ -523,10 +524,13 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
         });
         return null;
       }
+      // water_goal_ml and target_steps are integer columns on the server.
       next[field] =
         field === 'water_goal_ml'
           ? Math.round(volumeToMl(value, waterUnit))
-          : value;
+          : field === 'target_steps'
+            ? Math.round(value)
+            : value;
     }
     for (const [name, text] of Object.entries(customDrafts)) {
       if (text === (initialCustomDrafts[name] ?? '')) continue;
@@ -1083,6 +1087,10 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
       />
       {!isPresetMode && (
         <>
+          {sectionTitle(
+            t('goals.sections.goalWeight', { defaultValue: 'Goal weight' })
+          )}
+          <GoalWeightSection />
           {sectionTitle(
             t('goals.sections.presets', { defaultValue: 'Goal presets' })
           )}
