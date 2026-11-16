@@ -233,3 +233,48 @@ describe('WeightLineChart', () => {
     });
   });
 });
+
+describe('WeightLineChart for another measurement', () => {
+  const bodyFatSeries = (count: number): WeightDataPoint[] =>
+    Array.from({ length: count }, (_, index) => ({
+      day: new Date(Date.UTC(2026, 5, 1 + index)).toISOString().slice(0, 10),
+      weight: 25 - 0.05 * index,
+    }));
+
+  it('uses the given title, unit and test IDs, and projects the goal', () => {
+    const screen = render(
+      <WeightLineChart
+        data={bodyFatSeries(60)}
+        isLoading={false}
+        isError={false}
+        range="30d"
+        unit="%"
+        goal={20}
+        title="Body fat"
+        emptyText="No body fat readings"
+        testIDPrefix="body-fat"
+      />
+    );
+
+    expect(screen.getByText('Body fat')).toBeTruthy();
+    expect(screen.getByTestId('body-fat-forecast-trend')).toBeTruthy();
+    expect(screen.getByTestId('body-fat-forecast-goal')).toBeTruthy();
+    expect(screen.queryByTestId('weight-forecast-trend')).toBeNull();
+    expect(screen.getByText(/\b20\d{2}\b/)).toBeTruthy();
+    expect(screen.getByTestId('goal-line')).toBeTruthy();
+  });
+
+  it('shows its own empty text', () => {
+    const screen = render(
+      <WeightLineChart
+        data={[]}
+        isLoading={false}
+        isError={false}
+        range="30d"
+        unit="%"
+        emptyText="No body fat readings"
+      />
+    );
+    expect(screen.getByText('No body fat readings')).toBeTruthy();
+  });
+});

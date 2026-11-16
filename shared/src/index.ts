@@ -292,6 +292,7 @@ export * from './utils/weightRamp.ts';
 export * from './utils/runningTrends.ts';
 export * from './utils/raceTimePredictions.ts';
 export * from './utils/weightTrend.ts';
+export * from './utils/bodyFatGoal.ts';
 export * from './utils/workoutFeedbackForm.ts';
 export * from './utils/adaptiveCoaching.ts';
 export * from './utils/runIntervals.ts';

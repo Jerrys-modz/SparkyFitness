@@ -83,6 +83,8 @@ export interface Profile {
   avatar_url: string | null;
   gender: string | null;
   target_weight?: string | number | null;
+  /** NUMERIC(4,1) percent, so it arrives as a string. */
+  target_body_fat_percentage?: string | number | null;
 }
 
 export interface ProfileFormState {

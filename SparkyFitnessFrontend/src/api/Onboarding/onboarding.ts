@@ -84,3 +84,19 @@ export const setTargetWeight = async (targetWeightKg: number | null) => {
     body: JSON.stringify({ targetWeight: targetWeightKg }),
   });
 };
+
+/**
+ * Sets or clears the user's body fat % goal.
+ * @param targetBodyFatPercentage Target body fat in percent, or null to clear it.
+ */
+export const setTargetBodyFat = async (
+  targetBodyFatPercentage: number | null
+) => {
+  return apiCall('/onboarding/target-body-fat', {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ targetBodyFatPercentage }),
+  });
+};

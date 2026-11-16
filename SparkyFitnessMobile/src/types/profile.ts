@@ -8,4 +8,9 @@ export interface UserProfile {
   gender: 'male' | 'female' | null;
   /** A NUMERIC(5,2) column, so node-postgres serializes it as a numeric string. */
   target_weight: string | number | null;
+  /**
+   * Body fat goal in percent, a NUMERIC(4,1) column (so a string). Optional:
+   * a server from before the body fat goal does not send it.
+   */
+  target_body_fat_percentage?: string | number | null;
 }

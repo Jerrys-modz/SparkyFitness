@@ -84,14 +84,32 @@ async function setTargetWeight(userId: string, targetWeightKg: number | null) {
     throw new Error('Failed to save target weight.', { cause: error });
   }
 }
+/**
+ * Sets or clears the user's target body fat % without touching the rest of onboarding.
+ * @param userId - The UUID of the user.
+ * @param targetBodyFatPercent - Target body fat in percent, or null to clear it.
+ */
+async function setTargetBodyFat(
+  userId: string,
+  targetBodyFatPercent: number | null
+) {
+  try {
+    await onboardingRepository.setTargetBodyFat(userId, targetBodyFatPercent);
+  } catch (error) {
+    log('error', `Error saving target body fat for user ${userId}:`, error);
+    throw new Error('Failed to save target body fat.', { cause: error });
+  }
+}
 export { processOnboardingData };
 export { setTargetWeight };
+export { setTargetBodyFat };
 export { checkOnboardingStatus };
 export { resetOnboardingStatus };
 export { skipOnboarding };
 export default {
   processOnboardingData,
   setTargetWeight,
+  setTargetBodyFat,
   checkOnboardingStatus,
   resetOnboardingStatus,
   skipOnboarding,

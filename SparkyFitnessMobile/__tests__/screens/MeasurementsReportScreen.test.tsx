@@ -30,6 +30,7 @@ jest.mock('../../src/components/reports/MeasurementTimelineCard', () => {
   };
 });
 const mockUseMeasurementsReport = jest.fn();
+let mockTargetBodyFat: string | null = null;
 jest.mock('../../src/components/DateRangeSheet', () => {
   const React = require('react');
   const { View } = require('react-native');
@@ -57,7 +58,12 @@ jest.mock('../../src/hooks', () => ({
   usePreferences: () => ({
     preferences: { default_weight_unit: 'kg', default_measurement_unit: 'cm' },
   }),
-  useProfile: () => ({ profile: { target_weight: '75' } }),
+  useProfile: () => ({
+    profile: {
+      target_weight: '75',
+      target_body_fat_percentage: mockTargetBodyFat,
+    },
+  }),
 }));
 jest.mock('../../src/hooks/useScreenHeader', () => ({
   useScreenHeader: () => null,
@@ -73,7 +79,18 @@ jest.mock('react-native-safe-area-context', () => ({
 }));
 jest.mock('../../src/components/WeightLineChart', () => {
   const { View } = require('react-native');
-  return { __esModule: true, default: () => <View testID="weight-chart" /> };
+  return {
+    __esModule: true,
+    default: ({
+      testIDPrefix = 'weight',
+      goal,
+    }: {
+      testIDPrefix?: string;
+      goal?: number | null;
+    }) => (
+      <View testID={`${testIDPrefix}-chart`} accessibilityHint={String(goal)} />
+    ),
+  };
 });
 jest.mock('../../src/components/StepsBarChart', () => {
   const { View } = require('react-native');
@@ -126,6 +143,7 @@ describe('MeasurementsReportScreen', () => {
   });
 
   beforeEach(() => {
+    mockTargetBodyFat = null;
     __resetAppPreferencesStoreForTests();
     mockUseMeasurementsReport.mockReset();
     mockUseMeasurementsReport.mockReturnValue({
@@ -173,6 +191,27 @@ describe('MeasurementsReportScreen', () => {
     expect(getByTestId('measurements-weight-to-goal')).toBeTruthy();
     expect(getByTestId('measurements-body_fat_percentage')).toBeTruthy();
     expect(getByTestId('measurements-waist')).toBeTruthy();
+  });
+
+  it('draws the body fat chart with no goal line when no goal is set', () => {
+    const { getByTestId, queryByTestId } = renderScreen();
+
+    expect(getByTestId('body-fat-chart').props.accessibilityHint).toBe('null');
+    expect(queryByTestId('measurements-body-fat-goal')).toBeNull();
+    expect(queryByTestId('measurements-implied-goal-weight')).toBeNull();
+  });
+
+  it('shows the body fat goal, the points to go and the implied goal weight', () => {
+    mockTargetBodyFat = '15.0';
+    const { getByTestId, getByText } = renderScreen();
+
+    expect(getByTestId('body-fat-chart').props.accessibilityHint).toBe('15');
+    expect(getByTestId('measurements-body-fat-goal')).toBeTruthy();
+    expect(getByText('5 points to go')).toBeTruthy();
+    // 80 kg at 20% = 64 kg lean; 64 / 0.85 = 75.3 kg.
+    expect(getByTestId('measurements-implied-goal-weight')).toBeTruthy();
+    expect(getByText(/≈ 75[.,]3 kg/)).toBeTruthy();
+    expect(getByText(/An estimate/)).toBeTruthy();
   });
 
   it('leaves out the sections turned off in Customize Reports', () => {

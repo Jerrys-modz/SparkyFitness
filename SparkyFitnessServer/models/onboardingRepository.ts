@@ -153,14 +153,42 @@ async function setTargetWeight(userId: string, targetWeightKg: number | null) {
     client.release();
   }
 }
+/**
+ * Sets or clears only the user's target body fat %, creating the onboarding row
+ * when the user skipped onboarding (as `setTargetWeight` does).
+ * @param userId - The UUID of the user.
+ * @param targetBodyFatPercent - Target body fat in percent, or null to clear it.
+ */
+async function setTargetBodyFat(
+  userId: string,
+  targetBodyFatPercent: number | null
+) {
+  const client = await getClient(userId);
+  try {
+    await client.query(
+      `INSERT INTO onboarding_data (user_id, target_body_fat_percentage)
+       VALUES ($1, $2)
+       ON CONFLICT (user_id) DO UPDATE
+         SET target_body_fat_percentage = EXCLUDED.target_body_fat_percentage`,
+      [userId, targetBodyFatPercent]
+    );
+  } catch (error) {
+    log('error', 'Error in setTargetBodyFat repository:', error);
+    throw error;
+  } finally {
+    client.release();
+  }
+}
 export { saveOnboardingData };
 export { setTargetWeight };
+export { setTargetBodyFat };
 export { getOnboardingStatus };
 export { resetOnboardingStatus };
 export { setOnboardingSkipped };
 export default {
   saveOnboardingData,
   setTargetWeight,
+  setTargetBodyFat,
   getOnboardingStatus,
   resetOnboardingStatus,
   setOnboardingSkipped,

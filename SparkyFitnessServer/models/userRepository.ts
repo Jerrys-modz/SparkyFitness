@@ -162,7 +162,7 @@ async function getUserProfile(userId: string) {
   const client = await getClient(userId); // User-specific operation
   try {
     const result = await client.query(
-      `SELECT p.id, p.full_name, p.phone_number, TO_CHAR(p.date_of_birth, 'YYYY-MM-DD') AS date_of_birth, p.bio, p.avatar_url, p.gender, o.target_weight
+      `SELECT p.id, p.full_name, p.phone_number, TO_CHAR(p.date_of_birth, 'YYYY-MM-DD') AS date_of_birth, p.bio, p.avatar_url, p.gender, o.target_weight, o.target_body_fat_percentage
        FROM profiles p
        LEFT JOIN onboarding_data o ON p.id = o.user_id
        WHERE p.id = $1`,

@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   getOnboardingStatus,
   resetOnboardingStatus,
+  setTargetBodyFat,
   setTargetWeight,
   skipOnboarding,
   submitOnboardingData,
@@ -108,6 +109,31 @@ export const useSetTargetWeight = (userId: string) => {
       successMessage: t(
         'goals.goalsSettings.goalWeightSaved',
         'Goal weight saved.'
+      ),
+    },
+  });
+};
+
+export const useSetTargetBodyFat = (userId: string) => {
+  const queryClient = useQueryClient();
+  const { t } = useTranslation();
+
+  return useMutation({
+    mutationFn: (targetBodyFatPercentage: number | null) =>
+      setTargetBodyFat(targetBodyFatPercentage),
+    onSuccess: () => {
+      return queryClient.invalidateQueries({
+        queryKey: userKeys.profile(userId),
+      });
+    },
+    meta: {
+      errorMessage: t(
+        'goals.goalsSettings.bodyFatGoalSaveFailed',
+        'Failed to save body fat goal.'
+      ),
+      successMessage: t(
+        'goals.goalsSettings.bodyFatGoalSaved',
+        'Body fat goal saved.'
       ),
     },
   });
