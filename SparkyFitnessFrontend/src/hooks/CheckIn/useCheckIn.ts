@@ -49,11 +49,13 @@ export const useRecentCustomMeasurements = () => {
 
 export const useRecentStandardMeasurements = (
   startDate: string,
-  endDate: string
+  endDate: string,
+  enabled = true
 ) => {
   return useQuery({
     queryKey: checkInKeys.recentStandard(startDate, endDate),
     queryFn: () => fetchRecentStandardMeasurements(startDate, endDate),
+    enabled,
     meta: {
       errorMessage: i18n.t(
         'checkIn.failedToLoadRecentStandard',

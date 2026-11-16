@@ -92,6 +92,11 @@ jest.mock('../../src/components/WeightLineChart', () => {
     ),
   };
 });
+// Has its own test; it reads preferences and weigh-ins through React Query.
+jest.mock('../../src/components/WeightPlateauCard', () => ({
+  __esModule: true,
+  default: () => null,
+}));
 jest.mock('../../src/components/StepsBarChart', () => {
   const { View } = require('react-native');
   return { __esModule: true, default: () => <View testID="steps-chart" /> };

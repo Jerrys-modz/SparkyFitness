@@ -40,6 +40,7 @@ import MacroAlertReconciler from '../components/MacroAlertReconciler';
 import HealthTrendsPager from '../components/HealthTrendsPager';
 import HealthTrendTiles from '../components/HealthTrendTiles';
 import type { HealthTrendKey } from '../constants/healthTrends';
+import WeightPlateauCard from '../components/WeightPlateauCard';
 import HydrationGauge from '../components/HydrationGauge';
 import CaffeineCard from '../components/CaffeineCard';
 import { useStandHours } from '../hooks/useStandHours';
@@ -1381,6 +1382,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                       />
                     </>
                   )}
+                  <WeightPlateauCard enabled={isConnected} />
                 </View>
               ) : null;
             case 'trainingLoad':

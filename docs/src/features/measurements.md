@@ -41,6 +41,23 @@ Below the form, the **Recent Measurements** list shows your latest logged weight
 > [!TIP]
 > Weigh yourself on the same day and at the same time of day for the cleanest trend. Day-to-day noise is normal: the charts smooth it out over weeks.
 
+## When your weight trend levels off
+
+If your **Goal Mode** is set to lose or gain weight and your smoothed weight trend stops moving for a while, a short note appears at the top of **Reports → Measurements** on the web, and under the Health Trends card on the mobile Dashboard and the weight chart in the mobile Measurements report. It says how long the trend has been flat and lists a few things worth checking:
+
+- whether most meals, snacks and drinks are logged
+- whether the Adaptive TDEE estimate is still adjusting to your recent data
+- water and scale noise, which can hide a change for a week or two
+- whether a planned stretch at maintenance calories suits you
+
+Tap the close button to dismiss it. It stays hidden for that flat stretch and appears again only if a new one starts later. Nothing appears at maintenance or recomposition, where a steady weight is expected.
+
+How it is decided (the same check the web, the mobile app and the AI assistant use):
+
+- It looks at your weigh-ins from the last 90 days, smoothed the same way as the trend line on the chart.
+- The trend has to have stayed flat for at least **14 days**: changing by less than **0.1% of your weight per week** (about 0.08 kg or 0.18 lb at 80 kg) and staying inside a band **0.5% of your weight** wide (about 0.4 kg at 80 kg).
+- That stretch needs at least **6 weigh-ins**, with no gap longer than **7 days** between them, and your latest weigh-in must be from the last 7 days.
+
 ## Related pages
 
 - [Check-In](/features/check-in)
