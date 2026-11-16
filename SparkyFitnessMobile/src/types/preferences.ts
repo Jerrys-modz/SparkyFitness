@@ -62,6 +62,10 @@ export interface UserPreferences {
   calorie_cycling_mode?: CalorieCyclingMode;
   /** One whole percentage per weekday, index 0 = Sunday, -40 to 40. */
   calorie_cycling_offsets?: number[];
+  /** Weekly calorie budget: carry earlier over- or under-eating over the days left. */
+  weekly_calorie_budget_enabled?: boolean;
+  /** Largest daily change, whole % of the day's target (5 to 50). */
+  weekly_calorie_budget_max_shift_percent?: number;
   goal_mode_custom_percentage?: number;
   /** Signed kilograms per week: negative for loss, positive for gain. */
   goal_mode_weekly_change_kg?: number;

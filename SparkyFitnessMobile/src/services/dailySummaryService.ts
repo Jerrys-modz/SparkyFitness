@@ -19,6 +19,7 @@ import type {
   WaterIntakeBreakdown,
   AdjustedGoals,
   CalorieCyclingDay,
+  WeeklyCalorieBudgetDay,
 } from '@workspace/shared';
 import {
   resolveSupplementTotals,
@@ -39,6 +40,8 @@ export interface DailySummaryRawData {
   adjustedGoals?: AdjustedGoals | null;
   /** How calorie cycling set the day's goal; absent from older servers. */
   calorieCycling?: CalorieCyclingDay;
+  /** The weekly calorie budget on this day; absent when off or on older servers. */
+  weeklyCalorieBudget?: WeeklyCalorieBudgetDay;
 }
 
 export async function loadDailySummaryRawData(
@@ -58,6 +61,7 @@ export async function loadDailySummaryRawData(
     supplementTotals: data.supplementTotals,
     adjustedGoals: data.adjustedGoals ?? null,
     calorieCycling: data.calorieCycling,
+    weeklyCalorieBudget: data.weeklyCalorieBudget,
   };
 }
 
@@ -76,6 +80,7 @@ export function buildDailySummary(
     supplementTotals,
     adjustedGoals,
     calorieCycling,
+    weeklyCalorieBudget,
   } = raw;
 
   const calorieGoal = adjustedGoals?.calories ?? goals.calories ?? 0;
@@ -115,6 +120,7 @@ export function buildDailySummary(
     date,
     calorieGoal,
     calorieCycling,
+    weeklyCalorieBudget,
     caloriesConsumed,
     caloriesBurned,
     activeCalories,

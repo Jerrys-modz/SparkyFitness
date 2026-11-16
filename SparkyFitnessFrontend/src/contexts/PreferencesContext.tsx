@@ -47,6 +47,8 @@ import {
   DEFAULT_GLUCOSE_UNIT,
   CALORIE_CYCLING_DEFAULT_OFFSETS,
   parseCalorieCyclingOffsets,
+  normalizeWeeklyBudgetShiftPercent,
+  WEEKLY_CALORIE_BUDGET_DEFAULT_SHIFT_PERCENT,
   type CalorieCyclingMode,
   type GlucoseUnit,
   type ChartScaleMode,
@@ -151,6 +153,8 @@ interface PreferencesContextType {
   adjustMacrosWithExercise: boolean;
   calorieCyclingMode: CalorieCyclingMode;
   calorieCyclingOffsets: number[];
+  weeklyCalorieBudgetEnabled: boolean;
+  weeklyCalorieBudgetMaxShiftPercent: number;
   goalModeCustomPercentage: number;
   goalModeWeeklyChangeKg: number;
   calorieSafetyFloorMode: CalorieSafetyFloorMode;
@@ -296,6 +300,8 @@ export interface DefaultPreferences {
   adjust_macros_with_exercise?: boolean;
   calorie_cycling_mode?: CalorieCyclingMode;
   calorie_cycling_offsets?: number[];
+  weekly_calorie_budget_enabled?: boolean;
+  weekly_calorie_budget_max_shift_percent?: number;
   goal_mode_custom_percentage: number;
   goal_mode_weekly_change_kg: number;
   calorie_safety_floor_mode: SharedUserPreferences['calorie_safety_floor_mode'];
@@ -430,6 +436,12 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({
   const [calorieCyclingOffsets, setCalorieCyclingOffsetsState] = useState<
     number[]
   >([...CALORIE_CYCLING_DEFAULT_OFFSETS]);
+  const [weeklyCalorieBudgetEnabled, setWeeklyCalorieBudgetEnabledState] =
+    useState(false);
+  const [
+    weeklyCalorieBudgetMaxShiftPercent,
+    setWeeklyCalorieBudgetMaxShiftPercentState,
+  ] = useState<number>(WEEKLY_CALORIE_BUDGET_DEFAULT_SHIFT_PERCENT);
   const [adaptiveActivitySeparate, setAdaptiveActivitySeparateState] =
     useState(false);
   const [goalModeCustomPercentage, setGoalModeCustomPercentageState] =
@@ -882,6 +894,14 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({
             ...CALORIE_CYCLING_DEFAULT_OFFSETS,
           ]
         );
+        setWeeklyCalorieBudgetEnabledState(
+          data.weekly_calorie_budget_enabled ?? false
+        );
+        setWeeklyCalorieBudgetMaxShiftPercentState(
+          normalizeWeeklyBudgetShiftPercent(
+            data.weekly_calorie_budget_max_shift_percent
+          )
+        );
         setAdaptiveActivitySeparateState(
           data.adaptive_activity_separate ?? false
         );
@@ -1107,6 +1127,11 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({
           newPrefs?.calorieCyclingMode ?? calorieCyclingMode,
         calorie_cycling_offsets:
           newPrefs?.calorieCyclingOffsets ?? calorieCyclingOffsets,
+        weekly_calorie_budget_enabled:
+          newPrefs?.weeklyCalorieBudgetEnabled ?? weeklyCalorieBudgetEnabled,
+        weekly_calorie_budget_max_shift_percent:
+          newPrefs?.weeklyCalorieBudgetMaxShiftPercent ??
+          weeklyCalorieBudgetMaxShiftPercent,
         goal_mode_custom_percentage:
           newPrefs?.goalModeCustomPercentage ?? goalModeCustomPercentage,
         goal_mode_weekly_change_kg:
@@ -1195,6 +1220,8 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({
       adjustMacrosWithExercise,
       calorieCyclingMode,
       calorieCyclingOffsets,
+      weeklyCalorieBudgetEnabled,
+      weeklyCalorieBudgetMaxShiftPercent,
       goalModeCustomPercentage,
       goalModeWeeklyChangeKg,
       calorieSafetyFloorMode,
@@ -1508,6 +1535,8 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({
       adjustMacrosWithExercise,
       calorieCyclingMode,
       calorieCyclingOffsets,
+      weeklyCalorieBudgetEnabled,
+      weeklyCalorieBudgetMaxShiftPercent,
       goalModeCustomPercentage,
       goalModeWeeklyChangeKg,
       calorieSafetyFloorMode,
@@ -1627,6 +1656,8 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({
       adjustMacrosWithExercise,
       calorieCyclingMode,
       calorieCyclingOffsets,
+      weeklyCalorieBudgetEnabled,
+      weeklyCalorieBudgetMaxShiftPercent,
       goalModeCustomPercentage,
       goalModeWeeklyChangeKg,
       calorieSafetyFloorMode,

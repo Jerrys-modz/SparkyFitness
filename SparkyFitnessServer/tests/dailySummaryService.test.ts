@@ -206,6 +206,9 @@ describe('dailySummaryService', () => {
       adjust_macros_with_exercise: false,
       calorie_cycling_mode: 'off',
       calorie_cycling_offsets: [0, 0, 0, 0, 0, 0, 0],
+      weekly_calorie_budget_enabled: false,
+      weekly_calorie_budget_max_shift_percent: 20,
+      first_day_of_week: 0,
     };
     vi.mocked(
       calorieRuleHistoryRepository.getCalorieRuleHistory

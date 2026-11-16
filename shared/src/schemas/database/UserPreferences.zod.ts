@@ -6,6 +6,8 @@ import {
   CALORIE_SAFETY_FLOOR_MODES,
   MAX_CALORIE_SAFETY_FLOOR,
   MIN_CALORIE_SAFETY_FLOOR,
+  WEEKLY_CALORIE_BUDGET_MAX_SHIFT_PERCENT,
+  WEEKLY_CALORIE_BUDGET_MIN_SHIFT_PERCENT,
 } from '../../constants/calorieConstants.ts';
 import { CHART_SCALE_MODES } from '../../constants/chartConstants.ts';
 import { MAX_GOAL_MODE_WEEKLY_CHANGE_KG } from '../../utils/calorieCalculations.ts';
@@ -26,6 +28,13 @@ export const SUPPORTED_DATE_FORMATS = [
 export type SupportedDateFormat = (typeof SUPPORTED_DATE_FORMATS)[number];
 
 const externalDataProvidersIdSchema = z.any();
+
+/** Weekly calorie budget: the largest daily change, as a % of the day's target. */
+const weeklyCalorieBudgetShiftSchema = z
+  .number()
+  .int()
+  .min(WEEKLY_CALORIE_BUDGET_MIN_SHIFT_PERCENT)
+  .max(WEEKLY_CALORIE_BUDGET_MAX_SHIFT_PERCENT);
 
 /** Calorie cycling (#2327): one whole percentage per weekday, index 0 = Sunday. */
 const calorieCyclingOffsetsSchema = z
@@ -107,6 +116,8 @@ export const userPreferencesSchema = z.object({
   calorie_safety_floor_mode: z.enum(CALORIE_SAFETY_FLOOR_MODES),
   calorie_cycling_mode: z.enum(CALORIE_CYCLING_MODES),
   calorie_cycling_offsets: calorieCyclingOffsetsSchema,
+  weekly_calorie_budget_enabled: z.boolean(),
+  weekly_calorie_budget_max_shift_percent: weeklyCalorieBudgetShiftSchema,
   calorie_safety_floor_value: z
     .number()
     .int()
@@ -215,6 +226,9 @@ export const userPreferencesInitializerSchema = z.object({
   calorie_safety_floor_mode: z.enum(CALORIE_SAFETY_FLOOR_MODES).optional(),
   calorie_cycling_mode: z.enum(CALORIE_CYCLING_MODES).optional(),
   calorie_cycling_offsets: calorieCyclingOffsetsSchema.optional(),
+  weekly_calorie_budget_enabled: z.boolean().optional(),
+  weekly_calorie_budget_max_shift_percent:
+    weeklyCalorieBudgetShiftSchema.optional(),
   calorie_safety_floor_value: z
     .number()
     .int()
@@ -320,6 +334,9 @@ export const userPreferencesMutatorSchema = z.object({
   calorie_safety_floor_mode: z.enum(CALORIE_SAFETY_FLOOR_MODES).optional(),
   calorie_cycling_mode: z.enum(CALORIE_CYCLING_MODES).optional(),
   calorie_cycling_offsets: calorieCyclingOffsetsSchema.optional(),
+  weekly_calorie_budget_enabled: z.boolean().optional(),
+  weekly_calorie_budget_max_shift_percent:
+    weeklyCalorieBudgetShiftSchema.optional(),
   calorie_safety_floor_value: z
     .number()
     .int()

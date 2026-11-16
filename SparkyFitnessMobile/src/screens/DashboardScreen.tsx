@@ -29,6 +29,7 @@ import CalendarSheet, {
 } from '../components/CalendarSheet';
 import ActivityRingsCard from '../components/ActivityRingsCard';
 import CalorieRingCard from '../components/CalorieRingCard';
+import WeeklyCalorieBudgetCard from '../components/WeeklyCalorieBudgetCard';
 import CycleCard from '../components/CycleCard';
 import DateNavigator from '../components/DateNavigator';
 import ExerciseProgressCard from '../components/ExerciseProgressCard';
@@ -984,14 +985,21 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                   hasSupplementNutrition(summary.supplementTotals) ||
                   summary.exerciseEntries.length > 0 ||
                   goal > 0) ? (
-                <CalorieRingCard
-                  key="calorieRing"
-                  caloriesConsumed={eaten}
-                  caloriesBurned={burned}
-                  calorieGoal={eaten + remaining}
-                  remainingCalories={remaining}
-                  progressPercent={progress / 100}
-                />
+                <React.Fragment key="calorieRing">
+                  <CalorieRingCard
+                    caloriesConsumed={eaten}
+                    caloriesBurned={burned}
+                    calorieGoal={eaten + remaining}
+                    remainingCalories={remaining}
+                    progressPercent={progress / 100}
+                  />
+                  {summary.weeklyCalorieBudget && (
+                    <WeeklyCalorieBudgetCard
+                      budget={summary.weeklyCalorieBudget}
+                      eatenToday={eaten}
+                    />
+                  )}
+                </React.Fragment>
               ) : null;
             case 'askSparky':
               return askSparkyVisible ? (

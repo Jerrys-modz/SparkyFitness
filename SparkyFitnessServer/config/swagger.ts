@@ -5,6 +5,8 @@ import { fileURLToPath } from 'url';
 import { z } from 'zod';
 import {
   CALORIE_CYCLING_MAX_OFFSET,
+  WEEKLY_CALORIE_BUDGET_MAX_SHIFT_PERCENT,
+  WEEKLY_CALORIE_BUDGET_MIN_SHIFT_PERCENT,
   CALORIE_CYCLING_MODES,
   CHART_SCALE_MODES,
   MAX_CALORIE_SAFETY_FLOOR,
@@ -1564,6 +1566,20 @@ const options = {
               maxItems: 7,
               description:
                 'One raw percentage per weekday, index 0 = Sunday. The server scales the pattern so the week totals the daily goal x 7 while that goal is steady, keeps cycled days at or above the safety floor, and moves carbs (fat only once a low day uses up all of its carbs). When the daily goal is already at or below the safety floor (or the floor is disabled and the pattern is even), every day stays at the daily goal.',
+            },
+            weekly_calorie_budget_enabled: {
+              type: 'boolean',
+              default: false,
+              description:
+                "Weekly calorie budget: each day's calorie goal moves by the week's earlier over- or under-eating (completed days only, from the day it was switched on), spread over the days left in the week, which starts on first_day_of_week. Exercise calories the adjustment mode credits count on their own day. Applies from today.",
+            },
+            weekly_calorie_budget_max_shift_percent: {
+              type: 'integer',
+              minimum: WEEKLY_CALORIE_BUDGET_MIN_SHIFT_PERCENT,
+              maximum: WEEKLY_CALORIE_BUDGET_MAX_SHIFT_PERCENT,
+              default: 20,
+              description:
+                "Largest change to a day's calorie goal from the weekly budget, as a whole % of that day's own goal. The safety floor still applies.",
             },
             chart_scale_mode: {
               type: 'string',

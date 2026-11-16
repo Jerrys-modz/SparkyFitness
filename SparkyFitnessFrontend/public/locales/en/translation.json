@@ -3597,6 +3597,16 @@
         "policy": "This address is not allowed by the network policy.",
         "other": "The server did not list its tools ({{reason}})."
       }
+  },
+    "weeklyCalorieBudget": {
+      "title": "Weekly calorie budget",
+      "description": "Carry what you ate above or below your targets earlier in the week over the days left. Your week's budget is the sum of its daily targets.",
+      "maxShift": "Largest daily change",
+      "ruleCap": "A day's target never moves by more than this share of its own target, and never goes below your safety floor.",
+      "ruleWeekStart": "The week starts on your first day of the week (Preferences). Nothing carries into the next week.",
+      "ruleCompleted": "Only finished days count. A day with nothing logged counts as on target, and today's eating moves tomorrow, not today.",
+      "ruleStartsToday": "Turning it on starts from today: earlier days of this week are not counted.",
+      "ruleExercise": "Exercise calories your adjustment mode adds back count on the day you logged them, so a workout is never counted twice."
     }
   },
   "admin": {
@@ -4521,6 +4531,20 @@
       "stepFloor": "Held at your safety floor; the other days give up the difference.",
       "pausedWeeklyPlan": "Calorie cycling is paused today: a weekly goal plan sets this day.",
       "pausedEarnBack": "Calorie cycling is paused: exercise calories are added back to your goal."
+    },
+    "weeklyBudget": {
+      "title": "Weekly budget",
+      "used": "Used of {{total}}",
+      "remaining": "Remaining",
+      "todayTarget": "Today's target",
+      "reasonNoDays": "No finished days counted yet this week, so today keeps its own target.",
+      "reasonOnTrack": "You are on track for the week, so today keeps its own target.",
+      "reasonUnder": "{{amount}} {{unit}} under so far, spread over {{days}} days left: +{{shift}} {{unit}} today.",
+      "reasonOver": "{{amount}} {{unit}} over so far, spread over {{days}} days left: −{{shift}} {{unit}} today.",
+      "limitedByCap": "Limited to ±{{percent}}% of your daily target.",
+      "limitedByFloor": "Held at your safety floor.",
+      "unloggedDays": "{{count}} day(s) with nothing logged count as on target.",
+      "estimateNote": "The week total is an estimate: the days left use today’s base target ({{base}} {{unit}})."
     }
   },
   "nutrientGoalDirection": {

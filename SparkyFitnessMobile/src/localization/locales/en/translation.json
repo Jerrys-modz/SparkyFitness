@@ -1418,7 +1418,13 @@
       "chartHintTrainingShort": "Tap a bar to see that day. Tap a day below to switch training and rest.",
       "chartHintCustomHandle": "Tap a bar to see that day. Drag the handle on top of a bar to change it."
     },
-    "adaptiveEstimateRangeWithUnit": "Activity Level sets the starting estimate and the ±{{amount}} {{unit}} plausibility range around BMR × this multiplier. Estimates can take several weeks to settle; weight fluctuations and incomplete food logs add uncertainty."
+    "adaptiveEstimateRangeWithUnit": "Activity Level sets the starting estimate and the ±{{amount}} {{unit}} plausibility range around BMR × this multiplier. Estimates can take several weeks to settle; weight fluctuations and incomplete food logs add uncertainty.",
+    "weeklyBudget": {
+      "title": "Weekly calorie budget",
+      "description": "Carry what you ate above or below your targets earlier in the week over the days left. Your week's budget is the sum of its daily targets. Only finished days count, a day with nothing logged counts as on target, and turning it on starts from today.",
+      "maxShift": "Largest daily change",
+      "maxShiftHint": "A day's target never moves by more than this share of its own target, and never goes below your safety floor. The week starts on your first day of the week."
+    }
   },
   "dashboardSettings": {
     "updateFailed": "Failed to update setting.",
@@ -12046,5 +12052,17 @@
     "suggestionAdaptive": "Adaptive TDEE: if your calorie target is adaptive, it may still be adjusting to your recent data.",
     "suggestionNoise": "Water and scale noise: salt, carbohydrates, training, sleep and hormones can hide a change for a week or two.",
     "suggestionMaintenance": "Time at maintenance: a planned stretch at maintenance calories is a reasonable choice too."
+  },
+  "weeklyBudget": {
+    "title": "Weekly budget",
+    "used": "Used of {{total}}",
+    "remaining": "Remaining",
+    "todayTarget": "Today's target",
+    "reasonNoDays": "No finished days counted yet this week, so today keeps its own target.",
+    "reasonOnTrack": "You are on track for the week, so today keeps its own target.",
+    "reasonUnder": "{{amount}} {{unit}} under so far, spread over {{days}} days left: +{{shift}} {{unit}} today.",
+    "reasonOver": "{{amount}} {{unit}} over so far, spread over {{days}} days left: −{{shift}} {{unit}} today.",
+    "limitedByCap": "Limited to ±{{percent}}% of your daily target.",
+    "limitedByFloor": "Held at your safety floor."
   }
 }
