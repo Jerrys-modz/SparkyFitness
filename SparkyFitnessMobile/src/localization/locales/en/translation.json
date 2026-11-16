@@ -8445,11 +8445,7 @@
       "methodNote": "Body fat readings vary a lot between methods (smart scales, calipers, tape formulas, DEXA) and even day to day on the same scale. Compare readings from one method, taken the same way.",
       "placeholder": "Body fat goal (%)",
       "invalid": "Enter a body fat goal from {{min}}% to {{max}}%.",
-      "save": "Save body fat goal",
-      "clear": "Clear",
-      "saved": "Body fat goal saved.",
-      "cleared": "Body fat goal cleared.",
-      "failed": "Could not save the body fat goal."
+      "clearHint": "Leave it empty and save to remove the goal."
     }
   },
   "reports": {

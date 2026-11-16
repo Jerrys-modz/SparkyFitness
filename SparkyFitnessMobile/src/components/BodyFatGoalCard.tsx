@@ -1,68 +1,30 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import Toast from 'react-native-toast-message';
 import {
   BODY_FAT_GOAL_MAX_PERCENT,
   BODY_FAT_GOAL_MIN_PERCENT,
-  isValidBodyFatGoal,
-  parseBodyFatGoal,
-  roundBodyFatPercent,
 } from '@workspace/shared';
 import FormInput from './FormInput';
-import Button from './ui/Button';
-import { useProfile, useSetTargetBodyFat } from '../hooks/useProfile';
-import { formatLocalizedNumber } from '../localization';
 
-const parseInput = (text: string): number => Number(text.replace(',', '.'));
+interface BodyFatGoalCardProps {
+  /** The field's text: the saved goal until edited, empty for no goal. */
+  value: string;
+  onChange: (text: string) => void;
+  /** Shows the range message under the field. */
+  invalid: boolean;
+}
 
 /**
- * The body fat % goal on the Goals screen. It is stored next to the goal
- * weight on the profile, not with the daily goals, so it saves on its own
- * buttons rather than the screen's Save.
+ * The body fat % goal field on the Goals screen. The screen's Save stores it
+ * with the other goals; an emptied field clears it.
  */
-const BodyFatGoalCard: React.FC = () => {
+const BodyFatGoalCard: React.FC<BodyFatGoalCardProps> = ({
+  value,
+  onChange,
+  invalid,
+}) => {
   const { t } = useTranslation();
-  const { profile } = useProfile();
-  const { mutateAsync, isPending } = useSetTargetBodyFat();
-
-  const saved = parseBodyFatGoal(profile?.target_body_fat_percentage);
-  const savedText =
-    saved === null
-      ? ''
-      : formatLocalizedNumber(saved, { maximumFractionDigits: 1 });
-  // null while untouched, so a profile that loads later still shows.
-  const [draft, setDraft] = useState<string | null>(null);
-  const value = draft ?? savedText;
-  const parsed = parseInput(value);
-  const isValid = value.trim() !== '' && isValidBodyFatGoal(parsed);
-  const showError = draft !== null && draft.trim() !== '' && !isValid;
-
-  const save = async (next: number | null) => {
-    try {
-      await mutateAsync(next);
-      setDraft(null);
-      Toast.show({
-        type: 'success',
-        text1:
-          next === null
-            ? t('goals.bodyFat.cleared', {
-                defaultValue: 'Body fat goal cleared.',
-              })
-            : t('goals.bodyFat.saved', {
-                defaultValue: 'Body fat goal saved.',
-              }),
-      });
-    } catch {
-      Toast.show({
-        type: 'error',
-        text1: t('common.error', { defaultValue: 'Error' }),
-        text2: t('goals.bodyFat.failed', {
-          defaultValue: 'Could not save the body fat goal.',
-        }),
-      });
-    }
-  };
 
   return (
     <View className="gap-2" testID="body-fat-goal-card">
@@ -80,7 +42,7 @@ const BodyFatGoalCard: React.FC = () => {
       </Text>
       <FormInput
         value={value}
-        onChangeText={setDraft}
+        onChangeText={onChange}
         keyboardType="decimal-pad"
         placeholder={t('goals.bodyFat.placeholder', {
           defaultValue: 'Body fat goal (%)',
@@ -90,7 +52,7 @@ const BodyFatGoalCard: React.FC = () => {
         })}
         testID="body-fat-goal-input"
       />
-      {showError && (
+      {invalid && (
         <Text className="text-xs text-text-danger" testID="body-fat-goal-error">
           {t('goals.bodyFat.invalid', {
             defaultValue: 'Enter a body fat goal from {{min}}% to {{max}}%.',
@@ -99,31 +61,11 @@ const BodyFatGoalCard: React.FC = () => {
           })}
         </Text>
       )}
-      <View className="flex-row flex-wrap gap-2">
-        <Button
-          variant="secondary"
-          disabled={isPending || draft === null || !isValid}
-          loading={isPending}
-          onPress={() => void save(roundBodyFatPercent(parsed))}
-          className="py-2"
-          textClassName="text-sm"
-          testID="body-fat-goal-save"
-        >
-          {t('goals.bodyFat.save', { defaultValue: 'Save body fat goal' })}
-        </Button>
-        {saved !== null && (
-          <Button
-            variant="secondary"
-            disabled={isPending}
-            onPress={() => void save(null)}
-            className="py-2"
-            textClassName="text-sm"
-            testID="body-fat-goal-clear"
-          >
-            {t('goals.bodyFat.clear', { defaultValue: 'Clear' })}
-          </Button>
-        )}
-      </View>
+      <Text className="text-xs text-text-muted">
+        {t('goals.bodyFat.clearHint', {
+          defaultValue: 'Leave it empty and save to remove the goal.',
+        })}
+      </Text>
     </View>
   );
 };
