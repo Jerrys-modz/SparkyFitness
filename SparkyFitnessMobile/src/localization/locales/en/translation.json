@@ -9066,7 +9066,9 @@
       "meals": "Meal calorie distribution",
       "presets": "Goal presets",
       "weekly": "Weekly plans",
-      "goalWeight": "Goal weight"
+      "goalWeight": "Goal weight",
+      "bodyFat": "Body fat goal",
+      "dietPhases": "Diet phases"
     },
     "goalWeight": {
       "description": "Your target weight. Weight charts use it to show your progress.",
