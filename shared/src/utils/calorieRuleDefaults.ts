@@ -1,6 +1,7 @@
 import {
   CALORIE_CYCLING_DEFAULT_OFFSETS,
   DEFAULT_CUSTOM_CALORIE_SAFETY_FLOOR,
+  WEEKLY_CALORIE_BUDGET_DEFAULT_SHIFT_PERCENT,
 } from '../constants/calorieConstants.ts';
 import type { CalorieRules } from '../schemas/database/UserCalorieRuleHistory.zod.ts';
 
@@ -27,6 +28,10 @@ export const CALORIE_RULE_DEFAULTS: ResolvedCalorieRules = {
   adjust_macros_with_exercise: false,
   calorie_cycling_mode: 'off',
   calorie_cycling_offsets: [...CALORIE_CYCLING_DEFAULT_OFFSETS],
+  weekly_calorie_budget_enabled: false,
+  weekly_calorie_budget_max_shift_percent:
+    WEEKLY_CALORIE_BUDGET_DEFAULT_SHIFT_PERCENT,
+  first_day_of_week: 0,
 };
 
 /** The calorie settings of `preferences`, with the defaults for unset ones. */

@@ -25,6 +25,11 @@ export const calorieRulesSchema = userPreferencesSchema.pick({
   adjust_macros_with_exercise: true,
   calorie_cycling_mode: true,
   calorie_cycling_offsets: true,
+  weekly_calorie_budget_enabled: true,
+  weekly_calorie_budget_max_shift_percent: true,
+  // Where the weekly budget's week starts on that day, so changing it later
+  // does not regroup a past week.
+  first_day_of_week: true,
 });
 
 export const CALORIE_RULE_FIELDS = calorieRulesSchema.keyof().options;

@@ -8,6 +8,7 @@ import type {
   WaterIntakeBreakdown,
   AdjustedGoals,
   CalorieCyclingDay,
+  WeeklyCalorieBudgetDay,
 } from '@workspace/shared';
 
 export interface DailySummaryApiResponse {
@@ -26,6 +27,8 @@ export interface DailySummaryApiResponse {
   adjustedGoals?: AdjustedGoals | null;
   /** How calorie cycling set the day's goal (#2327); absent when off or on older servers. */
   calorieCycling?: CalorieCyclingDay;
+  /** The weekly calorie budget on this day; absent when off or on older servers. */
+  weeklyCalorieBudget?: WeeklyCalorieBudgetDay;
 }
 
 export const fetchDailySummary = (

@@ -65,6 +65,9 @@ const before: CalorieRules = {
   adjust_macros_with_exercise: false,
   calorie_cycling_mode: 'off',
   calorie_cycling_offsets: [0, 0, 0, 0, 0, 0, 0],
+  weekly_calorie_budget_enabled: false,
+  weekly_calorie_budget_max_shift_percent: 20,
+  first_day_of_week: 0,
 };
 
 // Typed by field, so a new calorie rule cannot be added without a value here.
@@ -86,6 +89,9 @@ const changed: Record<CalorieRuleField, CalorieRules[CalorieRuleField]> = {
   adjust_macros_with_exercise: true,
   calorie_cycling_mode: 'custom',
   calorie_cycling_offsets: [-10, 10, -10, 10, -10, 10, 0],
+  weekly_calorie_budget_enabled: true,
+  weekly_calorie_budget_max_shift_percent: 30,
+  first_day_of_week: 1,
 };
 
 describe.runIf(RUN)('calorie rule history', () => {

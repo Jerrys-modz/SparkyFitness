@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { WeeklyCalorieBudgetSummary } from './WeeklyCalorieBudgetSummary';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -529,6 +530,13 @@ const DailyProgress = ({ selectedDate }: { selectedDate: string }) => {
               )}
             </div>
           </div>
+
+          {summaryData?.weeklyCalorieBudget && (
+            <WeeklyCalorieBudgetSummary
+              budget={summaryData.weeklyCalorieBudget}
+              eatenToday={eatenCalories}
+            />
+          )}
 
           {/* Detailed Burned Breakdown (Visible if data present) */}
           {!!(exerciseSource !== 'none' || bmr) && (

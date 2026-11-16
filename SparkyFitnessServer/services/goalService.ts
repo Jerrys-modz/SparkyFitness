@@ -31,7 +31,10 @@ import {
   applyCalorieCyclingMacroDelta,
   getClinicalCalorieMinimum,
   getRecommendedCalorieSafetyFloor,
+  weeklyBudgetDayTarget,
+  addDays as addDayStrings,
   type CalorieCyclingDay,
+  type WeeklyBudgetLedgerDay,
   type CalorieTargetResult,
 } from '@workspace/shared';
 import customNutrientService from './customNutrientService.js';
@@ -46,6 +49,7 @@ import {
 } from './calorieBalanceService.js';
 import { dbContextStorage } from '../db/poolManager.js';
 import { canAccessUserData } from '../utils/permissionUtils.js';
+import { getDailyNutritionTotalsRange } from '../models/reportRepository.js';
 
 interface GoalActivityAccess {
   actorUserId?: string;
@@ -78,11 +82,42 @@ function calculateGramsFromPercentages(
 
 async function getUserGoalsForRange(
   userId: string,
-  startDate: string,
+  requestedStartDate: string,
   endDate: string,
   adjust = false,
   activityAccess: GoalActivityAccess = {}
 ) {
+  // The weekly calorie budget needs the earlier days of the first requested
+  // day's week, so the loop may start before the requested range; only the
+  // requested days are returned.
+  let startDate = requestedStartDate;
+  type PreferencesRow = Awaited<
+    ReturnType<typeof preferenceRepository.getUserPreferences>
+  >;
+  let budgetPreferences: PreferencesRow | null = null;
+  let rulesOn: ((day: string) => PreferencesRow | null) | null = null;
+  if (adjust) {
+    budgetPreferences = await preferenceRepository.getUserPreferences(userId);
+    const lookbackStart = addDayStrings(requestedStartDate, -6);
+    rulesOn = await loadPreferencesByDay(
+      userId,
+      budgetPreferences,
+      lookbackStart,
+      endDate
+    );
+    for (
+      let day = requestedStartDate;
+      day <= endDate;
+      day = addDayStrings(day, 1)
+    ) {
+      if (rulesOn?.(day)?.weekly_calorie_budget_enabled) {
+        // Six days back always covers the start of the day's week, whichever
+        // day it starts on; the budget ignores days from another week.
+        startDate = lookbackStart;
+        break;
+      }
+    }
+  }
   const explicitGoals = await goalRepository.getGoalsInRange(
     userId,
     startDate,
@@ -144,7 +179,7 @@ async function getUserGoalsForRange(
   if (adjust) {
     [userProfile, userPreferences] = await Promise.all([
       userRepository.getUserProfile(userId),
-      preferenceRepository.getUserPreferences(userId),
+      budgetPreferences ?? preferenceRepository.getUserPreferences(userId),
     ]);
     const [initialMeasurement, rangeMeasurements] = await Promise.all([
       measurementRepository.getLatestCheckInMeasurementsOnOrBeforeDate(
@@ -166,9 +201,9 @@ async function getUserGoalsForRange(
     );
   }
 
-  const preferencesOn = adjust
-    ? await loadPreferencesByDay(userId, userPreferences, startDate, endDate)
-    : () => null;
+  // The rules were loaded from six days before the requested start, which
+  // covers the loop's start either way.
+  const preferencesOn = adjust && rulesOn ? rulesOn : (_day: string) => null;
 
   let waterEstimatedMap: Record<string, number> = {};
   let adaptiveTdeeMap: Record<string, AdaptiveTdeeResult> = {};
@@ -179,10 +214,16 @@ async function getUserGoalsForRange(
     dbContextStorage.getStore()?.authenticatedUserId ??
     userId;
   let includeMacroCheckin = false;
+  // Weekly calorie budget: calories logged per day, and the ledger of the
+  // days already worked out (oldest first).
+  let eatenByDate = new Map<string, number>();
+  const budgetLedger: WeeklyBudgetLedgerDay[] = [];
+  let budgetToday = '';
   if (adjust && userPreferences) {
     let anyAdaptiveDay = false;
     let anyDeviceProjectionDay = false;
     let anyExerciseMacroDay = false;
+    let anyBudgetDay = false;
     for (
       let day = parseISO(startDate);
       !isAfter(day, end);
@@ -191,13 +232,34 @@ async function getUserGoalsForRange(
       const dayPreferences = preferencesOn(format(day, 'yyyy-MM-dd'));
       const adjustmentMode = dayPreferences?.calorie_goal_adjustment_mode;
       anyExerciseMacroDay ||= !!dayPreferences?.adjust_macros_with_exercise;
+      anyBudgetDay ||= !!dayPreferences?.weekly_calorie_budget_enabled;
       anyAdaptiveDay ||=
         adjustmentMode === 'adaptive' ||
         dayPreferences?.goal_mode_calculation_method === 'adaptive';
       anyDeviceProjectionDay ||=
         adjustmentMode === 'tdee' || adjustmentMode === 'smart';
     }
-    if (anyExerciseMacroDay) {
+    if (anyBudgetDay) {
+      budgetToday = todayInZone(
+        userPreferences.timezone || (await loadUserTimezone(userId))
+      );
+      const rows = (await getDailyNutritionTotalsRange(
+        userId,
+        startDate,
+        endDate
+      )) as { entry_date: string | Date; calories: string | number | null }[];
+      eatenByDate = new Map(
+        rows.map((row) => [
+          row.entry_date instanceof Date
+            ? localDateToDay(row.entry_date)
+            : String(row.entry_date).slice(0, 10),
+          Number(row.calories) || 0,
+        ])
+      );
+    }
+    // The weekly budget counts a day's credited exercise as part of what the
+    // day allowed, so it needs the same activity calories as the macro credit.
+    if (anyExerciseMacroDay || anyBudgetDay) {
       includeMacroCheckin =
         activityAccess.includeCheckin ??
         (await canAccessUserData(userId, 'checkin_read', actorUserId));
@@ -283,6 +345,47 @@ async function getUserGoalsForRange(
     return found ? parseFloat(String(found[field])) : null;
   };
 
+  // Positive exercise calories the day's adjustment mode credits, with the
+  // same policy as the diary (adaptive suppression, Device Projection).
+  // Resting BMR is not exercise earn-back.
+  const exerciseCreditFor = (
+    dateStr: string,
+    goalCalories: number,
+    dayPreferences: NonNullable<PreferencesRow>
+  ) =>
+    computeExerciseMacroCredit({
+      date: dateStr,
+      eatenCalories: 0,
+      adjustedGoalCalories: goalCalories,
+      exercise: {
+        activeCalories: 0,
+        otherCalories: activityCaloriesByDate.get(dateStr) ?? 0,
+        activitySteps: 0,
+      },
+      backgroundStepCalories: 0,
+      userProfile,
+      userPreferences: {
+        ...dayPreferences,
+        include_bmr_in_net_calories: false,
+      },
+      measurements: includeMacroCheckin
+        ? {
+            weight: getMeasurementFieldForDate(dateStr, 'weight'),
+            height: getMeasurementFieldForDate(dateStr, 'height'),
+            body_fat_percentage: getMeasurementFieldForDate(
+              dateStr,
+              'body_fat_percentage'
+            ),
+            bmr: getMeasurementFieldOnDate(dateStr, 'bmr'),
+          }
+        : null,
+      ...resolveDeviceProjectionSnapshot({
+        date: dateStr,
+        timezone: userPreferences?.timezone || 'UTC',
+        deviceTotal: deviceTotalsByDate.get(dateStr),
+      }),
+    });
+
   while (!isAfter(cursor, end)) {
     const dateStr = format(cursor, 'yyyy-MM-dd');
     let goals = explicitByDate[dateStr] ?? null;
@@ -291,6 +394,8 @@ async function getUserGoalsForRange(
     let usedWeeklyPlanPreset = false;
     // Calorie change from cycling; carbs take it (protein and fat stay fixed).
     let cyclingDeltaKcal = 0;
+    // Calorie change from the weekly budget; carbs take it too.
+    let budgetDeltaKcal = 0;
 
     if (goals) {
       currentFallback = goals;
@@ -498,16 +603,17 @@ async function getUserGoalsForRange(
       const cyclingPattern = dayPreferences
         ? calorieCyclingPattern(dayPreferences)
         : null;
-      if (cyclingPattern && dayPreferences) {
-        const floor =
-          targetResult?.effectiveSafetyFloor ??
+      const floor = dayPreferences
+        ? (targetResult?.effectiveSafetyFloor ??
           resolveCalorieSafetyFloor(
             dayPreferences.calorie_safety_floor_mode,
             dayPreferences.calorie_safety_floor_value,
             bmr > 0
               ? getRecommendedCalorieSafetyFloor(bmr, gender)
               : getClinicalCalorieMinimum(gender)
-          );
+          ))
+        : null;
+      if (cyclingPattern && dayPreferences) {
         const baseTarget = Math.round(goalCalories);
         let cycling: CalorieCyclingDay = {
           status: 'active',
@@ -542,6 +648,45 @@ async function getUserGoalsForRange(
         processedGoals.calorie_cycling = cycling;
       }
 
+      // Weekly calorie budget: carry the week's earlier over- or under-eating
+      // over the days left. Applied after cycling and weekly plans, so their
+      // shape stays and the budget is the sum of those days' targets.
+      if (dayPreferences && userPreferences) {
+        const budgeted = !!dayPreferences.weekly_calorie_budget_enabled;
+        const baseTarget = Math.round(goalCalories);
+        if (budgeted) {
+          const budget = weeklyBudgetDayTarget({
+            date: dateStr,
+            today: budgetToday,
+            firstDayOfWeek: Number(dayPreferences.first_day_of_week) || 0,
+            baseTarget,
+            floor,
+            maxShiftPercent: Number(
+              dayPreferences.weekly_calorie_budget_max_shift_percent
+            ),
+            ledger: budgetLedger,
+          });
+          if (dateStr >= requestedStartDate) {
+            processedGoals.weekly_calorie_budget = budget;
+          }
+          budgetDeltaKcal = budget.target - goalCalories;
+          goalCalories = budget.target;
+        }
+        // What the day allowed counts its credited exercise, so a workout on
+        // an earn-back mode is counted once, on its own day.
+        const eaten = eatenByDate.get(dateStr);
+        budgetLedger.push({
+          date: dateStr,
+          budgeted,
+          allowance:
+            baseTarget +
+            (budgeted
+              ? exerciseCreditFor(dateStr, baseTarget, dayPreferences)
+              : 0),
+          eaten: eaten === undefined ? null : eaten,
+        });
+      }
+
       processedGoals.calories = goalCalories;
     }
 
@@ -558,43 +703,17 @@ async function getUserGoalsForRange(
       )
     ) {
       // Grams follow the day's target before cycling; cycling then moves only carbs.
-      let macroCalories = Number(processedGoals.calories) - cyclingDeltaKcal;
+      let macroCalories =
+        Number(processedGoals.calories) - cyclingDeltaKcal - budgetDeltaKcal;
       const dayPreferences = adjust ? preferencesOn(dateStr) : null;
       if (dayPreferences?.adjust_macros_with_exercise) {
         // Use the same budget policy as the diary, including adaptive suppression
         // and Device Projection. Resting BMR is not exercise earn-back.
-        const credit = computeExerciseMacroCredit({
-          date: dateStr,
-          eatenCalories: 0,
-          adjustedGoalCalories: macroCalories,
-          exercise: {
-            activeCalories: 0,
-            otherCalories: activityCaloriesByDate.get(dateStr) ?? 0,
-            activitySteps: 0,
-          },
-          backgroundStepCalories: 0,
-          userProfile,
-          userPreferences: {
-            ...dayPreferences,
-            include_bmr_in_net_calories: false,
-          },
-          measurements: includeMacroCheckin
-            ? {
-                weight: getMeasurementFieldForDate(dateStr, 'weight'),
-                height: getMeasurementFieldForDate(dateStr, 'height'),
-                body_fat_percentage: getMeasurementFieldForDate(
-                  dateStr,
-                  'body_fat_percentage'
-                ),
-                bmr: getMeasurementFieldOnDate(dateStr, 'bmr'),
-              }
-            : null,
-          ...resolveDeviceProjectionSnapshot({
-            date: dateStr,
-            timezone: userPreferences.timezone || 'UTC',
-            deviceTotal: deviceTotalsByDate.get(dateStr),
-          }),
-        });
+        const credit = exerciseCreditFor(
+          dateStr,
+          macroCalories,
+          dayPreferences
+        );
         macroCalories += credit;
       }
       const { protein_grams, carbs_grams, fat_grams } =
@@ -612,17 +731,16 @@ async function getUserGoalsForRange(
         fat: fat_grams,
       };
     }
-    if (
-      cyclingDeltaKcal !== 0 &&
-      Number.isFinite(Number(processedGoals.carbs))
-    ) {
+    // Cycling and the weekly budget both move carbs first (then fat, protein).
+    const carbDeltaKcal = cyclingDeltaKcal + budgetDeltaKcal;
+    if (carbDeltaKcal !== 0 && Number.isFinite(Number(processedGoals.carbs))) {
       const cycledMacros = applyCalorieCyclingMacroDelta(
         {
           protein: Number(processedGoals.protein),
           carbs: Number(processedGoals.carbs),
           fat: Number(processedGoals.fat),
         },
-        cyclingDeltaKcal
+        carbDeltaKcal
       );
       processedGoals.protein = cycledMacros.protein;
       processedGoals.carbs = cycledMacros.carbs;
@@ -642,7 +760,7 @@ async function getUserGoalsForRange(
       }
     }
 
-    result[dateStr] = processedGoals;
+    if (dateStr >= requestedStartDate) result[dateStr] = processedGoals;
     cursor = addDays(cursor, 1);
   }
 

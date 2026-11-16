@@ -154,6 +154,39 @@ export const calorieCyclingDaySchema = z.object({
 
 export type CalorieCyclingDay = z.infer<typeof calorieCyclingDaySchema>;
 
+/**
+ * The weekly calorie budget on this day, when the person has it switched on
+ * for that day. `baseTarget` is the day's target before the budget moved it
+ * (after cycling and weekly plans) and `target` the moved one (equal to
+ * `calorieBalance.goal`). `eatenSoFar` and `allowanceSoFar` cover the
+ * completed days counted so far this week; add the day's own eaten calories
+ * to show what the week has used. Optional, so older clients ignore it. The
+ * maths is `weeklyBudgetDayTarget` in `utils/weeklyCalorieBudget.ts`.
+ */
+export const weeklyCalorieBudgetDaySchema = z.object({
+  weekStart: z.string(),
+  weekEnd: z.string(),
+  daysLeft: z.number().int(),
+  baseTarget: z.number(),
+  target: z.number(),
+  shift: z.number(),
+  uncappedShift: z.number(),
+  limitedBy: z.enum(['none', 'cap', 'floor']),
+  maxShift: z.number(),
+  maxShiftPercent: z.number(),
+  floor: z.number().nullable(),
+  carryover: z.number(),
+  allowanceSoFar: z.number(),
+  eatenSoFar: z.number(),
+  countedDays: z.number().int(),
+  unloggedDays: z.number().int(),
+  weekBudget: z.number(),
+});
+
+export type WeeklyCalorieBudgetDay = z.infer<
+  typeof weeklyCalorieBudgetDaySchema
+>;
+
 export const dailySummaryResponseSchema = z.object({
   goals: dailyGoalsResponseSchema,
   foodEntries: z.array(foodEntryResponseSchema),
@@ -165,6 +198,7 @@ export const dailySummaryResponseSchema = z.object({
   calorieInputs: calorieInputsSchema,
   adjustedGoals: adjustedGoalsSchema.nullable(),
   calorieCycling: calorieCyclingDaySchema.optional(),
+  weeklyCalorieBudget: weeklyCalorieBudgetDaySchema.optional(),
   supplementTotals: supplementTotalsSchema,
 });
 
