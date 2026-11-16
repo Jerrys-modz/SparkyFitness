@@ -176,3 +176,12 @@ export const CALORIE_CYCLING_MAX_OFFSET = 40;
 export const CALORIE_CYCLING_DEFAULT_OFFSETS: readonly number[] = [
   0, 0, 0, 0, 0, 0, 0,
 ];
+
+/**
+ * Weekly calorie budget: the most a day's target may move, either way, as a
+ * whole percentage of that day's own target. The setting is stored per user
+ * (`weekly_calorie_budget_max_shift_percent`) within these bounds.
+ */
+export const WEEKLY_CALORIE_BUDGET_MIN_SHIFT_PERCENT = 5;
+export const WEEKLY_CALORIE_BUDGET_MAX_SHIFT_PERCENT = 50;
+export const WEEKLY_CALORIE_BUDGET_DEFAULT_SHIFT_PERCENT = 20;

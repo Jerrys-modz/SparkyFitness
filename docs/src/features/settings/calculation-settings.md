@@ -266,6 +266,39 @@ The week total under the chart shows the seven days against your daily target ×
 
 In the Diary the calorie goal shows **High day +210** or **Low day −160**, and the target breakdown includes the cycling step. When cycling is on, the calorie field on the Goals page is your **base** calories: the target before cycling.
 
+### Weekly calorie budget
+
+Calorie cycling plans the week in advance. The **weekly calorie budget** follows what you actually ate: if you go over on Monday, the rest of the week comes down a little; if you eat less, the rest of the week goes up. It is **off by default**.
+
+Turn it on under **Weekly calorie budget** in Calculation Settings on the web (press **Save Preferences**), or in Calories & BMR on the mobile app (saved as you change it).
+
+**How a day's target is worked out**
+
+- The week's budget is the sum of that week's daily targets.
+- For each day, SparkyFitness adds up the finished days of the week so far: what each day allowed minus what you logged. That difference (the carryover) is spread evenly over the days left in the week, the day itself included.
+- Example: a 2,000 kcal target, Monday and Tuesday at 1,700 kcal each. That is 600 kcal under, spread over the five days from Wednesday to Sunday: Wednesday's target is 2,120 kcal.
+- The change is capped at **±20%** of the day's own target by default (choose 5% to 50% on the web, or 10% to 30% on the phone). The cap matters after a very big day: 4,000 kcal over on a Monday is −667 kcal a day for the six days left, which the cap limits to −400 on a 2,000 kcal target. What the cap holds back stays in the carryover, so the later days of the week pick it up; whatever is left when the week ends is dropped.
+- A day is **never set below your [safety floor](#_5-metabolic-safety-floors)**, and a day already at or below its floor is never lowered.
+- Carbs take the change, then fat, as with calorie cycling; protein stays.
+
+**Which days count**
+
+- **Only finished days.** Today's eating never moves today's target; it moves tomorrow's. "Today" is the day in your profile timezone.
+- **A day with nothing logged counts as on target**, so a day you forgot to log does not raise the rest of the week.
+- **Turning it on midweek starts from that day.** Earlier days of that week are not part of the budget at all, so you start clean.
+- **The week starts on your first day of the week** (Preferences). Nothing carries from one week into the next.
+- **Past days keep their targets.** The on/off switch, the cap and the week start are recorded with your other calculation settings, so a change applies from today and earlier days keep the rules they had. A past day's target depends only on the days before it in its week, so eating later in the week never changes an earlier day. If you add or correct food on an earlier day later, the days after it in that week are worked out again from the corrected log.
+
+**How it works with the other settings**
+
+- **Calorie cycling:** the budget starts from each day's cycled target, so the high and low days keep their shape and the carryover is added evenly on top.
+- **Weekly goal plans and goal presets:** a day a plan sets still takes part; its preset's target is that day's target in the budget.
+- **Adaptive TDEE:** the budget starts from the adaptive target. It only moves the target; Adaptive TDEE still learns from what you actually ate and weighed, so the budget does not feed back into it.
+- **Exercise earn-back (Dynamic, Percentage Earn-Back, Device Projection):** what a finished day allowed includes the exercise calories your adjustment mode credited that day, so eating back a workout counts as on target, not over. Today's exercise is added on top of today's target as usual. A workout is therefore counted once, on its own day, never twice. (This is the same concern calorie cycling handles by pausing in those modes; the budget can stay on because it settles each day against what that day allowed.)
+- **Fixed Goal:** nothing is credited for exercise; the budget compares food with the fixed targets.
+
+The Diary on the web and the Diary and Dashboard on the phone show a **Weekly budget** card when it is on: what the week has used so far against its budget (the budget counts the days left at today's base target, so it is an estimate), what remains, today's adjusted target, and why it moved (how much over or under, over how many days, and whether the cap or the floor limited it).
+
 ---
 
 ## 5. Metabolic Safety Floors

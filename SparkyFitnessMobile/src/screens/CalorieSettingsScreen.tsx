@@ -39,6 +39,7 @@ import {
   CALORIE_CYCLING_DEFAULT_OFFSETS,
   isCalorieCyclingAvailable,
   parseCalorieCyclingOffsets,
+  normalizeWeeklyBudgetShiftPercent,
   type CalorieSafetyFloorMode,
   type EnergyUnit,
   type GoalMode,
@@ -72,10 +73,17 @@ function normalizePreferences(prefs: UserPreferences | undefined) {
     ) ?? [...CALORIE_CYCLING_DEFAULT_OFFSETS],
     firstDayOfWeek: prefs?.first_day_of_week ?? 0,
     energyUnit: normalizeEnergyUnit(prefs?.energy_unit),
+    weeklyCalorieBudgetEnabled: prefs?.weekly_calorie_budget_enabled ?? false,
+    weeklyCalorieBudgetMaxShiftPercent: normalizeWeeklyBudgetShiftPercent(
+      prefs?.weekly_calorie_budget_max_shift_percent
+    ),
   };
 }
 
 const CALORIE_SETTINGS_MUTATION_KEY = ['calorie-settings'] as const;
+
+/** The daily caps offered on the phone; the web offers every value in range. */
+const WEEKLY_BUDGET_SHIFT_OPTIONS = [10, 15, 20, 25, 30] as const;
 
 const toKcal = (value: number, unit: EnergyUnit) =>
   Math.round(energyToKcal(value, unit));
@@ -1076,6 +1084,64 @@ const CalorieSettingsScreen: React.FC<CalorieSettingsScreenProps> = () => {
             todayWeekday={todayWeekday}
             energyUnit={normalized.energyUnit}
           />
+        </Animated.View>
+
+        <Animated.View
+          className="bg-surface rounded-xl p-4 mb-4 shadow-sm"
+          layout={optionsLayout}
+          testID="weekly-calorie-budget-settings"
+        >
+          <View className="flex-row items-center justify-between gap-3">
+            <Text className="flex-1 text-base font-semibold text-text-primary">
+              {t('calorieSettings.weeklyBudget.title', {
+                defaultValue: 'Weekly calorie budget',
+              })}
+            </Text>
+            <Switch
+              value={normalized.weeklyCalorieBudgetEnabled}
+              onValueChange={(value) =>
+                mutation.mutate({ weekly_calorie_budget_enabled: value })
+              }
+              accessibilityLabel={t('calorieSettings.weeklyBudget.title', {
+                defaultValue: 'Weekly calorie budget',
+              })}
+            />
+          </View>
+          <Text className="text-sm text-text-secondary mt-1">
+            {t('calorieSettings.weeklyBudget.description', {
+              defaultValue:
+                "Carry what you ate above or below your targets earlier in the week over the days left. Your week's budget is the sum of its daily targets. Only finished days count, a day with nothing logged counts as on target, and turning it on starts from today.",
+            })}
+          </Text>
+          {normalized.weeklyCalorieBudgetEnabled && (
+            <View className="mt-3">
+              <Text className="text-base font-semibold text-text-primary mb-2">
+                {t('calorieSettings.weeklyBudget.maxShift', {
+                  defaultValue: 'Largest daily change',
+                })}
+              </Text>
+              <SegmentedControl
+                segments={WEEKLY_BUDGET_SHIFT_OPTIONS.map((percent) => ({
+                  key: String(percent),
+                  label: `±${percent}%`,
+                }))}
+                activeKey={String(
+                  normalized.weeklyCalorieBudgetMaxShiftPercent
+                )}
+                onSelect={(key) =>
+                  mutation.mutate({
+                    weekly_calorie_budget_max_shift_percent: Number(key),
+                  })
+                }
+              />
+              <Text className="text-sm text-text-secondary mt-2">
+                {t('calorieSettings.weeklyBudget.maxShiftHint', {
+                  defaultValue:
+                    "A day's target never moves by more than this share of its own target, and never goes below your safety floor. The week starts on your first day of the week.",
+                })}
+              </Text>
+            </View>
+          )}
         </Animated.View>
 
         {/* Calculation Pipeline */}

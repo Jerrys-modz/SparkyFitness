@@ -105,6 +105,7 @@ import {
   type CalorieCyclingMode,
 } from '@workspace/shared';
 import { CalorieCyclingSettings } from '@/components/CalorieCyclingSettings';
+import { WeeklyCalorieBudgetSettings } from '@/components/WeeklyCalorieBudgetSettings';
 import { isCalorieCyclingPatternUseful } from '@/utils/calorieCycling';
 import { useWeeklyGoalPlans } from '@/hooks/Goals/useGoals';
 
@@ -210,6 +211,9 @@ const CalculationSettings = () => {
     calorieSafetyFloorValue: contextCalorieSafetyFloorValue,
     calorieCyclingMode: contextCalorieCyclingMode,
     calorieCyclingOffsets: contextCalorieCyclingOffsets,
+    weeklyCalorieBudgetEnabled: contextWeeklyCalorieBudgetEnabled,
+    weeklyCalorieBudgetMaxShiftPercent:
+      contextWeeklyCalorieBudgetMaxShiftPercent,
     firstDayOfWeek,
     weightUnit,
     timezone,
@@ -268,6 +272,19 @@ const CalculationSettings = () => {
       offsets: [...savedCalorieCyclingOffsets],
     });
   }, [savedCalorieCyclingMode, savedCalorieCyclingOffsets]);
+  const [weeklyBudget, setWeeklyBudget] = useState({
+    enabled: contextWeeklyCalorieBudgetEnabled,
+    maxShiftPercent: contextWeeklyCalorieBudgetMaxShiftPercent,
+  });
+  useEffect(() => {
+    setWeeklyBudget({
+      enabled: contextWeeklyCalorieBudgetEnabled,
+      maxShiftPercent: contextWeeklyCalorieBudgetMaxShiftPercent,
+    });
+  }, [
+    contextWeeklyCalorieBudgetEnabled,
+    contextWeeklyCalorieBudgetMaxShiftPercent,
+  ]);
   // The weekday the cycling chart and the Live Preview show; today until a
   // day is picked on the chart.
   const [pickedCyclingDay, setPickedCyclingDay] = useState<number | null>(null);
@@ -487,6 +504,8 @@ const CalculationSettings = () => {
         calorieSafetyFloorValue,
         calorieCyclingMode: calorieCycling.mode,
         calorieCyclingOffsets: calorieCycling.offsets,
+        weeklyCalorieBudgetEnabled: weeklyBudget.enabled,
+        weeklyCalorieBudgetMaxShiftPercent: weeklyBudget.maxShiftPercent,
       });
       invalidateDiary();
       invalidateDailyProgress();
@@ -1897,6 +1916,12 @@ const CalculationSettings = () => {
           convertEnergy={convertEnergy}
           energyUnit={energyUnit}
           energyUnitString={getEnergyUnitString(energyUnit)}
+        />
+
+        <WeeklyCalorieBudgetSettings
+          enabled={weeklyBudget.enabled}
+          maxShiftPercent={weeklyBudget.maxShiftPercent}
+          onChange={setWeeklyBudget}
         />
 
         {/* Live Preview & Diagnostics Callouts */}

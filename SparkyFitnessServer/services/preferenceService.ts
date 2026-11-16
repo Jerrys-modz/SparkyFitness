@@ -18,6 +18,9 @@ import {
   DEFAULT_TEMPERATURE_UNIT,
   DEFAULT_CHART_SCALE_MODE,
   CALORIE_CYCLING_DEFAULT_OFFSETS,
+  WEEKLY_CALORIE_BUDGET_DEFAULT_SHIFT_PERCENT,
+  WEEKLY_CALORIE_BUDGET_MAX_SHIFT_PERCENT,
+  WEEKLY_CALORIE_BUDGET_MIN_SHIFT_PERCENT,
   type FeatureChoices,
   type FeatureChoicesPatch,
   type UserPreferencesMutator,
@@ -99,6 +102,38 @@ function validateCalorieCycling(
     throw Object.assign(
       new Error(
         'calorie_cycling_offsets must be 7 whole percentages between -40 and 40.'
+      ),
+      { status: 400 }
+    );
+  }
+}
+/** Weekly calorie budget: a boolean switch and a whole daily cap within range. */
+function validateWeeklyCalorieBudget(
+  preferences: Pick<
+    UserPreferencesMutator,
+    'weekly_calorie_budget_enabled' | 'weekly_calorie_budget_max_shift_percent'
+  >
+): void {
+  if (
+    preferences.weekly_calorie_budget_enabled !== undefined &&
+    !userPreferencesMutatorSchema.shape.weekly_calorie_budget_enabled.safeParse(
+      preferences.weekly_calorie_budget_enabled
+    ).success
+  ) {
+    throw Object.assign(
+      new Error('weekly_calorie_budget_enabled must be a boolean.'),
+      { status: 400 }
+    );
+  }
+  if (
+    preferences.weekly_calorie_budget_max_shift_percent !== undefined &&
+    !userPreferencesMutatorSchema.shape.weekly_calorie_budget_max_shift_percent.safeParse(
+      preferences.weekly_calorie_budget_max_shift_percent
+    ).success
+  ) {
+    throw Object.assign(
+      new Error(
+        `weekly_calorie_budget_max_shift_percent must be a whole percentage between ${WEEKLY_CALORIE_BUDGET_MIN_SHIFT_PERCENT} and ${WEEKLY_CALORIE_BUDGET_MAX_SHIFT_PERCENT}.`
       ),
       { status: 400 }
     );
@@ -299,6 +334,9 @@ function getDefaultPreferences() {
     goal_mode_weekly_change_kg: 0,
     calorie_cycling_mode: 'off',
     calorie_cycling_offsets: [...CALORIE_CYCLING_DEFAULT_OFFSETS],
+    weekly_calorie_budget_enabled: false,
+    weekly_calorie_budget_max_shift_percent:
+      WEEKLY_CALORIE_BUDGET_DEFAULT_SHIFT_PERCENT,
   };
 }
 /**
@@ -324,6 +362,7 @@ async function updateUserPreferences(
     await validateGoalMode(preferenceData);
     await validateCalorieSafetyFloor(preferenceData);
     validateCalorieCycling(preferenceData);
+    validateWeeklyCalorieBudget(preferenceData);
     await validateChartScaleMode(preferenceData);
     assertValidTemperatureUnit(preferenceData);
     assertValidGlucoseUnit(preferenceData);
@@ -448,6 +487,7 @@ async function upsertUserPreferences(
     await validateGoalMode(preferenceData);
     await validateCalorieSafetyFloor(preferenceData);
     validateCalorieCycling(preferenceData);
+    validateWeeklyCalorieBudget(preferenceData);
     await validateChartScaleMode(preferenceData);
     assertValidTemperatureUnit(preferenceData);
     assertValidGlucoseUnit(preferenceData);

@@ -20,6 +20,7 @@ import {
 import type {
   CalorieCyclingDay,
   ExerciseSessionResponse,
+  WeeklyCalorieBudgetDay,
 } from '@workspace/shared';
 import {
   resolveSupplementTotals,
@@ -253,6 +254,13 @@ export async function getDailySummary({
     ...(adjustedGoalData?.calorie_cycling
       ? {
           calorieCycling: adjustedGoalData.calorie_cycling as CalorieCyclingDay,
+        }
+      : {}),
+    // The weekly calorie budget on this day, when switched on for it.
+    ...(adjustedGoalData?.weekly_calorie_budget
+      ? {
+          weeklyCalorieBudget:
+            adjustedGoalData.weekly_calorie_budget as WeeklyCalorieBudgetDay,
         }
       : {}),
     // Exposed separately as well as folded into `calorieBalance.eaten`, so the Diary can

@@ -3,6 +3,7 @@ import type {
   CalorieBalance,
   CalorieCyclingDay,
   SupplementTotals,
+  WeeklyCalorieBudgetDay,
 } from '@workspace/shared';
 import type { FoodEntry } from './foodEntries';
 import type { DailyGoals } from './goals';
@@ -17,6 +18,8 @@ export interface DailySummary {
   calorieGoal: number;
   /** How calorie cycling (#2327) set this day's goal; absent when off. */
   calorieCycling?: CalorieCyclingDay;
+  /** The weekly calorie budget on this day; absent when off or on older servers. */
+  weeklyCalorieBudget?: WeeklyCalorieBudgetDay;
   caloriesConsumed: number;
   caloriesBurned: number;
   activeCalories: number; // From "Active Calories" exercises (watch/tracker)

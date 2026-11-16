@@ -33,6 +33,7 @@ import CalendarSheet, {
 import CheckInPhotosSummary from '../components/CheckInPhotosSummary';
 import DateNavigator from '../components/DateNavigator';
 import DiaryCalorieMacroSummary from '../components/DiaryCalorieMacroSummary';
+import WeeklyCalorieBudgetCard from '../components/WeeklyCalorieBudgetCard';
 import EmptyDayIllustration from '../components/EmptyDayIllustration';
 import ExerciseSummary from '../components/ExerciseSummary';
 import FoodSummary from '../components/FoodSummary';
@@ -626,6 +627,12 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
             showNetCarbs={preferences?.show_net_carbs === true}
             customNutrientKeys={customNutrientKeys}
             customNutrients={customNutrients}
+          />
+        )}
+        {summary.weeklyCalorieBudget && (
+          <WeeklyCalorieBudgetCard
+            budget={summary.weeklyCalorieBudget}
+            eatenToday={summary.calorieBalance.eaten}
           />
         )}
         {isDayEmpty ? (
