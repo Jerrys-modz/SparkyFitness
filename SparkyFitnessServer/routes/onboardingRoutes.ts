@@ -1,4 +1,5 @@
 import express from 'express';
+import { z } from 'zod';
 import { authenticate } from '../middleware/authMiddleware.js';
 import { createRequireSelfActor } from '../middleware/requireSelfMiddleware.js';
 import { setGoalWeightBodySchema } from '@workspace/shared';

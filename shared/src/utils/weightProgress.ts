@@ -105,12 +105,12 @@ export function resolveWeightProgressStart(input: {
 // Progress
 // ---------------------------------------------------------------------------
 
-export type WeightGoalDirection = 'lose' | 'gain';
+export type ProgressGoalDirection = 'lose' | 'gain';
 
 export interface WeightGoalProgress {
   /** kg. */
   target: number;
-  direction: WeightGoalDirection;
+  direction: ProgressGoalDirection;
   /** 0 to 100: how much of the start-to-goal distance the trend has covered. */
   percentToGoal: number;
   /** kg still to go toward the goal; 0 once reached. */
@@ -133,10 +133,10 @@ export interface WeightProgress {
 }
 
 /** Direction of a goal from a start; null when there is no usable goal. */
-export function weightGoalDirection(
+export function progressGoalDirection(
   startWeight: number,
   target: number | null | undefined
-): WeightGoalDirection | null {
+): ProgressGoalDirection | null {
   if (!isPositive(target) || target === startWeight) return null;
   return target < startWeight ? 'lose' : 'gain';
 }
@@ -154,7 +154,7 @@ export function computeWeightProgress(input: {
   if (!last) return null;
 
   const totalChange = last.trend - start.weight;
-  const direction = weightGoalDirection(start.weight, input.target);
+  const direction = progressGoalDirection(start.weight, input.target);
   let goal: WeightGoalProgress | null = null;
   if (direction && isPositive(input.target)) {
     const distance = Math.abs(start.weight - input.target);
@@ -210,7 +210,7 @@ export interface WeightMilestone {
 }
 
 export interface WeightMilestoneSummary {
-  direction: WeightGoalDirection;
+  direction: ProgressGoalDirection;
   achieved: WeightMilestone[];
   next: WeightMilestone | null;
   /** kg still to go to `next`. */
@@ -236,8 +236,8 @@ export function computeWeightMilestones(input: {
   const last = daily[daily.length - 1];
   if (!last) return null;
 
-  const goalDirection = weightGoalDirection(start.weight, input.target);
-  const direction: WeightGoalDirection =
+  const goalDirection = progressGoalDirection(start.weight, input.target);
+  const direction: ProgressGoalDirection =
     goalDirection ?? (last.trend > start.weight ? 'gain' : 'lose');
   const progressOf = (trend: number) =>
     direction === 'lose' ? start.weight - trend : trend - start.weight;

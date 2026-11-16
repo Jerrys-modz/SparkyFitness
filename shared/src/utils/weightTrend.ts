@@ -372,7 +372,7 @@ export function detectWeightPlateau(
   options: WeightPlateauOptions = {}
 ): WeightPlateau | null {
   if (direction === 'none') return null;
-  const logged = sortedLogged(samples);
+  const logged = sortedLogged(toTrendSamples(samples));
   if (logged.length < PLATEAU_MIN_WEIGH_INS) return null;
   const first = logged[0]!.date;
   const last = logged[logged.length - 1]!;

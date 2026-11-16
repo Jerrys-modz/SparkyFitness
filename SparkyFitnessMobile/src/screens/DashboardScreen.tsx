@@ -704,6 +704,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
     readiness: readinessCardVisible,
     steps: stepsCardVisible,
     heartRate: heartRateCardVisible,
+    weightProgress: weightProgressCardVisible,
   };
   // The Summary tab's status line sits right under Ask Sparky.
   const shownSlots: DashboardSlot[] =

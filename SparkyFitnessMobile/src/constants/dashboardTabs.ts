@@ -44,6 +44,7 @@ const HOME_TAB: Record<DashboardCardKey, DashboardTab | null> = {
   healthTrends: 'wellness',
   labResults: 'wellness',
   progressPhotos: 'wellness',
+  weightProgress: 'wellness',
 };
 
 /** The cards Summary repeats until the person picks their own. */
