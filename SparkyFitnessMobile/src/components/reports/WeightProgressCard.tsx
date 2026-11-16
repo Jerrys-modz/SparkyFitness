@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
@@ -9,12 +9,17 @@ import {
 } from '@workspace/shared';
 
 import { useWeightProgress } from '../../hooks/useWeightProgress';
+import CalendarSheet, { type CalendarSheetRef } from '../CalendarSheet';
+import FormInput from '../FormInput';
+import { parseDecimalInput } from '../../utils/numericInput';
 import { useEnergyUnit } from '../../hooks/useEnergyUnit';
 import { formatEnergy } from '../../utils/energyUnit';
 import { getAppLocale } from '../../localization';
-import { formatShortDate } from '../../utils/dateUtils';
+import { formatShortDate, getTodayDate } from '../../utils/dateUtils';
 import {
   formatWeightDisplay,
+  weightFromKg,
+  weightToKg,
   type WeightDisplayMode,
 } from '../../utils/unitConversions';
 
@@ -76,6 +81,118 @@ const Stat: React.FC<{
   </View>
 );
 
+/** Picks a custom start day and, optionally, the weight on it (kg stored). */
+const StartEditor: React.FC<{
+  initialDate: string;
+  initialWeightKg: number | null;
+  unit: 'kg' | 'lbs';
+  onSave: (start: { date: string; weight: number | null } | null) => void;
+  onCancel: () => void;
+}> = ({ initialDate, initialWeightKg, unit, onSave, onCancel }) => {
+  const { t } = useTranslation();
+  const calendarRef = useRef<CalendarSheetRef>(null);
+  const today = getTodayDate();
+  const [day, setDay] = useState(initialDate);
+  const [weightText, setWeightText] = useState(
+    initialWeightKg === null
+      ? ''
+      : String(Math.round(weightFromKg(initialWeightKg, unit) * 10) / 10)
+  );
+  const parsed =
+    weightText.trim() === '' ? null : parseDecimalInput(weightText);
+  const weightValid =
+    parsed === null || (Number.isFinite(parsed) && parsed > 0);
+
+  return (
+    <View
+      className="mt-2 rounded-lg border border-border-subtle p-3"
+      testID="weight-progress-start-editor"
+    >
+      <Text className="text-text-muted text-xs mb-2">
+        {t('weightProgress.startEditorHint', {
+          defaultValue:
+            'Count your progress from a day you choose. Leave the weight empty to use your trend on that day. Saved on this device only.',
+        })}
+      </Text>
+      <View className="flex-row justify-between items-center mb-2">
+        <Text className="text-text-secondary text-sm">
+          {t('weightProgress.startDay', { defaultValue: 'Start day' })}
+        </Text>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => calendarRef.current?.present()}
+          testID="weight-progress-start-day"
+        >
+          <Text className="text-text-link text-sm font-semibold">
+            {formatShortDate(day, getAppLocale())}
+          </Text>
+        </Pressable>
+      </View>
+      <Text className="text-text-secondary text-sm mb-1">
+        {t('weightProgress.startWeightOptional', {
+          defaultValue: 'Starting weight ({{unit}}, optional)',
+          unit,
+        })}
+      </Text>
+      <FormInput
+        value={weightText}
+        onChangeText={setWeightText}
+        keyboardType="decimal-pad"
+        testID="weight-progress-start-weight"
+      />
+      <View className="flex-row justify-end items-center mt-3">
+        <Pressable
+          accessibilityRole="button"
+          className="mr-4"
+          onPress={onCancel}
+          testID="weight-progress-start-cancel"
+        >
+          <Text className="text-text-secondary text-sm">
+            {t('common.cancel', { defaultValue: 'Cancel' })}
+          </Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          className="mr-4"
+          onPress={() => onSave(null)}
+          testID="weight-progress-start-default"
+        >
+          <Text className="text-text-secondary text-sm">
+            {t('weightProgress.useDefaultStart', {
+              defaultValue: 'Use default start',
+            })}
+          </Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          disabled={!weightValid}
+          onPress={() =>
+            onSave({
+              date: day,
+              weight: parsed === null ? null : weightToKg(parsed, unit),
+            })
+          }
+          testID="weight-progress-start-save"
+        >
+          <Text
+            className={`text-sm font-semibold ${
+              weightValid ? 'text-text-link' : 'text-text-muted'
+            }`}
+          >
+            {t('common.save', { defaultValue: 'Save' })}
+          </Text>
+        </Pressable>
+      </View>
+      <CalendarSheet
+        ref={calendarRef}
+        selectedDate={day}
+        onSelectDate={setDay}
+        maxDate={today}
+      />
+    </View>
+  );
+};
+
 const WeightProgressCard: React.FC<{
   targetWeightKg: number | null;
   weightMode: WeightDisplayMode;
@@ -96,6 +213,7 @@ const WeightProgressCard: React.FC<{
     unit: weightMode === 'kg' ? 'kg' : 'lbs',
   });
 
+  const [editingStart, setEditingStart] = useState(false);
   const startDate = progress?.start.date ?? null;
   const achievedIds = useMemo(
     () => (milestones?.achieved ?? []).map((m) => m.id),
@@ -145,13 +263,40 @@ const WeightProgressCard: React.FC<{
       <Text className="text-text-primary text-lg font-semibold">
         {t('weightProgress.title', { defaultValue: 'Weight progress' })}
       </Text>
-      <Text className="text-text-muted text-xs mb-2">
-        {t('weightProgress.startedOn', {
-          defaultValue: 'Since {{date}} ({{source}})',
-          date: date(progress.start.date),
-          source: sourceText(progress.start.source),
-        })}
-      </Text>
+      <View className="flex-row justify-between items-start mb-2">
+        <Text className="text-text-muted text-xs flex-1 mr-2">
+          {t('weightProgress.startedOn', {
+            defaultValue: 'Since {{date}} ({{source}})',
+            date: date(progress.start.date),
+            source: sourceText(progress.start.source),
+          })}
+        </Text>
+        {!editingStart ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => setEditingStart(true)}
+            testID="weight-progress-change-start"
+          >
+            <Text className="text-text-link text-xs">
+              {t('weightProgress.changeStart', {
+                defaultValue: 'Change start',
+              })}
+            </Text>
+          </Pressable>
+        ) : null}
+      </View>
+      {editingStart ? (
+        <StartEditor
+          initialDate={settings.customStart?.date ?? progress.start.date}
+          initialWeightKg={settings.customStart?.weight ?? null}
+          unit={weightMode === 'kg' ? 'kg' : 'lbs'}
+          onCancel={() => setEditingStart(false)}
+          onSave={(customStart) => {
+            updateSettings({ customStart });
+            setEditingStart(false);
+          }}
+        />
+      ) : null}
       <View className="flex-row flex-wrap -m-1">
         <Stat
           testID="weight-progress-start"

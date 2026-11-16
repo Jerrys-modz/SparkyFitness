@@ -8,6 +8,8 @@ import NutritionSummaryCard, { DayTotals } from './NutritionSummaryCard';
 import DailyProgress from './DailyProgress';
 import WaterIntake from './WaterIntake';
 import CaffeineCard from './CaffeineCard';
+import WeightProgressCard from '@/pages/Reports/WeightProgressCard';
+import { useProfileQuery } from '@/hooks/Settings/useProfile';
 import MealCard from './MealCard';
 import ExerciseCard from './ExerciseCard';
 import DiaryWidgetGrid, { type DiaryWidget } from './DiaryWidgetGrid';
@@ -20,6 +22,7 @@ import {
   UtensilsCrossed,
   Dumbbell,
   HeartPulse,
+  Scale,
 } from 'lucide-react';
 import { DailyHealthMetricsCard } from '@/components/Health/DailyHealthMetricsCard';
 import { useDailyHealthMetrics } from '@/hooks/useGenericHealth';
@@ -68,6 +71,18 @@ import {
 import { useDailySummary } from '@/hooks/Diary/useDailyProgress';
 import { useNutrientGoalPreferences } from '@/hooks/Settings/useNutrientGoalPreferences';
 import { getCalorieBudget } from '@/utils/calorieBudget';
+
+/** The weight progress widget, reading the goal weight only once it is shown. */
+const DiaryWeightProgress = ({ userId }: { userId: string | null }) => {
+  const { data: profile } = useProfileQuery(userId ?? undefined);
+  return (
+    <WeightProgressCard
+      targetWeightKg={
+        profile?.target_weight ? Number(profile.target_weight) : null
+      }
+    />
+  );
+};
 
 const Diary = () => {
   const { t } = useTranslation();
@@ -520,6 +535,15 @@ const Diary = () => {
       title: t('diary.caffeine.title', 'Caffeine Kinetics'),
       icon: Coffee,
       render: () => <CaffeineCard date={selectedDate} userId={activeUserId} />,
+    });
+
+    // Always about today, whatever day the Diary shows. Hidden until turned on
+    // in Customize layout (DiaryWidgetGrid).
+    list.push({
+      key: 'weightProgress',
+      title: t('reports.weightProgress.title', 'Weight progress'),
+      icon: Scale,
+      render: () => <DiaryWeightProgress userId={activeUserId} />,
     });
 
     return list;

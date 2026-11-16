@@ -14,6 +14,14 @@ import WeightProgressCard, {
 } from '../../../src/components/reports/WeightProgressCard';
 import type { WeightProgressData } from '../../../src/hooks/useWeightProgress';
 
+jest.mock('../../../src/components/CalendarSheet', () => {
+  const ReactActual = jest.requireActual<typeof import('react')>('react');
+  return {
+    __esModule: true,
+    default: ReactActual.forwardRef(() => null),
+  };
+});
+
 const mockUseWeightProgress = jest.fn<WeightProgressData, [unknown]>();
 jest.mock('../../../src/hooks/useWeightProgress', () => ({
   useWeightProgress: (args: unknown) => mockUseWeightProgress(args),
@@ -110,6 +118,26 @@ describe('WeightProgressCard (mobile)', () => {
     expect(screen.getByTestId('weight-fat-estimate')).toHaveTextContent(
       /at least 7 days/
     );
+  });
+
+  it('saves a custom start in kg and can reset it', () => {
+    const update = jest.fn();
+    mockUseWeightProgress.mockReturnValue(data({}, update));
+    render(<WeightProgressCard targetWeightKg={80} weightMode="lbs" />);
+    fireEvent.press(screen.getByTestId('weight-progress-change-start'));
+    fireEvent.changeText(
+      screen.getByTestId('weight-progress-start-weight'),
+      '220'
+    );
+    fireEvent.press(screen.getByTestId('weight-progress-start-save'));
+    const saved = update.mock.calls.find(([c]) => 'customStart' in c)?.[0];
+    expect(saved.customStart.date).toBe(START);
+    expect(saved.customStart.weight).toBeCloseTo(99.79, 1);
+
+    update.mockClear();
+    fireEvent.press(screen.getByTestId('weight-progress-change-start'));
+    fireEvent.press(screen.getByTestId('weight-progress-start-default'));
+    expect(update).toHaveBeenCalledWith({ customStart: null });
   });
 
   it('renders nothing without a weigh-in', () => {

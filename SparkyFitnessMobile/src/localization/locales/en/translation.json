@@ -12124,7 +12124,12 @@
     "fatGained": "Estimated fat gained",
     "actualChange": "Trend change, same days",
     "energyNote": "An estimate, not a measurement: {{days}} days with food logged between {{from}} and {{to}}, against an estimated expenditure of {{expenditure}} a day. Days without a food log are left out. Scale weight also moves with water and glycogen.",
-    "energyNotEnough": "Log food on at least 7 days to see this estimate ({{days}} so far since {{from}})."
+    "energyNotEnough": "Log food on at least 7 days to see this estimate ({{days}} so far since {{from}}).",
+    "startEditorHint": "Count your progress from a day you choose. Leave the weight empty to use your trend on that day. Saved on this device only.",
+    "startDay": "Start day",
+    "startWeightOptional": "Starting weight ({{unit}}, optional)",
+    "useDefaultStart": "Use default start",
+    "changeStart": "Change start"
   },
   "waistToHeight": {
     "bandLower": "Lower risk",
