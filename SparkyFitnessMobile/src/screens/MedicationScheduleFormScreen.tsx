@@ -28,14 +28,12 @@ import TimeSheet, { type TimeSheetRef } from '../components/TimeSheet';
 import CalendarSheet, {
   type CalendarSheetRef,
 } from '../components/CalendarSheet';
-import WeekdaySheet, {
-  type WeekdaySheetRef,
-} from '../components/medications/WeekdaySheet';
+import WeekdaySheet, { type WeekdaySheetRef } from '../components/WeekdaySheet';
 import Switch from '../components/ui/Switch';
 import {
   formatLocalizedTimeOfDay,
   localizedMealTimingLabel,
-  localizedWeekdayLabels,
+  localizedWeekdaySummary,
 } from '../utils/medicationScheduleLocalization';
 import type {
   CreateScheduleInput,
@@ -553,13 +551,7 @@ const MedicationScheduleFormScreen: React.FC<
   const type = form.scheduleTypeId;
   const startRequired = requiresStartDate(type);
 
-  const weekdayLabels = localizedWeekdayLabels(t);
-  const daysSummary =
-    form.daysOfWeek.length === 7
-      ? t('medications.schedule.everyDay', { defaultValue: 'Every day' })
-      : form.daysOfWeek.length > 0
-        ? form.daysOfWeek.map((d) => weekdayLabels[d]).join(', ')
-        : t('medications.schedule.none', { defaultValue: 'None' });
+  const daysSummary = localizedWeekdaySummary(t, form.daysOfWeek);
 
   if (isEditing && !existing) {
     return (

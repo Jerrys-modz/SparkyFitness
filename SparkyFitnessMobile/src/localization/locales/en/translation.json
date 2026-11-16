@@ -316,6 +316,7 @@
       "hydration": "Hydration reminders",
       "moodCheckin": "Mood check-ins",
       "oralCare": "Brushing reminders",
+      "weighIn": "Weigh-in reminders",
       "mindfulness": "Meditation timer"
     },
     "moodCheckin": {
@@ -363,6 +364,10 @@
     "oralCare": {
       "title": "Time to brush",
       "body": "Two minutes for your teeth, then log it."
+    },
+    "weighIn": {
+      "title": "Weigh-in",
+      "body": "Log today's weight when it suits you. It's fine to skip a day."
     },
     "brushingTimer": {
       "title": "Brushing done",
@@ -1433,7 +1438,14 @@
     "oralCareReminderTime": "Reminder {{number}}",
     "oralCareReminderTimeAccessibility": "Brushing reminder {{number}}, {{time}}",
     "oralCareRemoveReminder": "Remove brushing reminder {{number}}",
-    "oralCareAddReminder": "Add reminder"
+    "oralCareAddReminder": "Add reminder",
+    "weighIns": "Weigh-ins",
+    "weighInReminders": "Weigh-in reminders",
+    "weighInRemindersSubtitle": "A gentle reminder to log your weight. Skipped on days you have already logged one.",
+    "weighInReminderTime": "Time",
+    "weighInReminderTimeAccessibility": "Weigh-in reminder time, {{time}}",
+    "weighInReminderDays": "Days",
+    "weighInReminderDaysAccessibility": "Weigh-in reminder days, {{days}}"
   },
   "workoutSettings": {
     "title": "Workout Settings",

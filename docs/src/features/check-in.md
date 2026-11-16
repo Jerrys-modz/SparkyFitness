@@ -86,3 +86,18 @@ Each screen shows **Step N of 3**. **Save & continue** saves the step and opens 
 The check-in keeps to logging the day, so the photos step leaves out **Compare**, **Time-lapse** and the **Log weight** shortcuts (weight has its own step). Open Progress Photos from the Add menu for those.
 
 Like any other item in the **+** menu, you can move or hide **Daily Check-In** in **Settings → Quick Actions**.
+
+## Weigh-in reminders (mobile app)
+
+Adaptive TDEE and the weight trend work best with regular weigh-ins, so the mobile app can remind you. Turn it on in **Settings → Notifications → Weigh-ins**, then pick:
+
+- **Time**: when the reminder arrives (7:30 AM by default).
+- **Days**: every day by default. Pick fewer, for example only Monday, if you prefer to weigh in weekly. At least one day stays selected.
+
+Tapping the reminder opens the **Measurements** step of Check-In on today, with the weight field ready to type in.
+
+Reminders repeat every week on the days you picked, so they keep coming even if you don't open the app for a while.
+
+If a weight is already logged for today, whether you entered it or it synced from Apple Health or Health Connect, today's reminder is skipped, or removed from your notifications if it was already shown, and the following weeks carry on as usual. The app checks when it opens, when you return to it, after you save a check-in, and during background sync. On iPhone, with background sync and weight syncing on, a weight your scale writes to Apple Health wakes the app to check right away. A weight logged on the website or another device while the app is closed is only seen at the next background sync, so if none runs before the reminder time, that day's reminder still arrives.
+
+The reminder is phrased as an invitation, never a judgement, and skipping a day is fine. Like the other reminders it needs **Allow Notifications** on and notification permission granted, and the setting stays on the phone.

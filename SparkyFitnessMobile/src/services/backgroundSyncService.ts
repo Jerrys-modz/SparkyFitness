@@ -34,6 +34,8 @@ import { refreshHealthSyncCache } from '../hooks/refreshHealthSyncCache';
 import { isBackfillRunning, markSyncInFlight } from './autoSyncCoordinator';
 import { listMedications, listEntries } from './api/medicationsApi';
 import { reconcileMedicationReminders } from './medicationReminderService';
+import { reconcileWeighInReminders } from './weighInReminderService';
+import { fetchMeasurements } from './api/measurementsApi';
 import { getTodayDate } from '../utils/dateUtils';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import {
@@ -368,6 +370,29 @@ const runBackgroundSync = async (
     const message = error instanceof Error ? error.message : String(error);
     await addLog(
       `[Background Sync] Medication reminder reconciliation failed: ${message}`,
+      'ERROR'
+    );
+  }
+
+  // Roll the weigh-in reminder window forward, leaving today out once a
+  // weight is logged (the sync above may just have brought one in from
+  // Health). An unknown answer schedules today as usual.
+  try {
+    const prefs = useAppPreferencesStore.getState();
+    let weightLoggedToday: boolean | null = null;
+    if (prefs.weighInRemindersEnabled && prefs.notificationsEnabled) {
+      try {
+        const today = await fetchMeasurements(getTodayDate());
+        weightLoggedToday = today.weight != null;
+      } catch {
+        weightLoggedToday = null;
+      }
+    }
+    await reconcileWeighInReminders(weightLoggedToday);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    await addLog(
+      `[Background Sync] Weigh-in reminder reconciliation failed: ${message}`,
       'ERROR'
     );
   }
