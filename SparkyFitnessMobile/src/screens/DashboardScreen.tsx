@@ -45,6 +45,7 @@ import { MindfulnessCard } from '../components/mindfulness/MindfulnessCard';
 import SymptomsCard from '../components/SymptomsCard';
 import MoodCard from '../components/mood/MoodCard';
 import LabResultsCard from '../components/labs/LabResultsCard';
+import WeightProgressCard from '../components/reports/WeightProgressCard';
 import OralCareCard from '../components/oralCare/OralCareCard';
 import { oralCareQueryKeyRoot } from '../hooks/useOralCare';
 import ProgressPhotosCard from '../components/ProgressPhotosCard';
@@ -408,6 +409,9 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
   );
   const labResultsCardVisible = useAppPreferencesStore(
     (s) => s.labResultsCardVisible
+  );
+  const weightProgressCardVisible = useAppPreferencesStore(
+    (s) => s.weightProgressCardVisible
   );
   const oralCareCardVisible = useAppPreferencesStore(
     (s) => s.oralCareCardVisible
@@ -916,6 +920,19 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                 <TrainingLoadDashboardCard
                   key="trainingLoad"
                   navigation={navigation}
+                />
+              ) : null;
+            case 'weightProgress':
+              // Always about today, whatever day the Dashboard shows.
+              return weightProgressCardVisible ? (
+                <WeightProgressCard
+                  key="weightProgress"
+                  targetWeightKg={
+                    profile?.target_weight
+                      ? Number(profile.target_weight)
+                      : null
+                  }
+                  weightMode={preferences?.default_weight_unit ?? 'kg'}
                 />
               ) : null;
             case 'labResults':

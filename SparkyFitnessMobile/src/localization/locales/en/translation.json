@@ -1354,7 +1354,9 @@
     "labResults": "Lab Results",
     "labResultsSubtitle": "Show your latest lab results and which are out of range",
     "oralCare": "Oral care",
-    "oralCareSubtitle": "Show brushing against your goal and your streak"
+    "oralCareSubtitle": "Show brushing against your goal and your streak",
+    "weightProgress": "Weight Progress",
+    "weightProgressSubtitle": "Show change from your starting weight, progress to goal and milestones"
   },
   "diarySettings": {
     "updateFailed": "Failed to update setting.",
@@ -8720,7 +8722,9 @@
       "measurementTimeline": "Measurement timeline",
       "oralCareBrushesChart": "Brushes per day chart",
       "oralCareMinutesChart": "Minutes brushing chart",
-      "oralCareSummary": "Streaks and other care"
+      "oralCareSummary": "Streaks and other care",
+      "weightProgress": "Weight progress",
+      "waistToHeight": "Waist-to-height ratio"
     },
     "hydrationSections": "Hydration report",
     "measurementsSections": "Measurements report",
@@ -10684,5 +10688,51 @@
     "cancelled": "Cancelled tool",
     "error": "Error:",
     "cancelledReason": "Cancelled reason:"
+  },
+  "weightProgress": {
+    "milestoneAmount": "{{amount}} {{unit}} from your start",
+    "milestonePercent": "{{percent}}% of your starting weight",
+    "milestoneHalfway": "Halfway to goal",
+    "milestoneGoal": "Goal weight",
+    "sourceCustom": "start you chose",
+    "sourceOnboarding": "from your setup",
+    "sourceFirst": "your first weigh-in",
+    "title": "Weight progress",
+    "startedOn": "Since {{date}} ({{source}})",
+    "startWeight": "Starting weight",
+    "change": "Change (trend)",
+    "now": "Now {{weight}}",
+    "percentOfStart": "Of starting weight",
+    "towardGoal": "Toward goal",
+    "goalReached": "Goal reached",
+    "toGo": "{{weight}} to go",
+    "noGoal": "Set a goal weight in Goals",
+    "milestones": "Milestones",
+    "hideMilestones": "Hide milestones",
+    "celebrate": "Milestone reached: {{milestones}}",
+    "dismiss": "Dismiss",
+    "noneYet": "No milestones reached yet.",
+    "nextMilestone": "Next: {{milestone}}, {{weight}} to go",
+    "showMilestones": "Show milestones",
+    "energyTitle": "From your food log (estimate)",
+    "fatLost": "Estimated fat lost",
+    "fatGained": "Estimated fat gained",
+    "actualChange": "Trend change, same days",
+    "energyNote": "An estimate, not a measurement: {{days}} days with food logged between {{from}} and {{to}}, against an estimated expenditure of {{expenditure}} a day. Days without a food log are left out. Scale weight also moves with water and glycogen.",
+    "energyNotEnough": "Log food on at least 7 days to see this estimate ({{days}} so far since {{from}}).",
+    "startEditorHint": "Count your progress from a day you choose. Leave the weight empty to use your trend on that day. Saved on this device only.",
+    "startDay": "Start day",
+    "startWeightOptional": "Starting weight ({{unit}}, optional)",
+    "useDefaultStart": "Use default start",
+    "changeStart": "Change start"
+  },
+  "waistToHeight": {
+    "bandLower": "Lower risk",
+    "bandIncreased": "Increased risk",
+    "bandHigh": "High risk",
+    "title": "Waist-to-height ratio",
+    "from": "Waist {{waist}} on {{date}}, height {{height}}",
+    "trendLabel": "Ratio from {{first}} to {{last}}",
+    "note": "Screening bands for adults (keep your waist under half your height). Not a diagnosis; they may not fit children, pregnancy or very muscular builds."
   }
 }

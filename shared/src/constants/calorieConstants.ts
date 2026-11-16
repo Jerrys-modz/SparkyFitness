@@ -84,6 +84,12 @@ export const ADAPTIVE_TDEE_GOAL_MIN_DAYS = 14;
  */
 export const ADAPTIVE_TDEE_MIN_CALORIE_DAYS = ADAPTIVE_TDEE_GOAL_MIN_DAYS;
 
+/**
+ * A day's food log counts as a real log at this many kcal or more. Below it the
+ * day is treated as unknown rather than as a near-fast, as Adaptive TDEE does.
+ */
+export const QUALIFYING_FOOD_LOG_MIN_KCAL = 200;
+
 export const CALORIE_SAFETY_FLOOR_MODES = [
   'standard',
   'custom',

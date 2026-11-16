@@ -4052,7 +4052,8 @@
     "previousDay": "Previous Day",
     "nextDay": "Next Day",
     "average": "Avg",
-    "range": "Range"
+    "range": "Range",
+    "dismiss": "Dismiss"
   },
   "diary": {
     "nutritionSummary": "Nutrition Summary",
@@ -5790,7 +5791,56 @@
       "resetZoom": "Reset zoom",
       "windowEvents": "Events in view"
     },
-    "oralCareTab": "Oral care"
+    "oralCareTab": "Oral care",
+    "weightProgress": {
+      "sourceCustom": "start you chose",
+      "sourceOnboarding": "from your setup",
+      "sourceFirst": "your first weigh-in",
+      "title": "Weight progress",
+      "startedOn": "Since {{date}} ({{source}})",
+      "changeStart": "Change start",
+      "empty": "Log your weight to see your progress here.",
+      "startWeight": "Starting weight",
+      "change": "Change (trend)",
+      "now": "Now {{weight}}",
+      "percentOfStart": "Of starting weight",
+      "towardGoal": "Toward goal",
+      "goalReached": "Goal reached",
+      "toGo": "{{weight}} to go",
+      "noGoal": "Set a goal weight in Goals",
+      "milestones": "Milestones",
+      "hideMilestones": "Hide milestones",
+      "celebrate": "Milestone reached: {{milestones}}",
+      "noneYet": "No milestones reached yet.",
+      "nextMilestone": "Next: {{milestone}}, {{weight}} to go",
+      "showMilestones": "Show milestones",
+      "energyTitle": "From your food log (estimate)",
+      "fatLost": "Estimated fat lost",
+      "fatGained": "Estimated fat gained",
+      "actualChange": "Trend change, same days",
+      "energyNote": "An estimate, not a measurement: {{days}} days with food logged between {{from}} and {{to}}, against an estimated expenditure of {{expenditure}} a day. Days without a food log are left out. Scale weight also moves with water and glycogen.",
+      "energyNotEnough": "Log food on at least 7 days to see this estimate ({{days}} so far since {{from}}).",
+      "startDialogTitle": "Progress start",
+      "startDialogDescription": "Count your progress from a day you choose. Leave the weight empty to use your trend on that day. Saved in this browser only.",
+      "startDate": "Start day",
+      "startWeightOptional": "Starting weight ({{unit}}, optional)",
+      "useDefaultStart": "Use default start",
+      "milestoneAmount": "{{amount}} {{unit}} from your start",
+      "milestonePercent": "{{percent}}% of your starting weight",
+      "milestoneHalfway": "Halfway to goal",
+      "milestoneGoal": "Goal weight",
+      "loadFailed": "Failed to load your measurement history."
+    },
+    "waistToHeight": {
+      "bandLower": "Lower risk",
+      "bandIncreased": "Increased risk",
+      "bandHigh": "High risk",
+      "title": "Waist-to-height ratio",
+      "empty": "Log your waist and height in Check-In to see this ratio.",
+      "from": "Waist {{waist}} on {{date}}, height {{height}}",
+      "ratio": "Ratio",
+      "note": "Screening bands for adults (keep your waist under half your height). Not a diagnosis; they may not fit children, pregnancy or very muscular builds."
+    }
   },
   "sleepHealth": {
     "hrvStatus": "HRV Status",

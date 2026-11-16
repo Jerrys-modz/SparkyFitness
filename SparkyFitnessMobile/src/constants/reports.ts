@@ -99,6 +99,8 @@ export const EXERCISE_SECTIONS = [
 
 export const MEASUREMENTS_SECTIONS = [
   'measurements.timeline',
+  'measurements.progress',
+  'measurements.waistToHeight',
   'measurements.overview',
   'measurements.insights',
   'measurements.weightChart',

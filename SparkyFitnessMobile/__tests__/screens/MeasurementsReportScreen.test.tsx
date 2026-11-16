@@ -30,6 +30,16 @@ jest.mock('../../src/components/reports/MeasurementTimelineCard', () => {
   };
 });
 const mockUseMeasurementsReport = jest.fn();
+// Both cards read the whole history through their own hook; they have their
+// own tests.
+jest.mock('../../src/components/reports/WeightProgressCard', () => ({
+  __esModule: true,
+  default: () => null,
+}));
+jest.mock('../../src/components/reports/WaistToHeightCard', () => ({
+  __esModule: true,
+  default: () => null,
+}));
 jest.mock('../../src/components/DateRangeSheet', () => {
   const React = require('react');
   const { View } = require('react-native');

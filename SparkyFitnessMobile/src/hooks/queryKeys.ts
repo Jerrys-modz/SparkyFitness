@@ -536,3 +536,10 @@ export const glucoseSamplesQueryKeyRoot = ['glucoseSamples'] as const;
 export const glucoseContextQueryKeyRoot = ['glucoseContext'] as const;
 
 export const chatMcpServersQueryKey = ['chatMcpServers'] as const;
+
+/** The setup wizard's weight, the weight progress start before any weigh-in. */
+export const onboardingStartWeightQueryKey = ['onboardingStartWeight'] as const;
+
+/** Today's estimated daily expenditure, for the weight progress fat estimate. */
+export const adaptiveTdeeQueryKey = (date: string) =>
+  ['adaptiveTdee', date] as const;

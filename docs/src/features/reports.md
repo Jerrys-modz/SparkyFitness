@@ -9,26 +9,30 @@ The Reports page is available from the top navigation bar when using SparkyFitne
 </p>
 
 ## Mobile app
+
 The Android and iOS apps display health trends for your steps, weight, sleep, and hydration. These trends appear at the bottom of the Dashboard screen for 7-, 30-, and 90-day periods.
 
+**Reports → Measurements** in the app also has the **Weight progress** and **Waist-to-height ratio** cards (hide or reorder them in the report's settings). The Weight progress card can also go on the Dashboard: turn it on under **Settings → Dashboard**.
+
 ## Web interface
+
 The below reports are available when using SparkyFitness in a web browser.
 
-| Report view | Information provided | Typical data source |
-|-------------|----------------------|---------------------|
-| **[Nutrients](#nutrients)** | Nutrition insights from food, water and alcohol intake | [Food diary](/features/diary/meals), [water intake](/features/diary/water-intake), alcohol intake |
-| **[Measurements](#measurements)** | Body measurements, including metrics from synced health platforms | [Measurements](/features/measurements), health sync |
-| **[Fasting](#fasting)** | Insights on intermittent fasting sessions | Logged fasting sessions |
-| **[Exercise Progress](#exercise)** | Strength, resistance and cardio workouts | [Exercise entries](/features/diary/exercise) |
-| **[Sleep](#sleep)** | Sleep insights | Wearable / health sync |
-| **[Stress](#stress)** | Stress and mood trends | Wearable / health sync |
-| **[Medications](#medications)** | Medication adherence, symptoms, and reporting for your health professionals | Medication and symptom logs |
-| **[Table View](#table)** | Raw food diary, exercise, body measurement, and custom measurement data, ready for export | Food diary, exercise entries, body measurements (including synced metrics), and custom measurement categories |
+| Report view                        | Information provided                                                                      | Typical data source                                                                                           |
+| ---------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| **[Nutrients](#nutrients)**        | Nutrition insights from food, water and alcohol intake                                    | [Food diary](/features/diary/meals), [water intake](/features/diary/water-intake), alcohol intake             |
+| **[Measurements](#measurements)**  | Body measurements, including metrics from synced health platforms                         | [Measurements](/features/measurements), health sync                                                           |
+| **[Fasting](#fasting)**            | Insights on intermittent fasting sessions                                                 | Logged fasting sessions                                                                                       |
+| **[Exercise Progress](#exercise)** | Strength, resistance and cardio workouts                                                  | [Exercise entries](/features/diary/exercise)                                                                  |
+| **[Sleep](#sleep)**                | Sleep insights                                                                            | Wearable / health sync                                                                                        |
+| **[Stress](#stress)**              | Stress and mood trends                                                                    | Wearable / health sync                                                                                        |
+| **[Medications](#medications)**    | Medication adherence, symptoms, and reporting for your health professionals               | Medication and symptom logs                                                                                   |
+| **[Table View](#table)**           | Raw food diary, exercise, body measurement, and custom measurement data, ready for export | Food diary, exercise entries, body measurements (including synced metrics), and custom measurement categories |
 
 > [!TIP]
 > Reports always show information from the **active profile**. If someone has given you **view reports** access in [Family & Friends Sharing](/features/family-friends-sharing), you can view their reports by selecting their profile from the top right corner.
 
-- - -
+---
 
 ### Nutrients
 
@@ -45,7 +49,7 @@ The nutrient columns and charts you see here are controlled by [Settings → Nut
   <img src="/reports/nutrients.jpg" alt="Nutrients view" />
 </p>
 
-- - -
+---
 
 ### Measurements
 
@@ -55,13 +59,18 @@ The **Measurements** tab shows your body measurements and synced health metrics,
 - **Your custom measurement categories:** every category you create in [Measurements](/features/measurements) also has a trend chart.
 - **Health sync metrics:** information provided by your health sync provider (e.g. Google Health, Apple Health, etc.) is also reported. This includes steps, distance, heart rate, blood pressure, etc.
 
+- **Weight progress:** starting weight, change and share of your starting weight, progress toward your goal weight, milestones and a fat estimate from your food log. See [Measurements → Weight progress](/features/measurements#weight-progress).
+- **Waist-to-height ratio:** your latest ratio against the screening bands, with a trend chart when you have more than one waist measurement. See [Measurements → Waist-to-height ratio](/features/measurements#waist-to-height-ratio).
+
+These two cards always cover your whole history, so the report's date range does not change them.
+
 The grid is **resizable**: drag widgets to rearrange or resize them, and your layout is saved, so the tab looks the same way next time you visit.
 
 <p align="center">
   <img src="/reports/measurements.jpg" alt="Measurements view" />
 </p>
 
-- - -
+---
 
 ### Fasting
 
@@ -78,7 +87,7 @@ The **Fasting** tab turns your logged fasting sessions into a consistency report
   <img src="/reports/fasting.jpg" alt="Fasting view" />
 </p>
 
-- - -
+---
 
 ### Exercise
 
@@ -105,7 +114,7 @@ A **More analysis** button expands the full set of advanced charts, and **filter
   <img src="/reports/exercise.jpg" alt="Exercise view" />
 </p>
 
-- - -
+---
 
 ### Sleep
 
@@ -118,40 +127,39 @@ When data is available you get:
 - **The same night from two sources counts once.** If two sources record one night (for example Google Health and Health Connect both carrying a Fitbit night, or two watches), the report, the charts and sleep debt use the more detailed record: the one with sleep stages, then the one with more measures such as HRV or resting heart rate. A record that covers only part of the night never replaces the whole night, and in the report a nap from another source that doesn't overlap the night still adds to the day.
 - **Export to CSV:** a button next to the table downloads the full history for your own analysis.
 
-- - -
+---
 
 ### Stress
 
 The **Stress** tab covers the two stress-related signals the app can track:
 
-- **Raw stress:** the stress levels your wearable reports over the range. If your device doesn't report stress data, the chart shows *No raw stress data available.*
+- **Raw stress:** the stress levels your wearable reports over the range. If your device doesn't report stress data, the chart shows _No raw stress data available._
 - **Daily mood:** a zoomable chart of the mood you log each day, so you can see how it moves across weeks.
 
-- - -
+---
 
 ### Medications
 
-The **Medications** tab (*Medications Report* — "Analyze dose correlations, side effects, and adherence trends") is built for people managing a medication regimen, with particular depth for GLP-1 therapy:
+The **Medications** tab (_Medications Report_ — "Analyze dose correlations, side effects, and adherence trends") is built for people managing a medication regimen, with particular depth for GLP-1 therapy:
 
 - **Summary cards:** **Average Adherence %** (the percentage of scheduled doses logged as taken), **GLP-1 Injections** (active GLP-1 injection doses in the range), and **Reported Side-Effects** (the number of unique symptoms, built-in or custom, logged in the range).
 - **Charts:** use the **Customize Charts** button to toggle exactly which of these are shown:
-  - *Nausea Severity vs. GLP-1 Medication Dose* — your daily peak nausea (0–10) overlaid on your dose in mg.
-  - *Weight Trend vs. Target Weight* — daily weight against a target-weight line, in your preferred weight unit.
-  - *Daily Adherence Trend (%)* — dose-taking consistency per day.
-  - *GLP-1 Daily Check-In Trends* — hunger, food noise, fullness, and energy levels (0–10) tracked alongside your dose.
-  - *Medication Log* — your medications, entries, injections, and symptom entries within the range.
+  - _Nausea Severity vs. GLP-1 Medication Dose_ — your daily peak nausea (0–10) overlaid on your dose in mg.
+  - _Weight Trend vs. Target Weight_ — daily weight against a target-weight line, in your preferred weight unit.
+  - _Daily Adherence Trend (%)_ — dose-taking consistency per day.
+  - _GLP-1 Daily Check-In Trends_ — hunger, food noise, fullness, and energy levels (0–10) tracked alongside your dose.
+  - _Medication Log_ — your medications, entries, injections, and symptom entries within the range.
 - **Symptom & side-effect correlations:** four descriptive correlation cards, each with a strength badge, a confidence score, and a plain-language takeaway:
-  - *Hydration vs. Constipation* — e.g., a negative correlation reads: "Strong Hydration Benefit: Higher water intake correlates with lower constipation severity."
-  - *Protein Intake vs. Nausea* — whether nausea follows your protein intake up or down.
-  - *Sleep Duration vs. Fatigue* — whether more sleep is associated with less fatigue.
-  - *GLP-1 Dose vs. Nausea Severity* — whether your doses are tracking with your nausea.
+  - _Hydration vs. Constipation_ — e.g., a negative correlation reads: "Strong Hydration Benefit: Higher water intake correlates with lower constipation severity."
+  - _Protein Intake vs. Nausea_ — whether nausea follows your protein intake up or down.
+  - _Sleep Duration vs. Fatigue_ — whether more sleep is associated with less fatigue.
+  - _GLP-1 Dose vs. Nausea Severity_ — whether your doses are tracking with your nausea.
 
   The page is explicit that these correlations are "purely descriptive calculations over the chosen date range and do not imply clinical causality."
 
 - **Sharing with your prescriber:** the **Prescriber-Ready Data Export** card offers a **Print / Save PDF Report** button that produces a clean PDF summary you can hand to your doctor, plus a **Download CSV Data** button for the raw numbers.
 
-
-- - -
+---
 
 ### Table
 
@@ -160,7 +168,6 @@ The **Table** tab gives you the raw data behind everything above:
 - **Table switcher:** select between **All**, **Food Diary**, **Exercise Entries**, **Body Measurements**, and any **custom measurement category** you've created.
 - **Filters:** the **Exercise Entries** table can be filtered by exercise name and by set type.
 - **Download (CSV):** every table has a download button, so you can export your food diary, exercise entries, body measurements, or custom measurement data to use in a spreadsheet or any other tool.
-
 
 ## Related pages
 
@@ -176,4 +183,3 @@ The **Table** tab gives you the raw data behind everything above:
 - [Settings → Preferences](/features/settings/preferences)
 - [Settings → Calculation Settings](/features/settings/calculation-settings)
 - [Settings → External Providers](/features/settings/external-providers)
-

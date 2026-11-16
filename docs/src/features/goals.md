@@ -8,6 +8,8 @@ SparkyFitness allows you to set and track various fitness and nutrition goals, h
 
 Set your goal weight under **Goals**. It was previously only asked once during onboarding. Enter it in your preferred weight unit (stones and pounds users enter pounds); it is stored in kilograms. **Clear** removes it. The mobile Weight chart uses it for the dashed goal line and the projected goal date.
 
+Your goal weight also drives the **Toward goal** figure and the halfway and goal milestones of the [Weight progress](/features/measurements#weight-progress) card in Reports → Measurements.
+
 The destination weight and the desired weekly pace are separate settings. Under [Calculation Settings → Goal Mode](/features/settings/calculation-settings#_4-goal-mode-caloric-deficits), select **Weekly weight change** to choose maintenance, loss, or gain in kg or g per week. The weekly pace adjusts the calorie target; it does not change the saved destination weight.
 
 ## Nutrient Goal Direction (Minimum / Maximum / Target)
@@ -34,11 +36,11 @@ SparkyFitness's built-in "Sugars" goal reflects **total sugar** (naturally occur
 
 When editing goals for a custom nutrient that looks like an added-sugar tracker (recognized name variants: "Sugar(s)" or "Added Sugar(s)", singular or plural, case-insensitive) and is set to Maximum, an **Auto-calculate** control appears next to its goal field, offering three evidence-based options:
 
-| Option | Basis | Formula |
-| :--- | :--- | :--- |
-| **WHO Ideal** | WHO's conditional recommendation for additional health benefit | 5% of your daily calorie goal ÷ 4 kcal/g |
-| **WHO Maximum** | WHO's strong recommendation | 10% of your daily calorie goal ÷ 4 kcal/g |
-| **AHA Fixed** | American Heart Association | 36g/day (men), 25g/day (women) — a flat guideline, not scaled by calories |
+| Option          | Basis                                                          | Formula                                                                   |
+| :-------------- | :------------------------------------------------------------- | :------------------------------------------------------------------------ |
+| **WHO Ideal**   | WHO's conditional recommendation for additional health benefit | 5% of your daily calorie goal ÷ 4 kcal/g                                  |
+| **WHO Maximum** | WHO's strong recommendation                                    | 10% of your daily calorie goal ÷ 4 kcal/g                                 |
+| **AHA Fixed**   | American Heart Association                                     | 36g/day (men), 25g/day (women) — a flat guideline, not scaled by calories |
 
 Picking an option fills in the computed gram value; you can still edit it manually afterward.
 
@@ -54,7 +56,7 @@ Weekly plans use fixed numbers. If you want training days higher and rest days l
 
 ## Interactions with Calculation Settings
 
-The Nutrient Goal Direction feature only changes how progress is *displayed* against whatever goal number already exists — it doesn't compute goal values itself (except the Added Sugar auto-calculate above). Two things to be aware of when combining it with [Calculation Settings](/features/settings/calculation-settings):
+The Nutrient Goal Direction feature only changes how progress is _displayed_ against whatever goal number already exists — it doesn't compute goal values itself (except the Added Sugar auto-calculate above). Two things to be aware of when combining it with [Calculation Settings](/features/settings/calculation-settings):
 
-- **Calories in Target mode vs. Adaptive/Dynamic goals:** if your Daily Calorie Goal Adjustment is set to Adaptive, Dynamic, Percentage Earn-Back, or Device Projection, your calorie *goal value* recalculates regularly (e.g. as your Adaptive TDEE updates). A manually entered Target band for calories does **not** move with it — you'll need to revisit and adjust the band yourself if your adaptive goal shifts significantly. Target range for calories pairs best with a **Fixed** goal adjustment, where the goal value stays constant.
+- **Calories in Target mode vs. Adaptive/Dynamic goals:** if your Daily Calorie Goal Adjustment is set to Adaptive, Dynamic, Percentage Earn-Back, or Device Projection, your calorie _goal value_ recalculates regularly (e.g. as your Adaptive TDEE updates). A manually entered Target band for calories does **not** move with it — you'll need to revisit and adjust the band yourself if your adaptive goal shifts significantly. Target range for calories pairs best with a **Fixed** goal adjustment, where the goal value stays constant.
 - **Two separate "sugar" calculations:** Calculation Settings' **Sugar Calculation Algorithm** (WHO Guidelines/Low-Carb-Keto/Balanced) computes a recommendation for the built-in **Total Sugar** goal. The **Auto-calculate** control described above is a distinct calculation for your **Added Sugars** custom nutrient. They share "WHO guidelines" terminology but target different fields with different percentages — check which one you're adjusting.

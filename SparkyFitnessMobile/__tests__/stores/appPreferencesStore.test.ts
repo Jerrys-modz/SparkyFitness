@@ -310,7 +310,17 @@ describe('appPreferencesStore', () => {
         'mindfulness',
         'oralCare',
         'labResults',
+        'weightProgress',
       ]);
+    });
+
+    it('keeps the weight progress card off until chosen', () => {
+      const store = useAppPreferencesStore.getState();
+      expect(store.weightProgressCardVisible).toBe(false);
+      store.setWeightProgressCardVisible(true);
+      expect(useAppPreferencesStore.getState().weightProgressCardVisible).toBe(
+        true
+      );
     });
 
     it('updates dashboard card order', () => {

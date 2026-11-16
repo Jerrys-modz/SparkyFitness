@@ -128,6 +128,8 @@ export const PREFERENCE_DEFAULTS = {
   mindfulnessCardVisible: true,
   oralCareCardVisible: false,
   labResultsCardVisible: true,
+  // Off until chosen: weight figures on the first screen are not for everyone.
+  weightProgressCardVisible: false,
   trainingLoadCardVisible: true,
   dashboardCardOrder: [...DASHBOARD_CARD_KEYS] as DashboardCardKey[],
   medicationRemindersEnabled: true,
@@ -231,6 +233,7 @@ export type AppPreferencesData = {
   mindfulnessCardVisible: boolean;
   oralCareCardVisible: boolean;
   labResultsCardVisible: boolean;
+  weightProgressCardVisible: boolean;
   trainingLoadCardVisible: boolean;
   dashboardCardOrder: DashboardCardKey[];
   medicationRemindersEnabled: boolean;
@@ -407,6 +410,7 @@ export interface AppPreferencesState extends AppPreferencesData {
   setMindfulnessCardVisible: (value: boolean) => void;
   setOralCareCardVisible: (value: boolean) => void;
   setLabResultsCardVisible: (value: boolean) => void;
+  setWeightProgressCardVisible: (value: boolean) => void;
   setTrainingLoadCardVisible: (value: boolean) => void;
   setDashboardCardOrder: (order: DashboardCardKey[]) => void;
   setMedicationRemindersEnabled: (value: boolean) => void;
@@ -589,6 +593,8 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
       setOralCareCardVisible: (value) => set({ oralCareCardVisible: value }),
       setLabResultsCardVisible: (value) =>
         set({ labResultsCardVisible: value }),
+      setWeightProgressCardVisible: (value) =>
+        set({ weightProgressCardVisible: value }),
       setTrainingLoadCardVisible: (value) =>
         set({ trainingLoadCardVisible: value }),
       setDashboardCardOrder: (order) => set({ dashboardCardOrder: order }),
@@ -833,6 +839,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         mindfulnessCardVisible: state.mindfulnessCardVisible,
         oralCareCardVisible: state.oralCareCardVisible,
         labResultsCardVisible: state.labResultsCardVisible,
+        weightProgressCardVisible: state.weightProgressCardVisible,
         trainingLoadCardVisible: state.trainingLoadCardVisible,
         dashboardCardOrder: state.dashboardCardOrder,
         medicationRemindersEnabled: state.medicationRemindersEnabled,
