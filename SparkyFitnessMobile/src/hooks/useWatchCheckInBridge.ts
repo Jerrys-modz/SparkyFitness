@@ -89,6 +89,7 @@ import { watchHeartRateZoneFloors } from '../utils/watchHeartRateZones';
 import { suggestedPaceRangesFromRace } from '../utils/suggestedRanges';
 import { buildWatchRunPlans } from '../utils/watchRunPlans';
 import { useZone2HeartRateBand } from './useZone2HeartRateBand';
+import { useWatchHeartRateZoneFloors } from './useWatchHeartRateZoneFloors';
 import {
   getWatchIndoorScale,
   onWatchIndoorScaleChange,
@@ -410,6 +411,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     [paceReferenceOnWatch, paceReferenceRace, programStatus]
   );
   const zone2Band = useZone2HeartRateBand(enabled);
+  const heartRateZoneFloors = useWatchHeartRateZoneFloors(enabled);
   const runPlans = useMemo(
     () =>
       buildWatchRunPlans(
@@ -1034,6 +1036,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     watchHoldCountdown,
     watchWorkoutTopLine,
     runPlans,
+    heartRateZoneFloors,
     indoorDistanceScale,
     fuelingPreference,
     startableWorkouts,

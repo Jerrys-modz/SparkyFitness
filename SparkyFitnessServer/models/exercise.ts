@@ -7,6 +7,7 @@ import {
   isHealthActivityType,
   resolveExerciseModality,
 } from '@workspace/shared';
+import type { PoolClient } from 'pg';
 
 import { getClient, getSystemClient } from '../db/poolManager.js';
 import { log } from '../config/logging.js';
@@ -40,9 +41,12 @@ function healthActivityTypeWrite(value: unknown): {
     ? { provided: true, value }
     : { provided: false, value: null };
 }
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function getExerciseById(id: any, userId: any) {
-  const client = await getClient(userId);
+async function getExerciseById(
+  id: string,
+  userId: string,
+  existingClient?: PoolClient
+) {
+  const client: PoolClient = existingClient ?? (await getClient(userId));
   try {
     const result = await client.query(
       `SELECT id, source, source_id, name, force, level, mechanic, equipment,
@@ -63,7 +67,7 @@ async function getExerciseById(id: any, userId: any) {
     }
     return exercise;
   } finally {
-    client.release();
+    if (!existingClient) client.release();
   }
 }
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -598,7 +602,8 @@ interface ExerciseWriteData {
   // Strava's processor still annotates its (uuid) user id as a number.
   user_id?: string | number | null;
   source?: string | null;
-  source_id?: string | null;
+  id?: string;
+  source_id?: string | number | null;
   name?: string;
   force?: string | null;
   level?: string | null;
@@ -618,8 +623,13 @@ interface ExerciseWriteData {
   load_convention?: unknown;
   health_activity_type?: unknown;
 }
-async function createExercise(exerciseData: ExerciseWriteData) {
-  const client = await getClient(exerciseData.user_id);
+
+async function createExercise(
+  exerciseData: ExerciseWriteData,
+  existingClient?: PoolClient
+) {
+  const client: PoolClient =
+    existingClient ?? (await getClient(exerciseData.user_id));
   try {
     log(
       'debug',
@@ -684,7 +694,7 @@ async function createExercise(exerciseData: ExerciseWriteData) {
     );
     return result.rows[0];
   } finally {
-    client.release();
+    if (!existingClient) client.release();
   }
 }
 async function updateExercise(
@@ -1142,7 +1152,7 @@ async function deleteExerciseAndDependencies(
       );
       const presetEntryIds = presetEntriesResult.rows
         .map(
-          (r: { exercise_preset_entry_id: number | string }) =>
+          (r: { exercise_preset_entry_id: string }) =>
             r.exercise_preset_entry_id
         )
         .filter(Boolean);
@@ -1167,7 +1177,7 @@ async function deleteExerciseAndDependencies(
         await client.query(
           `
           DELETE FROM exercise_preset_entries
-          WHERE id = ANY($1::int[])
+          WHERE id = ANY($1::uuid[])
             AND user_id = $2
             AND NOT EXISTS (
               SELECT 1 FROM exercise_entries WHERE exercise_preset_entry_id = exercise_preset_entries.id
@@ -1196,7 +1206,7 @@ async function deleteExerciseAndDependencies(
       );
       const presetEntryIds = presetEntriesResult.rows
         .map(
-          (r: { exercise_preset_entry_id: number | string }) =>
+          (r: { exercise_preset_entry_id: string }) =>
             r.exercise_preset_entry_id
         )
         .filter(Boolean);
@@ -1216,7 +1226,7 @@ async function deleteExerciseAndDependencies(
         await client.query(
           `
           DELETE FROM exercise_preset_entries
-          WHERE id = ANY($1::int[])
+          WHERE id = ANY($1::uuid[])
             AND user_id = $2
             AND NOT EXISTS (
               SELECT 1 FROM exercise_entries WHERE exercise_preset_entry_id = exercise_preset_entries.id
