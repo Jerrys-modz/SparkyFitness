@@ -44,6 +44,8 @@ import { AutoCalculateToolbar } from '@/pages/Goals/AutoCalculateToolbar';
 import { useTranslation } from 'react-i18next';
 import { CalorieCyclingGoalHint } from '@/components/CalorieCyclingGoalHint';
 import { useCalorieCyclingForDay } from '@/hooks/Goals/useCalorieCyclingActive';
+import { MacroPerKgFields } from '@/pages/Goals/MacroPerKgFields';
+import { useMacroPerKgPreview } from '@/hooks/Goals/useMacroPerKgPreview';
 
 interface EditGoalsProps {
   selectedDate: string;
@@ -167,7 +169,19 @@ const EditGoalsForm = ({
     );
   }, [goals, macroInputType]);
 
-  const isMacroValid = Math.round(currentMacroTotal) === 100;
+  const perKgPreview = useMacroPerKgPreview(
+    goals,
+    macroInputType,
+    selectedDate
+  );
+  const lockedMacros = {
+    protein: goals.protein_per_kg != null,
+    carbs: false,
+    fat: goals.fat_per_kg != null,
+  };
+  // With protein or fat per kg the percentages only weight the remainder.
+  const isMacroValid =
+    perKgPreview.perKg !== null || Math.round(currentMacroTotal) === 100;
 
   const visibleMeals = useMemo(
     () => mealTypes.filter((m) => m.is_visible),
@@ -306,10 +320,15 @@ const EditGoalsForm = ({
               decimals={1}
               min={0}
               max={macroInputType === 'percentages' ? 100 : undefined}
+              disabled={lockedMacros[m]}
               value={
-                macroInputType === 'grams'
-                  ? (goals[m] ?? 0)
-                  : Number(goals[`${m}_percentage` as keyof ExpandedGoals] ?? 0)
+                lockedMacros[m] && macroInputType === 'grams'
+                  ? Math.round(perKgPreview[m])
+                  : macroInputType === 'grams'
+                    ? (goals[m] ?? 0)
+                    : Number(
+                        goals[`${m}_percentage` as keyof ExpandedGoals] ?? 0
+                      )
               }
               onValueChange={(val) => {
                 setGoals((prev) => ({
@@ -323,7 +342,15 @@ const EditGoalsForm = ({
         ))}
       </div>
 
-      {macroInputType === 'percentages' && (
+      <MacroPerKgFields
+        idPrefix="edit-goals"
+        goal={goals}
+        macroInputType={macroInputType}
+        preview={perKgPreview}
+        onChange={(update) => setGoals((prev) => ({ ...prev, ...update }))}
+      />
+
+      {macroInputType === 'percentages' && !perKgPreview.perKg && (
         <div className="space-y-2">
           <div
             className={`text-sm font-medium text-right ${isMacroValid ? 'text-green-600' : 'text-destructive'}`}
@@ -457,6 +484,11 @@ const EditGoalsForm = ({
         <Button
           onClick={() => {
             const finalGoals = { ...goals };
+            if (perKgPreview.perKg) {
+              finalGoals.protein = Math.round(perKgPreview.protein);
+              finalGoals.carbs = Math.round(perKgPreview.carbs);
+              finalGoals.fat = Math.round(perKgPreview.fat);
+            }
             if (macroInputType === 'grams') {
               finalGoals.protein_percentage = null;
               finalGoals.carbs_percentage = null;
@@ -502,6 +534,9 @@ const EditGoalsForToday = ({ selectedDate }: EditGoalsProps) => {
     const finalGoals = { ...goalsToSave };
     if (
       !clear &&
+      // Per-kg grams are already worked out from the weight by the form.
+      finalGoals.protein_per_kg == null &&
+      finalGoals.fat_per_kg == null &&
       finalGoals.protein_percentage !== null &&
       finalGoals.protein_percentage !== undefined
     ) {

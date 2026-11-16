@@ -30,6 +30,20 @@ If you are doing body recomposition (losing fat while keeping or building muscle
 - **Measurement method**: body fat readings vary a lot between methods (smart scales, calipers, tape formulas, DEXA), and a bathroom scale can move several points from day to day with hydration. Compare readings from one method, taken the same way (for example, every morning before eating), and expect the trend, not any single reading, to tell you where you are.
 
 The body fat goal does not change your calorie target; the weekly weight-change setting in Calculation Settings still does that. Like the goal weight, only you can change it, but someone with access to your reports sees it on your charts.
+## Protein and Fat per kg of Body Weight
+Protein (and fat) can be set in **grams per kg** instead of grams or a percentage of calories. A gram target typed by hand stays put while your weight goes down; a per-kg target follows it.
+On the Goals page (web), in **Edit goals for today** (web Diary) or in Goals (mobile), switch on **Set protein per kg** and/or **Set fat per kg** and enter the value, then choose what it is per kg of:
+- **Body weight**: your latest logged weight.
+- **Lean mass**: your weight × (1 − body fat %), using your latest logged body fat %. With no body fat % logged, body weight is used instead and the Goals page says so.
+Allowed values are 0.1–5 g/kg for protein and 0.1–3 g/kg for fat. A preview under the switches shows today's grams for your current weight.
+**Which weight is used.** Each day uses the latest weight measured on or before that day (and the latest body fat % for lean mass), so a target for a past day uses the weight you had then, and today's target moves when you log a new weight.
+**No weight logged yet.** The goal falls back to the grams saved with it (worked out from your weight when you saved it) and the Goals page shows a hint asking you to log a weight.
+**How the remaining calories are split.** A per-kg macro is fixed first:
+- With macros set as **percentages**, the calories left after the per-kg macros (and after the fibre allowance the percentage maths already subtracts) go to the other macros in proportion to their percentages. So with protein per kg and carbs 40% / fat 30%, carbs get 40/70 of the rest and fat 30/70. With both protein and fat per kg, carbs get all of it. The percentages no longer need to add up to 100. The remainder never goes below zero.
+- With macros set as **grams**, carbs (and fat, unless it is per kg) keep the grams you enter.
+Calorie cycling and exercise calories added back to your macros still apply on top: they change the calories the remainder is split from, and cycling still moves carbs only.
+**Past days keep their targets.** The per-kg setting is stored on the dated goal, like the rest of your goals. Saving goals today does not change the setting on earlier days, and earlier days keep using the weight they had. Goal presets carry the setting too, so a weekly goal plan can use a per-kg preset; its grams follow each day's weight.
+**Older apps.** An app version that does not know about per-kg goals keeps the setting when it saves your goals; switch the unit off in a current version to go back to grams.
 
 ## Nutrient Goal Direction (Minimum / Maximum / Target)
 

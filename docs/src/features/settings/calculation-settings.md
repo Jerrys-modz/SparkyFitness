@@ -175,6 +175,10 @@ The app rates your projected rate of change, and the safe range is not symmetric
 
 Gain is deliberately much slower than loss. Muscle growth is limited by training and recovery, not by how large the surplus is.
 
+### Protein target
+
+The coaching tips under each goal mode suggest a protein intake in grams per kg of body weight (for example 1.6–2.2 g/kg at maintenance, more in a steep deficit). Those tips are advice only. To have the target itself follow your weight, set protein (and optionally fat) in **g per kg** on the Goals page; see [Protein and Fat per kg of Body Weight](/features/goals#protein-and-fat-per-kg-of-body-weight). The per-kg grams are worked out from the day's calorie target as calculated here, and the other macros share what is left.
+
 ### Calculation Methods
 
 - **Adaptive Method:** Applies the deficit to your Calculated Adaptive TDEE (falling back to BMR × activity multiplier if history is insufficient).

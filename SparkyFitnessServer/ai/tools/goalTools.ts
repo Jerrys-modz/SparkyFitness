@@ -260,6 +260,22 @@ Actions:
                 p_dinner_percentage: existingGoals.dinner_percentage,
                 p_snacks_percentage: existingGoals.snacks_percentage,
                 custom_meal_percentages: existingGoals.custom_meal_percentages,
+                // A gram value for protein or fat replaces a per-kg setting for
+                // that macro; when neither is given, manageGoalTimeline keeps
+                // the per-kg setting already in force.
+                ...(args.protein !== undefined || args.fat !== undefined
+                  ? {
+                      p_protein_per_kg:
+                        args.protein !== undefined
+                          ? null
+                          : (existingGoals.protein_per_kg ?? null),
+                      p_fat_per_kg:
+                        args.fat !== undefined
+                          ? null
+                          : (existingGoals.fat_per_kg ?? null),
+                      p_macro_per_kg_basis: existingGoals.macro_per_kg_basis,
+                    }
+                  : {}),
                 ...(macroGramsGiven
                   ? {}
                   : {

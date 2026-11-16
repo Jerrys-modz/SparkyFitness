@@ -412,3 +412,4 @@ export * from './schemas/api/Chat.api.zod.ts';
 export * from './utils/chatTools.ts';
 export * from './schemas/api/GoalWeight.api.zod.ts';
 export * from './utils/goalWeightPlan.ts';
+export * from './utils/macroPerKg.ts';

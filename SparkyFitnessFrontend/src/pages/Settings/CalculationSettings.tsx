@@ -2187,6 +2187,12 @@ const CalculationSettings = () => {
               <p className="text-sm leading-relaxed opacity-95">
                 {coachingAdvice.text}
               </p>
+              <p className="text-xs opacity-80">
+                {t(
+                  'settings.goalMode.proteinPerKgTip',
+                  'To have your protein target follow your weight, set it in g per kg on the Goals page.'
+                )}
+              </p>
               {goalModeCalculationMethod === 'adaptive' &&
                 previewResult.insufficientHistory && (
                   <p className="mt-2 text-sm opacity-80 border-t border-current/20 pt-2 flex items-start gap-1">

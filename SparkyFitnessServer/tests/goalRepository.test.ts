@@ -65,6 +65,9 @@ describe('goalRepository', () => {
         caffeine_mg: 300,
         alcohol_g: 14,
         target_steps: 10000,
+        protein_per_kg: 1.8,
+        fat_per_kg: null,
+        macro_per_kg_basis: 'lean_mass',
       };
 
       const result = await goalRepository.upsertGoal(goalData);
@@ -72,8 +75,8 @@ describe('goalRepository', () => {
       expect(mockClient.query).toHaveBeenCalledTimes(1);
       const [sql, params] = mockClient.query.mock.calls[0];
 
-      // Check positional params count ($1 through $37)
-      expect(params).toHaveLength(37);
+      // Check positional params count ($1 through $40)
+      expect(params).toHaveLength(40);
       expect(params[0]).toBe('user-1'); // $1 user_id
       expect(params[1]).toBe('2026-09-05'); // $2 goal_date
       expect(params[2]).toBe(2000); // $3 calories
@@ -81,6 +84,10 @@ describe('goalRepository', () => {
       expect(params[34]).toBe(14); // $35 alcohol_g
       expect(params[35]).toBe(10000); // $36 target_steps
       expect(params[36]).toBe(true); // $37 target_steps supplied
+      expect(params[37]).toBe(1.8); // $38 protein_per_kg
+      expect(params[38]).toBeNull(); // $39 fat_per_kg
+      expect(params[39]).toBe('lean_mass'); // $40 macro_per_kg_basis
+      expect(sql).toContain('protein_per_kg = EXCLUDED.protein_per_kg');
       // target_steps is named once in the INSERT column list, as its last column
       expect(sql.split('VALUES')[0].match(/target_steps/g)?.length).toBe(1);
       // Every INSERT column has exactly one value placeholder.
