@@ -22,6 +22,17 @@ import {
 } from '../hooks';
 import type { MealType } from '../types/mealTypes';
 import { useLatestMeasurementsOnOrBefore } from '../hooks/useMeasurements';
+import { useSetTargetBodyFat } from '../hooks/useProfile';
+import {
+  BODY_FAT_GOAL_MAX_PERCENT,
+  BODY_FAT_GOAL_MIN_PERCENT,
+  parseBodyFatGoal,
+} from '@workspace/shared';
+import {
+  bodyFatGoalSave,
+  isBodyFatDraftInvalid,
+} from '../utils/bodyFatGoalDraft';
+import { formatLocalizedNumber } from '../localization';
 import { useCustomNutrients } from '../hooks/useCustomNutrients';
 import {
   useAdjustedDailyGoal,
@@ -340,7 +351,7 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
   const { saveGoals, isPending: isSavingGoals } = useSaveGoalsMutation();
   const saveDirections = useSaveNutrientGoalPreferences();
   const [isSavingDirections, setIsSavingDirections] = useState(false);
-  const isPending = isSavingGoals || isSavingDirections;
+  const isPendingGoals = isSavingGoals || isSavingDirections;
   const [initialDirections] = useState(() =>
     directions ? toDirectionDrafts(directions) : {}
   );
@@ -374,6 +385,19 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
   const waterUnit = preferences?.water_display_unit ?? 'ml';
   const energyUnit = normalizeEnergyUnit(preferences?.energy_unit);
   const { profile } = useProfile();
+  const { mutateAsync: saveTargetBodyFat, isPending: isSavingBodyFat } =
+    useSetTargetBodyFat();
+  // The body fat goal lives on the profile, not the goal row. `null` while
+  // untouched, so a profile that loads after the form still shows.
+  const savedBodyFat = parseBodyFatGoal(profile?.target_body_fat_percentage);
+  const savedBodyFatText =
+    savedBodyFat === null
+      ? ''
+      : formatLocalizedNumber(savedBodyFat, { maximumFractionDigits: 1 });
+  const [bodyFatDraft, setBodyFatDraft] = useState<string | null>(null);
+  const isPending = isPendingGoals || isSavingBodyFat;
+  const bodyFatText = bodyFatDraft ?? savedBodyFatText;
+  const bodyFatInvalid = isBodyFatDraftInvalid(bodyFatDraft);
   const { latestMeasurements } = useLatestMeasurementsOnOrBefore({ date });
   const [base, setBase] = useState(goals);
   // Stones are typed as pounds, as elsewhere.
@@ -821,8 +845,24 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
         });
       }
     }
+    // Only an edited field is saved: unchanged, it keeps the stored goal.
+    const bodyFatUpdate = bodyFatGoalSave(bodyFatDraft, savedBodyFat);
+    if (bodyFatUpdate.kind === 'invalid') {
+      Toast.show({
+        type: 'error',
+        text1: t('goals.bodyFat.invalid', {
+          defaultValue: 'Enter a body fat goal from {{min}}% to {{max}}%.',
+          min: BODY_FAT_GOAL_MIN_PERCENT,
+          max: BODY_FAT_GOAL_MAX_PERCENT,
+        }),
+      });
+      return;
+    }
     try {
       await saveGoals({ date, goals: next, cascade: true });
+      if (bodyFatUpdate.kind === 'save') {
+        await saveTargetBodyFat(bodyFatUpdate.value);
+      }
       if (directionUpdates.length > 0) {
         setIsSavingDirections(true);
         try {
@@ -852,6 +892,9 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
     initialDirections,
     saveDirections,
     saveGoals,
+    bodyFatDraft,
+    savedBodyFat,
+    saveTargetBodyFat,
     onDone,
     t,
   ]);
@@ -1269,7 +1312,11 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
           {sectionTitle(
             t('goals.sections.bodyFat', { defaultValue: 'Body fat goal' })
           )}
-          <BodyFatGoalCard />
+          <BodyFatGoalCard
+            value={bodyFatText}
+            onChange={setBodyFatDraft}
+            invalid={bodyFatInvalid}
+          />
           {sectionTitle(
             t('goals.sections.presets', { defaultValue: 'Goal presets' })
           )}

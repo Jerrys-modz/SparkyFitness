@@ -9347,7 +9347,8 @@
       "targetWeightLabel": "Target weight",
       "targetHint": "The phase ends on the day your weight trend reaches this weight.",
       "notFound": "Could not find this diet phase.",
-      "goBack": "Go back"
+      "goBack": "Go back",
+      "clearHint": "Leave it empty and save to remove the goal."
     }
   },
   "reports": {
