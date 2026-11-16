@@ -26,6 +26,21 @@ export function localizedWeekdayLabels(t: TFunction): string[] {
   ];
 }
 
+/** "Every day", "Monday, Thursday" or "None" for day-of-week indices. */
+export function localizedWeekdaySummary(
+  t: TFunction,
+  days: readonly number[]
+): string {
+  if (days.length === 7) {
+    return t('medications.schedule.everyDay', { defaultValue: 'Every day' });
+  }
+  if (days.length === 0) {
+    return t('medications.schedule.none', { defaultValue: 'None' });
+  }
+  const labels = localizedWeekdayLabels(t);
+  return days.map((d) => labels[d]).join(', ');
+}
+
 export function localizedMealTimingLabel(t: TFunction, value: string): string {
   switch (value) {
     case 'before':

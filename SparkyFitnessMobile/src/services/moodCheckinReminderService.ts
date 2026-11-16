@@ -10,6 +10,10 @@ import {
   normalizeCheckinReminderTimes,
 } from '../utils/checkinReminderTimes';
 import { addLog } from './LogService';
+import {
+  cancelNotificationIds,
+  cancelRemindersOfKind,
+} from './reminderScheduling';
 
 export { MAX_CHECKIN_REMINDERS, normalizeCheckinReminderTimes };
 
@@ -17,31 +21,16 @@ function reminderIdentifier(index: number): string {
   return `mood_checkin_${index}`;
 }
 
-async function cancelById(id: string): Promise<void> {
-  try {
-    await Notifications.cancelScheduledNotificationAsync(id);
-  } catch {
-    // already cancelled or never scheduled
-  }
-}
-
 /** Cancels every scheduled mood check-in reminder, however it was identified. */
 export async function cancelMoodCheckinReminders(): Promise<void> {
-  const ids = new Set<string>();
-  for (let i = 0; i < MAX_CHECKIN_REMINDERS; i++)
-    ids.add(reminderIdentifier(i));
-  try {
-    const scheduled = await Notifications.getAllScheduledNotificationsAsync();
-    for (const n of scheduled) {
-      if (n.content.data?.kind === MOOD_CHECKIN_KIND) ids.add(n.identifier);
-    }
-  } catch (err) {
-    addLog(
-      `cancelMoodCheckinReminders failed to list: ${(err as Error).message}`,
-      'ERROR'
-    );
-  }
-  await Promise.all([...ids].map(cancelById));
+  const known = Array.from({ length: MAX_CHECKIN_REMINDERS }, (_, i) =>
+    reminderIdentifier(i)
+  );
+  await cancelRemindersOfKind(
+    MOOD_CHECKIN_KIND,
+    known,
+    'cancelMoodCheckinReminders'
+  );
 }
 
 /**
@@ -87,7 +76,7 @@ export async function scheduleMoodCheckinReminders(
       `scheduleMoodCheckinReminders failed: ${(err as Error).message}`,
       'ERROR'
     );
-    await Promise.all(ids.map(cancelById));
+    await cancelNotificationIds(ids);
     return [];
   }
 }

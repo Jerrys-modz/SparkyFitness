@@ -10,37 +10,25 @@ import {
   ORAL_CARE_REMINDER_KIND,
 } from '../utils/checkinReminderTimes';
 import { addLog } from './LogService';
+import {
+  cancelNotificationIds,
+  cancelRemindersOfKind,
+} from './reminderScheduling';
 
 function reminderIdentifier(index: number): string {
   return `oral_care_${index}`;
 }
 
-async function cancelById(id: string): Promise<void> {
-  try {
-    await Notifications.cancelScheduledNotificationAsync(id);
-  } catch {
-    // already cancelled or never scheduled
-  }
-}
-
 /** Cancels every scheduled brushing reminder, however it was identified. */
 export async function cancelOralCareReminders(): Promise<void> {
-  const ids = new Set<string>();
-  for (let i = 0; i < MAX_ORAL_CARE_REMINDERS; i++)
-    ids.add(reminderIdentifier(i));
-  try {
-    const scheduled = await Notifications.getAllScheduledNotificationsAsync();
-    for (const n of scheduled) {
-      if (n.content.data?.kind === ORAL_CARE_REMINDER_KIND)
-        ids.add(n.identifier);
-    }
-  } catch (err) {
-    addLog(
-      `cancelOralCareReminders failed to list: ${(err as Error).message}`,
-      'ERROR'
-    );
-  }
-  await Promise.all([...ids].map(cancelById));
+  const known = Array.from({ length: MAX_ORAL_CARE_REMINDERS }, (_, i) =>
+    reminderIdentifier(i)
+  );
+  await cancelRemindersOfKind(
+    ORAL_CARE_REMINDER_KIND,
+    known,
+    'cancelOralCareReminders'
+  );
 }
 
 /**
@@ -87,7 +75,7 @@ export async function scheduleOralCareReminders(
       `scheduleOralCareReminders failed: ${(err as Error).message}`,
       'ERROR'
     );
-    await Promise.all(ids.map(cancelById));
+    await cancelNotificationIds(ids);
     return [];
   }
 }

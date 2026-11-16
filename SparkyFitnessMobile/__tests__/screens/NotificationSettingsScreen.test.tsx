@@ -87,6 +87,27 @@ function latestTimeSheet(value: string): MockTimeSheetProps {
   return match;
 }
 
+type MockWeekdaySheetProps = {
+  value: number[];
+  onChange: (days: number[]) => void;
+};
+const mockWeekdaySheetRenders: MockWeekdaySheetProps[] = [];
+jest.mock('../../src/components/WeekdaySheet', () => {
+  const ReactModule = require('react');
+  const MockWeekdaySheet = ReactModule.forwardRef(
+    (props: MockWeekdaySheetProps, ref: unknown) => {
+      ReactModule.useImperativeHandle(ref, () => ({
+        present: jest.fn(),
+        dismiss: jest.fn(),
+      }));
+      mockWeekdaySheetRenders.push(props);
+      return null;
+    }
+  );
+  MockWeekdaySheet.displayName = 'MockWeekdaySheet';
+  return { __esModule: true, default: MockWeekdaySheet };
+});
+
 const mockNavigation = { goBack: jest.fn(), setOptions: jest.fn() } as never;
 jest.mock('@react-navigation/native', () => ({
   ...jest.requireActual('@react-navigation/native'),
@@ -134,6 +155,7 @@ describe('NotificationSettingsScreen', () => {
     __resetAppPreferencesStoreForTests();
     mockRequestPermission.mockResolvedValue('granted');
     mockTimeSheetRenders.length = 0;
+    mockWeekdaySheetRenders.length = 0;
   });
 
   it('hides category rows while the master toggle is off', () => {
@@ -720,6 +742,81 @@ describe('NotificationSettingsScreen', () => {
       expect(useAppPreferencesStore.getState().macroAlertRules).toEqual([
         { macro: 'fiber', percent: 70, time: '18:00' },
       ]);
+    });
+  });
+
+  describe('weigh-in reminders', () => {
+    function weighInSwitch(
+      getAllByRole: ReturnType<typeof renderScreen>['getAllByRole']
+    ) {
+      const match = getAllByRole('switch').find(
+        (element) => element.props.accessibilityLabel === 'Weigh-in reminders'
+      );
+      if (!match) throw new Error('Weigh-in reminders switch not rendered');
+      return match;
+    }
+
+    it('is hidden while the master toggle is off', () => {
+      useAppPreferencesStore.setState({ notificationsEnabled: false });
+      const { queryByText } = renderScreen();
+      expect(queryByText('Weigh-in reminders')).toBeNull();
+    });
+
+    it('turns reminders on only after permission is granted', async () => {
+      const { getAllByRole } = renderScreen();
+      fireEvent(weighInSwitch(getAllByRole), 'valueChange', true);
+      await waitFor(() => {
+        expect(useAppPreferencesStore.getState().weighInRemindersEnabled).toBe(
+          true
+        );
+      });
+      expect(mockRequestPermission).toHaveBeenCalledTimes(1);
+    });
+
+    it('leaves reminders off when permission is denied', async () => {
+      mockRequestPermission.mockResolvedValue('denied');
+      const { getAllByRole } = renderScreen();
+      fireEvent(weighInSwitch(getAllByRole), 'valueChange', true);
+      await waitFor(() => expect(mockRequestPermission).toHaveBeenCalled());
+      expect(useAppPreferencesStore.getState().weighInRemindersEnabled).toBe(
+        false
+      );
+    });
+
+    it('shows the time and "Every day" by default once on', () => {
+      useAppPreferencesStore.setState({ weighInRemindersEnabled: true });
+      const { getByText, getByLabelText } = renderScreen();
+      expect(getByText('07:30')).toBeTruthy();
+      expect(getByText('Every day')).toBeTruthy();
+      expect(getByLabelText('Weigh-in reminder days, Every day')).toBeTruthy();
+    });
+
+    it('saves a new time and weekly days, and never an empty selection', () => {
+      useAppPreferencesStore.setState({
+        weighInRemindersEnabled: true,
+        weighInReminderTime: '07:30',
+      });
+      const { getByText } = renderScreen();
+
+      act(() => {
+        latestTimeSheet('07:30').onSelectTime('06:45');
+      });
+      expect(useAppPreferencesStore.getState().weighInReminderTime).toBe(
+        '06:45'
+      );
+
+      const sheet = () =>
+        mockWeekdaySheetRenders[mockWeekdaySheetRenders.length - 1];
+      act(() => sheet().onChange([1]));
+      expect(useAppPreferencesStore.getState().weighInReminderWeekdays).toEqual(
+        [1]
+      );
+      expect(getByText('Monday')).toBeTruthy();
+
+      act(() => sheet().onChange([]));
+      expect(useAppPreferencesStore.getState().weighInReminderWeekdays).toEqual(
+        [1]
+      );
     });
   });
 });

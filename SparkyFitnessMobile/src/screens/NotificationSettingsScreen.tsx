@@ -18,6 +18,7 @@ import NotificationPermissionBanner, {
 import ReminderRuleRow from '../components/ReminderRuleRow';
 import SegmentedControl from '../components/SegmentedControl';
 import TimeSheet, { type TimeSheetRef } from '../components/TimeSheet';
+import WeekdaySheet, { type WeekdaySheetRef } from '../components/WeekdaySheet';
 import Switch from '../components/ui/Switch';
 import {
   maybePromptForExactAlarmPermission,
@@ -51,6 +52,7 @@ import {
   type MacroAlertPercent,
 } from '../utils/macroAlerts';
 import { formatTimeLabel } from '../utils/entryTimeDisplay';
+import { localizedWeekdaySummary } from '../utils/medicationScheduleLocalization';
 import { useReminderTimeRows } from '../components/ReminderTimeRows';
 import { isValidReminderWindow } from '../utils/hydrationReminder';
 import type { RootStackScreenProps } from '../types/navigation';
@@ -433,18 +435,56 @@ const NotificationSettingsScreen: React.FC<
     (s) => s.setOralCareReminderTimes
   );
 
-  const handleOralCareRemindersToggle = useCallback(
-    async (value: boolean) => {
+  // Same rule as the other reminders: turning one on asks for permission and
+  // never shows "on" while the OS would silently drop every reminder.
+  const enableWithPermission = useCallback(
+    async (value: boolean, setEnabled: (enabled: boolean) => void) => {
       if (!value) {
-        setOralCareRemindersEnabled(false);
+        setEnabled(false);
         return;
       }
       const status = await requestNotificationPermission();
       bannerRef.current?.refresh();
-      if (status === 'granted') setOralCareRemindersEnabled(true);
+      if (status === 'granted') setEnabled(true);
     },
-    [setOralCareRemindersEnabled]
+    []
   );
+
+  const handleOralCareRemindersToggle = useCallback(
+    (value: boolean) =>
+      enableWithPermission(value, setOralCareRemindersEnabled),
+    [enableWithPermission, setOralCareRemindersEnabled]
+  );
+
+  const weighInRemindersEnabled = useAppPreferencesStore(
+    (s) => s.weighInRemindersEnabled
+  );
+  const setWeighInRemindersEnabled = useAppPreferencesStore(
+    (s) => s.setWeighInRemindersEnabled
+  );
+  const weighInReminderTime = useAppPreferencesStore(
+    (s) => s.weighInReminderTime
+  );
+  const setWeighInReminderTime = useAppPreferencesStore(
+    (s) => s.setWeighInReminderTime
+  );
+  const weighInReminderWeekdays = useAppPreferencesStore(
+    (s) => s.weighInReminderWeekdays
+  );
+  const setWeighInReminderWeekdays = useAppPreferencesStore(
+    (s) => s.setWeighInReminderWeekdays
+  );
+  const weighInTimeSheetRef = useRef<TimeSheetRef>(null);
+  const weighInWeekdaySheetRef = useRef<WeekdaySheetRef>(null);
+
+  const handleWeighInRemindersToggle = useCallback(
+    (value: boolean) => enableWithPermission(value, setWeighInRemindersEnabled),
+    [enableWithPermission, setWeighInRemindersEnabled]
+  );
+  const weighInTimeLabel =
+    formatTimeLabel(weighInReminderTime, preferences?.time_format) ??
+    weighInReminderTime;
+  const weighInDaysLabel = localizedWeekdaySummary(t, weighInReminderWeekdays);
 
   const oralCareReminderRows = useReminderTimeRows({
     times: oralCareReminderTimes,
@@ -1097,6 +1137,78 @@ const NotificationSettingsScreen: React.FC<
             )}
           </SettingsRowGroup>
         )}
+
+        {notificationsEnabled && (
+          <SettingsRowGroup
+            title={t('notificationSettings.weighIns', {
+              defaultValue: 'Weigh-ins',
+            })}
+          >
+            <SettingsRow
+              title={t('notificationSettings.weighInReminders', {
+                defaultValue: 'Weigh-in reminders',
+              })}
+              subtitle={t('notificationSettings.weighInRemindersSubtitle', {
+                defaultValue:
+                  'A gentle reminder to log your weight. Skipped on days you have already logged one.',
+              })}
+              subtitleNumberOfLines={0}
+              rightAccessory={
+                <Switch
+                  accessibilityLabel={t(
+                    'notificationSettings.weighInReminders',
+                    { defaultValue: 'Weigh-in reminders' }
+                  )}
+                  value={weighInRemindersEnabled}
+                  onValueChange={handleWeighInRemindersToggle}
+                />
+              }
+            />
+            {weighInRemindersEnabled && (
+              <SettingsRow
+                title={t('notificationSettings.weighInReminderTime', {
+                  defaultValue: 'Time',
+                })}
+                accessibilityLabel={t(
+                  'notificationSettings.weighInReminderTimeAccessibility',
+                  {
+                    defaultValue: 'Weigh-in reminder time, {{time}}',
+                    time: weighInTimeLabel,
+                  }
+                )}
+                onPress={() => weighInTimeSheetRef.current?.present()}
+                rightAccessory={
+                  <Text className="text-sm text-text-secondary">
+                    {weighInTimeLabel}
+                  </Text>
+                }
+              />
+            )}
+            {weighInRemindersEnabled && (
+              <SettingsRow
+                title={t('notificationSettings.weighInReminderDays', {
+                  defaultValue: 'Days',
+                })}
+                accessibilityLabel={t(
+                  'notificationSettings.weighInReminderDaysAccessibility',
+                  {
+                    defaultValue: 'Weigh-in reminder days, {{days}}',
+                    days: weighInDaysLabel,
+                  }
+                )}
+                onPress={() => weighInWeekdaySheetRef.current?.present()}
+                rightAccessory={
+                  <Text
+                    className="text-sm text-text-secondary shrink"
+                    numberOfLines={1}
+                  >
+                    {weighInDaysLabel}
+                  </Text>
+                }
+              />
+            )}
+          </SettingsRowGroup>
+        )}
       </ScrollView>
 
       <TimeSheet
@@ -1120,6 +1232,17 @@ const NotificationSettingsScreen: React.FC<
       />
       {checkinReminderRows.sheet}
       {oralCareReminderRows.sheet}
+      <TimeSheet
+        ref={weighInTimeSheetRef}
+        value={weighInReminderTime}
+        onSelectTime={setWeighInReminderTime}
+        commitOn="done"
+      />
+      <WeekdaySheet
+        ref={weighInWeekdaySheetRef}
+        value={weighInReminderWeekdays}
+        onChange={setWeighInReminderWeekdays}
+      />
       <TimeSheet
         ref={startTimeSheetRef}
         value={waterReminderWindowStart}

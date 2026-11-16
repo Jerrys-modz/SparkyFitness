@@ -9,9 +9,9 @@ import {
 } from 'react-native';
 import { BottomSheetModal, BottomSheetView } from '@gorhom/bottom-sheet';
 import { useCSSVariable } from 'uniwind';
-import { localizedWeekdayLabels } from '../../utils/medicationScheduleLocalization';
-import Icon from '../Icon';
-import { sheetContainer, useSheetBackdrop } from '../ui/sheetChrome';
+import { localizedWeekdayLabels } from '../utils/medicationScheduleLocalization';
+import Icon from './Icon';
+import { sheetContainer, useSheetBackdrop } from './ui/sheetChrome';
 
 export interface WeekdaySheetRef {
   present: () => void;
@@ -24,8 +24,9 @@ interface WeekdaySheetProps {
   onChange: (days: number[]) => void;
 }
 
-/** Multi-select bottom sheet for a schedule's days_of_week. Selecting a day
- * toggles it without dismissing, so several days can be picked in one visit. */
+/** Multi-select bottom sheet of weekdays (medication schedules, weigh-in
+ * reminders). Selecting a day toggles it without dismissing, so several days
+ * can be picked in one visit. */
 const WeekdaySheet = forwardRef<WeekdaySheetRef, WeekdaySheetProps>(
   ({ value, onChange }, ref) => {
     const { t } = useTranslation();

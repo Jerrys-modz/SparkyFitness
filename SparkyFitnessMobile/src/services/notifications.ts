@@ -11,6 +11,7 @@ import {
 } from '../utils/checkinReminderTimes';
 import { MEAL_REMINDER_KIND } from '../utils/mealReminders';
 import { MACRO_ALERT_KIND, type MacroAlert } from '../utils/macroAlerts';
+import { WEIGH_IN_REMINDER_KIND } from '../utils/weighInReminder';
 import i18n from '../localization/i18n';
 import { fireSuccessHaptic } from './haptics';
 import {
@@ -33,6 +34,7 @@ export const FUELING_LOG_ACTION = 'fueling-log';
 export const FUELING_REMINDER_KIND = 'fueling';
 export const MOOD_CHECKIN_CHANNEL_ID = 'mood-checkin';
 export const ORAL_CARE_CHANNEL_ID = 'oral-care';
+export const WEIGH_IN_CHANNEL_ID = 'weigh-in';
 const MINDFULNESS_CHANNEL_ID = 'mindfulness';
 export const MEDICATION_REMINDER_CHANNEL_ID = 'medication-reminders';
 export const MEAL_REMINDER_CHANNEL_ID = 'meal-reminders';
@@ -276,6 +278,18 @@ export async function ensureOralCareChannel(): Promise<void> {
   });
 }
 
+export async function ensureWeighInChannel(): Promise<void> {
+  if (Platform.OS !== 'android') return;
+  await Notifications.setNotificationChannelAsync(WEIGH_IN_CHANNEL_ID, {
+    name: notificationCopy(
+      'notifications.channels.weighIn',
+      'Weigh-in reminders'
+    ),
+    importance: Notifications.AndroidImportance.HIGH,
+    enableVibrate: true,
+  });
+}
+
 async function ensureMindfulnessChannel(): Promise<void> {
   if (Platform.OS !== 'android') return;
   await Notifications.setNotificationChannelAsync(MINDFULNESS_CHANNEL_ID, {
@@ -373,7 +387,9 @@ export async function initNotifications(): Promise<void> {
         const isRestPing = category === REST_COMPLETE_CATEGORY;
         const kind = notification.request.content.data?.kind;
         const isMoodCheckin =
-          kind === MOOD_CHECKIN_KIND || kind === ORAL_CARE_REMINDER_KIND;
+          kind === MOOD_CHECKIN_KIND ||
+          kind === ORAL_CARE_REMINDER_KIND ||
+          kind === WEIGH_IN_REMINDER_KIND;
         // iOS also runs this while the app is frontmost-but-inactive (screen
         // locking, app switcher), where the chime never plays — so there the
         // ping carries the cue itself instead of being hidden as a duplicate.
