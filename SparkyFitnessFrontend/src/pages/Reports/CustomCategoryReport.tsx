@@ -30,6 +30,7 @@ import {
   healthMetricUnitLabel,
 } from '@/utils/healthMetricLabels';
 import {
+  APPETITE_CATEGORY_NAMES,
   CustomCategoriesResponse,
   CustomMeasurementsResponse,
   getPrecision,
@@ -40,10 +41,7 @@ const HIDDEN_CUSTOM_METRICS = [
   ...RESPIRATION_METRICS, // Shown in dedicated Respiration card
   'Average SpO2', // Shown in Sleep tab SpO2 card
   'Average Overnight HRV', // Shown in Sleep tab HRV card
-  'GLP Hunger',
-  'GLP Food Noise',
-  'GLP Fullness',
-  'GLP Energy',
+  ...APPETITE_CATEGORY_NAMES, // Hunger & fullness and GLP-1 check-in charts
 ];
 export const CustomCategoryReport = ({
   customCategories,

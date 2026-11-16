@@ -55,6 +55,18 @@ jest.mock('../../src/hooks/useUpsertCheckIn', () => ({
   useUpsertCheckIn: jest.fn(),
 }));
 
+let mockAppetiteFeatureOn = false;
+jest.mock('../../src/hooks/useFeatureEnabled', () => ({
+  useMobileFeatureEnabled: () => mockAppetiteFeatureOn,
+}));
+jest.mock('../../src/components/AppetiteCheckInCard', () => {
+  const { Text } = jest.requireActual('react-native');
+  return {
+    __esModule: true,
+    default: () => <Text>Appetite card</Text>,
+  };
+});
+
 jest.mock('../../src/hooks/useCustomMeasurements', () => ({
   useCustomCategories: jest.fn(),
   useCustomMeasurementsByDate: jest.fn(),
@@ -717,6 +729,47 @@ describe('MeasurementsAddScreen — custom measurements', () => {
         : String(n.props?.children);
     expect(labelText(labels[0])).toBe('Stres (mmHg)');
     expect(labelText(labels[1])).toBe('Energy Level');
+  });
+
+  test('hunger & fullness: the card logs its categories, the form does not', () => {
+    mockAppetiteFeatureOn = true;
+    try {
+      setCustomCategories([
+        customCategory({
+          id: 'c1',
+          name: 'GLP Hunger',
+          display_name: 'Hunger',
+          measurement_type: 'score (0–10)',
+        }),
+        customCategory({
+          id: 'c2',
+          name: 'Waist2',
+          display_name: 'Waist 2',
+          measurement_type: '',
+        }),
+      ]);
+      const screen = renderScreen();
+      expect(screen.getByText('Appetite card')).toBeTruthy();
+      expect(screen.getByText('Waist 2')).toBeTruthy();
+      expect(screen.queryByText('Hunger (score (0–10))')).toBeNull();
+      expect(screen.queryByText('Hunger')).toBeNull();
+    } finally {
+      mockAppetiteFeatureOn = false;
+    }
+  });
+
+  test('hunger & fullness off: no card, its categories stay in the form', () => {
+    setCustomCategories([
+      customCategory({
+        id: 'c1',
+        name: 'GLP Hunger',
+        display_name: 'Hunger',
+        measurement_type: '',
+      }),
+    ]);
+    const screen = renderScreen();
+    expect(screen.queryByText('Appetite card')).toBeNull();
+    expect(screen.getByText('Hunger')).toBeTruthy();
   });
 
   test('renders no custom section when there are no categories', () => {

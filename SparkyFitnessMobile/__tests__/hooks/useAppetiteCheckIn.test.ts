@@ -1,6 +1,6 @@
 import { renderHook, waitFor, act } from '@testing-library/react-native';
 
-import { useGlp1CheckIn } from '../../src/hooks/useGlp1';
+import { useAppetiteCheckIn } from '../../src/hooks/useAppetiteCheckIn';
 import { customCategoriesQueryKey } from '../../src/hooks/queryKeys';
 import {
   createCustomCategory,
@@ -8,7 +8,10 @@ import {
   fetchCustomMeasurementsByDate,
   saveCustomMeasurement,
 } from '../../src/services/api/measurementsApi';
-import { GLP1_CHECKIN_METRICS } from '../../src/utils/glp1';
+import { appetiteMetricsFor } from '@workspace/shared';
+
+const GLP1_METRICS = appetiteMetricsFor('glp1');
+const displayName = (key: string) => `Label ${key}`;
 import {
   createQueryWrapper,
   createTestQueryClient,
@@ -43,7 +46,7 @@ const values = {
   energy: 4,
 };
 
-describe('useGlp1CheckIn', () => {
+describe('useAppetiteCheckIn', () => {
   let queryClient: QueryClient;
 
   beforeEach(() => {
@@ -84,9 +87,12 @@ describe('useGlp1CheckIn', () => {
       };
     });
 
-    const { result } = renderHook(() => useGlp1CheckIn('2026-10-10'), {
-      wrapper: createQueryWrapper(queryClient),
-    });
+    const { result } = renderHook(
+      () => useAppetiteCheckIn('2026-10-10', 'glp1', displayName),
+      {
+        wrapper: createQueryWrapper(queryClient),
+      }
+    );
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     await act(async () => {
@@ -110,11 +116,11 @@ describe('useGlp1CheckIn', () => {
       (call) => call[0].name
     );
     expect(createdNames).toEqual(
-      GLP1_CHECKIN_METRICS.map((metric) => metric.categoryName)
+      GLP1_METRICS.map((metric) => metric.categoryName)
     );
     expect(mockSaveCustomMeasurement).toHaveBeenCalledTimes(
       // The failed attempt saved the first metric and threw on the second.
-      GLP1_CHECKIN_METRICS.length + 2
+      GLP1_METRICS.length + 2
     );
     expect(mockSaveCustomMeasurement.mock.calls[0]?.[0].category_id).toBe(
       'cat-GLP Hunger'
@@ -128,9 +134,12 @@ describe('useGlp1CheckIn', () => {
     mockSaveCustomMeasurement.mockRejectedValue(new Error('partial'));
     const spy = jest.spyOn(queryClient, 'invalidateQueries');
 
-    const { result } = renderHook(() => useGlp1CheckIn('2026-10-10'), {
-      wrapper: createQueryWrapper(queryClient),
-    });
+    const { result } = renderHook(
+      () => useAppetiteCheckIn('2026-10-10', 'glp1', displayName),
+      {
+        wrapper: createQueryWrapper(queryClient),
+      }
+    );
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     await act(async () => {
@@ -142,5 +151,54 @@ describe('useGlp1CheckIn', () => {
     expect(spy).toHaveBeenCalledWith(
       expect.objectContaining({ queryKey: customCategoriesQueryKey })
     );
+  });
+
+  test('the hunger & fullness check-in saves no energy and names new categories', async () => {
+    const { result } = renderHook(
+      () => useAppetiteCheckIn('2026-10-10', 'appetite', displayName),
+      { wrapper: createQueryWrapper(queryClient) }
+    );
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    await act(async () => {
+      await result.current.save.mutateAsync(values);
+    });
+
+    expect(mockCreateCustomCategory.mock.calls.map((call) => call[0])).toEqual([
+      expect.objectContaining({
+        name: 'GLP Hunger',
+        display_name: 'Label hunger',
+        frequency: 'Daily',
+      }),
+      expect.objectContaining({
+        name: 'GLP Food Noise',
+        display_name: 'Label food_noise',
+      }),
+      expect.objectContaining({ name: 'GLP Fullness' }),
+    ]);
+    expect(
+      mockSaveCustomMeasurement.mock.calls.map((call) => call[0].value)
+    ).toEqual(['1', '2', '3']);
+  });
+
+  test('loads the day from the existing GLP-1 categories', async () => {
+    mockFetchCustomCategories.mockResolvedValue([
+      {
+        id: 'h',
+        name: 'GLP Hunger',
+        measurement_type: 'score (0–10)',
+        frequency: 'Daily',
+      },
+    ]);
+    mockFetchMeasurements.mockResolvedValue([
+      { id: 'e', category_id: 'h', value: '9', entry_date: '2026-10-10' },
+    ]);
+    const { result } = renderHook(
+      () => useAppetiteCheckIn('2026-10-10', 'appetite', displayName),
+      { wrapper: createQueryWrapper(queryClient) }
+    );
+    await waitFor(() => expect(result.current.hasSavedValues).toBe(true));
+    expect(result.current.loadedValues.hunger).toBe(9);
+    expect(result.current.loadedValues.fullness).toBe(5);
   });
 });

@@ -6,6 +6,20 @@ The Check-In page in SparkyFitness allows you to quickly log your daily progress
 
 Log your weight, height, steps, body metrics, and any custom categories you've created. See [Measurements](/features/measurements) for more information.
 
+### Hunger & fullness
+
+The **Hunger & fullness** card at the top of the Measurements tab is a short daily check-in for anyone watching what they eat, whether or not you take medication. Rate three things from 0 (not at all) to 10 (extremely):
+
+- **Hunger** – how hungry you felt during the day.
+- **Fullness** – how full and satisfied your meals left you.
+- **Cravings** – how much you kept thinking about food or wanted something specific.
+
+Pick the day with the date control and press **Save check-in**. You can come back and change a day's scores at any time; saving again replaces them. In the mobile app the same card sits at the top of **Measurements**.
+
+The scores are saved as daily measurements, so they appear in [Reports](/features/reports) next to the calories you ate each day. If you use the GLP-1 daily check-in on the Medications page, it is the same check-in: hunger, fullness and cravings (called *food noise* there) are stored once per day, and whichever card you save from, the other shows the same values. The GLP-1 card also asks about energy.
+
+The card can be switched off separately on the website and in the mobile app (the `appetite` optional feature). Switching it off only hides the card and its report; your saved scores stay. People with Check-in access to your account (see [Family & Friends sharing](/features/family-friends-sharing)) can see and log these scores, as with any other measurement.
+
 ## Fasting & Mood tab
 
 The top of this tab has two cards side by side:

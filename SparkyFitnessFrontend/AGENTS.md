@@ -1,6 +1,6 @@
 # AGENTS.md
 
-_Last updated: 2026-11-13_
+_Last updated: 2026-11-16_
 
 SparkyFitness Frontend is the React web app for the SparkyFitness monorepo. Use this file as the primary guide for work inside `SparkyFitnessFrontend/`.
 
@@ -113,6 +113,7 @@ When searching, ignore `node_modules/`, `dist/`, and every locale except `public
 
 - Barcode source comparison: `components/FoodSearch/BarcodeSearchResult.tsx`, `hooks/Foods/useBarcodeSearchResult.ts`, and `api/Foods/foodService.ts` use the shared barcode API contracts. Normal scans keep the selected/default provider behavior. Local hits remain visible and Other sources loads alternatives on request. Provider credentials belong to the signed-in account; lookup and alternatives cache keys also include the active profile for local matches. Comparison nutrition uses shared `barcodeNutritionPreview`; import retains the selected source's identity and original portions.
 
+- Hunger, fullness & cravings: `pages/CheckIn/AppetiteCheckIn.tsx` (the card on Check-in → Measurements, `variant="appetite"`, and the GLP-1 daily check-in on Medications, `variant="glp1"`; labels in `utils/appetiteLabels.ts`) saves daily custom measurements through the shared `utils/appetiteCheckIn.ts`; while the card shows, `CheckIn.tsx` drops its categories from `CheckInForm`. Reports → Measurements shows `pages/Reports/AppetiteTrendCard.tsx` (scores over calories eaten). Both are gated by `useWebFeatureEnabled('appetite')` (`hooks/Settings/useFeatureChoices.ts` over `GET /api/user-preferences/features`; false until loaded or unreadable).
 - Routing/navigation/permission issue: `src/App.tsx` (router, `PrivateRoute`, `PermissionRoute`) and `src/layouts/MainLayout.tsx`.
 - Main tabs a person can hide (Settings > Profile & Account > Tabs, `pages/Settings/WebTabsSettings.tsx`): the owner's module tabs, their labels, icons and + menu entries come from `constants/webTabs.ts` (`visibleModuleTabs`; cycle still follows `cycle_settings.enabled`). The choice is a Customize layout row (`page_key` `web-tabs`, ids from the shared `WEB_HIDEABLE_TAB_IDS`) read and written by `hooks/Settings/useHiddenWebTabs.ts`: nothing hidden while loading or acting for someone else, the cache is the session's source of truth (no refetch on focus) and saves run one at a time with the whole list. The switches only work once the saved list has loaded (`editState`, with a Retry when the load fails) and never while acting for someone else; only the last queued save may write its answer or reread the list, a tap cancels a reread still in flight, and a save whose cached list was cleared meanwhile (another account took over) never writes its answer. Hiding only changes navigation: the routes stay open, and the Diary links that lead only to a hidden tab (`DailyProgress` Enter Measurements, `RunProgramBanner` Open program) are dropped. Components that call the hook need it mocked in tests rendered without a `QueryClientProvider`.
 - API/error-toast issue: `src/api/api.ts`, then the domain client in `src/api/<Domain>/`, then the query/mutation `meta` in the calling hook.

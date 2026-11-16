@@ -49,6 +49,8 @@ import {
   compareDays,
   addDays,
   instantToDay,
+  appetiteMetric,
+  type AppetiteMetricKey,
 } from '@workspace/shared';
 import {
   useMedicationDisplayPreferences,
@@ -361,12 +363,12 @@ const MedicationReports = ({
     });
 
     // Custom Measurements for GLP-1 Check-ins
-    const hungerCat = customCategories.find((c) => c.name === 'GLP Hunger');
-    const foodNoiseCat = customCategories.find(
-      (c) => c.name === 'GLP Food Noise'
-    );
-    const fullnessCat = customCategories.find((c) => c.name === 'GLP Fullness');
-    const energyCat = customCategories.find((c) => c.name === 'GLP Energy');
+    const byMetric = (key: AppetiteMetricKey) =>
+      customCategories.find((c) => c.name === appetiteMetric(key).categoryName);
+    const hungerCat = byMetric('hunger');
+    const foodNoiseCat = byMetric('food_noise');
+    const fullnessCat = byMetric('fullness');
+    const energyCat = byMetric('energy');
 
     customMeasurementsData.forEach((m) => {
       const dStr = m.entry_date.split('T')[0];

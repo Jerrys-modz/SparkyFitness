@@ -57,6 +57,7 @@ export const NUTRITION_SECTIONS = [
   'nutrition.insights',
   'nutrition.chart',
   'nutrition.averages',
+  'nutrition.appetite',
   'nutrition.macroSplit',
   'nutrition.goal',
   'nutrition.highlights',

@@ -1,31 +1,6 @@
 import { GLP1_DRUG_PROFILES, INJECTION_SITES } from '@workspace/shared';
 import type { InjectionSite, MedicationPen } from '@workspace/shared';
 
-export type Glp1CheckInMetricKey =
-  'hunger' | 'food_noise' | 'fullness' | 'energy';
-
-/**
- * `categoryName` is the stable identifier shared with the web GLP-1 check-in
- * (it matches on it to find its custom measurement categories), so it must not
- * be localized or renamed.
- */
-export const GLP1_CHECKIN_METRICS: {
-  key: Glp1CheckInMetricKey;
-  categoryName: string;
-  defaultLabel: string;
-}[] = [
-  { key: 'hunger', categoryName: 'GLP Hunger', defaultLabel: 'Hunger' },
-  {
-    key: 'food_noise',
-    categoryName: 'GLP Food Noise',
-    defaultLabel: 'Food noise',
-  },
-  { key: 'fullness', categoryName: 'GLP Fullness', defaultLabel: 'Fullness' },
-  { key: 'energy', categoryName: 'GLP Energy', defaultLabel: 'Energy' },
-];
-
-export const GLP1_CHECKIN_DEFAULT = 5;
-
 /** The selectable sites in the user's rotation order; `unknown` is not drawable. */
 export function resolveMapSites(
   activeSiteIds: string[] | null | undefined

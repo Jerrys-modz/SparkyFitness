@@ -44,7 +44,7 @@ jest.mock('@/hooks/useMedications', () => ({
 }));
 
 // Children with their own data hooks, not under test here.
-jest.mock('@/pages/Medications/GlpDailyCheckIn', () => () => null);
+jest.mock('@/pages/CheckIn/AppetiteCheckIn', () => () => null);
 jest.mock('@/pages/Medications/Glp1QuickLogDialog', () => () => null);
 jest.mock('@/pages/Medications/MedicationLogCalendar', () => () => null);
 
