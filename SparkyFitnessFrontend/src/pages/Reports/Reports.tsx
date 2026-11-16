@@ -26,6 +26,7 @@ import ReportsTables, {
 import ExerciseReportsDashboard from '@/pages/Reports/ExerciseReportsDashboard';
 import SleepReport from '@/pages/Reports/SleepReport';
 import BodyBatteryCard from '@/pages/Reports/BodyBatteryCard';
+import { WeightPlateauCard } from '@/pages/Reports/WeightPlateauCard';
 import RespirationCard from '@/pages/Reports/RespirationCard';
 import GlucoseCard from '@/pages/Reports/GlucoseCard';
 import HeartRateAnalyticsCard from '@/pages/Reports/HeartRateAnalyticsCard';
@@ -267,6 +268,9 @@ const Reports = () => {
       case 'measurements':
         return (
           <div className="space-y-6">
+            <ChartErrorBoundary>
+              <WeightPlateauCard />
+            </ChartErrorBoundary>
             <ChartErrorBoundary>
               <GlucoseCard startDate={startDate} endDate={endDate} />
             </ChartErrorBoundary>

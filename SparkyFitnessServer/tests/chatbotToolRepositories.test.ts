@@ -171,10 +171,12 @@ describe('engagementRepository', () => {
     expect(await engagementRepository.getLastExerciseDate('user-1')).toBeNull();
   });
 
-  it('getRecentWeights defaults to a limit of 7', async () => {
-    await engagementRepository.getRecentWeights('user-1');
-    const [, params] = mockClient.query.mock.calls[0];
-    expect(params).toEqual(['user-1', 7]);
+  it('getWeightsSince reads weigh-ins from the start day on, oldest first', async () => {
+    await engagementRepository.getWeightsSince('user-1', '2026-04-01');
+    const [sql, params] = mockClient.query.mock.calls[0];
+    expect(params).toEqual(['user-1', '2026-04-01']);
+    expect(sql).toContain('entry_date >= $2');
+    expect(sql).toContain('ORDER BY entry_date ASC');
   });
 
   it('getWeeklyLoggedDayCount returns 0 when there are no rows', async () => {

@@ -10684,5 +10684,16 @@
     "cancelled": "Cancelled tool",
     "error": "Error:",
     "cancelledReason": "Cancelled reason:"
+  },
+  "weightPlateau": {
+    "title": "Your weight trend has levelled off",
+    "dismiss": "Dismiss",
+    "summary_one": "Your smoothed weight trend has stayed in a narrow range for {{count}} day ({{weighIns}} weigh-ins).",
+    "summary_other": "Your smoothed weight trend has stayed in a narrow range for {{count}} days ({{weighIns}} weigh-ins).",
+    "intro": "This is common and happens to most people at some point. A few things worth a look:",
+    "suggestionLogging": "Logging: check that most meals, snacks and drinks are logged, weekends included.",
+    "suggestionAdaptive": "Adaptive TDEE: if your calorie target is adaptive, it may still be adjusting to your recent data.",
+    "suggestionNoise": "Water and scale noise: salt, carbohydrates, training, sleep and hormones can hide a change for a week or two.",
+    "suggestionMaintenance": "Time at maintenance: a planned stretch at maintenance calories is a reasonable choice too."
   }
 }

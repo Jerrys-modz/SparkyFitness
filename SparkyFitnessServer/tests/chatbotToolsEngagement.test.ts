@@ -1,16 +1,23 @@
 import { vi, beforeEach, afterEach, describe, expect, it } from 'vitest';
 import { buildEngagementTools } from '../ai/tools/engagementTools.js';
 import engagementRepository from '../models/engagementRepository.js';
+import preferenceService from '../services/preferenceService.js';
 import { toolOpts } from './helpers/toolExecutionOptions.js';
 
 vi.mock('../models/engagementRepository', () => ({
   default: {
     getLastExerciseDate: vi.fn(),
-    getRecentWeights: vi.fn(),
+    getWeightsSince: vi.fn(),
     getWeeklyLoggedDayCount: vi.fn(),
     getLoggedDates: vi.fn(),
     getTodayActivityCounts: vi.fn(),
   },
+}));
+vi.mock('../services/preferenceService', () => ({
+  default: { getUserPreferences: vi.fn() },
+}));
+vi.mock('../db/poolManager', () => ({
+  actorUserIdFor: (userId: string) => userId,
 }));
 vi.mock('../config/logging', () => ({
   log: vi.fn(),
@@ -22,6 +29,12 @@ const DB_ERROR_TEXT =
 
 // pg returns DATE columns as local-midnight Date objects; fixtures mirror that.
 const day = (dayOfMonth: number) => new Date(2026, 5, dayOfMonth);
+
+// A daily weigh-in from May 20 to June 10 that barely moves.
+const flatWeights = Array.from({ length: 22 }, (_, i) => ({
+  weight: i % 2 === 0 ? '80.2' : '80.0',
+  entry_date: new Date(2026, 4, 20 + i),
+}));
 
 function success(title: string, data: unknown): string {
   return `# ${title}\n\n${JSON.stringify(data, null, 2)}`;
@@ -35,6 +48,9 @@ beforeEach(() => {
   // A UTC instant ("today" is computed via todayInZone, so a local-time
   // anchor would make the suite host-timezone-dependent).
   vi.setSystemTime(new Date('2026-06-11T12:00:00Z'));
+  vi.mocked(preferenceService.getUserPreferences).mockResolvedValue({
+    goal_mode: 'cut',
+  } as Awaited<ReturnType<typeof preferenceService.getUserPreferences>>);
   tools = buildEngagementTools('user-1', 'UTC');
 });
 
@@ -47,10 +63,9 @@ describe('sparky_check_engagement', () => {
     vi.mocked(engagementRepository.getLastExerciseDate).mockResolvedValue(
       day(1)
     );
-    vi.mocked(engagementRepository.getRecentWeights).mockResolvedValue([
-      { weight: '80.2', entry_date: day(10) },
-      { weight: '80.1', entry_date: day(9) },
-    ]);
+    vi.mocked(engagementRepository.getWeightsSince).mockResolvedValue(
+      flatWeights
+    );
     vi.mocked(engagementRepository.getWeeklyLoggedDayCount).mockResolvedValue(
       5
     );
@@ -67,7 +82,7 @@ describe('sparky_check_engagement', () => {
           {
             type: 'weight_plateau',
             message:
-              "Your weight has been stable for the past week. Consider adjusting your routine if you're trying to change.",
+              'The weight trend has been flat for 22 days (22 weigh-ins) while the goal is losing weight. This is common: check that logging is complete, see whether the adaptive TDEE is still adjusting, allow for water and scale noise, or consider a stretch at maintenance.',
           },
           {
             type: 'streak_building',
@@ -85,11 +100,40 @@ describe('sparky_check_engagement', () => {
       'user-1',
       '2026-06-11'
     );
+    expect(engagementRepository.getWeightsSince).toHaveBeenCalledWith(
+      'user-1',
+      '2026-03-14'
+    );
+  });
+
+  it('reports no plateau at maintenance', async () => {
+    vi.mocked(preferenceService.getUserPreferences).mockResolvedValue({
+      goal_mode: 'maintain',
+    } as Awaited<ReturnType<typeof preferenceService.getUserPreferences>>);
+    vi.mocked(engagementRepository.getLastExerciseDate).mockResolvedValue(
+      day(10)
+    );
+    vi.mocked(engagementRepository.getWeightsSince).mockResolvedValue(
+      flatWeights
+    );
+    vi.mocked(engagementRepository.getWeeklyLoggedDayCount).mockResolvedValue(
+      2
+    );
+
+    const result = await tools.sparky_check_engagement.execute!({}, opts);
+
+    expect(result).toBe(
+      success('Engagement Triggers', {
+        triggers: [],
+        trigger_count: 0,
+        checked_at: new Date().toISOString(),
+      })
+    );
   });
 
   it('reports no_workouts and achievement for a workout-free week of logging', async () => {
     vi.mocked(engagementRepository.getLastExerciseDate).mockResolvedValue(null);
-    vi.mocked(engagementRepository.getRecentWeights).mockResolvedValue([]);
+    vi.mocked(engagementRepository.getWeightsSince).mockResolvedValue([]);
     vi.mocked(engagementRepository.getWeeklyLoggedDayCount).mockResolvedValue(
       7
     );
@@ -120,9 +164,9 @@ describe('sparky_check_engagement', () => {
     vi.mocked(engagementRepository.getLastExerciseDate).mockResolvedValue(
       day(10)
     );
-    vi.mocked(engagementRepository.getRecentWeights).mockResolvedValue([
-      { weight: '81', entry_date: day(10) },
+    vi.mocked(engagementRepository.getWeightsSince).mockResolvedValue([
       { weight: '80', entry_date: day(9) },
+      { weight: '81', entry_date: day(10) },
     ]);
     vi.mocked(engagementRepository.getWeeklyLoggedDayCount).mockResolvedValue(
       2

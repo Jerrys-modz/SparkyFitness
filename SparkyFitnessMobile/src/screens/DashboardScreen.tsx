@@ -35,6 +35,7 @@ import FastingCard from '../components/FastingCard';
 import FastingGoalReconciler from '../components/FastingGoalReconciler';
 import HydrationReminderReconciler from '../components/HydrationReminderReconciler';
 import HealthTrendsPager from '../components/HealthTrendsPager';
+import WeightPlateauCard from '../components/WeightPlateauCard';
 import HydrationGauge from '../components/HydrationGauge';
 import CaffeineCard from '../components/CaffeineCard';
 import { useBackgroundWaterSync } from '../hooks/useBackgroundWaterSync';
@@ -909,6 +910,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                     activePage={chartPage}
                     onPageSelected={setChartPage}
                   />
+                  <WeightPlateauCard enabled={isConnected} />
                 </View>
               ) : null;
             case 'trainingLoad':
