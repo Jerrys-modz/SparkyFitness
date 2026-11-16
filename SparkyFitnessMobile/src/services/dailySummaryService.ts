@@ -6,7 +6,10 @@ import {
   calculateFiber,
   calculateCustomNutrientTotals,
 } from './api/foodEntriesApi';
-import { fetchDailySummary } from './api/dailySummaryApi';
+import {
+  fetchDailySummary,
+  type DailySummaryApiResponse,
+} from './api/dailySummaryApi';
 import { resolveCollapsedFoodEntries } from '../utils/loggedMealCollapse';
 import { calculateExerciseStats } from '../utils/workoutSession';
 import type { DailySummary } from '../types/dailySummary';
@@ -41,12 +44,10 @@ export interface DailySummaryRawData {
   calorieCycling?: CalorieCyclingDay;
 }
 
-export async function loadDailySummaryRawData(
-  date: string
-): Promise<DailySummaryRawData> {
-  const data = await fetchDailySummary(date);
-  const foodEntries = await resolveCollapsedFoodEntries(date, data.foodEntries);
-
+export function rawFromDailySummaryResponse(
+  data: DailySummaryApiResponse,
+  foodEntries: FoodEntry[] = data.foodEntries
+): DailySummaryRawData {
   return {
     goals: data.goals,
     foodEntries,
@@ -59,6 +60,14 @@ export async function loadDailySummaryRawData(
     adjustedGoals: data.adjustedGoals ?? null,
     calorieCycling: data.calorieCycling,
   };
+}
+
+export async function loadDailySummaryRawData(
+  date: string
+): Promise<DailySummaryRawData> {
+  const data = await fetchDailySummary(date);
+  const foodEntries = await resolveCollapsedFoodEntries(date, data.foodEntries);
+  return rawFromDailySummaryResponse(data, foodEntries);
 }
 
 export function buildDailySummary(
