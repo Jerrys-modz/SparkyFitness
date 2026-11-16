@@ -20,6 +20,12 @@ interface DiaryWidgetGridProps {
 
 const PAGE_KEY = 'diary';
 
+/**
+ * Widgets hidden until the person turns them on in Customize layout. Weight
+ * figures are not for everyone on the first screen of the day.
+ */
+const DIARY_DEFAULT_HIDDEN = ['weightProgress'];
+
 const diaryDefaultLayouts = (widgetKeys: string[]): DashboardLayouts =>
   generateDefaultLayouts(widgetKeys.filter(isMealWidgetKey));
 
@@ -31,6 +37,7 @@ const DiaryWidgetGrid = ({
     pageKey={PAGE_KEY}
     widgets={widgets}
     generateDefaultLayouts={diaryDefaultLayouts}
+    defaultHidden={DIARY_DEFAULT_HIDDEN}
     toolbarContainer={toolbarContainer}
   />
 );
