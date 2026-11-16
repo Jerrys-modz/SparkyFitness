@@ -215,6 +215,7 @@ import ActiveWorkoutKeepAwake from './src/components/ActiveWorkoutKeepAwake';
 import MedicationReminderReconciler from './src/components/MedicationReminderReconciler';
 import MoodCheckinReminderReconciler from './src/components/MoodCheckinReminderReconciler';
 import OralCareReminderReconciler from './src/components/OralCareReminderReconciler';
+import WeighInReminderReconciler from './src/components/WeighInReminderReconciler';
 import { useNativeIOSTabsActive, useNativeIOSHeadersActive } from './src/services/nativeTabBarPreference';
 import { useWidgetLanguageRefresh } from './src/hooks/useWidgetLanguageRefresh';
 import { useIOSWidgetLanguageRefresh } from './src/hooks/useIOSWidgetLanguageRefresh';
@@ -1572,6 +1573,7 @@ function AppContent() {
         <MedicationReminderReconciler />
         <MoodCheckinReminderReconciler />
         <OralCareReminderReconciler />
+        <WeighInReminderReconciler />
         <SafeAreaToast />
         </LightboxProvider>
       </SafeAreaProvider>

@@ -264,11 +264,11 @@ const customEntry = (overrides: Record<string, unknown> = {}) => ({
 let lastQueryClient: QueryClient | null = null;
 let lastRoute: ScreenProps['route'] | null = null;
 
-const renderScreen = () => {
+const renderScreen = (params: { focusWeight?: boolean } = {}) => {
   const route: ScreenProps['route'] = {
     key: 'MeasurementsAdd-key',
     name: 'MeasurementsAdd',
-    params: { date: ENTRY_DATE },
+    params: { date: ENTRY_DATE, ...params },
   };
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -413,6 +413,13 @@ describe('MeasurementsAddScreen — omitted vs null save semantics', () => {
       mutateAsync: jest.fn().mockResolvedValue(undefined),
       isPending: false,
     } as unknown as ReturnType<typeof useDeleteCustomMeasurement>);
+  });
+
+  test('a weigh-in reminder tap focuses the weight field, other opens do not', () => {
+    expect(
+      getField(renderScreen({ focusWeight: true }), 'weight').props.autoFocus
+    ).toBe(true);
+    expect(getField(renderScreen(), 'weight').props.autoFocus).toBe(false);
   });
 
   test('fields left empty that were never prefilled are omitted from the payload', async () => {

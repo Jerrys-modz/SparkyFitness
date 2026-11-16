@@ -482,7 +482,13 @@ export type RootStackParamList = {
   Sync: undefined;
   ImportHistory: undefined;
   MeasurementsAdd:
-    { date?: string; guidedCheckIn?: GuidedCheckInParams } | undefined;
+    | {
+        date?: string;
+        guidedCheckIn?: GuidedCheckInParams;
+        /** Focus the weight field on open (a weigh-in reminder tap). */
+        focusWeight?: boolean;
+      }
+    | undefined;
   /**
    * Progress photos: one day's three angles with their management, over a
    * timeline of every check-in photo with that day's weight. `date` picks the

@@ -216,6 +216,7 @@ const MeasurementsAddScreen: React.FC<Props> = ({ navigation, route }) => {
   const initialDate =
     route.params?.date ?? useDiaryDateStore.getState().selectedDate;
   const [selectedDate, setSelectedDate] = useState<string>(initialDate);
+  const focusWeight = route.params?.focusWeight === true;
   // Step 2 of the guided check-in, which keeps the day the check-in started on.
   const guidedCheckIn = useGuidedCheckIn({
     navigation,
@@ -1587,6 +1588,7 @@ const MeasurementsAddScreen: React.FC<Props> = ({ navigation, route }) => {
                       )}
                       testID="field-weightStones"
                       returnKeyType="done"
+                      autoFocus={focusWeight}
                     />
                   </View>
                   <View className="flex-1">
@@ -1619,6 +1621,7 @@ const MeasurementsAddScreen: React.FC<Props> = ({ navigation, route }) => {
                   })}
                   testID="field-weight"
                   returnKeyType="done"
+                  autoFocus={focusWeight}
                 />
               )}
               {renderClearHint('weight')}

@@ -1,6 +1,6 @@
 import React from 'react';
 import { fireEvent, render } from '@testing-library/react-native';
-import WeekdaySheet from '../../../src/components/medications/WeekdaySheet';
+import WeekdaySheet from '../../src/components/WeekdaySheet';
 
 describe('WeekdaySheet', () => {
   it('adds a tapped day and emits the selection sorted', () => {
