@@ -3968,6 +3968,8 @@
         "paceRed": "This date needs {{percent}}% of your body weight a week, which is very fast. A later date is easier to keep up.",
         "belowFloor": "This pace would put calories under the safe minimum.",
         "belowFloorEarliest": "This pace would put calories under the safe minimum. The earliest date reachable above it is about {{date}}.",
+        "belowFloorOff": "This pace would put calories under the standard safe minimum. Your safety floor is off, so nothing will hold it back.",
+        "useFastestAllowed": "Use the fastest allowed: lose {{pace}} {{unit}} a week",
         "useLossPace": "Use lose {{pace}} {{unit}} a week",
         "useGainPace": "Use gain {{pace}} {{unit}} a week",
         "useHighCut": "Use {{mode}}",

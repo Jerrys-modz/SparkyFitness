@@ -104,6 +104,69 @@ describe('GoalWeightPlanCard', () => {
     expect(screen.getByText(/earliest date reachable above it/)).toBeTruthy();
   });
 
+  describe('below the safety floor', () => {
+    const below = {
+      requiredKgPerWeek: -1,
+      requiredDailyKcal: -857,
+      suggestedCalories: 1540,
+      belowFloor: true,
+      floorKcal: 1900,
+      earliestDate: '2027-03-30',
+      fastestKgPerWeek: -0.58,
+    };
+
+    it('Standard or Custom floor: no button for the unreachable pace, the fastest allowed one instead', async () => {
+      renderCard(
+        data({ ...below, floorEnforced: true, highCutKgPerWeek: -0.9 })
+      );
+      expect(screen.getByText(/earliest date reachable above it/)).toBeTruthy();
+      expect(screen.queryByTestId('goal-weight-plan-use-pace')).toBeNull();
+      expect(screen.queryByTestId('goal-weight-plan-use-high-cut')).toBeNull();
+      fireEvent.press(screen.getByTestId('goal-weight-plan-use-fastest'));
+      await waitFor(() =>
+        expect(updatePreferences).toHaveBeenCalledWith({
+          goal_mode: 'weekly',
+          goal_mode_weekly_change_kg: -0.58,
+        })
+      );
+    });
+
+    it('Disabled floor: still warns, but keeps the button for the pace', async () => {
+      renderCard(data({ ...below, floorEnforced: false }));
+      expect(screen.getByText(/safety floor is off/)).toBeTruthy();
+      expect(screen.queryByTestId('goal-weight-plan-use-fastest')).toBeNull();
+      fireEvent.press(screen.getByTestId('goal-weight-plan-use-pace'));
+      await waitFor(() =>
+        expect(updatePreferences).toHaveBeenCalledWith({
+          goal_mode: 'weekly',
+          goal_mode_weekly_change_kg: -1,
+        })
+      );
+    });
+
+    it('an older server without the flag still holds the floor', () => {
+      renderCard(data(below));
+      expect(screen.queryByTestId('goal-weight-plan-use-pace')).toBeNull();
+      expect(screen.getByTestId('goal-weight-plan-use-fastest')).toBeTruthy();
+    });
+
+    it('offers nothing to apply when no pace is reachable above the floor', () => {
+      renderCard(
+        data({
+          ...below,
+          floorEnforced: true,
+          earliestDate: null,
+          fastestKgPerWeek: null,
+        })
+      );
+      expect(
+        screen.getByText('This pace would put calories under the safe minimum.')
+      ).toBeTruthy();
+      expect(screen.queryByTestId('goal-weight-plan-use-pace')).toBeNull();
+      expect(screen.queryByTestId('goal-weight-plan-use-fastest')).toBeNull();
+    });
+  });
+
   it('offers maintain once the goal is reached', async () => {
     renderCard(data({ status: 'reached', requiredKgPerWeek: null }));
     fireEvent.press(screen.getByTestId('goal-weight-plan-maintain'));

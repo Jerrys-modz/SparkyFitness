@@ -3,15 +3,14 @@ import {
   buildGoalWeightPlan,
   compareDays,
   computeDailyWeightTrend,
-  getClinicalCalorieMinimum,
   todayInZone,
 } from '@workspace/shared';
 import type { GoalWeightPlanResponse } from '@workspace/shared';
 import onboardingRepository from '../models/onboardingRepository.js';
 import preferenceRepository from '../models/preferenceRepository.js';
 import reportRepository from '../models/reportRepository.js';
-import userRepository from '../models/userRepository.js';
 import { getCalorieTargetReview } from './calorieTargetReviewService.js';
+import { getEffectiveCalorieSafetyFloor } from './calorieSafetyFloorService.js';
 import { loadUserTimezone } from '../utils/timezoneLoader.js';
 
 /** Weigh-ins read for the trend: enough to cover a planned path's start. */
@@ -77,18 +76,18 @@ async function getGoalWeightPlan(
     ? [...daily].reverse().find((p) => compareDays(p.date, goal.setOn!) <= 0)
     : undefined;
 
-  const [review, profile] = await Promise.all([
+  const [review, safetyFloor] = await Promise.all([
     getCalorieTargetReview(userId),
-    userRepository.getUserProfile(userId) as Promise<
-      { gender?: string | null } | undefined
-    >,
+    getEffectiveCalorieSafetyFloor(userId, today),
   ]);
   const maintenanceKcal =
     Number.isFinite(review.maintenanceKcal) && review.maintenanceKcal > 0
       ? review.maintenanceKcal
       : null;
-  const gender =
-    profile?.gender?.toLowerCase() === 'female' ? 'female' : 'male';
+  // The floor the calorie engine really holds the target at. With the floor
+  // turned off nothing is held, so the standard floor is only advice: the pace
+  // is still warned about but stays reachable.
+  const floorEnforced = safetyFloor.enforcedKcal !== null;
 
   const plan = buildGoalWeightPlan({
     today,
@@ -99,7 +98,8 @@ async function getGoalWeightPlan(
     setOn: startPoint ? goal.setOn : null,
     settingKgPerWeek: maintenanceKcal === null ? null : review.impliedKgPerWeek,
     maintenanceKcal,
-    floorKcal: getClinicalCalorieMinimum(gender),
+    floorKcal: safetyFloor.enforcedKcal ?? safetyFloor.standardKcal,
+    floorEnforced,
   });
   return { ...empty, currentKg, plan };
 }

@@ -1,17 +1,8 @@
 import React from 'react';
-import {
-  act,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from '@testing-library/react-native';
+import { fireEvent, render, screen } from '@testing-library/react-native';
 import GoalWeightSection from '../../src/components/GoalWeightSection';
-import {
-  useGoalWeightPlan,
-  useProfile,
-  useSetTargetWeight,
-} from '../../src/hooks/useProfile';
+import { useGoalWeightDraft } from '../../src/hooks/useGoalWeightDraft';
+import { useGoalWeightPlan, useProfile } from '../../src/hooks/useProfile';
 import { usePreferences } from '../../src/hooks/usePreferences';
 
 jest.mock('../../src/hooks/useProfile');
@@ -19,16 +10,27 @@ jest.mock('../../src/hooks/usePreferences', () => ({
   usePreferences: jest.fn(),
 }));
 
-const mockSave = jest.fn().mockResolvedValue({});
+// The screen owns the draft and its Save; the section only edits it.
+const Harness: React.FC<{ onSave?: (value: unknown) => void }> = ({
+  onSave,
+}) => {
+  const draft = useGoalWeightDraft();
+  return (
+    <>
+      <GoalWeightSection draft={draft} />
+      {onSave ? <SaveProbe onSave={() => onSave(draft.buildSave())} /> : null}
+    </>
+  );
+};
+const { Pressable } =
+  jest.requireActual<typeof import('react-native')>('react-native');
+const SaveProbe: React.FC<{ onSave: () => void }> = ({ onSave }) => (
+  <Pressable testID="screen-save" onPress={onSave} />
+);
 
 beforeEach(() => {
-  mockSave.mockClear();
   (useProfile as jest.Mock).mockReturnValue({
     profile: { target_weight: null },
-  });
-  (useSetTargetWeight as jest.Mock).mockReturnValue({
-    saveTargetWeight: mockSave,
-    isSaving: false,
   });
   (useGoalWeightPlan as jest.Mock).mockReturnValue({ plan: undefined });
   (usePreferences as jest.Mock).mockReturnValue({
@@ -37,42 +39,44 @@ beforeEach(() => {
 });
 
 describe('GoalWeightSection', () => {
-  it('saves a pounds entry as kilograms', async () => {
-    render(<GoalWeightSection />);
-    fireEvent.changeText(screen.getByTestId('goal-weight-input'), '154.3');
-    fireEvent.press(screen.getByTestId('goal-weight-save'));
-    await waitFor(() => expect(mockSave).toHaveBeenCalledTimes(1));
-    expect(mockSave.mock.calls[0][0].targetWeightKg).toBeCloseTo(69.99, 1);
-    expect(mockSave.mock.calls[0][0].targetDate).toBeUndefined();
+  it('has no save button of its own', () => {
+    render(<Harness />);
+    expect(screen.queryByTestId('goal-weight-save')).toBeNull();
+    expect(
+      screen.getByText('Changes are saved with Save at the top.')
+    ).toBeTruthy();
   });
 
-  it('clears a saved goal', async () => {
+  it("hands a pounds entry to the screen's Save as kilograms", () => {
+    const onSave = jest.fn();
+    render(<Harness onSave={onSave} />);
+    fireEvent.changeText(screen.getByTestId('goal-weight-input'), '154.3');
+    fireEvent.press(screen.getByTestId('screen-save'));
+    const result = onSave.mock.calls[0][0];
+    expect(result.kind).toBe('save');
+    expect(result.targetWeightKg).toBeCloseTo(69.99, 1);
+  });
+
+  it('stages Clear: the field empties and Save would clear the goal', () => {
     (useProfile as jest.Mock).mockReturnValue({
       profile: { target_weight: '70.00' },
     });
-    render(<GoalWeightSection />);
+    const onSave = jest.fn();
+    render(<Harness onSave={onSave} />);
     fireEvent.press(screen.getByTestId('goal-weight-clear'));
-    await waitFor(() =>
-      expect(mockSave).toHaveBeenCalledWith({ targetWeightKg: null })
-    );
-  });
-});
-
-describe('GoalWeightSection edge cases', () => {
-  it('keeps an edit typed while a save is pending', async () => {
-    let resolveSave: () => void = () => {};
-    mockSave.mockImplementationOnce(
-      () => new Promise<void>((resolve) => (resolveSave = resolve))
-    );
-    render(<GoalWeightSection />);
-    const input = screen.getByTestId('goal-weight-input');
-    fireEvent.changeText(input, '154');
-    fireEvent.press(screen.getByTestId('goal-weight-save'));
-    fireEvent.changeText(input, '160');
-    await act(async () => {
-      resolveSave();
+    expect(screen.getByTestId('goal-weight-input').props.value).toBe('');
+    fireEvent.press(screen.getByTestId('screen-save'));
+    expect(onSave).toHaveBeenCalledWith({
+      kind: 'save',
+      targetWeightKg: null,
+      targetDate: undefined,
     });
-    expect(screen.getByTestId('goal-weight-input').props.value).toBe('160');
+  });
+
+  it('shows the range message for an invalid weight', () => {
+    render(<Harness />);
+    fireEvent.changeText(screen.getByTestId('goal-weight-input'), '0');
+    expect(screen.getByTestId('goal-weight-error')).toBeTruthy();
   });
 
   it('does not accept input until preferences have loaded', () => {
@@ -80,33 +84,34 @@ describe('GoalWeightSection edge cases', () => {
       preferences: undefined,
       isLoading: true,
     });
-    render(<GoalWeightSection />);
+    render(<Harness />);
     expect(screen.getByTestId('goal-weight-input').props.editable).toBe(false);
   });
 });
 
 describe('GoalWeightSection target date', () => {
-  it('removes a saved date without rounding the saved weight', async () => {
+  beforeEach(() => {
     (useProfile as jest.Mock).mockReturnValue({
       profile: { target_weight: '70.04', target_weight_date: '2099-03-01' },
     });
-    render(<GoalWeightSection />);
-    fireEvent.press(screen.getByTestId('goal-weight-date-clear'));
-    fireEvent.press(screen.getByTestId('goal-weight-save'));
-    await waitFor(() =>
-      expect(mockSave).toHaveBeenCalledWith({
-        targetWeightKg: 70.04,
-        targetDate: null,
-      })
-    );
   });
 
-  it('keeps Save off until the weight or date changes', () => {
-    (useProfile as jest.Mock).mockReturnValue({
-      profile: { target_weight: '70.00', target_weight_date: '2099-03-01' },
+  it('stages Remove date without rounding the saved weight', () => {
+    const onSave = jest.fn();
+    render(<Harness onSave={onSave} />);
+    fireEvent.press(screen.getByTestId('goal-weight-date-clear'));
+    fireEvent.press(screen.getByTestId('screen-save'));
+    expect(onSave).toHaveBeenCalledWith({
+      kind: 'save',
+      targetWeightKg: 70.04,
+      targetDate: null,
     });
-    render(<GoalWeightSection />);
-    fireEvent.press(screen.getByTestId('goal-weight-save'));
-    expect(mockSave).not.toHaveBeenCalled();
+  });
+
+  it('has nothing to save until the weight or date changes', () => {
+    const onSave = jest.fn();
+    render(<Harness onSave={onSave} />);
+    fireEvent.press(screen.getByTestId('screen-save'));
+    expect(onSave).toHaveBeenCalledWith({ kind: 'unchanged' });
   });
 });

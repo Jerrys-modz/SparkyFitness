@@ -140,6 +140,80 @@ describe('GoalWeightPlanPanel', () => {
     ).toBeInTheDocument();
   });
 
+  describe('below the safety floor', () => {
+    const below = {
+      requiredKgPerWeek: -1,
+      requiredDailyKcal: -857,
+      suggestedCalories: 1540,
+      belowFloor: true,
+      floorKcal: 1900,
+      earliestDate: '2027-03-30',
+      fastestKgPerWeek: -0.58,
+    };
+
+    it('Standard or Custom floor: no button for the unreachable pace, the fastest allowed one instead', async () => {
+      render(
+        <GoalWeightPlanPanel
+          data={data({ ...below, floorEnforced: true, highCutKgPerWeek: -0.9 })}
+        />
+      );
+      expect(screen.getByTestId('goal-weight-below-floor')).toHaveTextContent(
+        /earliest date reachable above it is about 2027-03-30/
+      );
+      expect(screen.queryByText('Use lose 1 kg a week')).toBeNull();
+      expect(screen.queryByText('Use High cut')).toBeNull();
+      fireEvent.click(
+        screen.getByText('Use the fastest allowed: lose 0.58 kg a week')
+      );
+      await waitFor(() =>
+        expect(saveAllPreferences).toHaveBeenCalledWith({
+          goalMode: 'weekly',
+          goalModeWeeklyChangeKg: -0.58,
+        })
+      );
+    });
+
+    it('Disabled floor: still warns, but keeps the button for the pace', async () => {
+      render(
+        <GoalWeightPlanPanel data={data({ ...below, floorEnforced: false })} />
+      );
+      expect(screen.getByTestId('goal-weight-below-floor')).toHaveTextContent(
+        /safety floor is off/
+      );
+      expect(screen.queryByText(/fastest allowed/)).toBeNull();
+      fireEvent.click(screen.getByText('Use lose 1 kg a week'));
+      await waitFor(() =>
+        expect(saveAllPreferences).toHaveBeenCalledWith({
+          goalMode: 'weekly',
+          goalModeWeeklyChangeKg: -1,
+        })
+      );
+    });
+
+    it('an older server without the flag still holds the floor', () => {
+      render(<GoalWeightPlanPanel data={data(below)} />);
+      expect(screen.queryByText('Use lose 1 kg a week')).toBeNull();
+      expect(screen.getByText(/fastest allowed/)).toBeInTheDocument();
+    });
+
+    it('offers nothing to apply when no pace is reachable above the floor', () => {
+      render(
+        <GoalWeightPlanPanel
+          data={data({
+            ...below,
+            floorEnforced: true,
+            earliestDate: null,
+            fastestKgPerWeek: null,
+          })}
+        />
+      );
+      expect(screen.getByTestId('goal-weight-below-floor')).toHaveTextContent(
+        'This pace would put calories under the safe minimum.'
+      );
+      expect(screen.queryByRole('button')).toBeNull();
+    });
+  });
+
   it('asks for a new date once it has passed, without moving it', () => {
     render(
       <GoalWeightPlanPanel

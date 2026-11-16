@@ -9093,14 +9093,13 @@
       "description": "Your target weight. Weight charts use it to show your progress.",
       "placeholder": "Goal weight ({{unit}})",
       "invalid": "Enter a weight above zero.",
-      "save": "Save goal weight",
       "clear": "Clear",
-      "saved": "Goal weight saved.",
-      "saveFailed": "Failed to save goal weight.",
       "dateLabel": "Target date (optional)",
       "pickDate": "Pick a date",
       "removeDate": "Remove date",
-      "dateHint": "Pick a day to see the weekly pace it needs. Your calorie goal only changes if you choose to use that pace."
+      "dateHint": "Pick a day to see the weekly pace it needs. Your calorie goal only changes if you choose to use that pace.",
+      "saveHint": "Changes are saved with Save at the top.",
+      "dateNeedsWeight": "Enter a goal weight to go with the target date."
     },
     "goalWeightPlan": {
       "reached": "You have reached {{goal}}.",
@@ -9127,7 +9126,9 @@
       "useHighCut": "Use {{mode}}",
       "switchToMaintain": "Switch calorie goal to {{mode}}",
       "bodyFat": "Body fat goal",
-      "dietPhases": "Diet phases"
+      "dietPhases": "Diet phases",
+      "belowFloorOff": "This pace would put calories under the standard safe minimum. Your safety floor is off, so nothing will hold it back.",
+      "useFastestAllowed": "Use the fastest allowed: lose {{pace}} {{unit}} a week"
     },
     "meals": {
       "mustBe100": "Meal percentages must total 100%.",

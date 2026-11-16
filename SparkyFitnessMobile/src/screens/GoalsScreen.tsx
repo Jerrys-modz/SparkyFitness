@@ -22,7 +22,8 @@ import {
 } from '../hooks';
 import type { MealType } from '../types/mealTypes';
 import { useLatestMeasurementsOnOrBefore } from '../hooks/useMeasurements';
-import { useSetTargetBodyFat } from '../hooks/useProfile';
+import { useSetTargetBodyFat, useSetTargetWeight } from '../hooks/useProfile';
+import { useGoalWeightDraft } from '../hooks/useGoalWeightDraft';
 import {
   BODY_FAT_GOAL_MAX_PERCENT,
   BODY_FAT_GOAL_MIN_PERCENT,
@@ -395,7 +396,9 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
       ? ''
       : formatLocalizedNumber(savedBodyFat, { maximumFractionDigits: 1 });
   const [bodyFatDraft, setBodyFatDraft] = useState<string | null>(null);
-  const isPending = isPendingGoals || isSavingBodyFat;
+  const goalWeight = useGoalWeightDraft();
+  const { saveTargetWeight, isSaving: isSavingWeight } = useSetTargetWeight();
+  const isPending = isPendingGoals || isSavingBodyFat || isSavingWeight;
   const bodyFatText = bodyFatDraft ?? savedBodyFatText;
   const bodyFatInvalid = isBodyFatDraftInvalid(bodyFatDraft);
   const { latestMeasurements } = useLatestMeasurementsOnOrBefore({ date });
@@ -858,8 +861,30 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
       });
       return;
     }
+    // The goal weight and its date, checked before anything is written.
+    const weightUpdate = goalWeight.buildSave();
+    if (weightUpdate.kind === 'invalid') {
+      Toast.show({
+        type: 'error',
+        text1:
+          weightUpdate.reason === 'date-without-weight'
+            ? t('goals.goalWeight.dateNeedsWeight', {
+                defaultValue: 'Enter a goal weight to go with the target date.',
+              })
+            : t('goals.goalWeight.invalid', {
+                defaultValue: 'Enter a weight above zero.',
+              }),
+      });
+      return;
+    }
     try {
       await saveGoals({ date, goals: next, cascade: true });
+      if (weightUpdate.kind === 'save') {
+        await saveTargetWeight({
+          targetWeightKg: weightUpdate.targetWeightKg,
+          targetDate: weightUpdate.targetDate,
+        });
+      }
       if (bodyFatUpdate.kind === 'save') {
         await saveTargetBodyFat(bodyFatUpdate.value);
       }
@@ -895,6 +920,8 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
     bodyFatDraft,
     savedBodyFat,
     saveTargetBodyFat,
+    goalWeight,
+    saveTargetWeight,
     onDone,
     t,
   ]);
@@ -1308,7 +1335,7 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
           {sectionTitle(
             t('goals.sections.goalWeight', { defaultValue: 'Goal weight' })
           )}
-          <GoalWeightSection />
+          <GoalWeightSection draft={goalWeight} />
           {sectionTitle(
             t('goals.sections.bodyFat', { defaultValue: 'Body fat goal' })
           )}

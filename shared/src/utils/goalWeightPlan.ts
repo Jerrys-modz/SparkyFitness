@@ -54,8 +54,18 @@ export interface GoalWeightPlanInput {
   settingKgPerWeek: number | null;
   /** Maintenance estimate (kcal a day), when known. */
   maintenanceKcal: number | null;
-  /** Lowest calorie target worth suggesting, when known. */
+  /**
+   * The calorie floor to judge the pace against: the person's effective safety
+   * floor when one is enforced, otherwise the standard floor as advice. Null
+   * when unknown.
+   */
   floorKcal: number | null;
+  /**
+   * Whether the calorie engine really holds the target at `floorKcal`. False
+   * when the person turned the floor off: the pace is then still warned about
+   * but is reachable. Defaults to true.
+   */
+  floorEnforced?: boolean;
 }
 
 export interface GoalWeightSchedule {
@@ -83,8 +93,14 @@ export interface GoalWeightPlan {
   suggestedCalories: number | null;
   /** The suggested calories would be under the floor. */
   belowFloor: boolean;
+  /** The floor `belowFloor` was judged against (kcal a day), when one was given. */
+  floorKcal: number | null;
+  /** True when the engine holds the target at the floor, so a below-floor pace cannot be reached. */
+  floorEnforced: boolean;
   /** When the date needs calories under the floor: the earliest day reachable at the floor. */
   earliestDate: string | null;
+  /** When below the floor: the fastest signed pace the floor allows (kg a week, negative). */
+  fastestKgPerWeek: number | null;
   settingKgPerWeek: number | null;
   /** Day the setting's pace reaches the goal, as a straight line; null when it does not head there. */
   settingReachDate: string | null;
@@ -133,6 +149,7 @@ export function buildGoalWeightPlan(
 ): GoalWeightPlan {
   const { today, targetDate, goalKg, currentKg, maintenanceKcal, floorKcal } =
     input;
+  const floorEnforced = input.floorEnforced ?? true;
   const settingKgPerWeek =
     input.settingKgPerWeek === null ? null : round2(input.settingKgPerWeek);
   const remainingKg = round2(goalKg - currentKg);
@@ -157,7 +174,10 @@ export function buildGoalWeightPlan(
     requiredDailyKcal: null,
     suggestedCalories: null,
     belowFloor: false,
+    floorKcal,
+    floorEnforced,
     earliestDate: null,
+    fastestKgPerWeek: null,
     highCutKgPerWeek: null,
   } satisfies Omit<GoalWeightPlan, 'status'>;
 
@@ -188,13 +208,14 @@ export function buildGoalWeightPlan(
     suggestedCalories < floorKcal;
 
   let earliestDate: string | null = null;
+  let fastestKgPerWeek: number | null = null;
   if (belowFloor && maintenanceKcal !== null && floorKcal !== null) {
-    const fastestKgPerWeek =
+    const fastest =
       ((floorKcal - maintenanceKcal) * 7) / ENERGY_DENSITY_KCAL_PER_KG;
-    earliestDate =
-      fastestKgPerWeek < 0
-        ? reachDate(today, remainingKg, fastestKgPerWeek)
-        : null;
+    if (fastest < 0) {
+      fastestKgPerWeek = round2(fastest);
+      earliestDate = reachDate(today, remainingKg, fastest);
+    }
   }
 
   let highCutKgPerWeek: number | null = null;
@@ -242,7 +263,10 @@ export function buildGoalWeightPlan(
     requiredDailyKcal,
     suggestedCalories,
     belowFloor,
+    floorKcal,
+    floorEnforced,
     earliestDate,
+    fastestKgPerWeek,
     highCutKgPerWeek,
   };
 }

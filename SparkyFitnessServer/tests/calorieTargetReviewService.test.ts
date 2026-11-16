@@ -3,8 +3,8 @@ import { addDays, ADAPTIVE_TDEE_STABILITY_DAYS } from '@workspace/shared';
 import type { AdaptiveTdeeResult } from '@workspace/shared';
 import { stabilizeAdaptiveTdee } from '../utils/adaptiveTdeeStability.js';
 
-vi.mock('../models/userRepository.js', () => ({
-  default: { getUserProfile: vi.fn() },
+vi.mock('../services/calorieSafetyFloorService.js', () => ({
+  getEffectiveCalorieSafetyFloor: vi.fn(),
 }));
 vi.mock('../services/AdaptiveTdeeService.js', () => ({
   default: { calculateAdaptiveTdee: vi.fn() },
@@ -16,7 +16,7 @@ vi.mock('../utils/timezoneLoader.js', () => ({
   loadUserTimezone: vi.fn().mockResolvedValue('UTC'),
 }));
 
-import userRepository from '../models/userRepository.js';
+import { getEffectiveCalorieSafetyFloor } from '../services/calorieSafetyFloorService.js';
 import adaptiveTdeeService from '../services/AdaptiveTdeeService.js';
 import goalService from '../services/goalService.js';
 import calorieTargetReviewService from '../services/calorieTargetReviewService.js';
@@ -27,9 +27,9 @@ const tdeeMock = adaptiveTdeeService as unknown as {
 const goalsMock = goalService as unknown as {
   getUserGoals: ReturnType<typeof vi.fn>;
 };
-const profileMock = userRepository as unknown as {
-  getUserProfile: ReturnType<typeof vi.fn>;
-};
+const floorMock = getEffectiveCalorieSafetyFloor as unknown as ReturnType<
+  typeof vi.fn
+>;
 
 const tdee = (
   overrides: Partial<AdaptiveTdeeResult> = {}
@@ -49,7 +49,11 @@ const tdee = (
 beforeEach(() => {
   vi.clearAllMocks();
   goalsMock.getUserGoals.mockResolvedValue({ calories: 2000 });
-  profileMock.getUserProfile.mockResolvedValue({ gender: 'male' });
+  floorMock.mockResolvedValue({
+    enforcedKcal: 1500,
+    standardKcal: 1500,
+    mode: 'standard',
+  });
 });
 
 describe('getCalorieTargetReview', () => {
