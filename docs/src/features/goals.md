@@ -8,6 +8,17 @@ SparkyFitness allows you to set and track various fitness and nutrition goals, h
 
 Set your goal weight under **Goals**. It was previously only asked once during onboarding. Enter it in your preferred weight unit (stones and pounds users enter pounds); it is stored in kilograms. **Clear** removes it. The mobile Weight chart uses it for the dashed goal line and the projected goal date. To aim for a body composition instead, see [Body Fat Goal](#body-fat-goal).
 
+### Target date
+
+You can also pick an optional **target date**: the day you want to reach your goal weight (web Goals page, and Settings → Goals in the app). The date never changes your calories on its own. Instead, SparkyFitness shows:
+
+* **The pace the date needs**, for example "lose 0.5 kg a week (about 430 kcal a day under maintenance)", worked out from your current trend weight.
+* **What your current calorie goal gives.** This covers every goal mode (Cut, High cut, Weekly weight change, Manual and the rest), using the same maintenance estimate as the weekly calorie review, plus the day that pace would reach your goal.
+* **Ahead or behind**: how many days you are ahead of or behind a straight path from the day you set the goal to the target date.
+* **Warnings, never blocks**: the same green, yellow and red pace thresholds as Calculation Settings (for loss: above 1% and 1.5% of body weight a week; for gain: 0.25% and 0.5%). When the date would need calories under the safe minimum, the earliest date reachable above it is shown.
+
+When your setting is too slow, too fast, or points the wrong way, you can tap **Use … a week** to switch your calorie goal to **Weekly weight change** at that pace (or **Use High cut** when its pace is close). Nothing changes until you tap. Once the date passes, you are asked to pick a new one; the date is never moved for you. When your trend reaches the goal, you are offered to switch the calorie goal to Maintain.
+
 The destination weight and the desired weekly pace are separate settings. Under [Calculation Settings → Goal Mode](/features/settings/calculation-settings#_4-goal-mode-caloric-deficits), select **Weekly weight change** to choose maintenance, loss, or gain in kg or g per week. The weekly pace adjusts the calorie target; it does not change the saved destination weight.
 
 ## Body Fat Goal

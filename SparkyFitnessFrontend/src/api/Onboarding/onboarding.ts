@@ -1,5 +1,9 @@
 import { apiCall } from '@/api/api';
 import { OnboardingData } from '@/types/onboarding';
+import type {
+  GoalWeightPlanResponse,
+  SetGoalWeightResponse,
+} from '@workspace/shared';
 
 /**
  * Submits the completed onboarding form data to the backend.
@@ -72,17 +76,30 @@ export const resetOnboardingStatus = async () => {
 };
 
 /**
- * Sets or clears the user's goal weight.
- * @param targetWeightKg Goal weight in kilograms, or null to clear it.
+ * Sets or clears the user's goal weight and, when given, its target date.
+ * @param targetWeightKg Goal weight in kilograms, or null to clear it (and its date).
+ * @param targetDate YYYY-MM-DD, null to clear the date, or undefined to keep it.
  */
-export const setTargetWeight = async (targetWeightKg: number | null) => {
+export const setTargetWeight = async (
+  targetWeightKg: number | null,
+  targetDate?: string | null
+): Promise<SetGoalWeightResponse> => {
   return apiCall('/onboarding/target-weight', {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ targetWeight: targetWeightKg }),
+    body: JSON.stringify(
+      targetDate === undefined
+        ? { targetWeight: targetWeightKg }
+        : { targetWeight: targetWeightKg, targetDate }
+    ),
   });
+};
+
+/** Where the goal weight and its target date stand against the calorie goal. */
+export const getGoalWeightPlan = async (): Promise<GoalWeightPlanResponse> => {
+  return apiCall('/onboarding/target-weight/plan', { method: 'GET' });
 };
 
 /**

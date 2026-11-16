@@ -13,4 +13,6 @@ export interface UserProfile {
    * a server from before the body fat goal does not send it.
    */
   target_body_fat_percentage?: string | number | null;
+  /** YYYY-MM-DD day to reach the goal weight; absent from older servers. */
+  target_weight_date?: string | null;
 }
