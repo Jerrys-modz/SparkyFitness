@@ -7,7 +7,11 @@ import {
   waitFor,
 } from '@testing-library/react-native';
 import GoalWeightSection from '../../src/components/GoalWeightSection';
-import { useProfile, useSetTargetWeight } from '../../src/hooks/useProfile';
+import {
+  useGoalWeightPlan,
+  useProfile,
+  useSetTargetWeight,
+} from '../../src/hooks/useProfile';
 import { usePreferences } from '../../src/hooks/usePreferences';
 
 jest.mock('../../src/hooks/useProfile');
@@ -26,6 +30,7 @@ beforeEach(() => {
     saveTargetWeight: mockSave,
     isSaving: false,
   });
+  (useGoalWeightPlan as jest.Mock).mockReturnValue({ plan: undefined });
   (usePreferences as jest.Mock).mockReturnValue({
     preferences: { default_weight_unit: 'lbs' },
   });
@@ -37,7 +42,8 @@ describe('GoalWeightSection', () => {
     fireEvent.changeText(screen.getByTestId('goal-weight-input'), '154.3');
     fireEvent.press(screen.getByTestId('goal-weight-save'));
     await waitFor(() => expect(mockSave).toHaveBeenCalledTimes(1));
-    expect(mockSave.mock.calls[0][0]).toBeCloseTo(69.99, 1);
+    expect(mockSave.mock.calls[0][0].targetWeightKg).toBeCloseTo(69.99, 1);
+    expect(mockSave.mock.calls[0][0].targetDate).toBeUndefined();
   });
 
   it('clears a saved goal', async () => {
@@ -46,7 +52,9 @@ describe('GoalWeightSection', () => {
     });
     render(<GoalWeightSection />);
     fireEvent.press(screen.getByTestId('goal-weight-clear'));
-    await waitFor(() => expect(mockSave).toHaveBeenCalledWith(null));
+    await waitFor(() =>
+      expect(mockSave).toHaveBeenCalledWith({ targetWeightKg: null })
+    );
   });
 });
 
@@ -74,5 +82,31 @@ describe('GoalWeightSection edge cases', () => {
     });
     render(<GoalWeightSection />);
     expect(screen.getByTestId('goal-weight-input').props.editable).toBe(false);
+  });
+});
+
+describe('GoalWeightSection target date', () => {
+  it('removes a saved date without rounding the saved weight', async () => {
+    (useProfile as jest.Mock).mockReturnValue({
+      profile: { target_weight: '70.04', target_weight_date: '2099-03-01' },
+    });
+    render(<GoalWeightSection />);
+    fireEvent.press(screen.getByTestId('goal-weight-date-clear'));
+    fireEvent.press(screen.getByTestId('goal-weight-save'));
+    await waitFor(() =>
+      expect(mockSave).toHaveBeenCalledWith({
+        targetWeightKg: 70.04,
+        targetDate: null,
+      })
+    );
+  });
+
+  it('keeps Save off until the weight or date changes', () => {
+    (useProfile as jest.Mock).mockReturnValue({
+      profile: { target_weight: '70.00', target_weight_date: '2099-03-01' },
+    });
+    render(<GoalWeightSection />);
+    fireEvent.press(screen.getByTestId('goal-weight-save'));
+    expect(mockSave).not.toHaveBeenCalled();
   });
 });

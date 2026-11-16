@@ -691,6 +691,25 @@ export function calculateMinimumMetabolism(
     : formulaBmr;
 }
 
+export type WeeklyChangeSafetyZone = 'green' | 'yellow' | 'red';
+
+/**
+ * How hard a weekly weight change is, as a share of body weight. Loss tolerates
+ * a faster rate than gain: beyond ~0.5%/week, added weight is increasingly fat
+ * rather than muscle, so the gain thresholds are much tighter. The one rule for
+ * the calorie settings preview and the goal weight target date.
+ */
+export function weeklyChangeSafetyZone(
+  percentOfBodyWeightPerWeek: number,
+  isGain: boolean
+): WeeklyChangeSafetyZone {
+  const percent = Math.abs(percentOfBodyWeightPerWeek);
+  const [yellowThreshold, redThreshold] = isGain ? [0.25, 0.5] : [1.0, 1.5];
+  if (percent > redThreshold) return 'red';
+  if (percent > yellowThreshold) return 'yellow';
+  return 'green';
+}
+
 export interface CalorieTargetResult {
   target: number;
   rmr: number;
@@ -709,7 +728,7 @@ export interface CalorieTargetResult {
   /** True when the goal targets weight gain. */
   isGainGoal: boolean;
   /** Rate-of-change safety rating, thresholded per direction. */
-  safetyZone: 'green' | 'yellow' | 'red';
+  safetyZone: WeeklyChangeSafetyZone;
   /**
    * True when the safety floor overrode the requested target under the adaptive
    * calculation method or the weekly goal mode (including manual calculation).
@@ -943,15 +962,10 @@ export function computeCalorieTarget({
   const projectedWeeklyChangePercent =
     weightKg > 0 ? (Math.abs(projectedWeeklyChangeKg) / weightKg) * 100 : 0;
 
-  // Loss tolerates a faster rate than gain: beyond ~0.5%/week, added weight is
-  // increasingly fat rather than muscle, so the gain thresholds are much tighter.
-  const [yellowThreshold, redThreshold] = isGainGoal ? [0.25, 0.5] : [1.0, 1.5];
-  let safetyZone: 'green' | 'yellow' | 'red' = 'green';
-  if (projectedWeeklyChangePercent > redThreshold) {
-    safetyZone = 'red';
-  } else if (projectedWeeklyChangePercent > yellowThreshold) {
-    safetyZone = 'yellow';
-  }
+  const safetyZone = weeklyChangeSafetyZone(
+    projectedWeeklyChangePercent,
+    isGainGoal
+  );
 
   return {
     target: Math.round(calculatedTarget),

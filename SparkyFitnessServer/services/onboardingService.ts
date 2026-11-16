@@ -1,5 +1,7 @@
 import onboardingRepository from '../models/onboardingRepository.js';
+import { todayInZone } from '@workspace/shared';
 import { log } from '../config/logging.js';
+import { loadUserTimezone } from '../utils/timezoneLoader.js';
 /**
  * Processes and saves the user's onboarding data.
  * @param {string} userId - The UUID of the user.
@@ -72,13 +74,27 @@ async function skipOnboarding(userId: any) {
   }
 }
 /**
- * Sets or clears the user's target weight without touching the rest of onboarding.
+ * Sets or clears the user's target weight, and its target date when given,
+ * without touching the rest of onboarding.
  * @param userId - The UUID of the user.
- * @param targetWeightKg - Target weight in kg, or null to clear it.
+ * @param targetWeightKg - Target weight in kg, or null to clear it (and the date).
+ * @param targetDate - YYYY-MM-DD, null to clear, or undefined to keep the saved date.
  */
-async function setTargetWeight(userId: string, targetWeightKg: number | null) {
+async function setTargetWeight(
+  userId: string,
+  targetWeightKg: number | null,
+  targetDate?: string | null
+) {
   try {
-    await onboardingRepository.setTargetWeight(userId, targetWeightKg);
+    const today = todayInZone(await loadUserTimezone(userId));
+    await onboardingRepository.setTargetWeight(
+      userId,
+      targetWeightKg,
+      targetDate,
+      today
+    );
+    const saved = await onboardingRepository.getGoalWeight(userId);
+    return saved;
   } catch (error) {
     log('error', `Error saving target weight for user ${userId}:`, error);
     throw new Error('Failed to save target weight.', { cause: error });

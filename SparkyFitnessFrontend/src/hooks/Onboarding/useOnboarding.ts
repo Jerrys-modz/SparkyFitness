@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  getGoalWeightPlan,
   getOnboardingStatus,
   resetOnboardingStatus,
   setTargetWeight,
@@ -88,17 +89,28 @@ export const useSkipOnboarding = () => {
   });
 };
 
+export interface SetTargetWeightInput {
+  targetWeightKg: number | null;
+  /** YYYY-MM-DD, null to clear, or omitted to keep the saved date. */
+  targetDate?: string | null;
+}
+
 export const useSetTargetWeight = (userId: string) => {
   const queryClient = useQueryClient();
   const { t } = useTranslation();
 
   return useMutation({
-    mutationFn: (targetWeightKg: number | null) =>
-      setTargetWeight(targetWeightKg),
+    mutationFn: ({ targetWeightKg, targetDate }: SetTargetWeightInput) =>
+      setTargetWeight(targetWeightKg, targetDate),
     onSuccess: () => {
-      return queryClient.invalidateQueries({
-        queryKey: userKeys.profile(userId),
-      });
+      return Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: userKeys.profile(userId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: onboardingKeys.goalWeightPlan(),
+        }),
+      ]);
     },
     meta: {
       errorMessage: t(
@@ -111,4 +123,29 @@ export const useSetTargetWeight = (userId: string) => {
       ),
     },
   });
+};
+
+/** The goal weight plan; `enabled` is false until a goal weight is saved. */
+export const useGoalWeightPlan = (enabled: boolean) => {
+  const { t } = useTranslation();
+  return useQuery({
+    queryKey: onboardingKeys.goalWeightPlan(),
+    queryFn: getGoalWeightPlan,
+    enabled,
+    meta: {
+      errorMessage: t(
+        'goals.goalsSettings.goalWeightPlanLoadFailed',
+        'Failed to load the goal weight plan.'
+      ),
+    },
+  });
+};
+
+/** Refreshes the goal weight plan, e.g. after the calorie goal changes. */
+export const useRefreshGoalWeightPlan = () => {
+  const queryClient = useQueryClient();
+  return () =>
+    queryClient.invalidateQueries({
+      queryKey: onboardingKeys.goalWeightPlan(),
+    });
 };

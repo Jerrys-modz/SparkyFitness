@@ -1,8 +1,9 @@
 import express from 'express';
-import { z } from 'zod';
 import { authenticate } from '../middleware/authMiddleware.js';
 import { createRequireSelfActor } from '../middleware/requireSelfMiddleware.js';
+import { setGoalWeightBodySchema } from '@workspace/shared';
 import onboardingService from '../services/onboardingService.js';
+import goalWeightPlanService from '../services/goalWeightPlanService.js';
 const router = express.Router();
 router.use(express.json());
 // Only the account owner can answer, skip or reset their onboarding, or set
@@ -81,16 +82,6 @@ router.post('/', authenticate, selfOnly, async (req, res, next) => {
     next(error);
   }
 });
-const targetWeightBodySchema = z.object({
-  // Kilograms, matching the NUMERIC(5,2) column: rounded to two decimals as
-  // the column would, and refused if that leaves nothing. Null clears the goal.
-  targetWeight: z
-    .number()
-    .max(999.99)
-    .nullable()
-    .transform((kg) => (kg === null ? null : Math.round(kg * 100) / 100))
-    .refine((kg) => kg === null || kg > 0),
-});
 /**
  * @swagger
  * /onboarding/target-weight:
@@ -107,6 +98,11 @@ const targetWeightBodySchema = z.object({
  *             type: object
  *             properties:
  *               targetWeight: { type: number, nullable: true }
+ *               targetDate:
+ *                 type: string
+ *                 format: date
+ *                 nullable: true
+ *                 description: Day to reach the goal (YYYY-MM-DD). Omit to keep the saved date; null clears it.
  *             required: [targetWeight]
  *     responses:
  *       200:
@@ -118,22 +114,56 @@ const targetWeightBodySchema = z.object({
  */
 router.put('/target-weight', authenticate, selfOnly, async (req, res, next) => {
   try {
-    const parsed = targetWeightBodySchema.safeParse(req.body);
+    const parsed = setGoalWeightBodySchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({
         error:
-          'targetWeight must be a number above 0 and at most 999.99 kg, or null.',
+          'targetWeight must be a number above 0 and at most 999.99 kg, or null; targetDate must be a YYYY-MM-DD day or null.',
       });
     }
-    await onboardingService.setTargetWeight(
+    const saved = await onboardingService.setTargetWeight(
       req.userId,
-      parsed.data.targetWeight
+      parsed.data.targetWeight,
+      parsed.data.targetDate
     );
-    res.status(200).json({ targetWeight: parsed.data.targetWeight });
+    res.status(200).json({
+      targetWeight: parsed.data.targetWeight,
+      targetDate: saved.targetDate,
+    });
   } catch (error) {
     next(error);
   }
 });
+/**
+ * @swagger
+ * /onboarding/target-weight/plan:
+ *   get:
+ *     summary: Where the goal weight and its target date stand against the calorie goal
+ *     description: >
+ *       Returns the pace the target date needs, the pace the saved calorie goal
+ *       gives, a suggested pace with its calories, warnings and the earliest
+ *       reachable date. Read-only; it never changes the calorie goal.
+ *     tags: [Goals & Personalization]
+ *     security:
+ *       - cookieAuth: []
+ *     responses:
+ *       200:
+ *         description: The goal weight plan (plan is null without a goal, date or weigh-ins).
+ */
+router.get(
+  '/target-weight/plan',
+  authenticate,
+  selfOnly,
+  async (req, res, next) => {
+    try {
+      res
+        .status(200)
+        .json(await goalWeightPlanService.getGoalWeightPlan(req.userId));
+    } catch (error) {
+      next(error);
+    }
+  }
+);
 /**
  * @route   GET /api/onboarding/status
  * @desc    Check if the current user has completed onboarding

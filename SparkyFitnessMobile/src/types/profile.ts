@@ -8,4 +8,6 @@ export interface UserProfile {
   gender: 'male' | 'female' | null;
   /** A NUMERIC(5,2) column, so node-postgres serializes it as a numeric string. */
   target_weight: string | number | null;
+  /** YYYY-MM-DD day to reach the goal weight; absent from older servers. */
+  target_weight_date?: string | null;
 }
