@@ -7,8 +7,13 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/hooks/useAuth';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import { useProfileQuery } from '@/hooks/Settings/useProfile';
-import { useSetTargetWeight } from '@/hooks/Onboarding/useOnboarding';
+import {
+  useGoalWeightPlan,
+  useSetTargetWeight,
+} from '@/hooks/Onboarding/useOnboarding';
 import { kgToLbs, lbsToKg } from '@/utils/unitConversions';
+import { addDays, todayInZone } from '@workspace/shared';
+import { GoalWeightPlanPanel } from './GoalWeightPlanPanel';
 
 /** Largest goal the server accepts: the `numeric(5,2)` column's maximum. */
 const MAX_GOAL_WEIGHT_KG = 999.99;
@@ -16,7 +21,7 @@ const MAX_GOAL_WEIGHT_KG = 999.99;
 export const GoalWeight = () => {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const { weightUnit } = usePreferences();
+  const { weightUnit, timezone } = usePreferences();
   const userId = user?.id ?? '';
   const { data: profile } = useProfileQuery(userId);
   const { mutateAsync: saveTargetWeight, isPending: saving } =
@@ -64,15 +69,34 @@ export const GoalWeight = () => {
     Math.round(parsedKg * 100) / 100 > 0 &&
     parsedKg <= MAX_GOAL_WEIGHT_KG;
 
+  // The day to reach the goal: `null` means not edited, '' means removed.
+  const savedDate = profile?.target_weight_date ?? '';
+  const [dateDraft, setDateDraft] = useState<string | null>(null);
+  const dateValue = dateDraft ?? savedDate;
+  const tomorrow = addDays(todayInZone(timezone || 'UTC'), 1);
+  const hasSavedGoal = savedDisplay !== '';
+  const { data: plan } = useGoalWeightPlan(hasSavedGoal);
+
+  const dirty =
+    draft !== null || (dateDraft !== null && dateDraft !== savedDate);
+
   const handleSave = async () => {
     if (!isValid) return;
-    await saveTargetWeight(parsedKg);
+    await saveTargetWeight({
+      // An untouched weight is sent as saved, so changing only the date never
+      // rounds the stored goal.
+      targetWeightKg: draft === null ? savedKg : parsedKg,
+      targetDate:
+        dateDraft === null ? undefined : dateDraft === '' ? null : dateDraft,
+    });
     setDraft(null);
+    setDateDraft(null);
   };
 
   const handleClear = async () => {
-    await saveTargetWeight(null);
+    await saveTargetWeight({ targetWeightKg: null });
     setDraft(null);
+    setDateDraft(null);
   };
 
   return (
@@ -118,11 +142,29 @@ export const GoalWeight = () => {
             </p>
           )}
         </div>
+        <div className="space-y-1.5 max-w-xs">
+          <Label htmlFor="goal-weight-date" className="text-xs">
+            {t(
+              'goals.goalsSettings.goalWeightDateLabel',
+              'Target date (optional)'
+            )}
+          </Label>
+          <Input
+            id="goal-weight-date"
+            type="date"
+            min={tomorrow}
+            value={dateValue}
+            onChange={(e) => setDateDraft(e.target.value)}
+          />
+          <p className="text-xs text-muted-foreground">
+            {t(
+              'goals.goalsSettings.goalWeightDateHint',
+              'Pick a day to see the weekly pace it needs. Your calorie goal only changes if you choose to use that pace.'
+            )}
+          </p>
+        </div>
         <div className="flex gap-2">
-          <Button
-            onClick={handleSave}
-            disabled={saving || draft === null || !isValid}
-          >
+          <Button onClick={handleSave} disabled={saving || !dirty || !isValid}>
             {t('goals.goalsSettings.goalWeightSave', 'Save goal weight')}
           </Button>
           {savedDisplay !== '' && (
@@ -131,6 +173,7 @@ export const GoalWeight = () => {
             </Button>
           )}
         </div>
+        {hasSavedGoal && plan && <GoalWeightPlanPanel data={plan} />}
       </CardContent>
     </Card>
   );

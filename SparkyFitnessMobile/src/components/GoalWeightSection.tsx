@@ -1,13 +1,22 @@
-import React, { useState } from 'react';
-import { Text, View } from 'react-native';
+import React, { useRef, useState } from 'react';
+import { Pressable, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import Toast from 'react-native-toast-message';
+import { addDays } from '@workspace/shared';
 import FormInput from './FormInput';
 import Button from './ui/Button';
-import { useProfile, useSetTargetWeight } from '../hooks/useProfile';
+import CalendarSheet, { type CalendarSheetRef } from './CalendarSheet';
+import GoalWeightPlanCard from './GoalWeightPlanCard';
+import {
+  useGoalWeightPlan,
+  useProfile,
+  useSetTargetWeight,
+} from '../hooks/useProfile';
 import { usePreferences } from '../hooks/usePreferences';
+import { useTodayOnFocus } from '../hooks/useTodayOnFocus';
 import { resolveWeightGoal } from '../utils/healthTrendGoals';
 import { weightToKg } from '../utils/unitConversions';
+import { formatDayLabel } from '../utils/dayLabel';
 import { formatLocalizedNumber } from '../localization/i18n';
 
 /** Largest goal the server accepts: its numeric(5,2) column's maximum. */
@@ -18,10 +27,13 @@ const GoalWeightSection: React.FC = () => {
   const { profile } = useProfile();
   const { preferences, isLoading: isPreferencesLoading } = usePreferences();
   const { saveTargetWeight, isSaving } = useSetTargetWeight();
+  const today = useTodayOnFocus();
+  const calendarRef = useRef<CalendarSheetRef>(null);
   const unit: 'kg' | 'lbs' =
     (preferences?.default_weight_unit ?? 'kg') === 'kg' ? 'kg' : 'lbs';
 
   const saved = resolveWeightGoal(profile?.target_weight, unit);
+  const savedKg = Number(profile?.target_weight);
   const savedText =
     saved === undefined
       ? ''
@@ -32,6 +44,13 @@ const GoalWeightSection: React.FC = () => {
   // null means "not edited": show what is saved.
   const [draft, setDraft] = useState<string | null>(null);
   const text = draft ?? savedText;
+  // The day to reach the goal. undefined: not edited; null: removed.
+  const savedDate = profile?.target_weight_date ?? null;
+  const [dateDraft, setDateDraft] = useState<string | null | undefined>(
+    undefined
+  );
+  const date = dateDraft === undefined ? savedDate : dateDraft;
+  const { plan } = useGoalWeightPlan(saved !== undefined);
 
   const parsed = Number(text.replace(',', '.'));
   const kg = weightToKg(parsed, unit);
@@ -40,14 +59,28 @@ const GoalWeightSection: React.FC = () => {
     Number.isFinite(parsed) &&
     Math.round(kg * 100) / 100 > 0 &&
     kg <= MAX_GOAL_WEIGHT_KG;
+  const dateChanged = dateDraft !== undefined && dateDraft !== savedDate;
 
   const submit = async (value: number | null) => {
-    // Clear the draft only if it is still the one this save sent, so an
-    // edit typed while the request was pending is kept.
+    // Clear the drafts only if they are still the ones this save sent, so an
+    // edit made while the request was pending is kept.
     const submitted = draft;
+    const submittedDate = dateDraft;
     try {
-      await saveTargetWeight(value);
+      await saveTargetWeight(
+        value === null
+          ? { targetWeightKg: null }
+          : {
+              // An untouched weight is sent as saved, so changing only the
+              // date never rounds the stored goal.
+              targetWeightKg: draft === null ? savedKg : value,
+              targetDate: dateChanged ? (dateDraft ?? null) : undefined,
+            }
+      );
       setDraft((current) => (current === submitted ? null : current));
+      setDateDraft((current) =>
+        current === submittedDate ? undefined : current
+      );
       Toast.show({
         type: 'success',
         text1: t('goals.goalWeight.saved', {
@@ -97,11 +130,51 @@ const GoalWeightSection: React.FC = () => {
           })}
         </Text>
       )}
+      <View className="gap-1">
+        <Text className="text-xs text-text-secondary">
+          {t('goals.goalWeight.dateLabel', {
+            defaultValue: 'Target date (optional)',
+          })}
+        </Text>
+        <View className="flex-row items-center">
+          <Button
+            variant="outline"
+            onPress={() => calendarRef.current?.present()}
+            testID="goal-weight-date"
+          >
+            {date
+              ? formatDayLabel(date, 'short')
+              : t('goals.goalWeight.pickDate', {
+                  defaultValue: 'Pick a date',
+                })}
+          </Button>
+          {date ? (
+            <Pressable
+              className="ml-3 py-2"
+              accessibilityRole="button"
+              onPress={() => setDateDraft(null)}
+              testID="goal-weight-date-clear"
+            >
+              <Text className="text-accent-primary text-sm">
+                {t('goals.goalWeight.removeDate', {
+                  defaultValue: 'Remove date',
+                })}
+              </Text>
+            </Pressable>
+          ) : null}
+        </View>
+        <Text className="text-xs text-text-secondary">
+          {t('goals.goalWeight.dateHint', {
+            defaultValue:
+              'Pick a day to see the weekly pace it needs. Your calorie goal only changes if you choose to use that pace.',
+          })}
+        </Text>
+      </View>
       <View className="flex-row gap-2">
         <Button
           variant="primary"
           onPress={() => submit(kg)}
-          disabled={isSaving || draft === null || !isValid}
+          disabled={isSaving || (draft === null && !dateChanged) || !isValid}
           testID="goal-weight-save"
         >
           {t('goals.goalWeight.save', { defaultValue: 'Save goal weight' })}
@@ -117,6 +190,15 @@ const GoalWeightSection: React.FC = () => {
           </Button>
         )}
       </View>
+      {saved !== undefined && plan ? (
+        <GoalWeightPlanCard data={plan} weightUnit={unit} />
+      ) : null}
+      <CalendarSheet
+        ref={calendarRef}
+        selectedDate={date ?? addDays(today, 30)}
+        minDate={addDays(today, 1)}
+        onSelectDate={setDateDraft}
+      />
     </View>
   );
 };

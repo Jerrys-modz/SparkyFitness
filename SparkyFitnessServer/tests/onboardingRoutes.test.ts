@@ -4,12 +4,14 @@ import request from 'supertest';
 import express from 'express';
 import onboardingRoutes from '../routes/onboardingRoutes.js';
 import onboardingService from '../services/onboardingService.js';
+import goalWeightPlanService from '../services/goalWeightPlanService.js';
 import errorHandler from '../middleware/errorHandler.js';
 
 // The signed-in person; set to someone else to act for testUserId.
 const auth = vi.hoisted(() => ({ actorUserId: 'testUserId' }));
 
 vi.mock('../services/onboardingService.js');
+vi.mock('../services/goalWeightPlanService.js');
 vi.mock('../middleware/authMiddleware', () => ({
   authenticate: vi.fn((req, res, next) => {
     req.userId = 'testUserId';
@@ -22,6 +24,12 @@ const app = express();
 app.use(express.json());
 app.use('/onboarding', onboardingRoutes);
 app.use(errorHandler);
+
+const savedGoal = {
+  targetWeightKg: 82.5,
+  targetDate: null,
+  setOn: '2026-11-15',
+};
 
 describe('Onboarding Routes', () => {
   beforeEach(() => {
@@ -82,39 +90,42 @@ describe('Onboarding Routes', () => {
   describe('PUT /onboarding/target-weight', () => {
     it('saves a target weight in kg', async () => {
       // @ts-expect-error TS(2339)
-      onboardingService.setTargetWeight.mockResolvedValue(undefined);
+      onboardingService.setTargetWeight.mockResolvedValue(savedGoal);
 
       const res = await request(app)
         .put('/onboarding/target-weight')
         .send({ targetWeight: 82.5 });
 
       expect(res.statusCode).toEqual(200);
-      expect(res.body).toEqual({ targetWeight: 82.5 });
+      expect(res.body).toEqual({ targetWeight: 82.5, targetDate: null });
+      // No targetDate sent: undefined keeps the saved date for older clients.
       expect(onboardingService.setTargetWeight).toHaveBeenCalledWith(
         'testUserId',
-        82.5
+        82.5,
+        undefined
       );
     });
 
     it('rounds to the two decimals the column stores', async () => {
       // @ts-expect-error TS(2339)
-      onboardingService.setTargetWeight.mockResolvedValue(undefined);
+      onboardingService.setTargetWeight.mockResolvedValue(savedGoal);
 
       const res = await request(app)
         .put('/onboarding/target-weight')
         .send({ targetWeight: 82.456 });
 
       expect(res.statusCode).toEqual(200);
-      expect(res.body).toEqual({ targetWeight: 82.46 });
+      expect(res.body).toEqual({ targetWeight: 82.46, targetDate: null });
       expect(onboardingService.setTargetWeight).toHaveBeenCalledWith(
         'testUserId',
-        82.46
+        82.46,
+        undefined
       );
     });
 
     it('clears the target weight with null', async () => {
       // @ts-expect-error TS(2339)
-      onboardingService.setTargetWeight.mockResolvedValue(undefined);
+      onboardingService.setTargetWeight.mockResolvedValue(savedGoal);
 
       const res = await request(app)
         .put('/onboarding/target-weight')
@@ -123,6 +134,43 @@ describe('Onboarding Routes', () => {
       expect(res.statusCode).toEqual(200);
       expect(onboardingService.setTargetWeight).toHaveBeenCalledWith(
         'testUserId',
+        null,
+        undefined
+      );
+    });
+
+    it('saves a target date with the weight', async () => {
+      // @ts-expect-error TS(2339)
+      onboardingService.setTargetWeight.mockResolvedValue({
+        ...savedGoal,
+        targetDate: '2027-03-01',
+      });
+
+      const res = await request(app)
+        .put('/onboarding/target-weight')
+        .send({ targetWeight: 75, targetDate: '2027-03-01' });
+
+      expect(res.statusCode).toEqual(200);
+      expect(res.body).toEqual({ targetWeight: 75, targetDate: '2027-03-01' });
+      expect(onboardingService.setTargetWeight).toHaveBeenCalledWith(
+        'testUserId',
+        75,
+        '2027-03-01'
+      );
+    });
+
+    it('clears only the target date with null', async () => {
+      // @ts-expect-error TS(2339)
+      onboardingService.setTargetWeight.mockResolvedValue(savedGoal);
+
+      const res = await request(app)
+        .put('/onboarding/target-weight')
+        .send({ targetWeight: 75, targetDate: null });
+
+      expect(res.statusCode).toEqual(200);
+      expect(onboardingService.setTargetWeight).toHaveBeenCalledWith(
+        'testUserId',
+        75,
         null
       );
     });
@@ -134,6 +182,8 @@ describe('Onboarding Routes', () => {
       { targetWeight: 999.996 },
       { targetWeight: 0.001 },
       { targetWeight: '80' },
+      { targetWeight: 80, targetDate: '2027-02-30' },
+      { targetWeight: 80, targetDate: '1 March' },
       {},
     ])('rejects %j with 400', async (body) => {
       const res = await request(app)
@@ -142,6 +192,38 @@ describe('Onboarding Routes', () => {
 
       expect(res.statusCode).toEqual(400);
       expect(onboardingService.setTargetWeight).not.toHaveBeenCalled();
+    });
+  });
+
+  // --- GET /onboarding/target-weight/plan ---
+  describe('GET /onboarding/target-weight/plan', () => {
+    it('returns the plan for the signed-in person', async () => {
+      const body = {
+        goalKg: 75,
+        targetDate: '2027-03-01',
+        setOn: '2026-11-15',
+        currentKg: 80,
+        goalMode: 'cut',
+        weeklyChangeKg: 0,
+        plan: null,
+      };
+      // @ts-expect-error TS(2339)
+      goalWeightPlanService.getGoalWeightPlan.mockResolvedValue(body);
+
+      const res = await request(app).get('/onboarding/target-weight/plan');
+
+      expect(res.statusCode).toEqual(200);
+      expect(res.body).toEqual(body);
+      expect(goalWeightPlanService.getGoalWeightPlan).toHaveBeenCalledWith(
+        'testUserId'
+      );
+    });
+
+    it('refuses someone acting for the person', async () => {
+      auth.actorUserId = 'delegateUserId';
+      const res = await request(app).get('/onboarding/target-weight/plan');
+      expect(res.statusCode).toEqual(403);
+      expect(goalWeightPlanService.getGoalWeightPlan).not.toHaveBeenCalled();
     });
   });
 

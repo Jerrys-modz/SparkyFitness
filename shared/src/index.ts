@@ -407,3 +407,5 @@ export * from './utils/widgetLayout.ts';
 export * from './schemas/api/Chat.api.zod.ts';
 
 export * from './utils/chatTools.ts';
+export * from './schemas/api/GoalWeight.api.zod.ts';
+export * from './utils/goalWeightPlan.ts';
