@@ -303,23 +303,28 @@ export const DietPhasesSection = () => {
                           )}
                         </div>
                         <div className="text-sm text-gray-600">
-                          {t(
-                            'goals.goalsSettings.startDateToEndDate',
-                            '{{start_date}} to {{end_date}}',
-                            {
-                              start_date: formatDateInUserTimezone(
-                                phase.start_date
-                              ),
-                              end_date: phase.effective_end_date
-                                ? formatDateInUserTimezone(
-                                    phase.effective_end_date
-                                  )
-                                : t(
-                                    'goals.dietPhases.targetReached',
-                                    'target reached'
+                          {phase.effective_end_date
+                            ? t(
+                                'goals.goalsSettings.startDateToEndDate',
+                                '{{start_date}} to {{end_date}}',
+                                {
+                                  start_date: formatDateInUserTimezone(
+                                    phase.start_date
                                   ),
-                            }
-                          )}
+                                  end_date: formatDateInUserTimezone(
+                                    phase.effective_end_date
+                                  ),
+                                }
+                              )
+                            : t(
+                                'goals.dietPhases.rangeOpen',
+                                'From {{start}} until the target is reached',
+                                {
+                                  start: formatDateInUserTimezone(
+                                    phase.start_date
+                                  ),
+                                }
+                              )}
                         </div>
                         <div className="text-sm text-gray-600">
                           {[

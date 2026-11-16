@@ -23,6 +23,8 @@ import type {
   DietPhaseToSave,
 } from '../models/dietPhaseRepository.js';
 import { loadUserTimezone } from '../utils/timezoneLoader.js';
+import { log } from '../config/logging.js';
+import { describeError } from '../utils/errors.js';
 
 /** A plan the server refuses; the route answers 400 with `code`. */
 export class DietPhaseValidationError extends Error {
@@ -103,6 +105,26 @@ export async function loadDietPhasesForCalories(
 ): Promise<DietPhaseRecord[]> {
   const tz = await loadUserTimezone(userId);
   return resolvePhases(userId, todayInZone(tz), authenticatedUserId);
+}
+
+/**
+ * Run after a weight is saved: a running phase whose target the trend has now
+ * reached ends today and is recorded at once, instead of waiting for the next
+ * time a target is loaded. The weight is already saved, so a failure here is
+ * only logged; the next load checks again.
+ */
+export async function checkDietPhaseTargetsAfterWeight(
+  userId: string,
+  authenticatedUserId?: string
+): Promise<void> {
+  try {
+    await loadDietPhasesForCalories(userId, authenticatedUserId);
+  } catch (error) {
+    log(
+      'warn',
+      `dietPhaseService: target check after a weight save failed for ${userId}: ${describeError(error)}`
+    );
+  }
 }
 
 function toView(phase: DietPhaseRecord): DietPhase {
@@ -203,6 +225,7 @@ export async function saveDietPhases(
 
 export default {
   loadDietPhasesForCalories,
+  checkDietPhaseTargetsAfterWeight,
   getDietPhaseOverview,
   planDietPhaseSave,
   saveDietPhases,

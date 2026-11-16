@@ -1,9 +1,15 @@
 import { tool } from 'ai';
 import { z } from 'zod';
-import { todayInZone, type CalorieCyclingDay } from '@workspace/shared';
+import {
+  todayInZone,
+  type CalorieCyclingDay,
+  type DietPhase,
+  type DietPhasesResponse,
+} from '@workspace/shared';
 import { log } from '../../config/logging.js';
 import goalService from '../../services/goalService.js';
 import goalRepository from '../../models/goalRepository.js';
+import { getDietPhaseOverview } from '../../services/dietPhaseService.js';
 import nutrientGoalPreferenceService from '../../services/nutrientGoalPreferenceService.js';
 import { ERRORS, formatZodError } from './errors.js';
 import {
@@ -20,7 +26,12 @@ import {
 import { optionalDateSchema } from './schemas/common.js';
 import { normalizeActionArgs, normalizeDayKeywords } from './dates.js';
 
-const VALID_ACTIONS = ['get_goals', 'set_goals', 'list_goal_timeline'];
+const VALID_ACTIONS = [
+  'get_goals',
+  'set_goals',
+  'list_goal_timeline',
+  'get_diet_phases',
+];
 
 // The column set MCP's goal queries exposed; richer server goal objects are
 // projected down to it so the chat-visible JSON stays identical.
@@ -72,6 +83,54 @@ function describeCalorieCycling(value: unknown): string {
   }
 }
 
+/** One line per diet phase: dates, type, weekly rate (kg) and target. */
+function describeDietPhase(phase: DietPhase): string {
+  const end = phase.effective_end_date
+    ? `to ${phase.effective_end_date}`
+    : 'until the target weight is reached';
+  const rate =
+    phase.phase_type === 'maintenance'
+      ? 'maintenance'
+      : `${phase.phase_type} ${phase.weekly_change_kg} kg/week`;
+  const label = phase.label ? ` "${phase.label}"` : '';
+  const target =
+    phase.target_weight_kg !== null
+      ? `, target ${phase.target_weight_kg} kg${phase.target_reached_on ? ` (reached ${phase.target_reached_on})` : ''}`
+      : '';
+  return `- ${phase.start_date} ${end}:${label} ${rate}${target}`;
+}
+
+/** The diet phase plan as chat text: today's phase, what comes next, every phase. */
+export function formatDietPhases(overview: DietPhasesResponse): string {
+  if (overview.phases.length === 0) {
+    return 'No diet phases are planned. Every day uses the Goal Mode from Calculation Settings.';
+  }
+  const { status } = overview;
+  const lines = [`**Diet phases** (today ${overview.today})`];
+  if (status.current) {
+    lines.push(
+      `Current phase: ${describeDietPhase(status.current).slice(2)}` +
+        (status.days_left !== null ? ` (${status.days_left} days left)` : '')
+    );
+  } else {
+    lines.push(
+      'No phase today: the Goal Mode from Calculation Settings applies.'
+    );
+  }
+  if (status.next) {
+    lines.push(`Next phase: ${describeDietPhase(status.next).slice(2)}`);
+  }
+  if (status.change_soon && status.change_on) {
+    lines.push(`Goal Mode changes on ${status.change_on}.`);
+  }
+  lines.push('', 'All phases:', ...overview.phases.map(describeDietPhase));
+  lines.push(
+    '',
+    'During a phase its weekly weight change replaces Goal Mode; other settings and calorie cycling still apply. Phases are edited on the Goals page.'
+  );
+  return lines.join('\n');
+}
+
 function roundGoalValue(value: unknown): unknown {
   const num = Number(value);
   return Number.isFinite(num) ? Math.round(num * 10) / 10 : value;
@@ -91,7 +150,8 @@ This tool takes a FLAT object with an "action" field. Do NOT nest fields under t
 Actions:
 - action: 'get_goals' (fields: target_date?) — returns the goals active on a specific date
 - action: 'set_goals' (fields: start_date, calories?, protein?, carbs?, fat?, water_goal_ml?, weight?, caffeine_mg?, alcohol_g?, ...) — sets new goals from a start date
-- action: 'list_goal_timeline' — lists all goal changes over time`,
+- action: 'list_goal_timeline' — lists all goal changes over time
+- action: 'get_diet_phases' — the diet phase plan (dated loss / maintenance / gain phases that set Goal Mode per day): today's phase, days left, the next phase and every phase`,
       inputSchema: manageGoalsInput,
       execute: async (rawArgs) => {
         const normalized = normalizeActionArgs(
@@ -282,6 +342,10 @@ Actions:
                 (g: any) =>
                   `**${dayString(g.goal_date)}**: ${g.calories} kcal | P: ${g.protein}g | C: ${g.carbs}g | F: ${g.fat}g | W: ${g.water_goal_ml}ml`
               );
+            }
+
+            case 'get_diet_phases': {
+              return formatDietPhases(await getDietPhaseOverview(userId));
             }
 
             default:

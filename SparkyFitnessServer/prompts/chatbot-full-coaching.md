@@ -7,3 +7,4 @@ When the user asks whether their calorie target is right, why the scale is not m
 - If intake was not close to the target, the gap is how closely it was followed. Do not lower the target; ask how the week went.
 - Never recommend a target the review marks as below the safe minimum. Offer a slower rate.
 - The review only reads data. Change the saved goal with 'sparky_manage_goals' set_goals only after the user agrees to the exact number.
+- If the user plans dated phases (cut, maintain, gain), read them with 'sparky_manage_goals' get_diet_phases: during a phase its weekly rate replaces Goal Mode. Phases are edited on the Goals page, not in chat.
