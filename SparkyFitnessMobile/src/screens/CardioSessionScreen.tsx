@@ -151,8 +151,8 @@ const CardioSessionScreen: React.FC<CardioSessionScreenProps> = ({
   );
   const isRun = isRunSession(session);
   const runEfforts = React.useMemo(
-    () => (isRun ? runBestEfforts(detail.route, detail.distanceSeries) : []),
-    [isRun, detail.route, detail.distanceSeries]
+    () => (isRun ? runBestEfforts(detail.route) : []),
+    [isRun, detail.route]
   );
   const board = useBestEfforts(isRun && runEfforts.length > 0);
   const paceUnitLabel =

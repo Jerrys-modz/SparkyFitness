@@ -352,6 +352,13 @@ export interface PacePoint {
 
 /** Each pace reading spans at least this long, which smooths GPS jitter. */
 const PACE_WINDOW_SECONDS = 30;
+/**
+ * A distance series from an indoor run is a pedometer estimate whose rows are
+ * stamped when a reading arrived, not when the distance was covered, so a 30 s
+ * window can be off by several seconds and read 10 to 15% fast. Longer windows
+ * average that out.
+ */
+const DISTANCE_SERIES_PACE_WINDOW_SECONDS = 120;
 /** Readings slower than this (seconds per unit) are standing still. */
 const MAX_PACE_SECONDS = 3600;
 /** Points kept for the chart. */
@@ -392,7 +399,9 @@ export function paceSeriesFromTrack(
 
 /**
  * A distance recorded against time with no route (an indoor session):
- * `[active seconds, cumulative metres]` rows, in the same windows as a track.
+ * `[active seconds, cumulative metres]` rows, read in longer windows than a
+ * track because the rows are a pedometer estimate (see
+ * `DISTANCE_SERIES_PACE_WINDOW_SECONDS`).
  */
 export function paceSeriesFromDistance(
   rows: readonly (readonly number[])[],
@@ -403,19 +412,24 @@ export function paceSeriesFromDistance(
     .filter((row) => row.length >= 2)
     .map((row) => ({ t: row[0] * 1000, meters: row[1] }))
     .sort((a, b) => a.t - b.t);
-  return paceSeriesFromSamples(samples, unitMeters);
+  return paceSeriesFromSamples(
+    samples,
+    unitMeters,
+    DISTANCE_SERIES_PACE_WINDOW_SECONDS
+  );
 }
 
 function paceSeriesFromSamples(
   samples: readonly { t: number; meters: number }[],
-  unitMeters: number
+  unitMeters: number,
+  windowSeconds: number = PACE_WINDOW_SECONDS
 ): PacePoint[] {
   const series: PacePoint[] = [];
   let anchor = samples[0];
   for (let i = 1; i < samples.length; i++) {
     const sample = samples[i];
     const seconds = (sample.t - anchor.t) / 1000;
-    if (seconds < PACE_WINDOW_SECONDS) continue;
+    if (seconds < windowSeconds) continue;
     const meters = sample.meters - anchor.meters;
     if (meters > 0) {
       const pace = seconds / (meters / unitMeters);
