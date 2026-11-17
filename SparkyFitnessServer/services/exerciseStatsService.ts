@@ -11,7 +11,6 @@ import {
   fastestEffort,
   UNGUARDED_EFFORT_OPTIONS,
   BEST_EFFORT_METERS,
-  DISTANCE_SERIES_EFFORT_OPTIONS,
   GPS_EFFORT_OPTIONS,
   activitySportLabel,
   isExerciseModality,
@@ -1364,12 +1363,8 @@ async function getBestEfforts(
          WHERE ee.user_id = $1
            AND ee.distance >= $2
            AND ee.exercise_name != 'Active Calories'
-           AND (
-             EXISTS (SELECT 1 FROM public.exercise_entry_gps_points g
-                     WHERE g.exercise_entry_id = ee.id)
-             OR EXISTS (SELECT 1 FROM public.exercise_entry_distance_series s
-                        WHERE s.exercise_entry_id = ee.id)
-           )
+           AND EXISTS (SELECT 1 FROM public.exercise_entry_gps_points g
+                       WHERE g.exercise_entry_id = ee.id)
          ORDER BY ee.entry_date DESC, ee.id
          LIMIT $3 OFFSET $4`,
         [targetUserId, BEST_EFFORT_MIN_ENTRY_KM, BEST_EFFORT_BATCH, offset]
@@ -1405,12 +1400,6 @@ async function getBestEfforts(
            WHERE exercise_entry_id = ANY($1::uuid[])`,
           [ids]
         );
-        const series = await client.query(
-          `SELECT exercise_entry_id, points
-           FROM public.exercise_entry_distance_series
-           WHERE exercise_entry_id = ANY($1::uuid[])`,
-          [ids]
-        );
         const gpsById = new Map<string, ExerciseEntryGpsPoints['points']>();
         for (const row of gps.rows as SqlRow[]) {
           gpsById.set(
@@ -1418,28 +1407,16 @@ async function getBestEfforts(
             row.points as ExerciseEntryGpsPoints['points']
           );
         }
-        const seriesById = new Map<string, [number, number][]>();
-        for (const row of series.rows as SqlRow[]) {
-          seriesById.set(
-            String(row.exercise_entry_id),
-            row.points as [number, number][]
-          );
-        }
-
         for (const run of runs) {
           const track = gpsById.get(String(run.id));
-          const seriesRows = seriesById.get(String(run.id));
+          // Only a GPS track: an indoor run's distance series is a pedometer
+          // estimate stamped on arrival, which reads faster than the run was.
           const efforts = track?.length
             ? bestEffortsFromSamples(
                 effortSamplesFromGpsTrack(track),
                 GPS_EFFORT_OPTIONS
               )
-            : seriesRows?.length
-              ? bestEffortsFromSamples(
-                  effortSamplesFromDistanceSeries(seriesRows),
-                  DISTANCE_SERIES_EFFORT_OPTIONS
-                )
-              : null;
+            : null;
           if (!efforts) continue;
           runsAnalyzed++;
           const achievedAt =
