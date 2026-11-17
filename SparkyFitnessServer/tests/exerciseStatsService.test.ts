@@ -1116,8 +1116,7 @@ describe('exerciseStatsService', () => {
         })
         .mockResolvedValueOnce({
           rows: [{ exercise_entry_id: 'run-slow', points: track(400) }],
-        })
-        .mockResolvedValueOnce({ rows: [] });
+        });
 
       const result = await exerciseStatsService.getBestEfforts('user-1');
 
@@ -1132,7 +1131,7 @@ describe('exerciseStatsService', () => {
       expect(mockClient.release).toHaveBeenCalled();
     });
 
-    it('falls back to the distance series for a run with no route', async () => {
+    it('does not read the distance series of a run with no route', async () => {
       mockClient.query
         .mockResolvedValueOnce({
           rows: [
@@ -1148,17 +1147,14 @@ describe('exerciseStatsService', () => {
             },
           ],
         })
-        .mockResolvedValueOnce({ rows: [] })
-        .mockResolvedValueOnce({
-          rows: [
-            {
-              exercise_entry_id: 'treadmill',
-              points: [0, 1, 2, 3, 4, 5, 6].map((i) => [i * 50, i * 200]),
-            },
-          ],
-        });
+        .mockResolvedValueOnce({ rows: [] });
       const result = await exerciseStatsService.getBestEfforts('user-1');
-      expect(result.efforts[0]?.id).toBe('1k');
+      expect(result.efforts).toEqual([]);
+      expect(result.runsAnalyzed).toBe(0);
+      const sql = mockClient.query.mock.calls
+        .map((c) => String(c[0]))
+        .join(' ');
+      expect(sql).not.toContain('exercise_entry_distance_series');
     });
 
     it('is empty when no run has data', async () => {
