@@ -534,11 +534,11 @@ describe('paceSeriesFromTrack', () => {
 describe('paceSeriesFromDistance', () => {
   test('turns distance against active time into pace per unit', () => {
     // 3 m/s = 5:33 per km.
-    const rows = [0, 10, 20, 30, 40, 50, 60].map((s) => [s, s * 3]);
+    const rows = Array.from({ length: 25 }, (_, i) => [i * 10, i * 10 * 3]);
     const series = paceSeriesFromDistance(rows, 1000);
     expect(series.length).toBeGreaterThan(0);
     expect(series[0].paceSeconds).toBeCloseTo(1000 / 3, 0);
-    expect(series[series.length - 1].distance).toBeCloseTo(0.18, 2);
+    expect(series[series.length - 1].distance).toBeCloseTo(0.72, 2);
   });
 
   test('needs two readings and leaves out standing still', () => {
@@ -547,11 +547,49 @@ describe('paceSeriesFromDistance', () => {
       paceSeriesFromDistance(
         [
           [0, 100],
-          [60, 100],
+          [180, 100],
         ],
         1000
       )
     ).toEqual([]);
+  });
+
+  test('does not read a pace from less than two minutes of an estimated distance', () => {
+    const rows = Array.from({ length: 12 }, (_, i) => [i * 10, i * 10 * 3]);
+    expect(paceSeriesFromDistance(rows, 1000)).toEqual([]);
+  });
+
+  test('keeps late-arriving rows from reading as a fast stretch', () => {
+    // A steady 12:00 per mile (2.2352 m/s). The pedometer delivers in batches,
+    // so three rows in four are stamped on arrival but hold the distance as of
+    // 6 s earlier. In 30 s windows that reads about 10:00 per mile; in
+    // two-minute windows it stays at 12:00.
+    const mps = 1609.344 / 720;
+    const rows = Array.from({ length: 181 }, (_, i) => {
+      const at = i * 10;
+      const lag = i % 4 === 0 ? 0 : 6;
+      return [at, Math.max(0, at - lag) * mps];
+    });
+    const best = Math.min(
+      ...paceSeriesFromDistance(rows, 1609.344).map((p) => p.paceSeconds)
+    );
+    expect(best).toBeGreaterThan(720 * 0.97);
+    expect(best).toBeLessThan(720 * 1.03);
+  });
+
+  test('still shows a genuinely faster stretch', () => {
+    // 10 minutes at 12:00 per mile then 10 minutes at 9:00 per mile.
+    const slow = 1609.344 / 720;
+    const fast = 1609.344 / 540;
+    const rows = Array.from({ length: 121 }, (_, i) => {
+      const at = i * 10;
+      const meters = at <= 600 ? at * slow : 600 * slow + (at - 600) * fast;
+      return [at, meters];
+    });
+    const best = Math.min(
+      ...paceSeriesFromDistance(rows, 1609.344).map((p) => p.paceSeconds)
+    );
+    expect(best).toBeCloseTo(540, 0);
   });
 });
 
