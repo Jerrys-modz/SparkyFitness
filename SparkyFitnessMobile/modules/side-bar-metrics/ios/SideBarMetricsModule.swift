@@ -66,11 +66,10 @@ public class SideBarMetricsModule: Module {
     }
 
     /// `UIView.reservedRegions(kind: .occlusion)` on the app window (iOS 27.1).
-    /// The Swift compiler version does not say whether the installed SDK has
-    /// the symbol (Xcode 27.2's does not), so the call is compiled out until
-    /// the SDK ships it; the caller treats `nil` as "could not measure".
+    /// Guarded on the compiler as well as the OS so a toolchain without the
+    /// symbol still builds; the caller treats `nil` as "could not measure".
     static func occlusionRegionsNow() -> [[String: Double]]? {
-        #if SIDE_BAR_METRICS_RESERVED_REGIONS
+        #if compiler(>=6.4)
         if #available(iOS 27.1, *) {
             let windows = visibleWindows()
             guard let window = windows.first(where: { $0.isKeyWindow }) ?? windows.first else {
