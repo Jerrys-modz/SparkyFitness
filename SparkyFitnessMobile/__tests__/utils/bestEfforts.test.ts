@@ -26,22 +26,17 @@ describe('bestEffortIdsForUnit', () => {
 describe('runBestEfforts', () => {
   it('reads the GPS track when there is one', () => {
     const track = Array.from({ length: 451 }, (_, i) => point(i, i * 4));
-    const efforts = runBestEfforts(track, null);
+    const efforts = runBestEfforts(track);
     expect(efforts.map((e) => e.id)).toEqual(['1k', '1mi']);
     expect(efforts[0]?.seconds).toBeCloseTo(250, 0);
   });
 
-  it('falls back to the distance series of a run with no route', () => {
-    const series: [number, number][] = [0, 1, 2, 3, 4, 5, 6].map((i) => [
-      i * 50,
-      i * 200,
-    ]);
-    expect(runBestEfforts([], series)[0]?.id).toBe('1k');
+  it('gives a run with no route none, since an indoor distance series is a pedometer estimate', () => {
+    expect(runBestEfforts([])).toEqual([]);
   });
 
-  it('is empty with neither, or with a run that is too short', () => {
-    expect(runBestEfforts([], null)).toEqual([]);
-    expect(runBestEfforts([point(0, 0), point(60, 200)], null)).toEqual([]);
+  it('is empty for a run that is too short', () => {
+    expect(runBestEfforts([point(0, 0), point(60, 200)])).toEqual([]);
   });
 });
 

@@ -1,8 +1,6 @@
 import {
   bestEffortsFromSamples,
   classifyActivitySport,
-  DISTANCE_SERIES_EFFORT_OPTIONS,
-  effortSamplesFromDistanceSeries,
   effortSamplesFromGpsTrack,
   GPS_EFFORT_OPTIONS,
   toPrSportGroup,
@@ -27,26 +25,18 @@ export function bestEffortIdsForUnit(
 }
 
 /**
- * The fastest stretches inside one recorded run: from its GPS track, or from
- * the distance series when it has no route. Empty for a run too short.
+ * The fastest stretches inside one recorded run, from its GPS track. A run with
+ * no route (an indoor run) gets none: its distance series is a pedometer
+ * estimate whose rows are stamped when a reading arrived, so a fastest mile
+ * taken from it can come out faster than anything the runner did. Empty for a
+ * run too short.
  */
-export function runBestEfforts(
-  route: readonly GpsTrackPoint[],
-  distanceSeries: readonly (readonly [number, number])[] | null
-): BestEffort[] {
-  if (route.length > 0) {
-    return bestEffortsFromSamples(
-      effortSamplesFromGpsTrack(route),
-      GPS_EFFORT_OPTIONS
-    );
-  }
-  if (distanceSeries && distanceSeries.length > 0) {
-    return bestEffortsFromSamples(
-      effortSamplesFromDistanceSeries(distanceSeries),
-      DISTANCE_SERIES_EFFORT_OPTIONS
-    );
-  }
-  return [];
+export function runBestEfforts(route: readonly GpsTrackPoint[]): BestEffort[] {
+  if (route.length === 0) return [];
+  return bestEffortsFromSamples(
+    effortSamplesFromGpsTrack(route),
+    GPS_EFFORT_OPTIONS
+  );
 }
 
 /** Best efforts only make sense for a run, not a ride or a walk. */

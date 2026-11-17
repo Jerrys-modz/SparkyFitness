@@ -207,6 +207,19 @@ describe('CardioSessionScreen', () => {
     expect(screen.getByText('Your best ever')).toBeTruthy();
   });
 
+  it('leaves the best efforts out for an indoor run, whose distance is a pedometer estimate', () => {
+    // 2.2 m/s for 30 minutes, a row every 10 s, and no route.
+    const distanceSeries = Array.from({ length: 181 }, (_, i) => [
+      i * 10,
+      i * 10 * 2.2,
+    ]);
+    mockDetail.mockReturnValue(detail({ route: [], distanceSeries }));
+    const screen = render(<CardioSessionScreen {...props()} />);
+    expect(screen.queryByTestId('run-best-efforts')).toBeNull();
+    expect(screen.queryByText('Your best ever')).toBeNull();
+    expect(screen.getByTestId('pace-chart')).toBeTruthy();
+  });
+
   it('leaves the best efforts out for a ride', () => {
     const route = Array.from({ length: 121 }, (_, i) => ({
       t: new Date(Date.UTC(2026, 8, 26, 7, 0, i * 10)).toISOString(),
