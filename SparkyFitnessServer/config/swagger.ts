@@ -1462,6 +1462,32 @@ const options = {
             protein_percentage: { type: 'number' },
             carbs_percentage: { type: 'number' },
             fat_percentage: { type: 'number' },
+            protein_per_kg: {
+              type: 'number',
+              nullable: true,
+              description:
+                'Protein goal in grams per kg of body weight or lean mass (0.1-5).',
+            },
+            carbs_per_kg: {
+              type: 'number',
+              nullable: true,
+              description: 'Carbohydrate goal in grams per kg (0.5-12).',
+            },
+            fat_per_kg: {
+              type: 'number',
+              nullable: true,
+              description: 'Fat goal in grams per kg (0.1-3).',
+            },
+            macro_reference_weight_kg: {
+              type: 'number',
+              nullable: true,
+              description:
+                'Fixed reference weight in kg (lean mass for the lean_mass basis, 20-400); null follows the latest logged weight.',
+            },
+            macro_per_kg_basis: {
+              type: 'string',
+              enum: ['body_weight', 'lean_mass'],
+            },
             target_exercise_calories_burned: { type: 'number', nullable: true },
             target_exercise_duration_minutes: {
               type: 'integer',
@@ -1484,6 +1510,32 @@ const options = {
             protein_percentage: { type: 'number' },
             carbs_percentage: { type: 'number' },
             fat_percentage: { type: 'number' },
+            protein_per_kg: {
+              type: 'number',
+              nullable: true,
+              description:
+                'Protein goal in grams per kg of body weight or lean mass (0.1-5).',
+            },
+            carbs_per_kg: {
+              type: 'number',
+              nullable: true,
+              description: 'Carbohydrate goal in grams per kg (0.5-12).',
+            },
+            fat_per_kg: {
+              type: 'number',
+              nullable: true,
+              description: 'Fat goal in grams per kg (0.1-3).',
+            },
+            macro_reference_weight_kg: {
+              type: 'number',
+              nullable: true,
+              description:
+                'Fixed reference weight in kg (lean mass for the lean_mass basis, 20-400); null follows the latest logged weight.',
+            },
+            macro_per_kg_basis: {
+              type: 'string',
+              enum: ['body_weight', 'lean_mass'],
+            },
           },
           required: ['preset_name', 'calories'],
         },

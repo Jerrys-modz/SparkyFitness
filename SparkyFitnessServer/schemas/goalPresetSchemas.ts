@@ -5,6 +5,42 @@ import {
   nullableNumber,
   nullableInt,
 } from './schema.utils.js';
+import {
+  MACRO_PER_KG_LIMITS,
+  MACRO_REFERENCE_WEIGHT_LIMITS,
+  MACRO_WEIGHT_BASES,
+} from '@workspace/shared';
+
+// Per-kg macro goals. Optional on both create and update: a client that
+// predates them omits all of them and the stored values are kept.
+const macroPerKgFields = {
+  protein_per_kg: z
+    .number()
+    .min(MACRO_PER_KG_LIMITS.protein.min)
+    .max(MACRO_PER_KG_LIMITS.protein.max)
+    .nullable()
+    .optional(),
+  carbs_per_kg: z
+    .number()
+    .min(MACRO_PER_KG_LIMITS.carbs.min)
+    .max(MACRO_PER_KG_LIMITS.carbs.max)
+    .nullable()
+    .optional(),
+  fat_per_kg: z
+    .number()
+    .min(MACRO_PER_KG_LIMITS.fat.min)
+    .max(MACRO_PER_KG_LIMITS.fat.max)
+    .nullable()
+    .optional(),
+  macro_per_kg_basis: z.enum(MACRO_WEIGHT_BASES).optional(),
+  // Null follows the logged weight; a value is a fixed reference weight.
+  macro_reference_weight_kg: z
+    .number()
+    .min(MACRO_REFERENCE_WEIGHT_LIMITS.min)
+    .max(MACRO_REFERENCE_WEIGHT_LIMITS.max)
+    .nullable()
+    .optional(),
+};
 
 const GoalPresetFieldsSchema = z.object({
   preset_name: z.string().min(1, 'preset_name is required'),
@@ -37,6 +73,7 @@ const GoalPresetFieldsSchema = z.object({
   dinner_percentage: optionalNullableNumber,
   snacks_percentage: optionalNullableNumber,
   custom_nutrients: z.record(z.string(), z.unknown()).nullable().optional(),
+  ...macroPerKgFields,
 });
 
 // Schema for creating goal presets - fields are optional
@@ -79,6 +116,7 @@ const UpdateGoalPresetFieldsSchema = z.object({
   dinner_percentage: nullableNumber,
   snacks_percentage: nullableNumber,
   custom_nutrients: z.record(z.string(), z.unknown()).nullable(),
+  ...macroPerKgFields,
 });
 
 export const UpdateGoalPresetBodySchema = UpdateGoalPresetFieldsSchema.loose();

@@ -32,6 +32,8 @@ import { useMealTypes } from '@/hooks/Diary/useMealTypes';
 import { useNutrientAutoCalculate } from '@/hooks/Goals/useNutrientAutoCalculate';
 import { NutrientAutoCalculate } from './NutrientAutoCalculate';
 import { AutoCalculateToolbar } from './AutoCalculateToolbar';
+import { MacroPerKgFields } from './MacroPerKgFields';
+import { useMacroPerKgPreview } from '@/hooks/Goals/useMacroPerKgPreview';
 
 interface GoalPresetDialogProps {
   open: boolean;
@@ -57,7 +59,12 @@ export const GoalPresetDialog = ({
   preset,
   visibleNutrients,
 }: GoalPresetDialogProps) => {
-  const { energyUnit, convertEnergy, getEnergyUnitString } = usePreferences();
+  const {
+    energyUnit,
+    convertEnergy,
+    getEnergyUnitString,
+    formatDateInUserTimezone,
+  } = usePreferences();
   const { t } = useTranslation();
   const { user } = useAuth();
   const { data: customNutrients } = useCustomNutrients();
@@ -123,12 +130,44 @@ export const GoalPresetDialog = ({
     return percentages;
   }, [formData, visibleMeals]);
 
+  const today = useMemo(
+    () => formatDateInUserTimezone(new Date(), 'yyyy-MM-dd'),
+    [formatDateInUserTimezone]
+  );
+  // A preset has no date of its own; preview with today's weight.
+  const perKgPreview = useMacroPerKgPreview(
+    formData ?? (DEFAULT_GOALS as GoalPreset),
+    macroInputType,
+    today
+  );
+  const lockedMacros = {
+    protein: formData?.protein_per_kg != null,
+    carbs: formData?.carbs_per_kg != null,
+    fat: formData?.fat_per_kg != null,
+  };
+
   const handleSave = async () => {
     if (!formData || !user) return;
 
-    const toSave = { ...formData };
+    const toSave = {
+      ...formData,
+      protein_per_kg: formData.protein_per_kg ?? null,
+      carbs_per_kg: formData.carbs_per_kg ?? null,
+      fat_per_kg: formData.fat_per_kg ?? null,
+      macro_reference_weight_kg: formData.macro_reference_weight_kg ?? null,
+      macro_per_kg_basis: formData.macro_per_kg_basis ?? 'body_weight',
+    };
 
-    if (macroInputType === 'percentages') {
+    if (perKgPreview.perKg) {
+      toSave.protein = Math.round(perKgPreview.protein);
+      toSave.carbs = Math.round(perKgPreview.carbs);
+      toSave.fat = Math.round(perKgPreview.fat);
+      if (macroInputType === 'grams') {
+        toSave.protein_percentage = null;
+        toSave.carbs_percentage = null;
+        toSave.fat_percentage = null;
+      }
+    } else if (macroInputType === 'percentages') {
       const cal = toSave.calories;
       const fiber = toSave.dietary_fiber || 0;
       const adjustedCal = Math.max(0, cal - fiber * 2);
@@ -257,12 +296,15 @@ export const GoalPresetDialog = ({
                     min={0}
                     step={0.1}
                     decimals={1}
+                    disabled={lockedMacros[m]}
                     value={
-                      macroInputType === 'grams'
-                        ? ((formData[m] as number) ?? 0)
-                        : ((formData[
-                            `${m}_percentage` as keyof GoalPreset
-                          ] as number) ?? 0)
+                      lockedMacros[m] && macroInputType === 'grams'
+                        ? Math.round(perKgPreview[m])
+                        : macroInputType === 'grams'
+                          ? ((formData[m] as number) ?? 0)
+                          : ((formData[
+                              `${m}_percentage` as keyof GoalPreset
+                            ] as number) ?? 0)
                     }
                     onValueChange={(val) =>
                       setFormData({
@@ -275,7 +317,16 @@ export const GoalPresetDialog = ({
                 </div>
               ))}
             </div>
-            {macroInputType === 'percentages' && (
+            <div className="mt-4">
+              <MacroPerKgFields
+                idPrefix="goal-preset"
+                goal={formData}
+                macroInputType={macroInputType}
+                preview={perKgPreview}
+                onChange={(update) => setFormData({ ...formData, ...update })}
+              />
+            </div>
+            {macroInputType === 'percentages' && !perKgPreview.perKg && (
               <>
                 {/* Die Total-Anzeige auf der rechten Seite */}
                 <div

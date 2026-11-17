@@ -192,6 +192,7 @@ export * from './utils/sleepSameNight.ts';
 export * from './utils/oralCare.ts';
 export * from './utils/calorieRuleDefaults.ts';
 export * from './utils/calorieCycling.ts';
+export * from './utils/macroPerKg.ts';
 export * from './utils/exerciseCalorieLink.ts';
 export * from './utils/servingSizeConversions.ts';
 export * from './utils/saltSodium.ts';

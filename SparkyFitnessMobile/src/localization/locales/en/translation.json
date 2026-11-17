@@ -8489,7 +8489,32 @@
     },
     "cyclingNoteTodayWithUnit": "Calorie cycling is on, so the calories below are your base target and each day is higher or lower. Today it is {{calories}} {{unit}}.",
     "cyclingPausedWeeklyPlan": "Calorie cycling is paused today by an active weekly goal plan. The calories below set today’s plan target directly.",
-    "adjustedGoalFailed": "Could not load today’s adjusted goal target."
+    "adjustedGoalFailed": "Could not load today’s adjusted goal target.",
+    "perKg": {
+      "title": "Grams per kg of body weight",
+      "proteinSwitch": "Set protein per kg",
+      "fatSwitch": "Set fat per kg",
+      "proteinInput": "Protein (g/kg)",
+      "fatInput": "Fat (g/kg)",
+      "bodyWeight": "Body weight",
+      "leanMass": "Lean mass",
+      "leanMassFallback": "No body fat % logged, so body weight is used instead of lean mass.",
+      "remainderPercentages": "Per-kg macros are fixed first. The calories left go to the other macros in proportion to their percentages.",
+      "remainderGrams": "The other macros keep the grams you enter.",
+      "invalid": "Enter a g/kg value in the allowed range.",
+      "descriptionAll": "Set protein, carbs or fat in grams per kg. They can follow your latest logged weight, or a reference weight you enter.",
+      "carbsSwitch": "Set carbs per kg",
+      "carbsInput": "Carbs (g/kg)",
+      "followLogged": "Follow logged weight",
+      "fixedReference": "Fixed weight",
+      "referenceWeight": "Reference weight ({{unit}})",
+      "referenceLeanMass": "Reference lean mass ({{unit}})",
+      "noWeightAll": "No weight logged yet. Log your weight or enter a fixed reference weight; until then the grams saved with the goal are used.",
+      "previewFixed": "Grams from your reference weight of {{kg}} kg: protein {{protein}} g, carbs {{carbs}} g, fat {{fat}} g. They change only when you save a new reference weight.",
+      "previewLogged": "Today's grams from your latest logged weight of {{kg}} kg: protein {{protein}} g, carbs {{carbs}} g, fat {{fat}} g.",
+      "calorieMismatch": "The per-kg macros add up to {{locked}} {{unit}}, but the calorie target leaves {{available}} {{unit}} for macros.",
+      "invalidReference": "Enter a reference weight in the allowed range."
+    }
   },
   "reports": {
     "title": "Reports",

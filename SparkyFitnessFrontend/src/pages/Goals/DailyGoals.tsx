@@ -24,6 +24,8 @@ import { NutrientAutoCalculate } from './NutrientAutoCalculate';
 import { AutoCalculateToolbar } from './AutoCalculateToolbar';
 import { CalorieCyclingGoalHint } from '@/components/CalorieCyclingGoalHint';
 import { useCalorieCyclingForDay } from '@/hooks/Goals/useCalorieCyclingActive';
+import { MacroPerKgFields } from './MacroPerKgFields';
+import { useMacroPerKgPreview } from '@/hooks/Goals/useMacroPerKgPreview';
 
 const calculateGrams = (
   calories: number,
@@ -121,7 +123,15 @@ export const DailyGoals = ({
     );
   }, [goals, macroInputType]);
 
-  const isMacroValid = Math.round(currentMacroTotal) === 100;
+  const perKgPreview = useMacroPerKgPreview(goals, macroInputType, today);
+  const lockedMacros = {
+    protein: goals.protein_per_kg != null,
+    carbs: goals.carbs_per_kg != null,
+    fat: goals.fat_per_kg != null,
+  };
+  // With protein or fat per kg the percentages only weight the remainder.
+  const isMacroValid =
+    perKgPreview.perKg !== null || Math.round(currentMacroTotal) === 100;
 
   const handleApplySelected = () => {
     applySelected((updates) => setGoals((prev) => ({ ...prev, ...updates })));
@@ -133,7 +143,17 @@ export const DailyGoals = ({
   const handleSaveGoals = async () => {
     if (!user) return;
     const finalGoals = { ...goals };
-    if (macroInputType === 'percentages') {
+    if (perKgPreview.perKg) {
+      // The server recomputes these from the weight; they match the preview.
+      finalGoals.protein = Math.round(perKgPreview.protein);
+      finalGoals.carbs = Math.round(perKgPreview.carbs);
+      finalGoals.fat = Math.round(perKgPreview.fat);
+      if (macroInputType === 'grams') {
+        finalGoals.protein_percentage = null;
+        finalGoals.carbs_percentage = null;
+        finalGoals.fat_percentage = null;
+      }
+    } else if (macroInputType === 'percentages') {
       const cal = finalGoals.calories;
       const fiber = finalGoals.dietary_fiber || 0;
       const adjustedCal = Math.max(0, cal - fiber * 2);
@@ -278,12 +298,15 @@ export const DailyGoals = ({
                   decimals={1}
                   min={0}
                   max={macroInputType === 'percentages' ? 100 : undefined}
+                  disabled={lockedMacros[m]}
                   value={
-                    macroInputType === 'grams'
-                      ? (goals[m] ?? 0)
-                      : Number(
-                          goals[`${m}_percentage` as keyof ExpandedGoals] ?? 0
-                        )
+                    lockedMacros[m] && macroInputType === 'grams'
+                      ? Math.round(perKgPreview[m])
+                      : macroInputType === 'grams'
+                        ? (goals[m] ?? 0)
+                        : Number(
+                            goals[`${m}_percentage` as keyof ExpandedGoals] ?? 0
+                          )
                   }
                   onValueChange={(val) => {
                     setGoals((prev) => ({
@@ -297,7 +320,15 @@ export const DailyGoals = ({
             ))}
           </div>
 
-          {macroInputType === 'percentages' && (
+          <MacroPerKgFields
+            idPrefix="daily-goals"
+            goal={goals}
+            macroInputType={macroInputType}
+            preview={perKgPreview}
+            onChange={(update) => setGoals((prev) => ({ ...prev, ...update }))}
+          />
+
+          {macroInputType === 'percentages' && !perKgPreview.perKg && (
             <div className="space-y-2 mb-6">
               <div
                 className={`text-sm font-medium text-right ${isMacroValid ? 'text-green-600' : 'text-destructive'}`}

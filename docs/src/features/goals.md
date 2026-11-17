@@ -10,6 +10,33 @@ Set your goal weight under **Goals**. It was previously only asked once during o
 
 The destination weight and the desired weekly pace are separate settings. Under [Calculation Settings → Goal Mode](/features/settings/calculation-settings#_4-goal-mode-caloric-deficits), select **Weekly weight change** to choose maintenance, loss, or gain in kg or g per week. The weekly pace adjusts the calorie target; it does not change the saved destination weight.
 
+## Macros per kg of Body Weight
+
+Protein, carbs and fat can each be set in **grams per kg** instead of grams or a percentage of calories, for example 2.0 g/kg of protein. A gram target typed by hand stays put while your weight goes down; a per-kg target can follow it.
+
+On the Goals page (web), in **Edit goals for today** (web Diary), in goal presets, or in Goals (mobile), switch on **Set protein per kg**, **Set carbs per kg** and/or **Set fat per kg** and enter the value. Then choose:
+
+- **Per kg of**: **Body weight**, or **Lean mass** (your weight × (1 − body fat %)). With no body fat % logged, lean mass uses body weight instead and the Goals page says so.
+- **Weight to use**:
+  - **Follow my logged weight** (the default): each day uses the latest weight measured on or before that day, so the grams change after a weigh-in, including one synced from a scale or watch.
+  - **Fixed reference weight**: a weight you enter, prefilled from your latest weight (shown and typed in your weight unit). The grams change only when you save a new reference weight, however your logged weight moves. With **Lean mass**, the number you enter is your lean mass.
+
+Allowed values are 0.1–5 g/kg for protein, 0.5–12 g/kg for carbs, 0.1–3 g/kg for fat, and a reference weight of 20–400 kg. A preview under the switches shows the grams and the weight they came from before you save.
+
+**No weight logged yet.** When following your logged weight, the goal falls back to the grams saved with it and the Goals page asks you to log a weight or enter a fixed one.
+
+**How the remaining calories are split.** A per-kg macro is fixed first:
+
+- With macros set as **percentages**, the calories left after the per-kg macros (and after the fibre allowance the percentage maths already subtracts) go to the other macros in proportion to their percentages. So with protein per kg and carbs 40% / fat 30%, carbs get 40/70 of the rest and fat 30/70. With protein and fat per kg, carbs get all of it. The percentages no longer need to add up to 100. The remainder never goes below zero.
+- With macros set as **grams**, macros that are not per kg keep the grams you enter.
+- With **all three per kg**, the macros no longer come from the calorie target. The Goals page shows a note when their calories add up to more or less than the target leaves for macros (or, with only some per kg, when those alone already take more than it).
+
+Calorie cycling and exercise calories added back to your macros still apply on top: they change the calories the remainder is split from, and cycling still moves carbs on high and low days, even when carbs are set per kg.
+
+**Past days keep their targets.** The per-kg setting and the reference weight are stored on the dated goal, like the rest of your goals. Saving goals today does not change them on earlier days, and earlier days keep using the weight they had. Goal presets carry the setting too, so a weekly goal plan can use a per-kg preset.
+
+**Older apps.** An app version that does not know about per-kg goals keeps the setting when it saves your goals; switch the unit off in a current version to go back to grams.
+
 ## Nutrient Goal Direction (Minimum / Maximum / Target)
 
 By default, every nutrient goal in SparkyFitness is treated as a **minimum** — a target to reach, with progress filling toward 100% as you approach it. That works well for protein or fiber, but it doesn't fit every nutrient or every person: someone managing high cholesterol wants cholesterol treated as a ceiling, not something to "fill up"; someone maintaining their weight wants calories treated as a range to stay near, not a bar to max out.

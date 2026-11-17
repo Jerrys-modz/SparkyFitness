@@ -39,6 +39,11 @@ export const userGoalsSchema = z.object({
   water_goal_ml: z.number().nullable(),
   custom_nutrients: z.unknown().nullable(),
   custom_meal_percentages: z.unknown().nullable(),
+  protein_per_kg: z.number().nullable(),
+  carbs_per_kg: z.number().nullable(),
+  fat_per_kg: z.number().nullable(),
+  macro_reference_weight_kg: z.number().nullable(),
+  macro_per_kg_basis: z.string(),
 });
 
 export const userGoalsInitializerSchema = z.object({
@@ -79,6 +84,11 @@ export const userGoalsInitializerSchema = z.object({
   water_goal_ml: z.number().optional().nullable(),
   custom_nutrients: z.unknown().optional().nullable(),
   custom_meal_percentages: z.unknown().optional().nullable(),
+  protein_per_kg: z.number().optional().nullable(),
+  carbs_per_kg: z.number().optional().nullable(),
+  fat_per_kg: z.number().optional().nullable(),
+  macro_reference_weight_kg: z.number().optional().nullable(),
+  macro_per_kg_basis: z.string().optional(),
 });
 
 export const userGoalsMutatorSchema = z.object({
@@ -119,6 +129,11 @@ export const userGoalsMutatorSchema = z.object({
   water_goal_ml: z.number().optional().nullable(),
   custom_nutrients: z.unknown().optional().nullable(),
   custom_meal_percentages: z.unknown().optional().nullable(),
+  protein_per_kg: z.number().optional().nullable(),
+  carbs_per_kg: z.number().optional().nullable(),
+  fat_per_kg: z.number().optional().nullable(),
+  macro_reference_weight_kg: z.number().optional().nullable(),
+  macro_per_kg_basis: z.string().optional(),
 });
 
 export type UserGoals = z.infer<typeof userGoalsSchema>;
