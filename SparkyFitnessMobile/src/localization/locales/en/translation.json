@@ -9269,7 +9269,8 @@
       "clear": "Clear",
       "saved": "Body fat goal saved.",
       "cleared": "Body fat goal cleared.",
-      "failed": "Could not save the body fat goal."
+      "failed": "Could not save the body fat goal.",
+      "clearHint": "Leave it empty and save to remove the goal."
     },
     "perKg": {
       "title": "Grams per kg of body weight",
