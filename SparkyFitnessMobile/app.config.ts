@@ -331,7 +331,6 @@ export default ({ config }: ConfigContext): Partial<ExpoConfig> => {
       './plugins/withWearOs',
       './plugins/withEnrichedMarkdownNoMath',
       './plugins/withSceneLifecycle',
-      './plugins/withVisualIntelligence',
       [
         'react-native-maps',
         {
