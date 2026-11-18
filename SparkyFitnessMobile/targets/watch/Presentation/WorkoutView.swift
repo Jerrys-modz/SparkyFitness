@@ -2539,9 +2539,12 @@ private struct SetDetailRow: View {
     private var captionText: String {
         let base: String
         if let partner = step.supersetWith {
-            base = String(localized: "watch.workout.superset", defaultValue: "Superset · \(partner)")
+            base = String(localized: "watch.workout.superset", defaultValue: "Superset · \(partner)") + step.sideSuffix
+        } else if let equipment = step.equipment {
+            base = equipment + step.sideSuffix
         } else {
-            base = step.equipment ?? SetProgressRow.title(for: step)
+            // The title already carries the side.
+            base = SetProgressRow.title(for: step)
         }
         return store.isCompleted(step)
             ? base + " · " + String(localized: "watch.workout.logged", defaultValue: "logged")
@@ -2617,8 +2620,13 @@ private struct SetProgressRow: View {
         step.plannedSet.setType?.lowercased() == "warmup"
     }
 
-    /// "Set 2 of 3", "Warm-up 1 of 2"…
+    /// "Set 2 of 3", "Warm-up 1 of 2"…, with " · L" or " · R" for a set done
+    /// on one side.
     static func title(for step: WorkoutStep) -> String {
+        typeTitle(for: step) + step.sideSuffix
+    }
+
+    private static func typeTitle(for step: WorkoutStep) -> String {
         let n = step.setNumber, count = step.setCount
         switch step.plannedSet.setType?.lowercased() {
         case "warmup":

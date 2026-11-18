@@ -2484,7 +2484,7 @@ describe('_createExerciseEntryWithClient id threading', () => {
     expect(insert!.sql).toContain('$77');
     expect(insert!.sql).toContain('modality');
     expect(insert!.sql).toContain(', id)');
-    // $77 is the last param — the client uuid (after load_convention and health_activity_type).
+    // $77 is the last param — the client uuid (after health_activity_type).
     expect(insert!.params).toHaveLength(77);
     expect(insert!.params[76]).toBe('client-uuid-1');
   });

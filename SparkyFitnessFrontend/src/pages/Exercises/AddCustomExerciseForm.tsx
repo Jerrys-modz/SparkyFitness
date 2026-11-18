@@ -53,6 +53,8 @@ export default function AddCustomExerciseForm({
     setNewExerciseLoadConvention,
     newExerciseHealthActivityType,
     setNewExerciseHealthActivityType,
+    newExerciseLoadConvention,
+    setNewExerciseLoadConvention,
     newExerciseCalories,
     manualCaloriesPerHour,
     setManualCaloriesPerHour,
@@ -184,6 +186,12 @@ export default function AddCustomExerciseForm({
           </p>
         </div>
       </div>
+      <ExerciseLoadConventionField
+        id="load-convention"
+        modality={newExerciseModality}
+        value={newExerciseLoadConvention}
+        onChange={setNewExerciseLoadConvention}
+      />
 
       {/* Calories */}
       <div className="grid grid-cols-4 items-center gap-4">

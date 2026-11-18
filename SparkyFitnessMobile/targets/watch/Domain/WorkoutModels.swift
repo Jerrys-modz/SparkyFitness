@@ -63,10 +63,6 @@ struct PlannedExercise: Codable, Equatable, Identifiable {
     /// (+ added, − assisted). Optional so a snapshot saved before this existed
     /// still decodes, and an older phone that never sends it reads as false.
     var bodyweight: Bool? = nil
-    /// A one-sided exercise, or one with a set already marked left or right.
-    /// Only then does the set options page offer Side and Add Other Side.
-    /// Optional so an older phone, or a saved snapshot, still decodes.
-    var perSide: Bool? = nil
     /// The exercise's equipment ("Barbell"), for the line under its name on the
     /// new workout view. Nil until the phone sends it; the line then shows the
     /// set's label instead.
@@ -81,6 +77,10 @@ struct PlannedExercise: Codable, Equatable, Identifiable {
     var imageCount: Int? = nil
     /// Primary muscle ("Chest"), for the line under the name on the demo page.
     var muscle: String? = nil
+    /// A one-sided exercise, or one with a set already marked left or right.
+    /// Only then does the set options page offer Side and Add Other Side.
+    /// Optional so an older phone, or a saved snapshot, still decodes.
+    var perSide: Bool? = nil
     let sets: [PlannedSet]
 
     var id: String { exerciseEntryId }
@@ -208,26 +208,35 @@ struct WorkoutStep: Identifiable, Equatable {
 
     var id: String { plannedSet.setId }
 
-    /// "Warmup 1/2" / "Set 2/3" — what sits under the exercise name.
+    /// "Warmup 1/2" / "Set 2/3" — what sits under the exercise name, with
+    /// " · L" or " · R" for a set done on one side.
     var label: String {
-        let base: String
+        "\(typeLabel)\(sideSuffix)"
+    }
+
+    /// " · L" / " · R" for a one-sided set, empty for both sides.
+    var sideSuffix: String {
+        switch plannedSet.side?.lowercased() {
+        case "left":
+            return String(localized: "watch.workout.setLabel.sideLeftSuffix", defaultValue: " · L")
+        case "right":
+            return String(localized: "watch.workout.setLabel.sideRightSuffix", defaultValue: " · R")
+        default:
+            return ""
+        }
+    }
+
+    private var typeLabel: String {
         switch plannedSet.setType?.lowercased() {
         case "warmup":
-            base = String(localized: "watch.workout.setLabel.warmup", defaultValue: "Warmup \(setNumber)/\(setCount)")
+            return String(localized: "watch.workout.setLabel.warmup", defaultValue: "Warmup \(setNumber)/\(setCount)")
         case "drop":
-            base = String(localized: "watch.workout.setLabel.drop", defaultValue: "Drop \(setNumber)/\(setCount)")
+            return String(localized: "watch.workout.setLabel.drop", defaultValue: "Drop \(setNumber)/\(setCount)")
         case "failure":
-            base = String(localized: "watch.workout.setLabel.failure", defaultValue: "Failure \(setNumber)/\(setCount)")
+            return String(localized: "watch.workout.setLabel.failure", defaultValue: "Failure \(setNumber)/\(setCount)")
         default:
-            base = String(localized: "watch.workout.setLabel.set", defaultValue: "Set \(setNumber)/\(setCount)")
+            return String(localized: "watch.workout.setLabel.set", defaultValue: "Set \(setNumber)/\(setCount)")
         }
-        let sideSuffix: String
-        switch plannedSet.side?.lowercased() {
-        case "left": sideSuffix = " · L"
-        case "right": sideSuffix = " · R"
-        default: sideSuffix = ""
-        }
-        return base + sideSuffix
     }
 }
 

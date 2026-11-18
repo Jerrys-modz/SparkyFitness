@@ -775,6 +775,7 @@ enum ContextPayloadMapper {
                 imageKey: raw["imageKey"] as? String,
                 imageCount: intValue(raw["imageCount"]),
                 muscle: raw["muscle"] as? String,
+                perSide: raw["perSide"] as? Bool,
                 sets: sets
             )
         }

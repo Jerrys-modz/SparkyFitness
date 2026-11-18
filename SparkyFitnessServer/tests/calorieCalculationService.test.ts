@@ -123,7 +123,7 @@ describe('estimateCaloriesBurnedPerHour', () => {
     const unsided = Array.from({ length: 4 }, () => ({ reps: 8, weight: 30 }));
     const bySide = unsided.map((set, index) => ({
       ...set,
-      side: index % 2 === 0 ? ('left' as const) : ('right' as const),
+      side: index % 2 === 0 ? 'left' : 'right',
     }));
     expect(
       await estimateCaloriesBurnedPerHour(strengthExercise, USER_ID, bySide)
@@ -139,7 +139,7 @@ describe('estimateCaloriesBurnedPerHour', () => {
     // (intensity ~0.65, MET 4.5).
     const sets = [
       { reps: 5, weight: 100 },
-      { reps: 5, weight: 20, side: 'left' as const },
+      { reps: 5, weight: 20, side: 'left' },
     ];
     const asLogged = await estimateCaloriesBurnedPerHour(
       { ...strengthExercise, load_convention: 'total' },

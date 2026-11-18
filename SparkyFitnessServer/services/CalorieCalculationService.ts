@@ -3,15 +3,20 @@ import userRepository from '../models/userRepository.js';
 import { log } from '../config/logging.js';
 import { loadUserTimezone } from '../utils/timezoneLoader.js';
 import { userAge } from '../utils/dateHelpers.js';
-import { volumeMultiplier } from '@workspace/shared';
-import type { ExerciseEntrySetRequest, Exercises } from '@workspace/shared';
+import {
+  volumeMultiplier,
+  type ExerciseEntrySetRequest,
+  type Exercises,
+} from '@workspace/shared';
 
 type CalorieExercise = Partial<
   Pick<Exercises, 'level' | 'calories_per_hour' | 'load_convention'>
 > & {
   category?: Exercises['category'] | { name?: string | null };
 };
-type CalorieSet = Pick<ExerciseEntrySetRequest, 'reps' | 'weight' | 'side'>;
+type CalorieSet = Pick<ExerciseEntrySetRequest, 'reps' | 'weight'> & {
+  side?: string | null;
+};
 export type PreparedCalorieEstimator = (sets?: readonly CalorieSet[]) => number;
 
 // Approximate MET values based on exercise category and level
@@ -114,7 +119,10 @@ async function prepareCalorieEstimator(
       // already cancels. The estimated 1RM stays on the weight as logged.
       const repsPerformed = (set: CalorieSet): number =>
         (Number(set.reps) || 0) *
-        volumeMultiplier(exercise.load_convention, set.side);
+        volumeMultiplier(
+          exercise.load_convention,
+          set.side === 'left' || set.side === 'right' ? set.side : null
+        );
       const totalVolume = sets.reduce(
         (acc, set) => acc + repsPerformed(set) * (Number(set.weight) || 0),
         0

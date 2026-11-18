@@ -5,7 +5,6 @@ import {
   classifyActivitySport,
   toPrSportGroup,
   bestEffortsFromSamples,
-  effortSamplesFromDistanceSeries,
   effortSamplesFromGpsTrack,
   fasterEffort,
   fastestEffort,

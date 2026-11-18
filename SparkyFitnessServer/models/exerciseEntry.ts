@@ -1,7 +1,7 @@
 import {
   compareByEntryTime,
-  DEFAULT_EXERCISE_LOAD_CONVENTION,
   deriveWorkoutSessionStatus,
+  DEFAULT_EXERCISE_LOAD_CONVENTION,
   earliestEntryTime,
   isAppLoggedWorkoutSource,
   type ExerciseEntryHrZonesInitializer,
@@ -196,7 +196,7 @@ async function _getExerciseEntryByIdWithClient(client: any, id: any) {
              COALESCE(
                (SELECT json_agg(set_data ORDER BY set_data.set_number)
                 FROM (
-                  SELECT ees.id, ees.set_number, ees.set_type, ees.reps, ees.weight, ees.duration, ees.rest_time, ees.notes, ees.rpe, ees.rir, ees.side, to_char(ees.completed_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS completed_at, ees.is_pr, ees.distance, to_char(ees.started_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS started_at
+                  SELECT ees.id, ees.set_number, ees.set_type, ees.reps, ees.weight, ees.duration, ees.rest_time, ees.notes, ees.rpe, ees.rir, ees.side, to_char(ees.completed_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS completed_at, to_char(ees.started_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS started_at, ees.is_pr, ees.distance
                   FROM exercise_entry_sets ees
                   WHERE ees.exercise_entry_id = ee.id
                 ) AS set_data
@@ -1171,7 +1171,8 @@ interface ExerciseEntrySetInput {
   notes?: string | null;
   rpe?: number | null;
   rir?: number | null;
-  side?: string | null;
+  /** 'left' or 'right'; null is both sides together. */
+  side?: 'left' | 'right' | null;
   completed_at?: string | Date | null;
   is_pr?: boolean | null;
   distance?: number | null;
@@ -1347,7 +1348,7 @@ async function _createExerciseEntryWithClient(
       // No existing entry, create a new one
       // 1. Fetch the exercise details to create the snapshot
       const exerciseSnapshotQuery = await client.query(
-        `SELECT name, calories_per_hour, category, source, source_id, force, level, mechanic, equipment, primary_muscles, secondary_muscles, instructions, images, modality, load_convention, health_activity_type
+        `SELECT name, calories_per_hour, category, source, source_id, force, level, mechanic, equipment, primary_muscles, secondary_muscles, instructions, images, modality, health_activity_type, load_convention
          FROM exercises WHERE id = $1`,
         [entryData.exercise_id]
       );

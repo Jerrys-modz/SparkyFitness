@@ -15,9 +15,10 @@ vi.mock('../config/logging', () => ({
 // Bind positions of `modality` in the two writer statements.
 const CREATE_MODALITY_PARAM = 17;
 const UPDATE_MODALITY_PARAM = 15;
-// load_convention follows source_id, so it sits two binds after modality.
-const CREATE_LOAD_CONVENTION_PARAM = 18;
-const UPDATE_LOAD_CONVENTION_PARAM = 17;
+// load_convention follows health_activity_type on create, and source_id plus
+// the two health_activity_type binds on update.
+const CREATE_LOAD_CONVENTION_PARAM = 19;
+const UPDATE_LOAD_CONVENTION_PARAM = 19;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function lastQuery(mockClient: any): [string, unknown[]] {
@@ -120,8 +121,8 @@ describe('exercise modality writers', () => {
       await exerciseDb.updateExercise(id, uuidv4(), { modality: 'duration' });
       const params = lastQuery(mockClient)[1];
       expect(params[params.length - 1]).toBe(id);
-      // modality, source_id, load_convention, the two health_activity_type binds,
-      // then the exercise id.
+      // modality, source_id, the two health_activity_type binds,
+      // load_convention, then the id.
       expect(params).toHaveLength(UPDATE_MODALITY_PARAM + 6);
     });
   });

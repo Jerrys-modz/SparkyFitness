@@ -187,6 +187,12 @@ export default function EditExerciseDialog({ form }: EditExerciseDialogProps) {
                 </p>
               </div>
             </div>
+            <ExerciseLoadConventionField
+              id="edit-load-convention"
+              modality={form.editExerciseModality}
+              value={form.editExerciseLoadConvention}
+              onChange={form.setEditExerciseLoadConvention}
+            />
 
             {/* Calories/Hour */}
             <div className="grid grid-cols-4 items-center gap-4">
