@@ -1437,9 +1437,19 @@ extension WatchRunHealthKitController {
         var updated = metrics
         updated.distanceMeters = pedometerDistance
         metrics = updated
-        let activeElapsed = builder.elapsedTime
-        if activeElapsed - (distanceSeries.last?.first ?? -Self.distanceSeriesInterval) >= Self.distanceSeriesInterval {
-            distanceSeries.append([activeElapsed.rounded(), pedometerDistance])
+        // The row is stamped with the active time at the end of the span this
+        // reading covers, not the moment it arrived: readings land late and in
+        // batches, and a row stamped on arrival makes a short window of the
+        // pace chart read fast or slow. Active time at `readAt` is the active
+        // time now less the running time since then.
+        let now = Date()
+        let runningSinceRead = readAt < now
+            ? Self.runningStretches(from: readAt, to: now, events: builder.workoutEvents)
+                .reduce(0) { $0 + $1.duration }
+            : 0
+        let activeAtRead = max(0, builder.elapsedTime - runningSinceRead)
+        if activeAtRead - (distanceSeries.last?.first ?? -Self.distanceSeriesInterval) >= Self.distanceSeriesInterval {
+            distanceSeries.append([activeAtRead.rounded(), pedometerDistance])
         }
         // Health holds none of this distance, so the snapshot is what a
         // relaunch picks it up from.

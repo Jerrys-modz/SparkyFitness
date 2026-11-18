@@ -348,6 +348,135 @@ describe('treadmill distance', () => {
   });
 });
 
+describe('run block belt pace', () => {
+  const MILE = 1609.344;
+  const beltMps = MILE / 720; // 12:00 per mile
+  // 5 minutes of walking, 20 of running, 5 of walking; a row every 12 seconds.
+  const mixedSeries = (): number[][] => {
+    const rows: number[][] = [];
+    let t = 0;
+    let m = 0;
+    for (const [seconds, speed] of [
+      [300, 0.97],
+      [1200, beltMps * 1.067],
+      [300, 0.97],
+    ] as const) {
+      for (let e = 0; e < seconds; e += 12) {
+        t += 12;
+        m += 12 * speed;
+        rows.push([t, Math.round(m * 100) / 100]);
+      }
+    }
+    return rows;
+  };
+  const mixed = (overrides: Partial<RunSummaryParams> = {}) =>
+    params({
+      entryId: 'entry-1',
+      editableDistance: true,
+      distanceUnit: 'miles',
+      distanceMeters: 3300,
+      activeSeconds: 1800,
+      distanceSeries: mixedSeries(),
+      watchIndoor: {
+        scale: 1,
+        estimatedMeters: 3300,
+        startedAt: 1_000_000,
+        endedAt: 2_800_000,
+      },
+      ...overrides,
+    });
+  const enter = (distance: string, pace?: string) => {
+    fireEvent.changeText(
+      screen.getByLabelText('Distance from the treadmill in mi'),
+      distance
+    );
+    if (pace != null) {
+      fireEvent.changeText(
+        screen.getByLabelText('Belt pace of the run in minutes per mi'),
+        pace
+      );
+    }
+    fireEvent.press(screen.getByText('Update'));
+  };
+
+  beforeEach(() => {
+    jest.mocked(setExerciseEntryDistance).mockClear();
+    jest.mocked(learnWatchIndoorScale).mockClear();
+  });
+
+  it('offers the pace for a run with a distance series only', () => {
+    renderScreen(mixed());
+    expect(
+      screen.getByLabelText('Belt pace of the run in minutes per mi')
+    ).toBeTruthy();
+  });
+
+  it('does not offer it without a distance series', () => {
+    renderScreen(mixed({ distanceSeries: undefined }));
+    expect(
+      screen.queryByLabelText('Belt pace of the run in minutes per mi')
+    ).toBeNull();
+  });
+
+  it('sends the belt speed with the distance', async () => {
+    renderScreen(mixed());
+    enter('2.11', '12:00');
+    await screen.findByText('Distance updated.');
+    expect(setExerciseEntryDistance).toHaveBeenCalledWith(
+      'entry-1',
+      expect.closeTo((2.11 * MILE) / 1000, 3),
+      expect.closeTo(beltMps, 3)
+    );
+  });
+
+  it('teaches the run factor from the run block alone', async () => {
+    renderScreen(mixed());
+    enter('2.11', '12:00');
+    await screen.findByText('Distance updated.');
+    // What the series showed for the run block against its belt distance, so
+    // the walking's pedometer error does not move the run factor.
+    expect(learnWatchIndoorScale).toHaveBeenCalledTimes(1);
+    const [kind, applied, shown, entered, source, runId] = jest.mocked(
+      learnWatchIndoorScale
+    ).mock.calls[0]!;
+    expect([kind, applied, source, runId]).toEqual([
+      'run',
+      1,
+      'phone',
+      'entry-1',
+    ]);
+    // About 20 minutes of running, so about 2.7 to 2.9 km either way.
+    expect(entered).toBeGreaterThan(2600);
+    expect(shown).toBeGreaterThan(entered);
+    expect(entered / shown).toBeGreaterThan(0.92);
+    expect(entered / shown).toBeLessThan(0.97);
+  });
+
+  it('learns from the total, as before, when no pace is entered', async () => {
+    renderScreen(mixed());
+    enter('2.11');
+    await screen.findByText('Distance updated.');
+    expect(setExerciseEntryDistance).toHaveBeenCalledWith(
+      'entry-1',
+      expect.closeTo((2.11 * MILE) / 1000, 3)
+    );
+    expect(learnWatchIndoorScale).toHaveBeenCalledWith(
+      'run',
+      1,
+      3300,
+      expect.closeTo(2.11 * MILE, 0),
+      'phone',
+      'entry-1'
+    );
+  });
+
+  it('refuses a pace it cannot read, and sends nothing', () => {
+    renderScreen(mixed());
+    enter('2.11', 'fast');
+    expect(setExerciseEntryDistance).not.toHaveBeenCalled();
+  });
+});
+
 describe('treadmill correction', () => {
   const treadmill = (overrides: Partial<RunSummaryParams> = {}) =>
     params({
