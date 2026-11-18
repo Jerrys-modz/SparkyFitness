@@ -4,11 +4,6 @@ import Toast from 'react-native-toast-message';
 import i18n from '../localization/i18n';
 import { deleteFoodEntry } from '../services/api/foodEntriesApi';
 import { normalizeDate } from '../utils/dateUtils';
-import { cancelQueuedItem } from '../services/offlineQueue/queueActions';
-import {
-  isPendingEntryId,
-  queueIdOfPendingEntry,
-} from '../services/offlineQueue/overlay';
 import { invalidateFoodCache } from './invalidateFoodCache';
 
 interface UseDeleteFoodEntryOptions {
@@ -26,12 +21,7 @@ export function useDeleteFoodEntry({
   const normalizedDate = normalizeDate(entryDate);
 
   const mutation = useMutation({
-    // An entry still waiting in the offline queue is removed from the queue;
-    // it never existed on the server.
-    mutationFn: () =>
-      isPendingEntryId(entryId)
-        ? cancelQueuedItem(queueIdOfPendingEntry(entryId))
-        : deleteFoodEntry(entryId),
+    mutationFn: () => deleteFoodEntry(entryId),
     onSuccess: () => {
       onSuccess?.();
     },
@@ -69,8 +59,6 @@ export function useDeleteFoodEntry({
   const deleteEntry = () => mutation.mutate();
 
   const invalidateCache = () => {
-    // Nothing changed on the server when a queued entry is cancelled.
-    if (isPendingEntryId(entryId)) return;
     invalidateFoodCache(queryClient, normalizedDate);
   };
 

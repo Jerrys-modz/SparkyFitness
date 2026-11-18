@@ -32,7 +32,6 @@ import {
 } from './src/hooks/useStartLiveWorkout';
 import WatchConnectivity from './modules/watch-connectivity';
 import { useAppStartup } from './src/hooks/useAppStartup';
-import { useOfflineQueueSync } from './src/hooks/useOfflineQueueSync';
 import { useAppBootstrap } from './src/hooks/useAppBootstrap';
 import { useAppLanguageForegroundSync } from './src/hooks/useAppLanguageForegroundSync';
 import { useAutoSyncOnOpen } from './src/hooks/useAutoSyncOnOpen';
@@ -160,7 +159,6 @@ import {
   SafeNotificationSettings,
   SafeAbout,
   SafeWhatsNew,
-  SafeOfflineQueue,
   SafeDailyNutritionDetails,
   SafeNutrientTrends,
   SafeExerciseStatistics,
@@ -395,8 +393,6 @@ function AppContent() {
   const { shouldYieldObserverSync } = useAutoSyncOnOpen({ initialRoute, syncMutation });
   useAppStartup({ shouldYieldObserverSync });
   useOfflineQueueSync();
-  // The widgets built in the app, mirrored to the widget wherever the person is.
-  useCustomWidgetLayoutSync();
 
   const {
     rememberActiveTab,
@@ -1442,11 +1438,6 @@ function AppContent() {
             name="About"
             component={SafeAbout}
             options={createStackScreenOptions(t('screens.about', { defaultValue: 'About' }), { headerBackTitle: t('navigation.settings', { defaultValue: 'Settings' }) })}
-          />
-          <Stack.Screen
-            name="OfflineQueue"
-            component={SafeOfflineQueue}
-            options={createStackScreenOptions(t('offlineQueue.screen.title', { defaultValue: 'Offline entries' }), { headerBackTitle: t('navigation.dashboard', { defaultValue: 'Dashboard' }) })}
           />
           <Stack.Screen
             name="WhatsNew"

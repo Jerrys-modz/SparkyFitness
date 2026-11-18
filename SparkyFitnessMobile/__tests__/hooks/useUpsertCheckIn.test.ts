@@ -60,14 +60,11 @@ describe('useUpsertCheckIn', () => {
     });
 
     await waitFor(() => {
-      expect(mockUpsertCheckIn).toHaveBeenCalledWith(
-        {
-          entryDate,
-          weight: 80.5,
-          neck: null,
-        },
-        { timeoutMs: expect.any(Number) }
-      );
+      expect(mockUpsertCheckIn).toHaveBeenCalledWith({
+        entryDate,
+        weight: 80.5,
+        neck: null,
+      });
     });
     const vars = mockUpsertCheckIn.mock.calls[0][0];
     expect('waist' in vars).toBe(false);

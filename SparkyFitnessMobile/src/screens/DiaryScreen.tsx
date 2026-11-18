@@ -423,16 +423,30 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
   ]);
 
   const renderContent = () => {
-    // With the server out of reach the cached day (and anything logged since,
-    // waiting in the offline queue) is still worth showing.
-    if (!isConnectionLoading && !isConnected && !summary) {
-      return <ServerStatusView />;
+    if (!isConnectionLoading && !isConnected) {
+      return (
+        <StatusView
+          icon="cloud-offline"
+          iconTone="muted"
+          iconSize={64}
+          title={t('diary.noServer', { defaultValue: 'No server configured' })}
+          subtitle={t('diary.configureServer', {
+            defaultValue:
+              'Configure your server connection in Settings to view your diary.',
+          })}
+          action={{
+            label: t('diary.goToSettings', { defaultValue: 'Go to Settings' }),
+            onPress: () => navigation.navigate('Settings'),
+            variant: 'primary',
+          }}
+        />
+      );
     }
 
     // Sleep is deliberately not part of this gate: the cards render nothing until their
     // entries arrive, so a slow `/api/sleep` fills them in late instead of holding the
     // food and exercise that already loaded behind "Loading diary...".
-    if ((isLoading || isConnectionLoading) && !summary) {
+    if (isLoading || isConnectionLoading) {
       return (
         <StatusView
           loading
@@ -441,7 +455,7 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
       );
     }
 
-    if (isError && !summary) {
+    if (isError) {
       return (
         <StatusView
           icon="alert-circle"
@@ -636,7 +650,7 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
 
   const content = (
     <>
-      {(!isConnectionLoading && isConnected) || summary ? (
+      {!isConnectionLoading && isConnected ? (
         <DateNavigator
           title={t('diary.title', { defaultValue: 'Diary' })}
           selectedDate={selectedDate}

@@ -3,7 +3,6 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import DashboardScreen from '../../src/screens/DashboardScreen';
-import { useDailySummary, useServerConnection } from '../../src/hooks';
 import {
   useAppPreferencesStore,
   __resetAppPreferencesStoreForTests,

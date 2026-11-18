@@ -15,23 +15,6 @@ export const fetchProfile = async (): Promise<UserProfile> => {
     operation: 'fetch profile',
   });
 };
-
-/**
- * The id of the account the server resolves the current credentials to. Used
- * to tell whether queued writes still belong to whoever is signed in.
- */
-export const fetchAuthenticatedUserId = async (): Promise<string> => {
-  const identity = await apiFetch<{ authenticatedUserId?: string }>({
-    endpoint: '/api/identity/user',
-    serviceName: 'Profile API',
-    operation: 'fetch authenticated user',
-  });
-  if (!identity?.authenticatedUserId) {
-    throw new Error('Server did not return the signed-in user.');
-  }
-  return identity.authenticatedUserId;
-};
-
 /**
  * Sets the goal weight (kilograms), or clears it (and its date) with null.
  * `targetDate` is YYYY-MM-DD, null to remove the date, or omitted to keep it.

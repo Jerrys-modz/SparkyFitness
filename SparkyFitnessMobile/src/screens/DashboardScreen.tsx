@@ -801,13 +801,9 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
   ]);
 
   // Render content based on state
-  // Cached data is still shown when the server cannot be reached, with
-  // whatever is waiting in the offline queue laid over it.
-  const hasCachedSummary = !!summary && !!preferences;
-
   const renderContent = () => {
     // No server configured
-    if (!isConnectionLoading && !isConnected && !hasCachedSummary) {
+    if (!isConnectionLoading && !isConnected) {
       return (
         <View className="flex-1">
           {!usesNativeTabs && (
@@ -824,11 +820,10 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
 
     // Loading state
     if (
-      !hasCachedSummary &&
-      (isLoading ||
-        isConnectionLoading ||
-        isPreferencesLoading ||
-        isMeasurementsLoading)
+      isLoading ||
+      isConnectionLoading ||
+      isPreferencesLoading ||
+      isMeasurementsLoading
     ) {
       return (
         <StatusView
@@ -841,10 +836,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
     }
 
     // Error state
-    if (
-      !hasCachedSummary &&
-      (isError || isPreferencesError || isMeasurementsError)
-    ) {
+    if (isError || isPreferencesError || isMeasurementsError) {
       return (
         <StatusView
           icon="alert-circle"
@@ -1605,7 +1597,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
       <HydrationReminderReconciler />
       <MealReminderReconciler />
       <MacroAlertReconciler />
-      {(!isConnectionLoading && isConnected) || hasCachedSummary ? (
+      {!isConnectionLoading && isConnected ? (
         <DateNavigator
           title={t('navigation.dashboard', { defaultValue: 'Dashboard' })}
           selectedDate={selectedDate}

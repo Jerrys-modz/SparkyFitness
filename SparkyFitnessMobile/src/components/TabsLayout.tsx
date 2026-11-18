@@ -25,7 +25,6 @@ import WhatsNewBanner, {
   WhatsNewBannerContent,
   useWhatsNewBannerState,
 } from './WhatsNewBanner';
-import OfflineQueueBanner from './OfflineQueueBanner';
 import { AnnouncementModal } from './AnnouncementModal';
 import { useNativeIOSTabsActive } from '../services/nativeTabBarPreference';
 import { useConfirmedVerticalBar } from '../hooks/useVerticalBar';
@@ -131,6 +130,8 @@ function NativeTabsBannerOverlay() {
     setActiveWorkoutBarTabBarHeight(tabBarHeight);
   }, [tabBarHeight]);
 
+  if (!whatsNewState) return null;
+
   return (
     <View
       pointerEvents="box-none"
@@ -142,10 +143,7 @@ function NativeTabsBannerOverlay() {
         zIndex: 50,
       }}
     >
-      <OfflineQueueBanner />
-      {whatsNewState ? (
-        <WhatsNewBannerContent presentation="glass" state={whatsNewState} />
-      ) : null}
+      <WhatsNewBannerContent presentation="glass" state={whatsNewState} />
     </View>
   );
 }
@@ -403,7 +401,6 @@ export function FallbackTabsLayout({
       }}
       tabBar={(props) => (
         <View collapsable={false}>
-          <OfflineQueueBanner reserveAddButtonClearance />
           <WhatsNewBanner reserveAddButtonClearance />
           <ActiveWorkoutBar variant="embedded" />
           <CustomTabBar {...props} />

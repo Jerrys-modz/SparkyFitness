@@ -93,8 +93,6 @@ import {
 } from '../hooks/useFoodVariants';
 import { useSaveFood } from '../hooks/useSaveFood';
 import { useAddFoodEntry } from '../hooks/useAddFoodEntry';
-import { type PendingFoodPreviewInput } from '../services/offlineQueue/foodPreview';
-import { isPendingEntryId } from '../services/offlineQueue/overlay';
 import { useAddFoodEntryMeal } from '../hooks/useAddFoodEntryMeal';
 import type { FoodEntryMealCreateData } from '../types/foodEntryMeals';
 import CalendarSheet, {
@@ -1230,15 +1228,6 @@ const FoodEntryAddScreen: React.FC<FoodEntryAddScreenProps> = ({
     }
   };
 
-  // What the diary shows if this entry has to wait in the offline queue. Only a
-  // food already in the library can wait: an external one needs saving first.
-  const buildOfflinePreview = (): PendingFoodPreviewInput => ({
-    foodName: adjustedValues?.name || activeItem.name,
-    brandName: adjustedValues?.brand ?? activeItem.brand,
-    mealTypeName: selectedMealType?.name ?? '',
-    nutrition: displayValues,
-  });
-
   const buildFoodEntryMealPayload = (): FoodEntryMealCreateData => {
     if (item.source !== 'meal') {
       throw new Error('buildFoodEntryMealPayload called for non-meal item');
@@ -1270,8 +1259,7 @@ const FoodEntryAddScreen: React.FC<FoodEntryAddScreenProps> = ({
     invalidateCache,
   } = useAddFoodEntry({
     onSuccess: async (entry) => {
-      const isQueuedEntry = isPendingEntryId(entry.id);
-      if (entry.food_id && !isQueuedEntry && pendingEquivalentsRef.current) {
+      if (entry.food_id && pendingEquivalentsRef.current) {
         const equivalents = pendingEquivalentsRef.current;
         pendingEquivalentsRef.current = null;
         try {
@@ -1311,8 +1299,7 @@ const FoodEntryAddScreen: React.FC<FoodEntryAddScreenProps> = ({
           });
         }
       }
-      // A queued entry never reached the server, so there is nothing to refetch.
-      if (!isQueuedEntry) invalidateCache(selectedDate);
+      invalidateCache(selectedDate);
       // Log-entry adds normally return to the diary root. A returnDepth
       // param (set when launched with a food-search basket in progress)
       // pops back that many screens so the basket survives. Read the param
@@ -2606,9 +2593,6 @@ const FoodEntryAddScreen: React.FC<FoodEntryAddScreenProps> = ({
               ? { externalVariants: activeItem.externalVariants }
               : {}),
             createEntryPayload: buildFoodEntryPayload(),
-            ...(activeItem.source === 'local'
-              ? { offlinePreview: buildOfflinePreview() }
-              : {}),
           });
         }}
       />

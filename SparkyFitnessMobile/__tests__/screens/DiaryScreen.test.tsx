@@ -463,46 +463,16 @@ describe('DiaryScreen custom queries', () => {
     expect(refetchNutrientPrefs).toHaveBeenCalledTimes(1);
   });
 
-  test('Test D — offline pull-to-refresh does not fire network', async () => {
+  test('Test D — offline pull-to-refresh does not fire network', () => {
     configureConnection(false);
 
-    const { UNSAFE_getByType } = renderScreen();
+    const { UNSAFE_queryByType } = renderScreen();
 
-    // With a cached day the diary stays on screen offline, so the pull gesture
-    // exists; it must not reach the network.
-    await UNSAFE_getByType(RefreshControl).props.onRefresh();
+    // Offline renders the StatusView without a ScrollView, so there is no
+    // RefreshControl surface at all and no refetch can be triggered.
+    expect(UNSAFE_queryByType(RefreshControl)).toBeNull();
     expect(refetchCustomMeasurements).not.toHaveBeenCalled();
     expect(refetchSummary).not.toHaveBeenCalled();
-  });
-
-  test('offline with no cached day still shows the no-server state', () => {
-    configureConnection(false);
-    mockUseDailySummary.mockReturnValue({
-      summary: undefined,
-      isLoading: false,
-      isError: false,
-      refetch: refetchSummary,
-    } as ReturnType<typeof useDailySummary>);
-
-    const { UNSAFE_queryByType, getByText } = renderScreen();
-
-    expect(UNSAFE_queryByType(RefreshControl)).toBeNull();
-    expect(getByText('serverStatus.unreachableTitle')).toBeTruthy();
-  });
-
-  test('offline with a cached day keeps showing the diary instead of an error', () => {
-    configureConnection(false);
-    mockUseDailySummary.mockReturnValue({
-      summary: baseSummary,
-      isLoading: false,
-      isError: true,
-      refetch: refetchSummary,
-    } as ReturnType<typeof useDailySummary>);
-
-    const { queryByText } = renderScreen();
-
-    expect(queryByText('diary.loadFailed')).toBeNull();
-    expect(queryByText('serverStatus.unreachableTitle')).toBeNull();
   });
 
   test('Test E — background query refetches never show the pull-to-refresh spinner', () => {

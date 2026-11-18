@@ -25,10 +25,6 @@ import {
 } from '../utils/watchTelemetryPersistence';
 import { useFoodSearchSelectionStore } from '../stores/foodSearchSelectionStore';
 import { useGuidedCheckInStore } from '../stores/guidedCheckInStore';
-import {
-  onOfflineQueueIdentityChanged,
-  purgeOfflineQueueForConfig,
-} from '../services/offlineQueue/queueActions';
 
 export type AuthModalReason = 'session_expired' | 'no_configs' | null;
 
@@ -57,11 +53,7 @@ export function useAuth() {
     });
     // A deleted config's saved watch telemetry and queued batches can never
     // be posted again.
-    setOnServerConfigDeleted(async (configId) => {
-      await deleteWatchTelemetryForConfig(configId);
-      // Entries queued for a server that no longer exists can never be sent.
-      await purgeOfflineQueueForConfig(configId);
-    });
+    setOnServerConfigDeleted(deleteWatchTelemetryForConfig);
     // The TLS client certificate is only ever shown to the saved servers, so
     // the native side is told whenever that list changes, and once at start.
     const syncClientCertificateHosts = () => {
@@ -86,11 +78,6 @@ export function useAuth() {
       // after it.
       void clearAndroidWidgetSnapshots().catch((err: unknown) => {
         addLog(`Failed to clear the widget snapshots: ${err}`, 'WARNING');
-      });
-      // The persisted read cache goes with it. Queued entries stay: they are
-      // checked against the signed-in account before anything is sent.
-      void onOfflineQueueIdentityChanged().catch((err: unknown) => {
-        addLog(`Failed to reset the offline cache: ${err}`, 'WARNING');
       });
       // The Siri and Shortcuts copy holds the previous login and proxy
       // headers; the dashboard writes a fresh one once the new identity's
