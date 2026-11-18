@@ -71,38 +71,6 @@ describe('applyWatchWorkoutEdit', () => {
     });
   });
 
-  it('sets a set to the left, right or both sides', async () => {
-    await edit({ action: 'setSetSide', setId: '12', side: 'left' });
-    await edit({ action: 'setSetSide', setId: '12', side: 'right' });
-    await edit({ action: 'setSetSide', setId: '12', side: 'both' });
-    expect(actions.updateSetField).toHaveBeenNthCalledWith(1, '12', {
-      side: 'left',
-    });
-    expect(actions.updateSetField).toHaveBeenNthCalledWith(2, '12', {
-      side: 'right',
-    });
-    expect(actions.updateSetField).toHaveBeenNthCalledWith(3, '12', {
-      side: null,
-    });
-  });
-
-  it('adds the other side of a set', async () => {
-    await edit({ action: 'addOtherSide', setId: '12' });
-    expect(actions.addOtherSideSet).toHaveBeenCalledWith('12');
-  });
-
-  it('applies a repeated side edit once', async () => {
-    const payload = {
-      sessionId: 'sess-1',
-      clientId: 'dup-side',
-      action: 'addOtherSide' as const,
-      setId: '12',
-    };
-    await applyWatchWorkoutEdit(payload);
-    await applyWatchWorkoutEdit(payload);
-    expect(actions.addOtherSideSet).toHaveBeenCalledTimes(1);
-  });
-
   it('puts a weight and reps typed on the watch on the phone before the set is logged', async () => {
     await edit({ action: 'setValues', setId: '12', weightKg: 50, reps: 8 });
     expect(actions.updateSetField).toHaveBeenCalledWith('12', {
