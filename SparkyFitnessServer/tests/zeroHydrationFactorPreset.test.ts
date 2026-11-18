@@ -107,9 +107,7 @@ describe('Zero Hydration Factor Preset (#1958, #1925, #2115)', () => {
       'manual',
       null,
       'food-entry-espresso-1',
-      0,
-      undefined,
-      null
+      0
     );
 
     // The upsert now answers with the same four-field breakdown the GET
