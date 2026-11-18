@@ -266,9 +266,7 @@ describe('Measurement Service - Water Intake', () => {
         'manual',
         null,
         null,
-        1.0,
-        undefined,
-        null
+        1.0
       );
       expect(
         measurementRepository.recomputeWaterAggregateForUser
@@ -300,9 +298,7 @@ describe('Measurement Service - Water Intake', () => {
         'manual',
         null,
         null,
-        1.0,
-        undefined,
-        null
+        1.0
       );
       expect(
         measurementRepository.recomputeWaterAggregateForUser

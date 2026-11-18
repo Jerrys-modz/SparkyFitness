@@ -300,16 +300,14 @@ const upsertWaterIntakeHandler: RequestHandler = async (req, res, next) => {
       });
       return;
     }
-    const { entry_date, change_drinks, container_id, client_id } =
-      bodyResult.data;
+    const { entry_date, change_drinks, container_id } = bodyResult.data;
     const result = await measurementService.upsertWaterIntake(
       req.userId,
 
       req.originalUserId || req.userId,
       entry_date,
       change_drinks,
-      container_id ?? null,
-      client_id ?? null
+      container_id ?? null
     );
     res.status(200).json(result);
   } catch (error: unknown) {

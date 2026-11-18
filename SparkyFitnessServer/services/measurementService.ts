@@ -1,10 +1,7 @@
 import { log } from '../config/logging.js';
 import { CustomCategoryExistsError } from '../utils/errors.js';
 import { getClient } from '../db/poolManager.js';
-import measurementRepository, {
-  WATER_ENTRY_CLIENT_ID_INDEX,
-} from '../models/measurementRepository.js';
-import { isUniqueViolationOn } from '../utils/uniqueViolation.js';
+import measurementRepository from '../models/measurementRepository.js';
 import { loadUserTimezone } from '../utils/timezoneLoader.js';
 import {
   dayToUtcRange,
@@ -636,31 +633,9 @@ async function upsertWaterIntake(
   actingUserId: string,
   entryDate: string,
   changeDrinks: number,
-  containerId: number | null,
-  // Mobile offline-queue idempotency key; names exactly one "+" press.
-  clientId: string | null = null
+  containerId: number | null
 ) {
   try {
-    if (clientId) {
-      if (changeDrinks !== 1) {
-        throw new Error('A client_id is only valid for a single drink.');
-      }
-      // Already logged by an earlier attempt of this same request (for
-      // example one that timed out on the phone but committed here): answer
-      // with the current totals and log nothing.
-      const alreadyLogged =
-        await measurementRepository.findWaterIntakeLogByClientId(
-          authenticatedUserId,
-          clientId
-        );
-      if (alreadyLogged) {
-        return await hydrationTotalsService.resolveWaterTotalsForDate(
-          authenticatedUserId,
-          actingUserId,
-          entryDate
-        );
-      }
-    }
     let amountPerDrink: number;
     let containerName: string | null = null;
     let containerRow: WaterContainerResponse | null = null;
@@ -782,9 +757,6 @@ async function upsertWaterIntake(
             entry_time: entryTime,
             food_entry_meal_id: null,
             meal_plan_template_id: null,
-            // Same key as the water row below, so a duplicate stops at the
-            // food entry instead of creating a second one.
-            client_id: clientId,
             ...snapshot,
           };
 
@@ -836,32 +808,18 @@ async function upsertWaterIntake(
           }
         }
 
-        try {
-          await measurementRepository.insertWaterIntakeLog(
-            authenticatedUserId,
-            actingUserId,
-            entryDate,
-            drinkWaterMl,
-            containerId || null,
-            containerName,
-            'manual',
-            null,
-            createdFoodEntryId,
-            hydrationFactor,
-            undefined,
-            clientId
-          );
-        } catch (insertError) {
-          // A copy of this same request committed first. Its drink counts;
-          // this one is the duplicate.
-          if (
-            clientId &&
-            isUniqueViolationOn(insertError, WATER_ENTRY_CLIENT_ID_INDEX)
-          ) {
-            break;
-          }
-          throw insertError;
-        }
+        await measurementRepository.insertWaterIntakeLog(
+          authenticatedUserId,
+          actingUserId,
+          entryDate,
+          drinkWaterMl,
+          containerId || null,
+          containerName,
+          'manual',
+          null,
+          createdFoodEntryId,
+          hydrationFactor
+        );
       }
 
       await measurementRepository.recomputeWaterAggregateForUser(

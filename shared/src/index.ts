@@ -380,8 +380,6 @@ export * from './utils/barcodeNutrition.ts';
 export * from './utils/runGoals.ts';
 export * from './utils/calorieMaintenancePeriods.ts';
 export * from './utils/workoutEmojis.ts';
-export * from './schemas/api/ClientRequestId.api.zod.ts';
-
 export * from './schemas/api/RecipeImport.api.zod.ts';
 export * from './schemas/database/RecipeImports.zod.ts';
 export * from './schemas/database/RecipeFoodMappings.zod.ts';
