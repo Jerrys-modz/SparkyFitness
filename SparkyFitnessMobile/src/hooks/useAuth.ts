@@ -11,11 +11,13 @@ import {
 import {
   clearServerConfigCache,
   setOnServerConfigDeleted,
+  setOnServerConfigsChanged,
   takeIdentityChangeServerConfigIds,
 } from '../services/storage';
 import type { ServerConfig } from '../services/storage';
 import { addLog } from '../services/LogService';
 import { clearBackgroundWater } from '../services/backgroundWater';
+import { refreshClientCertificateHosts } from '../services/clientCertificate';
 import { clearAndroidWidgetSnapshots } from '../services/androidWidgetSyncService';
 import {
   deleteWatchTelemetryForConfig,
@@ -60,6 +62,15 @@ export function useAuth() {
       // Entries queued for a server that no longer exists can never be sent.
       await purgeOfflineQueueForConfig(configId);
     });
+    // The TLS client certificate is only ever shown to the saved servers, so
+    // the native side is told whenever that list changes, and once at start.
+    const syncClientCertificateHosts = () => {
+      void refreshClientCertificateHosts().catch((err: unknown) => {
+        addLog(`Failed to update client certificate hosts: ${err}`, 'WARNING');
+      });
+    };
+    setOnServerConfigsChanged(syncClientCertificateHosts);
+    syncClientCertificateHosts();
     // Everything cached under the previous account has to go, or the new one
     // reads it until each query happens to refetch.
     setOnIdentityChanged(async () => {

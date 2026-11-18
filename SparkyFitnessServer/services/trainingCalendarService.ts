@@ -12,9 +12,13 @@ import {
   classifyActivitySport,
   compareDays,
   computeFitnessFatigue,
+  calendarEntryLinks,
   CURVE_DAYS,
   groupPresetEntries,
   loadSportGroup,
+  MATCH_WINDOW_DAYS,
+  MAX_CALENDAR_PLANS,
+  MAX_PLAN_ASSIGNMENTS,
   matchPlan,
   planMinutes,
   planSessionSlot,
@@ -52,6 +56,12 @@ function toEntry(
   programIndexByEntry: Map<string, number>
 ): GroupableEntry {
   const programIndex = programIndexByEntry.get(row.id);
+  const links = [
+    ...(programIndex !== undefined ? [`runProgram:${programIndex}`] : []),
+    ...(row.workoutPlanAssignmentId !== null
+      ? [`plan:${row.workoutPlanAssignmentId}`]
+      : []),
+  ];
   return {
     id: row.id,
     day: row.day,
@@ -71,12 +81,10 @@ function toEntry(
     avgHeartRate: row.avgHeartRate,
     presetEntryId: row.presetEntryId,
     presetName: row.presetName,
-    linkKey:
-      programIndex !== undefined
-        ? `runProgram:${programIndex}`
-        : row.workoutPlanAssignmentId !== null
-          ? `plan:${row.workoutPlanAssignmentId}`
-          : null,
+    // An entry can be both a program workout and a plan item; it keeps both
+    // links so each planned item can find it.
+    linkKey: links[0] ?? null,
+    alsoLinked: links.slice(1),
   };
 }
 
@@ -94,6 +102,15 @@ async function getTrainingCalendar(
   end: string
 ): Promise<TrainingCalendarResponse> {
   try {
+    const inRange = (day: string) =>
+      compareDays(day, start) >= 0 && compareDays(day, end) <= 0;
+    // A planned item matches an entry up to MATCH_WINDOW_DAYS from its day, and
+    // a past program day is rebuilt from the completions around it. So slots and
+    // entries are both read and matched over the range widened by that margin,
+    // and only the result is trimmed back: a day then has the same status
+    // whatever range it was asked for.
+    const matchStart = addDays(start, -MATCH_WINDOW_DAYS);
+    const matchEnd = addDays(end, MATCH_WINDOW_DAYS);
     const timezone = await loadUserTimezone(targetUserId);
     const today = todayInZone(timezone);
     const preferences =
@@ -105,11 +122,11 @@ async function getTrainingCalendar(
         : 0;
 
     const [rows, templates, program, zones, curveSessions] = await Promise.all([
-      reportRepository.getCalendarEntries(targetUserId, start, end),
+      reportRepository.getCalendarEntries(targetUserId, matchStart, matchEnd),
       workoutPlanTemplateRepository.getPlanTemplatesForCalendar(
         targetUserId,
-        start,
-        end
+        matchStart,
+        matchEnd
       ),
       getRunProgram(targetUserId, authenticatedUserId),
       heartRateZoneService.resolveZonesForUser(targetUserId),
@@ -138,7 +155,8 @@ async function getTrainingCalendar(
     });
 
     const entries = groupPresetEntries(
-      rows.map((row) => toEntry(row, programIndexByEntry))
+      rows.map((row) => toEntry(row, programIndexByEntry)),
+      zones.floors
     );
 
     const slots: PlanSlot[] = [];
@@ -161,29 +179,34 @@ async function getTrainingCalendar(
             completions,
           },
           today,
-          start,
-          end
+          matchStart,
+          matchEnd
         )
       );
     }
 
-    const plans: PlanTemplateInput[] = templates.map((t) => ({
-      id: t.id,
-      name: t.plan_name,
-      scheduleType: t.schedule_type,
-      start: t.start_day,
-      end: t.end_day,
-      assignments: t.assignments.map((a): PlanAssignmentInput => ({
-        id: a.id,
-        dayOfWeek: a.day_of_week,
-        sessionIndex: a.session_index,
-        sessionName: a.session_name,
-        name: a.name,
-        sport: assignmentSport(a.name, a.is_preset),
-        minutes: a.minutes === null ? null : Number(a.minutes),
-      })),
-    }));
-    slots.push(...weeklyPlanSlots(plans, start, end));
+    // Plans are user-owned and uncapped, so only a bounded part of them is read.
+    const plans: PlanTemplateInput[] = templates
+      .slice(0, MAX_CALENDAR_PLANS)
+      .map((t) => ({
+        id: t.id,
+        name: t.plan_name,
+        scheduleType: t.schedule_type,
+        start: t.start_day,
+        end: t.end_day,
+        assignments: t.assignments
+          .slice(0, MAX_PLAN_ASSIGNMENTS)
+          .map((a): PlanAssignmentInput => ({
+            id: a.id,
+            dayOfWeek: a.day_of_week,
+            sessionIndex: a.session_index,
+            sessionName: a.session_name,
+            name: a.name,
+            sport: assignmentSport(a.name, a.is_preset),
+            minutes: a.minutes === null ? null : Number(a.minutes),
+          })),
+      }));
+    slots.push(...weeklyPlanSlots(plans, matchStart, matchEnd));
     const nextByPlan = new Map<string, number[]>();
     if (
       compareDays(today, start) >= 0 &&
@@ -205,12 +228,10 @@ async function getTrainingCalendar(
     }
     slots.push(...sequentialPlanSlots(plans, entries, today, nextByPlan));
 
-    const { planned, completed } = matchPlan(
-      slots,
-      entries,
-      today,
-      zones.floors
-    );
+    const matched = matchPlan(slots, entries, today, zones.floors);
+    // The margin only served matching: what is shown and totalled is the range.
+    const planned = matched.planned.filter((item) => inRange(item.day));
+    const completed = matched.completed.filter((item) => inRange(item.day));
     const curve = computeFitnessFatigue(curveSessions, today, zones.floors);
 
     return {
@@ -254,10 +275,15 @@ function sequentialPlanSlots(
       const key = a.sessionIndex ?? 1;
       sessions.set(key, [...(sessions.get(key) ?? []), a]);
     }
+    // Which session each assignment link belongs to, built once.
+    const sessionOfLink = new Map<string, [number, PlanAssignmentInput[]]>();
+    for (const [index, group] of sessions) {
+      for (const a of group) sessionOfLink.set(`plan:${a.id}`, [index, group]);
+    }
     for (const entry of entries) {
-      const match = [...sessions.entries()].find(([, group]) =>
-        group.some((a) => `plan:${a.id}` === entry.linkKey)
-      );
+      const match = calendarEntryLinks(entry)
+        .map((link) => sessionOfLink.get(link))
+        .find((found) => found !== undefined);
       if (!match) continue;
       const slot = planSessionSlot(plan, entry.day, match[0], match[1]);
       slots.set(slot.id, slot);

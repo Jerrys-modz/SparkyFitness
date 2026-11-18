@@ -10,6 +10,19 @@ import TrainingCalendarScreen from '../../src/screens/TrainingCalendarScreen';
 import { useTrainingCalendar } from '../../src/hooks/useTrainingCalendar';
 import { initializeI18n } from '../../src/localization/i18n';
 
+jest.mock('../../src/hooks/useTrainingCalendarColors', () => ({
+  useTrainingCalendarColors: () => ({
+    sport: {},
+    status: {
+      done: '#done',
+      partial: '#partial',
+      missed: '#missed',
+      upcoming: '#upcoming',
+    },
+    extra: '#extra',
+    mutedIcon: '#muted',
+  }),
+}));
 jest.mock('../../src/hooks/useScreenHeader', () => ({
   useScreenHeader: jest.fn(() => null),
 }));
@@ -351,7 +364,10 @@ test('opens the program workout from a planned run program item', () => {
   state({ data: { ...data, planned: [...data.planned, program] } });
   renderScreen();
   fireEvent.press(screen.getByTestId('planned-program-1'));
-  expect(navigate).toHaveBeenCalledWith('RunProgramWorkout', { index: 3 });
+  expect(navigate).toHaveBeenCalledWith('RunProgramWorkout', {
+    index: 3,
+    programId: 'beginner5k',
+  });
 });
 
 test('a workout plan item opens nothing', () => {
@@ -394,4 +410,82 @@ test('tags this week and the weeks ahead, with a percentage only for weeks under
   expect(screen.getByTestId('week-row-2026-10-19').props.style).toEqual({
     opacity: 0.6,
   });
+});
+
+test("follows the response's day for the ring, selection and week tags", () => {
+  // The device says the 14th; the person\'s own day is already the 21st.
+  state({ data: { ...data, today: '2026-10-21' } });
+  renderScreen();
+  expect(
+    within(screen.getByTestId('calendar-day-2026-10-21')).getByTestId(
+      'calendar-today-ring'
+    )
+  ).toBeTruthy();
+  expect(
+    screen.getByTestId('calendar-day-2026-10-21').props.accessibilityState
+  ).toMatchObject({ selected: true });
+  expect(
+    screen.getByTestId('calendar-day-2026-10-14').props.accessibilityState
+  ).toMatchObject({ selected: false });
+  expect(screen.getByText('Wednesday')).toBeTruthy();
+  // The week of the 12th is behind the person\'s today, so it is not the
+  // current week.
+  expect(screen.queryByTestId('week-tag-2026-10-12')).toBeNull();
+});
+
+test("opens the selected day's week when switching to the week view", () => {
+  state();
+  renderScreen();
+  fireEvent.press(screen.getByTestId('calendar-day-2026-09-30'));
+  fireEvent.press(screen.getByText('Week'));
+  // The grid is asked for the month that holds the selected day.
+  expect(useTrainingCalendar).toHaveBeenLastCalledWith(
+    '2026-08-31',
+    '2026-10-04'
+  );
+  expect(screen.getByText(/^Week of /)).toBeTruthy();
+  expect(
+    screen.getByTestId('calendar-day-2026-09-30').props.accessibilityState
+  ).toMatchObject({ selected: true });
+});
+
+test('does not loop when two cached months disagree on today', () => {
+  // The device says the 14th. The first month answers that today is 1 November,
+  // the month it then asks for answers the 14th again.
+  jest.mocked(useTrainingCalendar).mockImplementation(
+    (start: string) =>
+      ({
+        data:
+          start === '2026-09-28'
+            ? { ...data, today: '2026-11-01' }
+            : { ...data, today: '2026-10-14' },
+        isLoading: false,
+        isError: false,
+        refetch: jest.fn(),
+      }) as never
+  );
+  expect(() => renderScreen()).not.toThrow();
+  // It opened on the first answer's day and stayed there.
+  expect(screen.getByText('November 2026')).toBeTruthy();
+});
+
+test('a completion keeps the colour of its planned item when that item is on another day', () => {
+  // Planned on Monday the 12th, done on the 14th: the 14th's own list has no
+  // such item, yet the row still wears the item's status colour, not Extra.
+  state({
+    data: {
+      ...data,
+      completed: [
+        { ...data.completed[0]!, plannedItemId: 'Push' },
+        { ...data.completed[0]!, id: 'e2', plannedItemId: null },
+      ],
+    },
+  });
+  renderScreen();
+  expect(
+    screen.getByTestId('completed-bar-e1').props.style.backgroundColor
+  ).toBe('#done');
+  expect(
+    screen.getByTestId('completed-bar-e2').props.style.backgroundColor
+  ).toBe('#extra');
 });

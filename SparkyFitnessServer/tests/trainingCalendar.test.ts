@@ -7,6 +7,7 @@ import {
   programSlots,
   sportLoadOf,
   weeklyPlanSlots,
+  MAX_PLAN_ASSIGNMENTS,
   weeklyTotals,
   loadSportGroup,
   sessionLoad,
@@ -470,6 +471,19 @@ describe('programSlots', () => {
       '2026-10-12',
     ]);
   });
+  it('does not walk from a far-back first day outside the range', () => {
+    const ancient: ProgramPlanInput = {
+      ...base,
+      schedule: { runDays: [1, 3, 5], startDay: '0100-01-01', endDay: null },
+      completions: [],
+    };
+    const t0 = Date.now();
+    const slots = programSlots(ancient, TODAY, '2026-10-05', '2026-10-13');
+    expect(Date.now() - t0).toBeLessThan(500);
+    expect(
+      slots.every((s) => s.day >= '2026-10-05' && s.day <= '2026-10-13')
+    ).toBe(true);
+  });
 });
 
 describe('run done inside another plan item', () => {
@@ -486,6 +500,63 @@ describe('run done inside another plan item', () => {
     const { completed } = matchPlan([runSlot, plan], [run], TODAY);
     expect(completed).toHaveLength(1);
     expect(completed[0]!.plannedItemId).toBe('p');
+  });
+});
+
+describe('linked entries and occurrences', () => {
+  it('gives an entry the occurrence on its own day, not an earlier one', () => {
+    const early = slot('early', -3, { linkKeys: ['runProgram:2'] });
+    const late = slot('late', 0, { linkKeys: ['runProgram:2'] });
+    const run = entry('run', 0, { linkKey: 'runProgram:2' });
+    expect(statusOf([early, late], [run], 'early')).toBe('missed');
+    expect(statusOf([early, late], [run], 'late')).toBe('done');
+  });
+
+  it('matches through a link merged into the entry', () => {
+    const planned = slot('p', 0, {
+      source: 'workoutPlan',
+      sport: 'strength',
+      linkKeys: ['plan:7'],
+    });
+    const run = entry('run', 0, {
+      linkKey: 'runProgram:0',
+      alsoLinked: ['plan:7'],
+    });
+    expect(statusOf([planned], [run])).toBe('done');
+  });
+
+  it('does not finish two sessions of one plan with one workout', () => {
+    const a = slot('a', 0, {
+      source: 'workoutPlan',
+      sport: 'strength',
+      linkKeys: ['plan:1'],
+    });
+    const b = slot('b', 0, {
+      source: 'workoutPlan',
+      sport: 'strength',
+      linkKeys: ['plan:2'],
+    });
+    const lift = entry('lift', 0, { sport: 'strength', name: 'Lift' });
+    const { planned } = matchPlan([a, b], [lift], TODAY);
+    expect(planned.map((p) => p.status).sort()).toEqual(['done', 'upcoming']);
+  });
+
+  it('sums each exercise load of a preset instead of averaging heart rate', () => {
+    const part = (id: string, bpm: number) => ({
+      ...entry(id, 0, {
+        sport: 'strength',
+        durationMinutes: 30,
+        distanceKm: null,
+        avgHeartRate: bpm,
+      }),
+      presetEntryId: 'p1',
+      presetName: 'Upper',
+    });
+    const parts = [part('a', 100), part('b', 160)];
+    const [merged] = groupPresetEntries(parts, FLOORS);
+    const expected = parts.reduce((sum, e) => sum + sessionLoad(e, FLOORS), 0);
+    const { completed } = matchPlan([], [merged!], TODAY, FLOORS);
+    expect(completed[0]!.load).toBe(Math.round(expected));
   });
 });
 
@@ -655,5 +726,60 @@ describe('cardio that is not a run, ride or walk', () => {
       completedMinutes: 95,
       matchedMinutes: 30,
     });
+  });
+});
+
+describe('oversized plans', () => {
+  const huge = {
+    id: 'big',
+    name: 'Big',
+    scheduleType: 'weekly' as const,
+    start: '2026-01-01',
+    end: null,
+    assignments: Array.from({ length: 20000 }, (_, i) => ({
+      id: i,
+      dayOfWeek: i % 7,
+      sessionIndex: i,
+      sessionName: null,
+      name: 'Lift',
+      sport: 'strength' as const,
+      minutes: 30,
+    })),
+  };
+
+  it('bounds the slots a plan with thousands of sessions can make', () => {
+    const slots = weeklyPlanSlots([huge], '2026-10-01', '2027-01-30');
+    expect(slots.length).toBeLessThanOrEqual(3000);
+    // Only the first assignments are read, so links stay bounded too.
+    const links = slots.reduce((n, s) => n + s.linkKeys.length, 0);
+    expect(links).toBeLessThanOrEqual(MAX_PLAN_ASSIGNMENTS * 20);
+  });
+
+  it('matches thousands of slots and entries quickly', () => {
+    const slots = weeklyPlanSlots([huge], '2026-10-01', '2027-01-30');
+    const entries = Array.from({ length: 3000 }, (_, i) =>
+      entry(`e${i}`, -(i % 100), { sport: 'strength', linkKey: `plan:${i}` })
+    );
+    const t0 = Date.now();
+    matchPlan(slots, entries, TODAY);
+    expect(Date.now() - t0).toBeLessThan(1500);
+  });
+});
+
+describe('groupPresetEntries at scale', () => {
+  it('groups thousands of presets in linear time', () => {
+    const parts = Array.from({ length: 6000 }, (_, i) => ({
+      ...entry(`p${i}`, -(i % 60), {
+        sport: 'strength',
+        distanceKm: null,
+      }),
+      presetEntryId: `preset-${Math.floor(i / 2)}`,
+      presetName: 'Upper',
+    }));
+    const t0 = Date.now();
+    const grouped = groupPresetEntries(parts);
+    expect(Date.now() - t0).toBeLessThan(500);
+    expect(grouped).toHaveLength(3000);
+    expect(grouped[0]!.durationMinutes).toBe(60);
   });
 });

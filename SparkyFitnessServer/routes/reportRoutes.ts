@@ -6,6 +6,7 @@ import express, {
 import { authenticate } from '../middleware/authMiddleware.js';
 import reportService from '../services/reportService.js';
 import trainingCalendarService from '../services/trainingCalendarService.js';
+import { CalendarEntryLimitError } from '../utils/errors.js';
 import {
   daysBetween,
   isDayString,
@@ -502,7 +503,7 @@ router.get(
  *       200:
  *         description: Planned items (run program, workout plans) with a status, completed diary workouts, weekly totals and training load per sport group.
  *       400:
- *         description: Missing or invalid range (at most 120 days).
+ *         description: Missing or invalid range (at most 120 days), or a range with more workouts than one request reads.
  */
 router.get('/training-calendar', authenticate, async (req, res, next) => {
   const parsed = trainingCalendarQuerySchema.safeParse(req.query);
@@ -518,15 +519,21 @@ router.get('/training-calendar', authenticate, async (req, res, next) => {
     });
   }
   const { start, end, userId } = parsed.data;
+  const authenticatedUserId = req.authenticatedUserId || req.userId;
   const targetUserId = userId || req.userId;
-  if (!targetUserId) {
+  if (!targetUserId || !authenticatedUserId) {
     return res.status(400).json({ error: 'Target User ID is required.' });
   }
-  if (userId && userId !== req.userId) {
+  // Check against the signed-in person, not the switched-to account, so a
+  // delegate acting as the owner is still held to their own grant.
+  if (String(targetUserId) !== authenticatedUserId) {
     const hasPermission = await canAccessUserData(
-      userId,
+      String(targetUserId),
       'reports',
-      req.authenticatedUserId || req.userId
+      authenticatedUserId,
+      // Planned and completed workouts are read on a family grant only, never
+      // on a matching email address.
+      { allowSameEmail: false }
     );
     if (!hasPermission) {
       return res.status(403).json({
@@ -537,13 +544,16 @@ router.get('/training-calendar', authenticate, async (req, res, next) => {
   }
   try {
     const data = await trainingCalendarService.getTrainingCalendar(
-      req.userId,
+      authenticatedUserId,
       String(targetUserId),
       start,
       end
     );
     res.status(200).json(data);
   } catch (error) {
+    if (error instanceof CalendarEntryLimitError) {
+      return res.status(400).json({ error: error.message });
+    }
     next(error);
   }
 });

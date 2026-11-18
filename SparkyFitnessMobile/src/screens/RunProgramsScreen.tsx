@@ -432,6 +432,35 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
           />
         ) : null}
         {active ? goalTiles : null}
+        <View className="bg-surface rounded-xl px-4 mt-4">
+          <ProgramActionList>
+            <ProgramActionRow
+              label={t('runPrograms.openCalendar', {
+                defaultValue: 'Open the training calendar',
+              })}
+              hint={t('runPrograms.openCalendarHint', {
+                defaultValue: 'Program and plan workouts, done and to come',
+              })}
+              onPress={() => navigation.navigate('TrainingCalendar')}
+            />
+            {status.program.custom ? null : (
+              <ProgramActionRow
+                label={t('runPrograms.custom.customize', {
+                  defaultValue: 'Customize this program',
+                })}
+                hint={t('runPrograms.custom.customizeHint', {
+                  defaultValue: 'Copy it as a plan you can edit',
+                })}
+                onPress={() =>
+                  navigation.navigate('RunProgramEdit', {
+                    fromProgramId: status.program.id,
+                  })
+                }
+                testID="customize-current"
+              />
+            )}
+          </ProgramActionList>
+        </View>
         <RunProgramCalendar
           status={status}
           schedule={schedule}

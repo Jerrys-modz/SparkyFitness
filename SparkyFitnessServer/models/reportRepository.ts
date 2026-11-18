@@ -1,4 +1,5 @@
 import { FOOD_VARIANT_NUTRIENT_FIELDS } from '@workspace/shared';
+import { CalendarEntryLimitError } from '../utils/errors.js';
 import type { FoodVariantNutrientField } from '@workspace/shared';
 import { getClient } from '../db/poolManager.js';
 import {
@@ -892,6 +893,9 @@ interface CalendarEntryRow {
   presetName: string | null;
 }
 
+/** Most diary rows one calendar request reads; the diary is user-controlled. */
+const MAX_CALENDAR_ENTRIES = 5000;
+
 /**
  * Every workout with a length logged between two local days (the same entries
  * and length as the training-load report), with the names the shared sport
@@ -931,9 +935,13 @@ async function getCalendarEntries(
            AND ee.exercise_name != 'Active Calories'
        ) entries
        WHERE duration_minutes > 0
-       ORDER BY entry_date ASC, created_at ASC, id ASC`,
+       ORDER BY entry_date ASC, created_at ASC, id ASC
+       LIMIT ${MAX_CALENDAR_ENTRIES + 1}`,
       [userId, startDate, endDate]
     );
+    if (result.rows.length > MAX_CALENDAR_ENTRIES) {
+      throw new CalendarEntryLimitError(MAX_CALENDAR_ENTRIES);
+    }
     return result.rows.map(
       (row: {
         id: string;

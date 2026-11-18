@@ -32,13 +32,12 @@ Token classes follow Tailwind v4 naming: the utility prefix plus the token name.
 
 ### Surfaces and chrome
 
-| Role                 | Token class     | Light hex | Dark hex | Usage                                                                                                                                              |
-| -------------------- | --------------- | --------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Cool Mist Canvas     | `bg-background` | #F2F4F7   | #0C0E12  | Screen background (`flex-1 bg-background` on almost every screen), navigation card color, sticky section headers, footer bars                      |
-| Porcelain Card       | `bg-surface`    | #F9FAFB   | #13161B  | Cards, grouped settings rows, bottom sheets, popover menus, swipeable rows                                                                         |
-| Bright Control Fill  | `bg-raised`     | #FFFFFF   | #1C1F26  | Controls, on a card or directly on the canvas: text inputs, search bars, segmented-control track, picker triggers, secondary buttons, chips        |
-| Control on a Control | `bg-control`    | #EAECF1   | #2A2E37  | Buttons and fields set on a `bg-raised` card or control, one step off it: the focus view's stepper buttons and metric tiles on the active-set card |
-| Chrome Bar           | `bg-chrome`     | #FFFFFF   | #0E1116  | Persistent bars only: custom tab bar, docked active-workout bar, What's New banner, non-glass fallback for Liquid Glass pills                      |
+| Role                | Token class     | Light hex | Dark hex | Usage                                                                                                                                       |
+| ------------------- | --------------- | --------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Cool Mist Canvas    | `bg-background` | #F2F4F7   | #0C0E12  | Screen background (`flex-1 bg-background` on almost every screen), navigation card color, sticky section headers, footer bars               |
+| Porcelain Card      | `bg-surface`    | #F9FAFB   | #13161B  | Cards, grouped settings rows, bottom sheets, popover menus, swipeable rows                                                                  |
+| Bright Control Fill | `bg-raised`     | #FFFFFF   | #1C1F26  | Controls, on a card or directly on the canvas: text inputs, search bars, segmented-control track, picker triggers, secondary buttons, chips |
+| Chrome Bar          | `bg-chrome`     | #FFFFFF   | #0E1116  | Persistent bars only: custom tab bar, docked active-workout bar, What's New banner, non-glass fallback for Liquid Glass pills               |
 
 In Light, the canvas is the darkest surface and controls are white. In Dark, raised is the lightest surface, so a control on a card always looks lifted.
 
@@ -75,48 +74,33 @@ In Light, the canvas is the darkest surface and controls are white. In Dark, rai
 
 ### Nutrition and activity metrics
 
-| Role                 | Token class                       | Light hex | Dark hex | Usage                                                                                                                                             |
-| -------------------- | --------------------------------- | --------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Calorie Indigo       | `--color-calories` (JS only)      | #506CF7   | #8792E3  | Calorie ring, diary calorie bar, "other" calories segment; also reused for the verified badge                                                     |
-| Protein Apricot      | `--color-macro-protein` (JS only) | #F6B151   | #E3AE63  | Protein bars, ring arcs, chart segments                                                                                                           |
-| Carb Leaf Green      | `--color-macro-carbs` (JS only)   | #7AD680   | #89C88D  | Carbohydrate bars, ring arcs, chart segments                                                                                                      |
-| Fat Sky Cyan         | `--color-macro-fat` (JS only)     | #6DCAE9   | #78C4DD  | Fat bars, ring arcs, chart segments                                                                                                               |
-| Fiber Moss           | `--color-macro-fiber` (JS only)   | #47944F   | #568F5C  | Fiber bar                                                                                                                                         |
-| Hydration Steel Blue | `--color-hydration` (JS only)     | #70A7C2   | #4799C2  | Water-bottle gauge fill, hydration settings icon                                                                                                  |
-| Exercise Mint        | `bg-exercise`                     | #6DE3A0   | #3EB68A  | Training-load and training-consistency bars                                                                                                       |
-| PR Gold              | `--color-pr` (JS only)            | #D78509   | #F4C452  | Personal-record cards, rows and confetti; kept distinct from Category Amber                                                                       |
-| Plate Red            | `--color-plate-red` (JS only)     | #E2363C   | #E5484D  | 25 kg and 55 lb plates; competition colours, shared by the plate calculator and the Active set plate strip                                        |
-| Plate Blue           | `--color-plate-blue` (JS only)    | #2163DE   | #2E6DE0  | 20 kg and 45 lb plates; competition colours, shared by the plate calculator and the Active set plate strip                                        |
-| Plate Yellow         | `--color-plate-yellow` (JS only)  | #EEBA2B   | #EABF48  | 15 kg and 35 lb plates; competition colours, shared by the plate calculator and the Active set plate strip                                        |
-| Plate Green          | `--color-plate-green` (JS only)   | #36A162   | #3CB46E  | 10 kg and 25 lb plates; competition colours, shared by the plate calculator and the Active set plate strip                                        |
-| Plate White          | `--color-plate-white` (JS only)   | #DCDFE5   | #F2F2F2  | 5 kg and 10 lb plates; competition colours, shared by the plate calculator and the Active set plate strip                                         |
-| Plate Grey           | `--color-plate-grey` (JS only)    | #8B929C   | #8B9098  | Any other plate weight; competition colours, shared by the plate calculator and the Active set plate strip                                        |
-| Plate Steel          | `--color-plate-steel` (JS only)   | #9196A1   | #A5A8B1  | Bar and inner collar in the bar drawing; competition colours, shared by the plate calculator and the Active set plate strip                       |
-| Plate Sleeve         | `--color-plate-sleeve` (JS only)  | #636974   | #55585E  | Bar sleeve end in the bar drawing; competition colours, shared by the plate calculator and the Active set plate strip                             |
-| Plate Label          | `--color-plate-label` (JS only)   | #04122F   | #04122F  | Weight label on the light plates (white, yellow, green, grey); competition colours, shared by the plate calculator and the Active set plate strip |
-| Heart-Rate Red       | `--color-heart-rate` (JS only)    | #E2363C   | #E96367  | Watch-measured heart rate on workouts and charts; also the finish marker on route maps                                                            |
-| Active-Energy Orange | `--color-active-energy` (JS only) | #F36F16   | #E79055  | Watch-measured active energy; separate from dietary Calorie Indigo                                                                                |
+| Role                 | Token class                       | Light hex | Dark hex | Usage                                                                                         |
+| -------------------- | --------------------------------- | --------- | -------- | --------------------------------------------------------------------------------------------- |
+| Calorie Indigo       | `--color-calories` (JS only)      | #506CF7   | #8792E3  | Calorie ring, diary calorie bar, "other" calories segment; also reused for the verified badge |
+| Protein Apricot      | `--color-macro-protein` (JS only) | #F6B151   | #E3AE63  | Protein bars, ring arcs, chart segments                                                       |
+| Carb Leaf Green      | `--color-macro-carbs` (JS only)   | #7AD680   | #89C88D  | Carbohydrate bars, ring arcs, chart segments                                                  |
+| Fat Sky Cyan         | `--color-macro-fat` (JS only)     | #6DCAE9   | #78C4DD  | Fat bars, ring arcs, chart segments                                                           |
+| Fiber Moss           | `--color-macro-fiber` (JS only)   | #47944F   | #568F5C  | Fiber bar                                                                                     |
+| Hydration Steel Blue | `--color-hydration` (JS only)     | #70A7C2   | #4799C2  | Water-bottle gauge fill, hydration settings icon                                              |
+| Exercise Mint        | `bg-exercise`                     | #6DE3A0   | #3EB68A  | Training-load and training-consistency bars                                                   |
+| PR Gold              | `--color-pr` (JS only)            | #D78509   | #F4C452  | Personal-record cards, rows and confetti; kept distinct from Category Amber                   |
+| Heart-Rate Red       | `--color-heart-rate` (JS only)    | #E2363C   | #E96367  | Watch-measured heart rate on workouts and charts; also the finish marker on route maps        |
+| Active-Energy Orange | `--color-active-energy` (JS only) | #F36F16   | #E79055  | Watch-measured active energy; separate from dietary Calorie Indigo                            |
 
 ### Category palette
 
 Eight balanced hues for things that need a distinct color but no fixed meaning. Seven of them (all but amber) tint Settings row icons, and all eight color workout superset rails and the workout-complete confetti.
 
-| Role            | Token class                    | Light hex | Dark hex | Usage                                                                                                       |
-| --------------- | ------------------------------ | --------- | -------- | ----------------------------------------------------------------------------------------------------------- |
-| Category Slate  | `--color-cat-slate` (JS only)  | #6B7280   | #6E7687  | Neutral settings icons, superset rail                                                                       |
-| Category Pink   | `--color-cat-pink` (JS only)   | #E23670   | #CC6688  | Fat-burning fasting stage, provider badges                                                                  |
-| Category Violet | `--color-cat-violet` (JS only) | #8D52E0   | #9166CC  | REM sleep stage, ketosis fasting stage, provider badges                                                     |
-| Category Orange | `--color-cat-orange` (JS only) | #F89054   | #D18A61  | Awake sleep stage, hard RPE, catabolic fasting stage                                                        |
-| Category Green  | `--color-cat-green` (JS only)  | #2D9534   | #6AA46F  | Provider badges                                                                                             |
-| Category Blue   | `--color-cat-blue` (JS only)   | #236EE7   | #6992D3  | Light sleep stage, provider badges                                                                          |
-| Category Teal   | `--color-cat-teal` (JS only)   | #1E868A   | #5AADAF  | Deep sleep stage, provider badges                                                                           |
-| Category Amber  | `--color-cat-amber` (JS only)  | #CE8E0D   | #D4A954  | Favorite star, moderate RPE, provider badges                                                                |
-| Superset Lilac  | `--color-superset` (JS only)   | #9739C6   | #CC86EA  | Focus view superset group (first run; later runs use the category colors from Orange on, as the watch does) |
-| Effort Lilac    | `--color-effort` (JS only)     | #9739C6   | #CC86EA  | Focus view post-set effort sheet (number, filled segments, Save)                                            |
-| Rest Orange     | `--color-rest` (JS only)       | #E16009   | #FF9A52  | Focus view rest card, ring and Skip rest button                                                             |
-| Hold Teal       | `--color-hold` (JS only)       | #188B7B   | #45D3C0  | Focus view timed hold ring and Get ready number                                                             |
-| On Rest         | `--color-on-rest` (JS only)    | #1F1100   | #1F1100  | Label and icon on a Rest Orange fill (Skip rest)                                                            |
-| On Hold         | `--color-on-hold` (JS only)    | #06201C   | #06201C  | Number on a Hold Teal fill (the current Get ready count)                                                    |
+| Role            | Token class                    | Light hex | Dark hex | Usage                                                   |
+| --------------- | ------------------------------ | --------- | -------- | ------------------------------------------------------- |
+| Category Slate  | `--color-cat-slate` (JS only)  | #6B7280   | #6E7687  | Neutral settings icons, superset rail                   |
+| Category Pink   | `--color-cat-pink` (JS only)   | #E23670   | #CC6688  | Fat-burning fasting stage, provider badges              |
+| Category Violet | `--color-cat-violet` (JS only) | #8D52E0   | #9166CC  | REM sleep stage, ketosis fasting stage, provider badges |
+| Category Orange | `--color-cat-orange` (JS only) | #F89054   | #D18A61  | Awake sleep stage, hard RPE, catabolic fasting stage    |
+| Category Green  | `--color-cat-green` (JS only)  | #2D9534   | #6AA46F  | Provider badges                                         |
+| Category Blue   | `--color-cat-blue` (JS only)   | #236EE7   | #6992D3  | Light sleep stage, provider badges                      |
+| Category Teal   | `--color-cat-teal` (JS only)   | #1E868A   | #5AADAF  | Deep sleep stage, provider badges                       |
+| Category Amber  | `--color-cat-amber` (JS only)  | #CE8E0D   | #D4A954  | Favorite star, moderate RPE, provider badges            |
 
 ### Progress tracks
 
@@ -156,16 +140,28 @@ Eight balanced hues for things that need a distinct color but no fixed meaning. 
 | Past-Date Orange | `--color-date-past` (JS only)           | #F2590D   | #F07C42  | Date pill tint when viewing a day before today  |
 | Future-Date Sky  | `--color-date-future` (JS only)         | #0DA6F2   | #5EBEED  | Date pill tint when viewing a day after today   |
 
+### Sport tints
+
+The training calendar and the Load by Sport card colour each sport group with its own token, so the calendar marks, the stacked bars and their legend always agree. AMOLED uses the Dark values. Planned-item status on the calendar reuses existing tokens rather than adding new ones: done is Success Glyph (`--color-icon-success`), partly done is Warning Glyph (`--color-icon-warning`), missed is Danger Glyph (`--color-icon-danger`), upcoming is Muted Slate (`--color-text-muted`) and extra work is Sparky Blue (`--color-accent-primary`).
+
+| Role           | Token class                        | Light hex | Dark hex | Usage                                                               |
+| -------------- | ---------------------------------- | --------- | -------- | ------------------------------------------------------------------- |
+| Sport Running  | `--color-sport-running` (JS only)  | #E45A2F   | #E17A5B  | Running sessions: calendar marks, the load-by-sport bars and legend |
+| Sport Cycling  | `--color-sport-cycling` (JS only)  | #2E87AD   | #419CC3  | Cycling sessions, same places                                       |
+| Sport Walking  | `--color-sport-walking` (JS only)  | #59A65D   | #77B17A  | Walking and hiking sessions                                         |
+| Sport Cardio   | `--color-sport-cardio` (JS only)   | #2A9D90   | #3AB6A8  | Swimming, rowing and gym-machine sessions                           |
+| Sport Strength | `--color-sport-strength` (JS only) | #7B5EA6   | #917BB2  | Strength sessions and logged workout presets                        |
+| Sport Other    | `--color-sport-other` (JS only)    | #8B8F98   | #A0A4AB  | Sessions no other sport group claims                                |
+
 ### AMOLED differences
 
-AMOLED uses the Dark values for 57 of the 70 color tokens. Only these 13 change:
+AMOLED uses the Dark values for 54 of the 67 color tokens. Only these 13 change:
 
 | Token                    | AMOLED hex             | Dark hex |
 | ------------------------ | ---------------------- | -------- |
 | `--color-background`     | #000000 (pure black)   | #0C0E12  |
 | `--color-surface`        | #080A0C                | #13161B  |
 | `--color-raised`         | #111318                | #1C1F26  |
-| `--color-control`        | #1F2229                | #2A2E37  |
 | `--color-chrome`         | #000000 at 90% opacity | #0E1116  |
 | `--color-border`         | #1C1F26                | #272C35  |
 | `--color-border-subtle`  | #16181D                | #1E2229  |
@@ -326,7 +322,6 @@ Radius classes in sections 1–5 use the app's remapped scale, not web Tailwind'
 - Keyboard accessory bar (set entry Done / Next / Log, 52pt): hidden behind the keyboard and rising with it.
 - Floating summary bar (food search basket): `absolute left-4 right-4 rounded-xl bg-raised border border-border-subtle px-4 py-3`, 12pt above the bottom inset.
 - Active workout bar: docked above the custom tab bar as a Chrome Bar strip (at least 66pt tall) with a 3px progress line in Sparky Blue on Progress Track. On Liquid Glass it becomes a frosted pill (fully rounded, 20pt side margins, 6pt above the tab bar, hairline border, soft shadow).
-- Focus view (iPhone workout): 44 pt `bg-raised` round or pill controls (`h-11 rounded-full`; 17px bold accent numerals in the header pills), 44 pt exercise circles with a superset wrapped in one `rounded-[28px]` group tinted 14% in its color, table cells `h-11 rounded-[14px] bg-raised` with 19px bold values, a dashed `border-border-strong` Prev cell, and the active set as a `rounded-[20px] bg-raised` card with a 2px accent outline whose weight, reps and RPE fields are a 44 pt `bg-control` [−] 26px bold value [+]. Sheets and pages (3c): the Exercises sheet is a `bg-surface` bottom card with 56 pt `bg-raised` rows (a 28 pt status circle, a lilac group box with A1 / A2 pills, 48 pt handles), the Rest period, Set options, Plate calculator and effort pages are full-screen with a 44 pt close button and a title pill, `bg-surface rounded-3xl` cards with 13px uppercase headings, 56 pt `rounded-full` footer buttons (`FocusPageButton`), the effort sheet's number is 120px in Effort Lilac and the PR card is a 120 pt `--color-pr` trophy disc with a Continue button that fills over 5 s. The plate calculator page and the Active set plate strip share one side-view bar drawing (`PlateBarDrawing`: sleeve, collar and plates as vertical bars as tall as their weight, coloured by the `--color-plate-*` tokens: kg 25 red, 20 blue, 15 yellow, 10 green, 5 white; lb 55 red, 45 blue, 35 yellow, 25 green, 10 white; any other weight grey), with a bold "25 + 5 + 1.25 per side" line and "bar 20 kg · 62.5 kg of plates" under it, a two-bar segmented picker plus a "More bars" chip, and a colour key under Plates you own. Units read "kg" and "lb". Thumbnails and previews are still images; only the enlarged demo animates. The bottom bar is a 56 pt back circle beside a 56 pt `rounded-full` accent Log set button (20px bold, the rest in 16px at 75%), in `FooterActionBar`.
 - Rest bar (`ActiveWorkoutRestBar`): docked `bg-surface border-t border-border-subtle px-4 pt-2` with a 4px (`h-1`) progress track, a `text-3xl font-bold` countdown and round `bg-raised` controls.
 
 ### Badges, pills and chips
@@ -794,11 +789,11 @@ The watches are native, not React Native, so sections 2–9 (Uniwind tokens, `gl
 
 ### 10.1 Targets
 
-| Surface                              | Code                                                                                                                                 | UI toolkit                                         |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------- |
-| Apple Watch app                      | `targets/watch` (`Presentation/`, `Domain/`, `Application/`, `Infrastructure/`, `Adapters/`)                                         | SwiftUI                                            |
-| Apple Watch complications            | `targets/watch-widget` (`index.swift` lists them: Energy, Water, Protein, Carbs, Fat, Fasting, Steps)                                | WidgetKit                                          |
-| Wear OS app, complications and tiles | `targets/wearos/src/main/java/com/sparkyapps/sparkyfitness/wear` (`Screens.kt`, `WorkoutScreens.kt`, `Complications.kt`, `Tiles.kt`) | Compose for Wear OS (`MaterialTheme`), ProtoLayout |
+| Surface                              | Code                                                                                                                                                         | UI toolkit                                         |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------- |
+| Apple Watch app                      | `targets/watch` (`Presentation/`, `Domain/`, `Application/`, `Infrastructure/`, `Adapters/`)                                                                 | SwiftUI                                            |
+| Apple Watch complications            | `targets/watch-widget` (`index.swift` lists them: Energy, Water, Protein, Carbs, Fat, Fasting, Steps)                                                        | WidgetKit                                          |
+| Wear OS app, complications and tiles | `targets/wearos/src/main/java/com/sparkyapps/sparkyfitness/wear` (`Screens.kt`, `WorkoutScreens.kt`, `NewWorkoutScreens.kt`, `Complications.kt`, `Tiles.kt`) | Compose for Wear OS (`MaterialTheme`), ProtoLayout |
 
 Android home-screen widgets (`targets/android-widget`) and the iOS phone widget (`targets/widget`) are separate from these.
 
@@ -809,7 +804,7 @@ Android home-screen widgets (`targets/android-widget`) and the iOS phone widget 
 - Swipe is the navigation on Apple Watch; there is no button to change page. Wear OS scrolls with rotary input (`wearRotaryScroll`).
 - Every tap that logs something gives a haptic. Apple Watch haptics go through `Haptics` (`Presentation/Haptics.swift`), which follows the phone's Settings → Haptics switch (`WatchContext.effectiveHapticsEnabled`); do not call `WKInterfaceDevice.current().play` directly. The one exception is the rest-finished buzz in `WatchAppDelegate`, which uses `effectiveRestBuzzEnabled` (the haptics switch plus the phone's rest-alerts setting).
 - Works with the phone away: pages draw from the last persisted context, and writes (water taps, medication taps, check-ins) queue and resend.
-- Copy: Apple Watch copy uses `String(localized:defaultValue:)` keys (`watch.<page>.<name>`), with the strings in `targets/watch/en.lproj`; `pnpm run i18n:audit:watch` checks it. Never build a key or a color from translated text (the Goals rows pick their color from the nutrient key, not the title). The Wear OS screens use literal strings (see 10.6).
+- Copy: Apple Watch copy uses `String(localized:defaultValue:)` keys (`watch.<page>.<name>`), with the strings in `targets/watch/en.lproj`; `pnpm run i18n:audit:watch` checks it. Wear OS copy uses Android string resources in `targets/wearos/src/main/res/values/strings.xml`. Never build a key or a color from translated text (the Goals rows pick their color from the nutrient key, not the title).
 
 ### 10.3 Apple Watch app
 
@@ -872,12 +867,12 @@ Take macro and nutrient colors from `GoalPalette` (`GoalPalette.color(forNutrien
 - Complications are `SuspendingComplicationDataSourceService` classes in `Complications.kt` (Energy, Protein, Carbs, Fat, Water, Fasting, Steps), registered in `AndroidManifest.xml`, with monochrome icons in `res/drawable/ic_complication_*.xml`.
 - Tiles are ProtoLayout `TileService` subclasses in `Tiles.kt` (`NutritionTileService`, `SleepTileService`, `MedicationsTileService`, `ExerciseTileService`), wrapped in `buildTileShell` (pure black background, a 300° progress arc on a `CardBg` track anchored at `-150°`, and up to three compact pill rows), registered in `AndroidManifest.xml` with preview images in `res/drawable-nodpi/tile_preview_*.png` and icons in `res/drawable/ic_tile_*.xml`. Nutrition tile macro rows use `nutrientColor` (`SparkyColors`) from `Screens.kt`. Tapping a tile launches `MainActivity` with a `target_page` extra (`goals`, `sleep`, `meds`, `workout`).
 - The phone finds the watch by the `sparky_wear_companion` capability in `res/values/wear.xml`.
-- `WearOsParityTest` covers Wear OS payload parsing and builders against hard-coded JSON. It does not compare them with the Apple Watch definitions, so it cannot catch a one-sided schema change; keep both watches in step by hand.
+- The optional **New workout view** (`NewWorkoutScreens.kt`, toggled via Settings → Wear OS → New workout view) matches the Apple Watch dark workout palette (`SetTint` / `SetSupersetPalette`), vertical page layout (`VerticalPager`: Demo when photos are synced → Metrics → Set → More), rest/hold countdown rings with audible+haptic cues (`CountdownCues.kt`), barbell plate calculator (`WatchPlates` + `BarbellDrawing`), previous-set editing (`LoggedSetOrder`), RPE/effort track, full-screen New PR celebration, and single scrolling finish summary with workout effort rating and inline preset update confirmation.
+- `WearOsParityTest` and `WorkoutDomainTest` cover Wear OS payload parsing, builders, and workout domain rules against hard-coded expectations. They do not read the Swift definitions directly, so keep both watches in step by hand.
 
 ### 10.6 Known gaps
 
-- The Wear OS palette is a Tailwind-style set unrelated to the Apple Watch `GoalPalette`, so the same macro is a different color on each watch: protein is amber on Apple Watch and cyan on Wear OS, and carbs is green on Apple Watch and amber on Wear OS.
-- The Wear OS screens use literal English strings rather than Android string resources, unlike the localized Apple Watch app.
+- The Wear OS non-workout palette is a Tailwind-style set unrelated to the Apple Watch `GoalPalette`, so the same macro is a different color on each watch: protein is amber on Apple Watch and cyan on Wear OS, and carbs is green on Apple Watch and amber on Wear OS.
 - Neither watch palette is derived from `global.css`; the superset palette is the only hand-copied mirror.
 
 ### 10.7 Checklist for a watch change

@@ -43,6 +43,16 @@ enum ComplicationPublisher {
     private enum Energy {
         static let key = "energyGoalSnapshot"
         static let kind = "energyGoalComplication"
+        /// The Protein, Carbs and Fat complications decode this same key, so
+        /// every one of them has to be reloaded when it changes, not just the
+        /// ring. Leaving them out kept them on stale numbers until watchOS
+        /// got round to their own scheduled refresh, often hours later (#3641).
+        static let kinds = [
+            kind,
+            "proteinGoalComplication",
+            "carbsGoalComplication",
+            "fatGoalComplication",
+        ]
     }
 
     /// The calories-only complication reads the Energy snapshot above, so it
@@ -167,7 +177,8 @@ enum ComplicationPublisher {
 
     // MARK: - Publishing
 
-    /// Publishes nutrition progress for the Daily Energy Goal complication.
+    /// Publishes nutrition progress for the Daily Energy Goal complication and
+    /// the Protein, Carbs and Fat complications that read the same snapshot.
     ///
     /// `day` is the calendar day these numbers describe. It is checked rather
     /// than trusted — see `isPublishable(_:)`.
@@ -188,8 +199,7 @@ enum ComplicationPublisher {
                 fatGoal: goals.fatGrams?.goal
             ),
             forKey: Energy.key,
-            reloading: Energy.kind,
-            alsoReloading: [CalorieGoal.kind]
+            reloading: Energy.kinds + [CalorieGoal.kind]
         )
     }
 
@@ -216,7 +226,7 @@ enum ComplicationPublisher {
 
         let previous = defaults.data(forKey: Custom.key)
             .flatMap { try? JSONDecoder().decode([CustomDefinition].self, from: $0) }
-        write(customDefinitions, forKey: Custom.key, reloading: Custom.kind)
+        write(customDefinitions, forKey: Custom.key, reloading: [Custom.kind])
 
         // The picker is built from the widget's recommendations, which watchOS
         // caches until told they changed. Only what the picker lists (the ids
@@ -263,7 +273,7 @@ enum ComplicationPublisher {
         write(
             CustomMetricsPayload(metrics: customMetrics),
             forKey: Custom.metricsKey,
-            reloading: Custom.kind
+            reloading: [Custom.kind]
         )
     }
 
@@ -276,7 +286,7 @@ enum ComplicationPublisher {
                 progress: max(0, min(1, waterProgress))
             ),
             forKey: Water.key,
-            reloading: Water.kind
+            reloading: [Water.kind]
         )
     }
 
@@ -286,7 +296,7 @@ enum ComplicationPublisher {
         write(
             StepsSnapshotPayload(date: day, count: max(0, steps), goal: max(1, goal)),
             forKey: Steps.key,
-            reloading: Steps.kind
+            reloading: [Steps.kind]
         )
     }
 
@@ -310,7 +320,7 @@ enum ComplicationPublisher {
                 label: fast?.label
             ),
             forKey: Fasting.key,
-            reloading: Fasting.kind
+            reloading: [Fasting.kind]
         )
     }
 
@@ -333,8 +343,8 @@ enum ComplicationPublisher {
 
     // MARK: - Shared mechanism
 
-    /// Stores `snapshot` and asks WidgetKit to redraw — but only when the
-    /// value actually moved.
+    /// Stores `snapshot` and asks WidgetKit to redraw every complication kind
+    /// that reads `key` — but only when the value actually moved.
     ///
     /// The change-guard is load-bearing, not an optimisation. watchOS caps how
     /// many times an app may force a complication redraw per day and silently
@@ -349,8 +359,7 @@ enum ComplicationPublisher {
     private static func write<Snapshot: Codable & Equatable>(
         _ snapshot: Snapshot,
         forKey key: String,
-        reloading kind: String,
-        alsoReloading extraKinds: [String] = []
+        reloading kinds: [String]
     ) {
         guard let defaults = sharedDefaults() else { return }
 
@@ -363,9 +372,8 @@ enum ComplicationPublisher {
         guard let data = try? JSONEncoder().encode(snapshot) else { return }
         defaults.set(data, forKey: key)
 
-        WidgetCenter.shared.reloadTimelines(ofKind: kind)
-        for extra in extraKinds {
-            WidgetCenter.shared.reloadTimelines(ofKind: extra)
+        for kind in kinds {
+            WidgetCenter.shared.reloadTimelines(ofKind: kind)
         }
     }
 
