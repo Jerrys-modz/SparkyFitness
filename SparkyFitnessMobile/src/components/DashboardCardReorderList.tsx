@@ -22,6 +22,8 @@ interface DashboardCardReorderListProps {
   /** Prefix of each row's test ids, e.g. `dashboard-card` gives `dashboard-card-row-macros`. */
   testIDPrefix: string;
   subtitle: (key: DashboardCardKey) => string;
+  /** Overrides a card's title (discreet mode never names cycle). */
+  title?: (key: DashboardCardKey) => string;
   isEnabled: (key: DashboardCardKey) => boolean;
   onToggle: (key: DashboardCardKey, enabled: boolean) => void;
   onReorder: (order: DashboardCardKey[]) => void;
@@ -37,6 +39,7 @@ const DashboardCardReorderList: React.FC<DashboardCardReorderListProps> = ({
   cards,
   testIDPrefix,
   subtitle,
+  title: titleFor,
   isEnabled,
   onToggle,
   onReorder,
@@ -83,7 +86,9 @@ const DashboardCardReorderList: React.FC<DashboardCardReorderListProps> = ({
   return (
     <View className="bg-surface rounded-xl overflow-hidden shadow-sm">
       {cards.map((cardKey, index) => {
-        const title = DASHBOARD_CARD_TITLES[cardKey](t);
+        const title = titleFor
+          ? titleFor(cardKey)
+          : DASHBOARD_CARD_TITLES[cardKey](t);
         return (
           <ReorderSwitchRow
             key={cardKey}

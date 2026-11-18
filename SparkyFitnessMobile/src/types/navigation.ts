@@ -118,6 +118,7 @@ export type RootStackParamList = {
     selectedEntryIds: string[];
   };
   CycleSettings: undefined;
+  FeatureSettings: undefined;
   CycleOnboarding: undefined;
   CycleHub: undefined;
   CycleLogModal: { date?: string } | undefined;

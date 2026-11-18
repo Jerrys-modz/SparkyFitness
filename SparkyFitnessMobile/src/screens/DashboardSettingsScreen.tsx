@@ -12,7 +12,9 @@ import Icon from '../components/Icon';
 import SettingsRow, { SettingsRowGroup } from '../components/SettingsRow';
 import StatusView from '../components/StatusView';
 import Switch from '../components/ui/Switch';
+import { isShownByFeature } from '@workspace/shared';
 import {
+  DASHBOARD_CARD_FEATURES,
   DASHBOARD_CARD_SUBTITLES,
   DASHBOARD_CARD_TITLES,
   type DashboardCardKey,
@@ -31,6 +33,8 @@ import {
 } from '../hooks';
 import { nutrientDisplayPreferencesQueryKey } from '../hooks/queryKeys';
 import { useScreenHeader } from '../hooks/useScreenHeader';
+import { useDiscreetMode } from '../hooks/useDiscreetMode';
+import { useMobileFeatures } from '../hooks/useMobileFeatures';
 import {
   updateNutrientDisplayPreference,
   type NutrientDisplayPreference,
@@ -64,6 +68,8 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
   const insets = useSafeAreaInsets();
   const activeWorkoutBarPadding = useActiveWorkoutBarPadding('stack');
   const usesNativeHeader = useNativeIOSHeadersActive();
+  const { isEnabled: isFeatureOn } = useMobileFeatures();
+  const { discreetMode } = useDiscreetMode();
 
   const calorieRingCardVisible = useAppPreferencesStore(
     (s) => s.calorieRingCardVisible
@@ -422,10 +428,23 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
     },
     [setCardVisibility, setDashboardSummaryCards, summaryCards]
   );
+  // Discreet mode (assumed until the cycle settings load) never names cycle.
+  const cardTitle = (key: DashboardCardKey): string =>
+    key === 'cycle' && discreetMode
+      ? t('dashboardSettings.wellness', { defaultValue: 'Wellness' })
+      : DASHBOARD_CARD_TITLES[key](t);
+  // A card of a feature turned off stays listed, with its place and switch,
+  // and says why the Dashboard leaves it out.
+  const cardSubtitle = (key: DashboardCardKey): string =>
+    isShownByFeature(DASHBOARD_CARD_FEATURES[key], isFeatureOn)
+      ? DASHBOARD_CARD_SUBTITLES[key](t)
+      : t('dashboardSettings.offInFeatures', {
+          defaultValue: 'Not shown: turned off in Features',
+        });
   const summarySubtitle = (key: DashboardCardKey): string => {
     const home = homeTabOf(key);
     if (home == null || home === 'summary') {
-      return DASHBOARD_CARD_SUBTITLES[key](t);
+      return cardSubtitle(key);
     }
     const tab = DASHBOARD_TAB_LABELS[home](t);
     if (!cardVisibilityMap[key]) {
@@ -668,6 +687,7 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
                       cards={summaryCards}
                       testIDPrefix="dashboard-summary-card"
                       subtitle={summarySubtitle}
+                      title={cardTitle}
                       // Every row here is on Summary; a switch turns it off there.
                       isEnabled={(key) =>
                         homeTabOf(key) === 'summary'
@@ -743,7 +763,8 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
                       orderedCards
                     )}
                     testIDPrefix="dashboard-card"
-                    subtitle={(key) => DASHBOARD_CARD_SUBTITLES[key](t)}
+                    subtitle={cardSubtitle}
+                    title={cardTitle}
                     isEnabled={(key) => cardVisibilityMap[key]}
                     onToggle={setCardVisibility}
                     onReorder={(order) => setDashboardTabCardOrder(tab, order)}
@@ -765,7 +786,8 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
               <DashboardCardReorderList
                 cards={orderedCards}
                 testIDPrefix="dashboard-card"
-                subtitle={(key) => DASHBOARD_CARD_SUBTITLES[key](t)}
+                subtitle={cardSubtitle}
+                title={cardTitle}
                 isEnabled={(key) => cardVisibilityMap[key]}
                 onToggle={setCardVisibility}
                 onReorder={setDashboardCardOrder}

@@ -20,8 +20,9 @@ import { FoodImageSourceProvider } from './src/components/FoodImageSourceProvide
 import { LightboxProvider } from './src/components/LightboxProvider';
 import { Uniwind, useUniwind, useCSSVariable } from 'uniwind';
 
-import { queryClient, serverConnectionQueryKey, serverConfigsQueryKey, useSyncHealthData, useCycleMode, useServerConnection, drainQuickActionNavigation, useControlRouteHandoff, useQuickActions, useWatchCheckInBridge, useWatchFastingBridge, useWatchComplicationSync, useWatchPlanSync, useWatchRecordingBridge, useWatchSetTargetsSync, useWatchWorkoutBridge, useWatchWorkoutEdit, useWatchRunBridge, useWatchRouteBridge, usePreferences } from './src/hooks';
+import { queryClient, serverConnectionQueryKey, serverConfigsQueryKey, useSyncHealthData, useServerConnection, drainQuickActionNavigation, useControlRouteHandoff, useQuickActions, useWatchCheckInBridge, useWatchFastingBridge, useWatchPlanSync, useWatchRecordingBridge, useWatchSetTargetsSync, useWatchWorkoutBridge, useWatchWorkoutEdit, useWatchRunBridge, useWatchRouteBridge, usePreferences, useWatchComplicationSync } from './src/hooks';
 import { useCycleSheetLabel } from './src/hooks/useAddMenuItemLabel';
+import { useAddMenuItemAvailable } from './src/hooks/useAddMenuItemAvailable';
 import { useCustomWidgetLayoutSync } from './src/hooks/useCustomWidgetLayoutSync';
 import { configureRunLiveActivity } from './src/services/runLiveActivity';
 import { useWatchWorkoutStart } from './src/hooks/useWatchWorkoutStart';
@@ -182,6 +183,7 @@ import {
   SafeFamilyMealDetail,
   SafeFamilyCopyReview,
   SafeCycleSettings,
+  SafeFeatureSettings,
   SafeCycleOnboarding,
   SafeCycleHub,
   SafeCycleLogModal,
@@ -417,7 +419,7 @@ function AppContent() {
     handleAddSheetDismissWithoutAction,
   } = useAddSheetActions({ syncMutation });
 
-  const { enabled: cycleEnabled } = useCycleMode();
+  const isAddMenuItemAvailable = useAddMenuItemAvailable();
   const cycleSheetLabel = useCycleSheetLabel();
 
   const [primary, chromeBorder, bgPrimary, textPrimary] = useCSSVariable([
@@ -1446,6 +1448,11 @@ function AppContent() {
             options={createStackScreenOptions(t('screens.whatsNew', { defaultValue: "What's New" }), { headerBackTitle: t('navigation.settings', { defaultValue: 'Settings' }) })}
           />
           <Stack.Screen
+            name="FeatureSettings"
+            component={SafeFeatureSettings}
+            options={createStackScreenOptions(t('screens.features', { defaultValue: 'Features' }), { headerBackTitle: t('navigation.settings', { defaultValue: 'Settings' }) })}
+          />
+          <Stack.Screen
             name="CycleSettings"
             component={SafeCycleSettings}
             options={createStackScreenOptions(t('screens.cyclePregnancy', { defaultValue: 'Cycle & Pregnancy' }), { headerBackTitle: t('navigation.settings', { defaultValue: 'Settings' }) })}
@@ -1628,7 +1635,7 @@ function AppContent() {
           onAskSparky={handleAskSparky}
           onStartCheckIn={handleStartCheckIn}
           onOpenCycle={handleOpenCycle}
-          showCycleCard={cycleEnabled}
+          showCycleCard={isAddMenuItemAvailable('wellness')}
           cycleLabel={cycleSheetLabel}
           onDismissWithoutAction={handleAddSheetDismissWithoutAction}
         />
