@@ -7,7 +7,6 @@ import { useCreateExerciseMutation } from '@/hooks/Exercises/useExercises';
 import type { Exercise } from '@/types/exercises';
 import {
   deriveExerciseModality,
-  type ExerciseLoadConvention,
   isHealthActivityType,
   type ExerciseLoadConvention,
   type ExerciseModality,
@@ -30,8 +29,6 @@ export function useAddCustomExerciseForm(
   const [pinnedModality, setPinnedModality] = useState<ExerciseModality | null>(
     null
   );
-  const [newExerciseLoadConvention, setNewExerciseLoadConvention] =
-    useState<ExerciseLoadConvention>('total');
   // 'automatic' (no override) or a health activity type key (#1750).
   const [newExerciseHealthActivityType, setNewExerciseHealthActivityType] =
     useState(AUTOMATIC_HEALTH_ACTIVITY_TYPE);
@@ -71,7 +68,6 @@ export function useAddCustomExerciseForm(
     setNewExerciseName('');
     setNewExerciseCategory('general');
     setPinnedModality(null);
-    setNewExerciseLoadConvention('total');
     setNewExerciseHealthActivityType(AUTOMATIC_HEALTH_ACTIVITY_TYPE);
     setNewExerciseLoadConvention('total');
     setNewExerciseCalories(300);
@@ -96,7 +92,6 @@ export function useAddCustomExerciseForm(
         name: newExerciseName,
         category: newExerciseCategory,
         modality: newExerciseModality,
-        load_convention: newExerciseLoadConvention,
         ...(isHealthActivityType(newExerciseHealthActivityType)
           ? { health_activity_type: newExerciseHealthActivityType }
           : {}),
@@ -208,8 +203,6 @@ export function useAddCustomExerciseForm(
     setNewExerciseCategory,
     newExerciseModality,
     setNewExerciseModality: setPinnedModality,
-    newExerciseLoadConvention,
-    setNewExerciseLoadConvention,
     newExerciseHealthActivityType,
     setNewExerciseHealthActivityType,
     newExerciseLoadConvention,

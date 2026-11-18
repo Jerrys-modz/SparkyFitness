@@ -45,8 +45,6 @@ export function useEditExerciseForm() {
   const [editExerciseCategory, setEditExerciseCategory] = useState('general');
   const [editExerciseModality, setEditExerciseModality] =
     useState<ExerciseModality>('weight_reps');
-  const [editExerciseLoadConvention, setEditExerciseLoadConvention] =
-    useState<ExerciseLoadConvention>('total');
   // 'automatic' (no override) or a health activity type key (#1750).
   const [editExerciseHealthActivityType, setEditExerciseHealthActivityType] =
     useState(AUTOMATIC_HEALTH_ACTIVITY_TYPE);
@@ -88,11 +86,6 @@ export function useEditExerciseForm() {
     // silently retrack an exercise the user already logged against.
     setEditExerciseModality(
       resolveExerciseModality(exercise.modality, exercise.category)
-    );
-    setEditExerciseLoadConvention(
-      isExerciseLoadConvention(exercise.load_convention)
-        ? exercise.load_convention
-        : 'total'
     );
     setEditExerciseHealthActivityType(
       healthActivityTypeSelectValue(exercise.health_activity_type)
@@ -154,7 +147,6 @@ export function useEditExerciseForm() {
         name: editExerciseName,
         category: editExerciseCategory,
         modality: editExerciseModality,
-        load_convention: editExerciseLoadConvention,
         // 'automatic' clears the override server-side.
         health_activity_type: editExerciseHealthActivityType,
         load_convention: editExerciseLoadConvention,
@@ -291,8 +283,6 @@ export function useEditExerciseForm() {
     setEditExerciseCategory,
     editExerciseModality,
     setEditExerciseModality,
-    editExerciseLoadConvention,
-    setEditExerciseLoadConvention,
     editExerciseHealthActivityType,
     setEditExerciseHealthActivityType,
     editExerciseLoadConvention,

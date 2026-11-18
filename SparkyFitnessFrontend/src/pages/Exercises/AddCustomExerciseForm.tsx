@@ -49,8 +49,6 @@ export default function AddCustomExerciseForm({
     setNewExerciseCategory,
     newExerciseModality,
     setNewExerciseModality,
-    newExerciseLoadConvention,
-    setNewExerciseLoadConvention,
     newExerciseHealthActivityType,
     setNewExerciseHealthActivityType,
     newExerciseLoadConvention,
@@ -153,12 +151,6 @@ export default function AddCustomExerciseForm({
         </Select>
       </div>
 
-      <ExerciseLoadConventionField
-        id="load-convention"
-        modality={newExerciseModality}
-        value={newExerciseLoadConvention}
-        onChange={setNewExerciseLoadConvention}
-      />
       {/* Health activity type (#1750) */}
       <div className="grid grid-cols-4 items-start gap-4">
         <Label htmlFor="health-activity-type" className="text-right pt-2">

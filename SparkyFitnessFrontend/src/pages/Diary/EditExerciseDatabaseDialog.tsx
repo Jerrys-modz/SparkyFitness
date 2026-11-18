@@ -85,7 +85,6 @@ const EditExerciseDatabaseDialog: React.FC<EditExerciseDatabaseDialogProps> = ({
       name: exerciseToEdit.name || '',
       category: exerciseToEdit.category || '',
       modality: exerciseToEdit.modality,
-      load_convention: exerciseToEdit.load_convention ?? 'total',
       health_activity_type: healthActivityTypeSelectValue(
         exerciseToEdit.health_activity_type
       ),
@@ -217,15 +216,6 @@ const EditExerciseDatabaseDialog: React.FC<EditExerciseDatabaseDialogProps> = ({
             </Select>
           </div>
 
-          <ExerciseLoadConventionField
-            id="diary-load-convention"
-            modality={resolveExerciseModality(
-              formData.modality,
-              formData.category
-            )}
-            value={formData.load_convention ?? 'total'}
-            onChange={(val) => handleFieldChange('load_convention', val)}
-          />
           {/* Health activity type (#1750) */}
           <div className="grid grid-cols-4 items-start gap-4">
             <Label
