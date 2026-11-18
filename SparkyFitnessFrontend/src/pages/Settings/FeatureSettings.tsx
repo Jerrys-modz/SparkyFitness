@@ -14,6 +14,10 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useActiveUser } from '@/contexts/ActiveUserContext';
+import {
+  useSetWebFeatureEnabled,
+  useWebFeatureEnabled,
+} from '@/hooks/Settings/useFeatureChoices';
 import { useCycleSwitch } from '@/hooks/Settings/useWebFeatures';
 import { cycleTabIcon, cycleTabLabel } from '@/constants/webTabs';
 import { CycleSetupPrompt } from './CycleSetupPrompt';
@@ -100,11 +104,42 @@ function CycleFeatureRow() {
   );
 }
 
+/** Hunger, fullness and cravings check-in, stored in `feature_choices`. */
+function AppetiteFeatureRow() {
+  const { t } = useTranslation();
+  const on = useWebFeatureEnabled('appetite');
+  const { mutate, isPending } = useSetWebFeatureEnabled('appetite');
+
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <div className="space-y-0.5">
+        <Label htmlFor="feature-appetite">
+          {t('settings.features.appetite.title', 'Hunger and cravings')}
+        </Label>
+        <p className="text-sm text-muted-foreground">
+          {t(
+            'settings.features.appetite.description',
+            'Log hunger, fullness and cravings in the check-in, and see them in reports.'
+          )}
+        </p>
+      </div>
+      <Switch
+        id="feature-appetite"
+        checked={on}
+        disabled={isPending}
+        onCheckedChange={(next) => mutate(next)}
+      />
+    </div>
+  );
+}
+
 /** One row per feature. A new registry key needs its own row here. */
 function FeatureRow({ feature }: { feature: FeatureKey }): ReactElement {
   switch (feature) {
     case 'cycle':
       return <CycleFeatureRow />;
+    case 'appetite':
+      return <AppetiteFeatureRow />;
   }
 }
 

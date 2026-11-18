@@ -1,8 +1,11 @@
 import { preferencesKeys } from '@/api/keys/settings';
-import { getFeatureChoices } from '@/api/Settings/featureChoices';
+import {
+  getFeatureChoices,
+  updateFeatureChoices,
+} from '@/api/Settings/featureChoices';
 import { useActiveUser } from '@/contexts/ActiveUserContext';
 import { useAuth } from '@/hooks/useAuth';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { isFeatureEnabled, type FeatureKey } from '@workspace/shared';
 
 /**
@@ -26,5 +29,20 @@ export const useWebFeatureEnabled = (key: FeatureKey): boolean => {
   return isFeatureEnabled(key, 'web', {
     choices: data.feature_choices,
     cycleEnabled: undefined,
+  });
+};
+
+/** Turns a feature stored in `feature_choices` on or off for the website. */
+export const useSetWebFeatureEnabled = (key: FeatureKey) => {
+  const { user } = useAuth();
+  const { activeUserId } = useActiveUser();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (enabled: boolean) =>
+      updateFeatureChoices({ web: { [key]: enabled } }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: preferencesKeys.featureChoices(activeUserId ?? user?.id),
+      }),
   });
 };

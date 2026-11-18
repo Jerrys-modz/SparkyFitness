@@ -65,7 +65,7 @@ describe('createFoodEntry client_id (offline replay)', () => {
     expect(result).toEqual({ id: 'new-entry' });
     const insert = query.mock.calls.find(([sql]) => isInsert(sql));
     expect(insert?.[0]).toContain('client_id');
-    expect(insert?.[1].at(-1)).toBe(CLIENT_ID);
+    expect(insert?.[1].at(-2)).toBe(CLIENT_ID);
   });
 
   it('leaves client_id null when the request has none', async () => {
@@ -79,7 +79,7 @@ describe('createFoodEntry client_id (offline replay)', () => {
 
     expect(query.mock.calls.some(([sql]) => isLookup(sql))).toBe(false);
     const insert = query.mock.calls.find(([sql]) => isInsert(sql));
-    expect(insert?.[1].at(-1)).toBeNull();
+    expect(insert?.[1].at(-2)).toBeNull();
   });
 
   it('answers a request that lost the race with the winner instead of failing', async () => {

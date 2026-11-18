@@ -3649,6 +3649,10 @@
         "scope": "One switch for the website and the mobile app.",
         "setupHint": "Answer a few questions to finish setting it up.",
         "setupAction": "Set up"
+      },
+      "appetite": {
+        "title": "Hunger and cravings",
+        "description": "Log hunger, fullness and cravings in the check-in, and see them in reports."
       }
     }
   },
