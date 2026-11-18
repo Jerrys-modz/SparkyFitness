@@ -56,6 +56,8 @@ import {
 } from '../stores/appPreferencesStore';
 import { updatePendingWatchFormDistance } from '../services/pendingWatchForm';
 import { correctTreadmillDistance } from '../utils/treadmillCorrection';
+import { beltSpeedFromPaceText } from '../utils/beltPace';
+import { splitIndoorRunWalk } from '@workspace/shared';
 import { formatTreadmillPercent } from '../utils/treadmillCorrectionFormat';
 import { energyUnitLabel, roundedEnergy } from '../utils/energyUnit';
 import { useEnergyUnit } from '../hooks/useEnergyUnit';
@@ -114,6 +116,12 @@ const RunSummaryScreen: React.FC<Props> = ({ navigation, route }) => {
   const [distanceText, setDistanceText] = useState('');
   const [savingDistance, setSavingDistance] = useState(false);
   const [distanceSaved, setDistanceSaved] = useState(false);
+  // The belt pace of the run block, for a run that mixed walking and running,
+  // and the series that split gave. Without them every row scales alike.
+  const [paceText, setPaceText] = useState('');
+  const [splitSeries, setSplitSeries] = useState<[number, number][] | null>(
+    null
+  );
   // What the machine showed when a correction was taken off it: from the watch
   // (typed on the wrist, corrected when the run was filed) or from here.
   const [displayedMeters, setDisplayedMeters] = useState<number | null>(
@@ -163,6 +171,19 @@ const RunSummaryScreen: React.FC<Props> = ({ navigation, route }) => {
       );
       return;
     }
+    const beltSpeed =
+      paceText.trim() === ''
+        ? null
+        : beltSpeedFromPaceText(paceText, unitMeters);
+    if (paceText.trim() !== '' && beltSpeed == null) {
+      showFailure(
+        t('runSummary.beltPaceInvalid', {
+          defaultValue:
+            'Enter the belt pace as minutes and seconds, like 12:00.',
+        })
+      );
+      return;
+    }
     setSavingDistance(true);
     try {
       // Not before the saved preferences are read: an early tap would
@@ -173,9 +194,40 @@ const RunSummaryScreen: React.FC<Props> = ({ navigation, route }) => {
         getTreadmillCorrection()
       );
       const km = corrected.correctedMeters / METERS_PER_KM;
-      await setExerciseEntryDistance(summary.entryId, km);
+      await (beltSpeed != null
+        ? setExerciseEntryDistance(summary.entryId, km, beltSpeed)
+        : setExerciseEntryDistance(summary.entryId, km));
       // A run still waiting for its steps measures from this distance.
       void updatePendingWatchFormDistance(summary.entryId, km * METERS_PER_KM);
+      // The run block at the belt's pace, the walking taking the rest. Judged
+      // from what the chart shows now for the picture, and from what the watch
+      // first showed for what the factor learns.
+      const split =
+        beltSpeed != null
+          ? splitIndoorRunWalk(
+              splitSeries ??
+                (summary.distanceSeries ?? []).map(
+                  ([sec, meters]): [number, number] => [
+                    sec ?? 0,
+                    (meters ?? 0) * distanceScale,
+                  ]
+                ),
+              km * METERS_PER_KM,
+              beltSpeed
+            )
+          : null;
+      const learnSplit =
+        beltSpeed != null && summary.distanceSeries
+          ? splitIndoorRunWalk(
+              summary.distanceSeries.map(([sec, meters]): [number, number] => [
+                sec ?? 0,
+                meters ?? 0,
+              ]),
+              km * METERS_PER_KM,
+              beltSpeed
+            )
+          : null;
+      setSplitSeries(split?.series ?? null);
       setDistanceMeters(km * METERS_PER_KM);
       setDisplayedMeters(corrected.applied ? corrected.displayedMeters : null);
       await followStride(summary.entryId, km);
@@ -185,14 +237,28 @@ const RunSummaryScreen: React.FC<Props> = ({ navigation, route }) => {
       // one rather than counted as a second sample.
       if (summary.watchIndoor) {
         const { estimatedMeters, startedAt, endedAt } = summary.watchIndoor;
-        void learnWatchIndoorScale(
-          summary.activity,
-          summary.watchIndoor.scale,
-          estimatedMeters,
-          km * METERS_PER_KM,
-          'phone',
-          summary.entryId
-        );
+        // With the run block split off, the run factor learns from that block
+        // alone: a total corrected over a mixed run would teach it the walking's
+        // pedometer error as well.
+        if (learnSplit && summary.activity === 'run') {
+          void learnWatchIndoorScale(
+            summary.activity,
+            summary.watchIndoor.scale,
+            learnSplit.shownRunMeters,
+            learnSplit.runMeters,
+            'phone',
+            summary.entryId
+          );
+        } else {
+          void learnWatchIndoorScale(
+            summary.activity,
+            summary.watchIndoor.scale,
+            estimatedMeters,
+            km * METERS_PER_KM,
+            'phone',
+            summary.entryId
+          );
+        }
         if (startedAt != null && endedAt != null) {
           // The stride too, from the steps Apple Health holds over the run.
           void learnFromWatchRun(
@@ -305,10 +371,11 @@ const RunSummaryScreen: React.FC<Props> = ({ navigation, route }) => {
   // A treadmill run has no route; its pace comes from the distance the watch
   // logged against time, moved by the same correction as the totals.
   const paceSeries = paceSeriesFromDistance(
-    (summary.distanceSeries ?? []).map(([sec, meters]) => [
-      sec,
-      meters * distanceScale,
-    ]),
+    splitSeries ??
+      (summary.distanceSeries ?? []).map(([sec, meters]) => [
+        sec,
+        meters * distanceScale,
+      ]),
     unitMeters
   );
   const bars = splitBars(rows, unitMeters);
@@ -478,6 +545,36 @@ const RunSummaryScreen: React.FC<Props> = ({ navigation, route }) => {
                 {t('runSummary.saveDistance', { defaultValue: 'Update' })}
               </Button>
             </View>
+            {summary.activity === 'run' && summary.distanceSeries ? (
+              <View className="mt-3">
+                <Text className="text-text-secondary text-sm">
+                  {t('runSummary.beltPaceHint', {
+                    defaultValue:
+                      'If part of the run was walking, enter the belt pace of the run. That part keeps its pace and the walking takes the rest of the distance.',
+                  })}
+                </Text>
+                <View className="flex-row items-center mt-2" style={{ gap: 8 }}>
+                  <FormInput
+                    className="flex-1 bg-raised rounded-lg px-3 text-text-primary"
+                    value={paceText}
+                    onChangeText={setPaceText}
+                    keyboardType="numbers-and-punctuation"
+                    placeholder="12:00"
+                    accessibilityLabel={t('runSummary.beltPaceA11y', {
+                      defaultValue:
+                        'Belt pace of the run in minutes per {{unit}}',
+                      unit: unitLabel,
+                    })}
+                  />
+                  <Text className="text-text-secondary text-base">
+                    {t('runSummary.beltPaceUnit', {
+                      defaultValue: '/ {{unit}}',
+                      unit: unitLabel,
+                    })}
+                  </Text>
+                </View>
+              </View>
+            ) : null}
           </View>
         ) : null}
 

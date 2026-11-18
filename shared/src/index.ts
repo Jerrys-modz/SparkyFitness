@@ -420,3 +420,4 @@ export * from './utils/weightProgress.ts';
 export * from './schemas/api/DietPhases.api.zod.ts';
 export * from './utils/dietPhases.ts';
 export * from './schemas/database/DietPhases.zod.ts';
+export * from './utils/indoorRunWalkSplit.ts';
