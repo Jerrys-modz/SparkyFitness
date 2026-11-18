@@ -51,8 +51,6 @@ interface ActiveWorkoutRestBarProps {
   onCompleteSet: () => void;
   /** Taps on the bar outside its controls (the buttons claim their own). */
   onPressBar?: () => void;
-  /** Guided mode owns the last-3-seconds beeps, so the bar stays quiet. */
-  guidedBeeps?: boolean;
   /**
    * The focus view's ready bar: a back button (reopens the last logged set to
    * edit it) beside a large Log set button that names the rest that follows.
@@ -98,7 +96,6 @@ function ActiveWorkoutRestBar({
   onResume,
   onCompleteSet,
   onPressBar,
-  guidedBeeps = false,
   focusReady,
 }: ActiveWorkoutRestBarProps) {
   const { t } = useTranslation();
@@ -126,8 +123,7 @@ function ActiveWorkoutRestBar({
   // setting: Off, 3 or 5). The beep at zero is the rest-complete chime, which
   // the store owns, so it is never doubled here.
   useCountdownCue({
-    // Guided mode beeps the last three seconds itself.
-    active: state === 'resting' && !guidedBeeps,
+    active: state === 'resting',
     remainingMs,
     seconds: useCountdownSeconds(),
     onTick: () => {

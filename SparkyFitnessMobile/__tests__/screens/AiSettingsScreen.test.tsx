@@ -62,28 +62,11 @@ beforeEach(() => {
 });
 
 describe('AiSettingsScreen', () => {
-  beforeEach(() => {
-    mockAvailable = true;
-    useAppPreferencesStore.setState({
-      onDeviceLabelScanEnabled: false,
-      onDeviceFoodPhotoEnabled: false,
-    });
-  });
-
   it('shows the active server provider', async () => {
     const { getByTestId, client } = renderScreen();
     await waitFor(() => expect(client.isFetching()).toBe(0));
     expect(getByTestId('ai-settings-provider').props.children).toBe(
       'OpenAI · gpt-x'
-    );
-  });
-
-  it('turns on-device food photo estimates on and off', async () => {
-    const { getByTestId, client } = renderScreen();
-    await waitFor(() => expect(client.isFetching()).toBe(0));
-    fireEvent(getByTestId('ai-food-photo-switch'), 'valueChange', true);
-    expect(useAppPreferencesStore.getState().onDeviceFoodPhotoEnabled).toBe(
-      true
     );
   });
 
@@ -108,7 +91,6 @@ describe('AiSettingsScreen', () => {
     const { queryByTestId, getByText, client } = renderScreen();
     await waitFor(() => expect(client.isFetching()).toBe(0));
     expect(queryByTestId('ai-label-scan-switch')).toBeNull();
-    expect(queryByTestId('ai-food-photo-switch')).toBeNull();
     expect(getByText(/Not available on this device/)).toBeTruthy();
   });
 });

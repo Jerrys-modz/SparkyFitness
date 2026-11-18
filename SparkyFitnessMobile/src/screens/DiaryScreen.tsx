@@ -38,7 +38,6 @@ import ServingAdjustSheet, {
 } from '../components/ServingAdjustSheet';
 import { BedTimeCard, NapsCard, WakeUpCard } from '../components/SleepCards';
 import StatusView from '../components/StatusView';
-import { ServerStatusView } from '../components/ServerGate';
 import Button from '../components/ui/Button';
 import {
   useCustomNutrients,

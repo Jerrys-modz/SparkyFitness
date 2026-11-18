@@ -392,7 +392,8 @@ function AppContent() {
   const syncMutation = useSyncHealthData();
   const { shouldYieldObserverSync } = useAutoSyncOnOpen({ initialRoute, syncMutation });
   useAppStartup({ shouldYieldObserverSync });
-  useOfflineQueueSync();
+  // The widgets built in the app, mirrored to the widget wherever the person is.
+  useCustomWidgetLayoutSync();
 
   const {
     rememberActiveTab,
