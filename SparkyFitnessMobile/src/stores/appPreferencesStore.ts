@@ -229,6 +229,7 @@ export const PREFERENCE_DEFAULTS = {
   focusNextSetOnRestEnd: true,
   plannedValuesAsPlaceholders: false,
   warmupCalculatorEnabled: true,
+  offlinePicturesOnMobileData: false,
   warmupMethod: DEFAULT_WARMUP_METHOD.map((step) => ({ ...step })),
   warmupPlateRounding: { ...DEFAULT_WARMUP_PLATE_ROUNDING },
   warmupDumbbellRounding: { ...DEFAULT_WARMUP_DUMBBELL_ROUNDING },
@@ -409,6 +410,8 @@ export type AppPreferencesData = {
   plannedValuesAsPlaceholders: boolean;
   /** Offer "Add warm-ups" on an exercise's menu. */
   warmupCalculatorEnabled: boolean;
+  /** Download exercise pictures for offline use on mobile data too (#1983). */
+  offlinePicturesOnMobileData: boolean;
   /** The warm-up ramp: percent of the working weight x reps, ascending. */
   warmupMethod: WarmupMethodStep[];
   /** Step warm-up weights round to on a bar, per display unit. */
@@ -600,6 +603,7 @@ export interface AppPreferencesState extends AppPreferencesData {
   setFocusNextSetOnRestEnd: (value: boolean) => void;
   setPlannedValuesAsPlaceholders: (value: boolean) => void;
   setWarmupCalculatorEnabled: (value: boolean) => void;
+  setOfflinePicturesOnMobileData: (value: boolean) => void;
   setWarmupMethod: (steps: readonly WarmupMethodStep[]) => void;
   setWarmupPlateRounding: (unit: 'kg' | 'lbs', value: number) => void;
   setWarmupDumbbellRounding: (unit: 'kg' | 'lbs', value: number) => void;
@@ -873,6 +877,8 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         set({ plannedValuesAsPlaceholders: value }),
       setWarmupCalculatorEnabled: (value) =>
         set({ warmupCalculatorEnabled: value }),
+      setOfflinePicturesOnMobileData: (value) =>
+        set({ offlinePicturesOnMobileData: value }),
       setWarmupMethod: (steps) =>
         set({ warmupMethod: normalizeWarmupMethod(steps) }),
       setWarmupPlateRounding: (unit, value) =>
@@ -1146,6 +1152,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         focusNextSetOnRestEnd: state.focusNextSetOnRestEnd,
         plannedValuesAsPlaceholders: state.plannedValuesAsPlaceholders,
         warmupCalculatorEnabled: state.warmupCalculatorEnabled,
+        offlinePicturesOnMobileData: state.offlinePicturesOnMobileData,
         warmupMethod: state.warmupMethod,
         warmupPlateRounding: state.warmupPlateRounding,
         warmupDumbbellRounding: state.warmupDumbbellRounding,
