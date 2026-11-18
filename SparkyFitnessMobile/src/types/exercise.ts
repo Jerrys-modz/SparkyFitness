@@ -9,6 +9,8 @@ export interface Exercise {
   category: string | null;
   /** Absent/null on pre-modality servers; resolve via `resolveSnapshotModality`. */
   modality?: ExerciseModality | null;
+  /** Health activity type override (#1750); null/absent is Automatic. */
+  health_activity_type?: string | null;
   /** How logged weight and reps count toward volume; absent on older servers, which means `total`. */
   load_convention?: ExerciseLoadConvention;
   equipment: string[];

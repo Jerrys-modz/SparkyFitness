@@ -14,10 +14,13 @@ struct PlannedSet: Codable, Equatable, Identifiable {
     /// Always kg, like every other weight value this app moves between watch
     /// and phone — display converts via `CheckInStore`'s `effectiveWeightUnit`.
     let targetWeightKg: Double?
-    /// Rest to run after this set, in seconds — the phone's own
-    /// `WorkoutStep.restSec` (activeWorkoutStore.ts), carried over verbatim so
-    /// the watch's timer agrees with what the phone would have shown.
+    /// Rest *before* this set, in seconds — the phone's own
+    /// `WorkoutStep.restSec` (activeWorkoutStore.ts), carried over verbatim.
+    /// The rest started by logging a set is `RestRule.restAfter`, not this.
     let restSeconds: Int
+    /// This set's own rest, which the phone runs after logging it. Nil from a
+    /// phone that predates it. See `RestRule`.
+    var restAfterSeconds: Int? = nil
     /// `normal`, `warmup`, `drop`… straight from `exercise_entry_sets.set_type`.
     /// Drives the label above the values ("Warmup 1/2" rather than "Set 1/2");
     /// nil or an unrecognised value just reads as a normal set.
@@ -60,6 +63,20 @@ struct PlannedExercise: Codable, Equatable, Identifiable {
     /// (+ added, − assisted). Optional so a snapshot saved before this existed
     /// still decodes, and an older phone that never sends it reads as false.
     var bodyweight: Bool? = nil
+    /// The exercise's equipment ("Barbell"), for the line under its name on the
+    /// new workout view. Nil until the phone sends it; the line then shows the
+    /// set's label instead.
+    var equipment: String? = nil
+    /// The bar and plates the wearer owns, for the Plates tile on More. Sent
+    /// only for an exercise loaded on a bar; nil from an older phone.
+    var plates: WatchPlateConfig? = nil
+    /// Key of the exercise's demo pictures (`ExerciseDemoFiles`) and how many
+    /// the phone sends (1 or 2: start and end). The pictures arrive as queued payloads,
+    /// separately from the plan; nil from an older phone or an exercise with none.
+    var imageKey: String? = nil
+    var imageCount: Int? = nil
+    /// Primary muscle ("Chest"), for the line under the name on the demo page.
+    var muscle: String? = nil
     /// A one-sided exercise, or one with a set already marked left or right.
     /// Only then does the set options page offer Side and Add Other Side.
     /// Optional so an older phone, or a saved snapshot, still decodes.
@@ -184,25 +201,42 @@ struct WorkoutStep: Identifiable, Equatable {
     /// Same index as `PlannedExercise.supersetRun`. Nil when this set is not
     /// in a superset, so the caption and its colour share one source.
     let supersetRun: Int?
+    /// `PlannedExercise.equipment`.
+    var equipment: String? = nil
+    /// `PlannedExercise.plates`.
+    var plates: WatchPlateConfig? = nil
 
     var id: String { plannedSet.setId }
 
-    /// "Warmup 1/2" / "Set 2/3" — what sits under the exercise name.
+    /// "Warmup 1/2" / "Set 2/3" — what sits under the exercise name, with
+    /// " · L" or " · R" for a set done on one side.
     var label: String {
-        let kind: String
-        switch plannedSet.setType?.lowercased() {
-        case "warmup": kind = "Warmup"
-        case "drop": kind = "Drop"
-        case "failure": kind = "Failure"
-        default: kind = "Set"
-        }
-        let sideSuffix: String
+        "\(typeLabel)\(sideSuffix)"
+    }
+
+    /// " · L" / " · R" for a one-sided set, empty for both sides.
+    var sideSuffix: String {
         switch plannedSet.side?.lowercased() {
-        case "left": sideSuffix = " · L"
-        case "right": sideSuffix = " · R"
-        default: sideSuffix = ""
+        case "left":
+            return String(localized: "watch.workout.setLabel.sideLeftSuffix", defaultValue: " · L")
+        case "right":
+            return String(localized: "watch.workout.setLabel.sideRightSuffix", defaultValue: " · R")
+        default:
+            return ""
         }
-        return "\(kind) \(setNumber)/\(setCount)\(sideSuffix)"
+    }
+
+    private var typeLabel: String {
+        switch plannedSet.setType?.lowercased() {
+        case "warmup":
+            return String(localized: "watch.workout.setLabel.warmup", defaultValue: "Warmup \(setNumber)/\(setCount)")
+        case "drop":
+            return String(localized: "watch.workout.setLabel.drop", defaultValue: "Drop \(setNumber)/\(setCount)")
+        case "failure":
+            return String(localized: "watch.workout.setLabel.failure", defaultValue: "Failure \(setNumber)/\(setCount)")
+        default:
+            return String(localized: "watch.workout.setLabel.set", defaultValue: "Set \(setNumber)/\(setCount)")
+        }
     }
 }
 
@@ -217,6 +251,9 @@ struct WorkoutSummary: Equatable {
     /// The workout it describes, so a question the phone asks about it can be
     /// matched to this summary and not to a later one.
     var sessionId: String? = nil
+    /// The saved workout's name when this one changed from it and the summary
+    /// is to ask whether to update it. Nil otherwise.
+    var changedPresetName: String? = nil
 }
 
 /// A change the wearer makes to the running workout from the wrist. The phone
@@ -366,4 +403,17 @@ struct HeartRateBatch: Codable, Equatable {
 /// this is purely "stop expecting more" and the signal to flush.
 struct WorkoutStopSignal: Codable, Equatable {
     let sessionId: String
+}
+
+extension RestStepFacts {
+    init(_ step: WorkoutStep) {
+        self.init(
+            exerciseEntryId: step.exerciseEntryId,
+            supersetRun: step.supersetRun,
+            setNumber: step.setNumber,
+            isDrop: step.plannedSet.setType == "drop",
+            ownRestSeconds: step.plannedSet.restAfterSeconds,
+            restBeforeSeconds: step.plannedSet.restSeconds
+        )
+    }
 }

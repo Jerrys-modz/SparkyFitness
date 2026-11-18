@@ -76,6 +76,28 @@ describe('appPreferencesStore', () => {
     });
   });
 
+  describe('add menu row styles', () => {
+    it('keeps a choice that differs from the default and drops one that matches it', () => {
+      const { setAddMenuRowStyle } = useAppPreferencesStore.getState();
+
+      setAddMenuRowStyle('mood', 'action');
+      expect(useAppPreferencesStore.getState().addMenuRowStyles).toEqual({
+        mood: 'action',
+      });
+
+      // Mood's own style is a pair.
+      setAddMenuRowStyle('mood', 'compact');
+      expect(useAppPreferencesStore.getState().addMenuRowStyles).toEqual({});
+    });
+
+    it('is cleared by resetting the menu', () => {
+      useAppPreferencesStore.getState().setAddMenuRowStyle('mood', 'list');
+      useAppPreferencesStore.getState().resetAddMenu();
+
+      expect(useAppPreferencesStore.getState().addMenuRowStyles).toEqual({});
+    });
+  });
+
   describe('health trend preferences', () => {
     it('defaults to the full registry order with nothing hidden', () => {
       const state = useAppPreferencesStore.getState();
@@ -125,6 +147,37 @@ describe('appPreferencesStore', () => {
       expect(state.soundsEnabled).toBe(false); // persisted values honoured
       expect(state.healthTrendOrder).toEqual([...HEALTH_TREND_KEYS]);
       expect(state.hiddenHealthTrends).toEqual([]);
+    });
+  });
+
+  describe('focus the next set when a rest ends (#3581)', () => {
+    it('stays on for a persisted blob written before the setting existed', async () => {
+      const withoutSetting = { ...PREFERENCE_DEFAULTS } as Record<
+        string,
+        unknown
+      >;
+      delete withoutSetting.focusNextSetOnRestEnd;
+      await AsyncStorage.setItem(
+        '@SparkyFitness/app-preferences',
+        JSON.stringify({
+          state: { ...withoutSetting, soundsEnabled: false },
+          version: 1,
+        })
+      );
+
+      await useAppPreferencesStore.persist.rehydrate();
+
+      const state = useAppPreferencesStore.getState();
+      expect(state.soundsEnabled).toBe(false);
+      expect(state.focusNextSetOnRestEnd).toBe(true);
+    });
+
+    it('persists the choice', async () => {
+      useAppPreferencesStore.getState().setFocusNextSetOnRestEnd(false);
+      await useAppPreferencesStore.persist.rehydrate();
+      expect(useAppPreferencesStore.getState().focusNextSetOnRestEnd).toBe(
+        false
+      );
     });
   });
 
@@ -247,6 +300,7 @@ describe('appPreferencesStore', () => {
         'trainingLoad',
         'hydration',
         'caffeine',
+        'bloodAlcohol',
         'fasting',
         'cycle',
         'medications',
@@ -255,7 +309,19 @@ describe('appPreferencesStore', () => {
         'progressPhotos',
         'healthTrends',
         'mindfulness',
+        'oralCare',
+        'labResults',
       ]);
+    });
+
+    it('shows the blood alcohol estimate card by default and can hide it', () => {
+      expect(useAppPreferencesStore.getState().bloodAlcoholCardVisible).toBe(
+        true
+      );
+      useAppPreferencesStore.getState().setBloodAlcoholCardVisible(false);
+      expect(useAppPreferencesStore.getState().bloodAlcoholCardVisible).toBe(
+        false
+      );
     });
 
     it('updates dashboard card order', () => {
@@ -299,57 +365,89 @@ describe('appPreferencesStore', () => {
     });
   });
 
-  describe('guided check-in preference', () => {
-    it('defaults to off', () => {
-      expect(PREFERENCE_DEFAULTS.guidedCheckInEnabled).toBe(false);
-      expect(useAppPreferencesStore.getState().guidedCheckInEnabled).toBe(
-        false
-      );
-    });
-
-    it('setGuidedCheckInEnabled updates only the guided check-in opt-in', () => {
-      const store = useAppPreferencesStore.getState();
-
-      store.setGuidedCheckInEnabled(true);
-      expect(useAppPreferencesStore.getState().guidedCheckInEnabled).toBe(true);
-      expect(useAppPreferencesStore.getState().diarySummaryVisible).toBe(false);
-      expect(useAppPreferencesStore.getState().checkinRemindersEnabled).toBe(
-        PREFERENCE_DEFAULTS.checkinRemindersEnabled
-      );
-
-      store.setGuidedCheckInEnabled(false);
-      expect(useAppPreferencesStore.getState().guidedCheckInEnabled).toBe(
-        false
-      );
-    });
-
-    it('persists guidedCheckInEnabled across storage write', async () => {
-      useAppPreferencesStore.getState().setGuidedCheckInEnabled(true);
-      const raw = await AsyncStorage.getItem('@SparkyFitness/app-preferences');
-      expect(raw).toBeTruthy();
-      const parsed = JSON.parse(raw!);
-      expect(parsed.state.guidedCheckInEnabled).toBe(true);
-    });
-
-    it('falls back to off when an older persisted blob lacks the key', async () => {
-      const withoutGuidedCheckIn = { ...PREFERENCE_DEFAULTS } as Record<
-        string,
-        unknown
-      >;
-      delete withoutGuidedCheckIn.guidedCheckInEnabled;
+  describe('larger text and the retired original workout page setting', () => {
+    const persist = async (state: Record<string, unknown>, version = 1) => {
       await AsyncStorage.setItem(
         '@SparkyFitness/app-preferences',
         JSON.stringify({
-          state: { ...withoutGuidedCheckIn, soundsEnabled: false },
+          state: { ...PREFERENCE_DEFAULTS, ...state },
+          version,
+        })
+      );
+      await useAppPreferencesStore.persist.rehydrate();
+    };
+
+    it('keeps larger text as its own setting and turns the new view on for the larger text workout page', async () => {
+      await persist({ watchLargerText: true, watchClassicWorkout: false });
+      const state = useAppPreferencesStore.getState();
+      expect(state.watchLargerText).toBe(true);
+      expect(state.watchNewWorkout).toBe(true);
+    });
+
+    it('leaves the new view off when the original page was kept or larger text was off', async () => {
+      await persist({ watchLargerText: true, watchClassicWorkout: true });
+      expect(useAppPreferencesStore.getState().watchLargerText).toBe(true);
+      expect(useAppPreferencesStore.getState().watchNewWorkout).toBe(false);
+      await persist({ watchLargerText: false, watchClassicWorkout: false });
+      expect(useAppPreferencesStore.getState().watchLargerText).toBe(false);
+      expect(useAppPreferencesStore.getState().watchNewWorkout).toBe(false);
+    });
+
+    it('drops the old original page key on the next write and keeps larger text', async () => {
+      await persist({ watchLargerText: true, watchClassicWorkout: false });
+      useAppPreferencesStore.getState().setWatchWorkoutCountdown(3);
+      const raw = await AsyncStorage.getItem('@SparkyFitness/app-preferences');
+      const parsed = JSON.parse(raw!);
+      expect(parsed.state).not.toHaveProperty('watchClassicWorkout');
+      expect(parsed.state.watchLargerText).toBe(true);
+      expect(parsed.state.watchNewWorkout).toBe(true);
+      expect(parsed.state.watchWorkoutCountdown).toBe(3);
+      expect(parsed.version).toBe(2);
+    });
+  });
+
+  describe('the countdown before holds setting', () => {
+    it('defaults to on, including for a blob saved before it existed', async () => {
+      const { watchHoldCountdown: _omit, ...withoutKey } = PREFERENCE_DEFAULTS;
+      await AsyncStorage.setItem(
+        '@SparkyFitness/app-preferences',
+        JSON.stringify({ state: withoutKey, version: 1 })
+      );
+      await useAppPreferencesStore.persist.rehydrate();
+      expect(useAppPreferencesStore.getState().watchHoldCountdown).toBe(true);
+    });
+
+    it('persists when turned off', async () => {
+      useAppPreferencesStore.getState().setWatchHoldCountdown(false);
+      const raw = await AsyncStorage.getItem('@SparkyFitness/app-preferences');
+      expect(JSON.parse(raw!).state.watchHoldCountdown).toBe(false);
+    });
+  });
+
+  describe('the retired guided check-in setting', () => {
+    // Quick Actions shows or hides Check-In like any other item now.
+    it('keeps the rest of an older blob and drops the setting on the next write', async () => {
+      await AsyncStorage.setItem(
+        '@SparkyFitness/app-preferences',
+        JSON.stringify({
+          state: {
+            ...PREFERENCE_DEFAULTS,
+            soundsEnabled: false,
+            guidedCheckInEnabled: true,
+          },
           version: 1,
         })
       );
-
       await useAppPreferencesStore.persist.rehydrate();
+      expect(useAppPreferencesStore.getState().soundsEnabled).toBe(false);
 
-      const state = useAppPreferencesStore.getState();
-      expect(state.soundsEnabled).toBe(false); // persisted values honoured
-      expect(state.guidedCheckInEnabled).toBe(false); // shallow-merge backfill
+      useAppPreferencesStore.getState().setDiarySummaryVisible(true);
+
+      const raw = await AsyncStorage.getItem('@SparkyFitness/app-preferences');
+      const parsed = JSON.parse(raw!);
+      expect(parsed.state).not.toHaveProperty('guidedCheckInEnabled');
+      expect(parsed.state.diarySummaryVisible).toBe(true);
+      expect(parsed.state.soundsEnabled).toBe(false);
     });
   });
 
@@ -403,6 +501,49 @@ describe('appPreferencesStore', () => {
       await useAppPreferencesStore.persist.rehydrate();
 
       expect(useAppPreferencesStore.getState().soundsEnabled).toBe(false);
+    });
+  });
+
+  describe('focus workout view', () => {
+    it('defaults to the list view with an expanded focus photo', () => {
+      const state = useAppPreferencesStore.getState();
+      expect(state.activeWorkoutView).toBe('list');
+      expect(state.focusMediaDefault).toBe('expanded');
+    });
+
+    it('updates and persists both preferences', async () => {
+      const store = useAppPreferencesStore.getState();
+      store.setActiveWorkoutView('focus');
+      store.setFocusMediaDefault('minimized');
+      expect(useAppPreferencesStore.getState().activeWorkoutView).toBe('focus');
+      expect(useAppPreferencesStore.getState().focusMediaDefault).toBe(
+        'minimized'
+      );
+
+      const raw = await AsyncStorage.getItem('@SparkyFitness/app-preferences');
+      const parsed = JSON.parse(raw!);
+      expect(parsed.state.activeWorkoutView).toBe('focus');
+      expect(parsed.state.focusMediaDefault).toBe('minimized');
+    });
+
+    it('falls back to the defaults when an older persisted blob lacks the keys', async () => {
+      const legacy = { ...PREFERENCE_DEFAULTS } as Record<string, unknown>;
+      delete legacy.activeWorkoutView;
+      delete legacy.focusMediaDefault;
+      await AsyncStorage.setItem(
+        '@SparkyFitness/app-preferences',
+        JSON.stringify({
+          state: { ...legacy, soundsEnabled: false },
+          version: 1,
+        })
+      );
+
+      await useAppPreferencesStore.persist.rehydrate();
+
+      const state = useAppPreferencesStore.getState();
+      expect(state.soundsEnabled).toBe(false);
+      expect(state.activeWorkoutView).toBe('list');
+      expect(state.focusMediaDefault).toBe('expanded');
     });
   });
 });

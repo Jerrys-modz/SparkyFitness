@@ -13,6 +13,10 @@ import java.util.TimeZone
  */
 object ContextPayloadMapper {
 
+  /**
+   * Parses an incoming phone-to-watch JSON context payload into a [WatchContext],
+   * carrying forward sticky preferences from [previous] when omitted.
+   */
   fun parseContext(obj: JSONObject, previous: WatchContext): WatchContext {
     val fastKnown = obj.optBoolean("fastKnown", false) || obj.has("fast")
     return WatchContext(
@@ -43,13 +47,23 @@ object ContextPayloadMapper {
       suggestedExercises = parseSuggestedExercises(obj) ?: previous.suggestedExercises,
       workoutServerId = if (obj.has("workoutServerId")) obj.optStringOrNull("workoutServerId") else previous.workoutServerId,
       distanceUnit = obj.optStringOrNull("distanceUnit") ?: previous.distanceUnit,
+      energyUnit = obj.optStringOrNull("energyUnit") ?: previous.energyUnit,
       doubleTapEnabled = obj.optBooleanOrNull("doubleTapEnabled") ?: previous.doubleTapEnabled,
       rpeEnabled = obj.optBooleanOrNull("rpeEnabled") ?: previous.rpeEnabled,
+      newWorkout = obj.optBooleanOrNull("newWorkout") ?: previous.newWorkout,
+      workoutCountdown = obj.optIntOrNull("workoutCountdown") ?: previous.workoutCountdown,
+      holdCountdown = obj.optBooleanOrNull("holdCountdown") ?: previous.holdCountdown,
+      workoutTopLine = obj.optStringOrNull("workoutTopLine") ?: previous.workoutTopLine,
+      heartRateZoneFloors = WatchHeartRateZone.normalized(parseDoubleList(obj.optJSONArray("heartRateZoneFloors")))
+        ?: previous.heartRateZoneFloors,
+      exerciseDoNow = obj.optBooleanOrNull("exerciseDoNow") ?: previous.exerciseDoNow,
       medications = parseMedications(obj),
       fast = if (fastKnown) parseFast(obj.optJSONObject("fast")) else previous.fast,
       fastSynced = if (fastKnown) true else previous.fastSynced,
       steps = parseSteps(obj.optJSONObject("steps")),
       stepGoal = obj.optIntOrNull("stepGoal") ?: previous.stepGoal,
+      sleep = parseSleep(obj.optJSONObject("sleep")),
+      exerciseSummary = parseExerciseSummary(obj.optJSONObject("exerciseSummary")),
       runVoiceCues = obj.optBooleanOrNull("runVoiceCues") ?: previous.runVoiceCues,
       runAutoPause = obj.optBooleanOrNull("runAutoPause") ?: previous.runAutoPause,
       runCheckInMinutes = obj.optIntOrNull("runCheckInMinutes") ?: previous.runCheckInMinutes,
@@ -223,6 +237,70 @@ object ContextPayloadMapper {
     return StepsSnapshot(day = day, count = count)
   }
 
+  /**
+   * Parses the day's sleep summary snapshot from the context payload.
+   */
+  private fun parseSleep(obj: JSONObject?): SleepSnapshot? {
+    if (obj == null) return null
+    val day = obj.optStringOrNull("day") ?: return null
+    val totalSeconds = obj.optIntOrNull("totalSeconds") ?: return null
+    val timeInBedSeconds = obj.optIntOrNull("timeInBedSeconds") ?: totalSeconds
+    return SleepSnapshot(
+      day = day,
+      totalSeconds = totalSeconds,
+      timeInBedSeconds = timeInBedSeconds,
+      sleepScore = obj.optIntOrNull("sleepScore"),
+      bedtime = obj.optStringOrNull("bedtime") ?: "",
+      wakeTime = obj.optStringOrNull("wakeTime") ?: "",
+      deepSeconds = obj.optIntOrNull("deepSeconds"),
+      remSeconds = obj.optIntOrNull("remSeconds"),
+      lightSeconds = obj.optIntOrNull("lightSeconds"),
+      awakeSeconds = obj.optIntOrNull("awakeSeconds"),
+      restingHeartRate = obj.optIntOrNull("restingHeartRate"),
+      hrvMs = obj.optIntOrNull("hrvMs"),
+      spo2 = obj.optIntOrNull("spo2"),
+      napCount = obj.optIntOrNull("napCount") ?: 0,
+      napSeconds = obj.optIntOrNull("napSeconds") ?: 0
+    )
+  }
+
+  /**
+   * Parses the day's exercise summary and logged sessions from the context payload.
+   */
+  private fun parseExerciseSummary(obj: JSONObject?): ExerciseSummarySnapshot? {
+    if (obj == null) return null
+    val day = obj.optStringOrNull("day") ?: return null
+    val minutes = obj.optIntOrNull("minutes") ?: 0
+    val minutesGoal = obj.optIntOrNull("minutesGoal") ?: 0
+    val calories = obj.optIntOrNull("calories") ?: 0
+    val caloriesGoal = obj.optIntOrNull("caloriesGoal") ?: 0
+    val sessionCount = obj.optIntOrNull("sessionCount") ?: 0
+    val sessionsArr = obj.optJSONArray("sessions")
+    val sessions = mutableListOf<ExerciseSessionItem>()
+    if (sessionsArr != null) {
+      for (i in 0 until sessionsArr.length()) {
+        val row = sessionsArr.optJSONObject(i) ?: continue
+        val name = row.optStringOrNull("name")?.takeIf { it.isNotEmpty() } ?: continue
+        sessions.add(
+          ExerciseSessionItem(
+            name = name,
+            durationMinutes = row.optIntOrNull("durationMinutes") ?: 0,
+            calories = row.optIntOrNull("calories") ?: 0
+          )
+        )
+      }
+    }
+    return ExerciseSummarySnapshot(
+      day = day,
+      minutes = minutes,
+      minutesGoal = minutesGoal,
+      calories = calories,
+      caloriesGoal = caloriesGoal,
+      sessionCount = sessionCount,
+      sessions = sessions
+    )
+  }
+
   private fun parseStartableWorkouts(obj: JSONObject): List<StartableWorkout>? {
     if (!obj.has("startableWorkouts")) return null
     val arr = obj.optJSONArray("startableWorkouts") ?: return emptyList()
@@ -368,6 +446,7 @@ object ContextPayloadMapper {
             targetReps = rawSet.optDoubleOrNull("targetReps"),
             targetWeightKg = rawSet.optDoubleOrNull("targetWeightKg"),
             restSeconds = rawSet.optIntOrNull("restSeconds") ?: 60,
+            restAfterSeconds = rawSet.optIntOrNull("restAfterSeconds"),
             setType = rawSet.optStringOrNull("setType"),
             targetDurationSec = rawSet.optIntOrNull("targetDurationSec"),
             previousDurationSec = rawSet.optIntOrNull("previousDurationSec"),
@@ -384,6 +463,11 @@ object ContextPayloadMapper {
           name = name,
           supersetRun = rawEx.optIntOrNull("supersetRun"),
           bodyweight = rawEx.optBooleanOrNull("bodyweight"),
+          equipment = rawEx.optStringOrNull("equipment")?.takeIf { it.isNotBlank() },
+          plates = parsePlateConfig(rawEx.optJSONObject("plates")),
+          imageKey = rawEx.optStringOrNull("imageKey")?.takeIf { it.isNotBlank() },
+          imageCount = rawEx.optIntOrNull("imageCount")?.takeIf { it > 0 },
+          muscle = rawEx.optStringOrNull("muscle")?.takeIf { it.isNotBlank() },
           sets = sets
         )
       )
@@ -403,6 +487,40 @@ object ContextPayloadMapper {
       pausedAtMs = parseIsoMs(obj.optStringOrNull("pausedAt")),
       excludedPauseSeconds = obj.optIntOrNull("excludedPauseSeconds") ?: 0,
       prSetIds = obj.optStringList("prSetIds").toSet()
+    )
+  }
+
+  private fun parseDoubleList(arr: JSONArray?): List<Double>? {
+    if (arr == null) return null
+    val out = mutableListOf<Double>()
+    for (i in 0 until arr.length()) {
+      val v = arr.optDouble(i)
+      if (v.isNaN() || v.isInfinite()) return null
+      out.add(v)
+    }
+    return out
+  }
+
+  private fun parsePlateConfig(obj: JSONObject?): WatchPlateConfig? {
+    if (obj == null) return null
+    val unit = obj.optStringOrNull("unit")?.takeIf { it == "kg" || it == "lbs" } ?: return null
+    val barWeight = obj.optDoubleOrNull("barWeight") ?: return null
+    val collarWeight = obj.optDoubleOrNull("collarWeight") ?: 0.0
+    val rawPlates = obj.optJSONArray("plates") ?: return null
+    val plates = mutableListOf<WatchPlateConfig.Plate>()
+    for (i in 0 until rawPlates.length()) {
+      val item = rawPlates.optJSONObject(i) ?: continue
+      val weight = item.optDoubleOrNull("weight") ?: continue
+      val pairs = item.optIntOrNull("pairs") ?: continue
+      if (weight > 0.0 && pairs > 0) {
+        plates.add(WatchPlateConfig.Plate(weight = weight, pairs = pairs))
+      }
+    }
+    return WatchPlateConfig(
+      unit = unit,
+      barWeight = barWeight,
+      collarWeight = collarWeight,
+      plates = plates
     )
   }
 
@@ -653,13 +771,35 @@ object OutboundPayloads {
           put("action", "deleteExercise")
           put("exerciseEntryId", action.exerciseEntryId)
         }
+        is WorkoutEditAction.DoExerciseNow -> {
+          put("action", "doExerciseNow")
+          put("exerciseEntryId", action.exerciseEntryId)
+          put("anchorEntryId", action.anchorEntryId)
+        }
+        is WorkoutEditAction.SetValuesEdit -> {
+          put("action", "setValues")
+          put("setId", action.setId)
+          action.weightKg?.let { put("weightKg", it) }
+          action.reps?.let { put("reps", it) }
+          action.distanceKm?.let { put("distanceKm", it) }
+          put("at", action.atMs.toDouble())
+          action.armedAtMs?.let { put("armedAt", it.toDouble()) }
+        }
       }
     }
 
-  fun presetUpdateAnswer(sessionId: String, update: Boolean): JSONObject = JSONObject().apply {
-    put("type", "presetUpdateAnswer")
+  fun presetUpdateAnswer(sessionId: String, update: Boolean, waiting: Boolean = false): JSONObject =
+    JSONObject().apply {
+      put("type", "presetUpdateAnswer")
+      put("sessionId", sessionId)
+      put("update", update)
+      if (waiting) put("waiting", true)
+    }
+
+  fun workoutEffort(sessionId: String, rating: Int): JSONObject = JSONObject().apply {
+    put("type", "workoutEffort")
     put("sessionId", sessionId)
-    put("update", update)
+    put("rating", rating)
   }
 
   fun setCompleted(completed: CompletedSet): JSONObject = JSONObject().apply {
@@ -672,6 +812,7 @@ object OutboundPayloads {
     completed.duration?.let { put("duration", it) }
     completed.distanceKm?.let { put("distanceKm", it) }
     completed.rpe?.let { put("rpe", it) }
+    if (completed.rpeOnly) put("rpeOnly", true)
     put("completedAt", ContextPayloadMapper.formatIso(completed.completedAtMs))
   }
 
@@ -711,9 +852,19 @@ object OutboundPayloads {
       put("startedAt", startedAtMs.toDouble())
     }
 
-  fun workoutStop(sessionId: String): JSONObject = JSONObject().apply {
+  fun workoutStop(
+    sessionId: String,
+    completedSets: List<CompletedSet> = emptyList()
+  ): JSONObject = JSONObject().apply {
     put("type", "workoutStop")
     put("sessionId", sessionId)
+    if (completedSets.isNotEmpty()) {
+      val arr = JSONArray()
+      for (completed in completedSets) {
+        arr.put(setCompleted(completed))
+      }
+      put("completedSets", arr)
+    }
   }
 
   fun workoutDiscard(sessionId: String, armedAtMs: Long?): JSONObject = JSONObject().apply {

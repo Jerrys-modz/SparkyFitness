@@ -1,9 +1,11 @@
+import type { RecipeImportPickerTarget } from '../services/recipeImportSelection';
 import type { BarcodeLookupContext } from '../utils/barcodeFoods';
 import type { RunSummaryParams } from '../utils/runSummary';
 import type { NavigatorScreenParams } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type {
   ExerciseActivityQueryItem,
+  TagAction,
   FitnessTestType,
   ExerciseRecentSessionSet,
   FoodPhotoEstimateResponse,
@@ -11,6 +13,8 @@ import type {
   IndividualSessionResponse,
   MedicationEntry,
   MindfulnessSessionResponse,
+  OralCareSessionResponse,
+  OralCareType,
   PresetSessionResponse,
   RaceDistance,
   SharedPregnancy,
@@ -27,7 +31,11 @@ import type {
 } from '../utils/workoutSession';
 import type { PhotoType } from './checkInPhotos';
 import type { Exercise } from './exercise';
-import type { FamilyDiaryUser } from './familyDiary';
+import type {
+  FamilyCopyDirection,
+  FamilyCopySource,
+  FamilyDiaryUser,
+} from './familyDiary';
 import type { FoodEntry } from './foodEntries';
 import type { FoodEntryMeal } from './foodEntryMeals';
 import type { FoodInfoItem } from './foodInfo';
@@ -36,7 +44,7 @@ import type {
   FoodUnitSelectionResult,
   FoodUnitVariant,
 } from './foodUnitVariants';
-import type { Meal, MealIngredientDraft } from './meals';
+import type { Meal, MealFood, MealIngredientDraft } from './meals';
 import type { MealPlanPickerTarget, MealPlanTemplate } from './mealPlans';
 import type { WorkoutPreset } from './workoutPresets';
 import type { WorkoutPlanTemplate } from './workoutPlans';
@@ -49,7 +57,10 @@ export type FoodPickerMode =
   | 'library'
   // #2115: pick a food+variant to link a water container to, without
   // logging a diary entry. See services/waterContainerLinkSelection.ts.
-  | 'container-link';
+  | 'container-link'
+  // #941: pick a food or a saved meal, with its amount, for an NFC tag,
+  // without logging a diary entry. See services/actionTagSelection.ts.
+  | 'action-tag';
 
 /** The routes the guided check-in walks through, in order. */
 export type GuidedCheckInStep =
@@ -86,8 +97,8 @@ export type TabParamList = {
 export type RootStackParamList = {
   Onboarding: undefined;
   Tabs: NavigatorScreenParams<TabParamList>;
-  FamilyMembers: undefined;
-  FamilyDiary: { familyUser: FamilyDiaryUser };
+  FamilyMembers: { copySource: FamilyCopySource } | undefined;
+  FamilyDiary: { familyUser: FamilyDiaryUser; date?: string };
   FamilyMealDetail: {
     familyUser: FamilyDiaryUser;
     sourceDate: string;
@@ -96,6 +107,7 @@ export type RootStackParamList = {
     entries: FoodEntry[];
   };
   FamilyCopyReview: {
+    direction?: FamilyCopyDirection;
     familyUser: FamilyDiaryUser;
     sourceDate: string;
     mealTypeId: string | null;
@@ -110,27 +122,56 @@ export type RootStackParamList = {
   PregnancySetup: { pregnancy?: SharedPregnancy } | undefined;
   FoodsLibrary: undefined;
   MealsLibrary: undefined;
+  RecipeImport:
+    { providerId: string; recipeSlug: string; scope: string } | undefined;
   MealPlans: undefined;
   WorkoutPlans: undefined;
-  WorkoutPlanForm: { template?: WorkoutPlanTemplate } | undefined;
+  WorkoutPlanForm:
+    | {
+        template?: WorkoutPlanTemplate;
+        selectedExercise?: Exercise;
+        selectionNonce?: number;
+      }
+    | undefined;
+  WorkoutPlanDetail: { template: WorkoutPlanTemplate };
   RunPrograms: undefined;
-  RunProgramCalendar: undefined;
-  RunProgramWorkout: { index: number };
+  /** `programId` is the program the row was shown for; a different active program is "not in your program any more". */
+  RunProgramWorkout: { index: number; programId: string };
   RunProgramRace: { distance?: RaceDistance; raceDay?: string } | undefined;
   FitnessTest: undefined;
   FitnessTestResult: { id: string };
   RunProgramEdit: { id?: string; fromProgramId?: string } | undefined;
   PersonalRecords: undefined;
+  LabResults: undefined;
+  /** `marker` is a `LabMarker` id: `builtin:<key>` or `custom:<uuid>`. */
+  LabResultDetail: { marker: string; name?: string };
+  LabResultAdd: { marker?: string };
+  LabReportImport: undefined;
   Routes: undefined;
   RouteDetail: { id: string };
   /** `routeId` opens a saved route in the editor and saves over it. */
   RouteDraw: { routeId?: string } | undefined;
   RouteGenerate: undefined;
+  TrainingCalendar: undefined;
   WatchRunLive: undefined;
   MealPlanForm: { template?: MealPlanTemplate; initialMeal?: Meal } | undefined;
   // #2115, Phase 12: mobile-only water-container CRUD.
   WaterContainers: undefined;
   WaterContainerEdit: { containerId?: number } | undefined;
+  /** The drinks logged on `date` (YYYY-MM-DD). */
+  WaterLog: { date: string };
+  // NFC tags (#941): the list, the setup form and the screen a tag link opens.
+  ActionTags: undefined;
+  /** `tagId` edits a saved tag; `tagCode` saves a tapped tag the account does not know; `presetAction` pre-fills a new one, named `presetLabel` (the food's name, which a food action does not carry). */
+  ActionTagForm:
+    | {
+        tagId?: string;
+        tagCode?: string;
+        presetAction?: TagAction;
+        presetLabel?: string;
+      }
+    | undefined;
+  ActionTagScan: { code: string };
   ExercisesLibrary: undefined;
   WorkoutPresetsLibrary: undefined;
   WorkoutPresetDetail: { preset: WorkoutPreset; updatedPreset?: WorkoutPreset };
@@ -180,6 +221,7 @@ export type RootStackParamList = {
     | {
         date?: string;
         pickerMode?: FoodPickerMode;
+        recipeImportTarget?: RecipeImportPickerTarget;
         /** Optional canonical meal type id to pre-select when logging. */
         mealTypeId?: string;
         mealPlanTarget?: MealPlanPickerTarget;
@@ -198,10 +240,12 @@ export type RootStackParamList = {
     selectedVariantOverride?: FoodUnitVariant;
     pickerMode?: FoodPickerMode;
     ingredientIndex?: number;
+    recipeImportTarget?: RecipeImportPickerTarget;
     returnDepth?: number;
     /** Optional canonical meal type id to pre-select when logging. */
     mealTypeId?: string;
     mealPlanTarget?: MealPlanPickerTarget;
+    customizedFoods?: MealFood[];
   };
   /** Multi-select batch review (#1980): the basket lives in
    * useFoodSearchSelectionStore, not route params, so no selection data
@@ -244,6 +288,7 @@ export type RootStackParamList = {
   RunSummary: RunSummaryParams;
   Reports: undefined;
   HydrationReport: undefined;
+  OralCareReport: undefined;
   SubstancesReport: undefined;
   MeasurementsReport: undefined;
   ReportsSettings: undefined;
@@ -276,9 +321,12 @@ export type RootStackParamList = {
         pendingScannedBarcode?: string;
         scannedBarcodeNonce?: number;
         mealPlanTarget?: MealPlanPickerTarget;
+        mealTypeId?: string;
+        entryTime?: string;
       }
     | {
         mode: 'adjust-entry-nutrition';
+        pendingNutritionLabelScan?: NutritionLabelScan;
         initialValues: Partial<FoodFormData>;
         returnTo: 'FoodEntryAdd' | 'FoodEntryView';
         returnKey: string;
@@ -376,6 +424,8 @@ export type RootStackParamList = {
   };
   ActiveWorkout:
     { selectedExercise?: Exercise; selectionNonce?: number } | undefined;
+  // Native modal over ActiveWorkout; reads and reorders the live session.
+  WorkoutReorder: undefined;
   // Post-save celebration for a finished live workout. Renders entirely from
   // the store snapshot captured before `clearWorkout()`; only calories arrive
   // via a post-save session refetch.
@@ -414,6 +464,20 @@ export type RootStackParamList = {
   /** Logs a mindful session for `date`, or edits `session` when one is passed. */
   MindfulnessLog:
     { date?: string; session?: MindfulnessSessionResponse } | undefined;
+  /** A day of oral care (#1862): the goal, streak and sessions. */
+  OralCare: { date?: string } | undefined;
+  /**
+   * Logs an oral care session for `date`, or edits `session`. `careType`
+   * preselects a type and `startTimer` opens the brushing timer at once.
+   */
+  OralCareLog:
+    | {
+        date?: string;
+        session?: OralCareSessionResponse;
+        careType?: OralCareType;
+        startTimer?: boolean;
+      }
+    | undefined;
   SleepDetail: { entryId: string; day: string };
   Chat: undefined;
   ChatSettings: undefined;
@@ -453,11 +517,13 @@ export type RootStackParamList = {
   DashboardSettings: undefined;
   HealthTrendsSettings: undefined;
   WatchSettings: undefined;
+  AddMenuSettings: undefined;
   DiarySettings: undefined;
   CustomCategories: undefined;
   CustomCategoryEdit: { categoryId?: string } | undefined;
   WorkoutSettings: undefined;
   WarmupSettings: undefined;
+  TreadmillSettings: undefined;
   HeartRateZonesSettings: undefined;
   ServerSettings: undefined;
   PasskeySettings: undefined;

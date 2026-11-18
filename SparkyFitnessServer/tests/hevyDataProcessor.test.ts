@@ -1,4 +1,25 @@
 import { vi, beforeEach, describe, it, expect } from 'vitest';
+import type { HevyWorkoutImport } from '../integrations/hevy/hevyWorkoutRepository.js';
+
+const captureWorkout = vi.hoisted(() =>
+  vi.fn<(data: HevyWorkoutImport) => void>()
+);
+const preparationClient = vi.hoisted(() => ({
+  query: vi.fn(),
+  release: vi.fn(),
+}));
+vi.mock('../integrations/hevy/hevyWorkoutRepository.js', () => ({
+  syncHevyWorkout: vi.fn(
+    async (
+      _userId: string,
+      _actorId: string,
+      _sourceId: string,
+      prepare: (client: typeof preparationClient) => Promise<HevyWorkoutImport>
+    ) => {
+      captureWorkout(await prepare(preparationClient));
+    }
+  ),
+}));
 
 vi.mock('../models/exerciseEntry.js', () => ({
   default: {
@@ -10,12 +31,30 @@ vi.mock('../models/exerciseEntry.js', () => ({
 }));
 vi.mock('../models/exercise.js', () => ({
   default: {
-    findExerciseByNameAndUserId: vi
-      .fn()
-      .mockImplementation((name: string) =>
-        Promise.resolve({ id: `exercise-${name}` })
-      ),
+    findExerciseByNameAndUserId: vi.fn().mockImplementation((name: string) =>
+      Promise.resolve({
+        id: `exercise-${name}`,
+        user_id: 'user-1',
+        source: 'Hevy',
+      })
+    ),
     createExercise: vi.fn().mockResolvedValue({ id: 'exercise-new' }),
+  },
+}));
+vi.mock('../integrations/hevy/hevyExerciseRepository.js', () => ({
+  default: {
+    findByTemplateId: vi.fn().mockResolvedValue(null),
+    findLegacyByName: vi
+      .fn()
+      .mockImplementation((_userId: string, name: string) =>
+        Promise.resolve({
+          id: `exercise-${name}`,
+          user_id: 'user-1',
+          source: 'Hevy',
+        })
+      ),
+    fillMissingMuscles: vi.fn().mockResolvedValue(undefined),
+    findOwnedByName: vi.fn().mockResolvedValue(null),
   },
 }));
 vi.mock('../models/measurementRepository.js', () => ({
@@ -48,9 +87,9 @@ vi.mock('../config/logging.js', () => ({ log: vi.fn() }));
 import { processHevyWorkouts } from '../integrations/hevy/hevyDataProcessor.js';
 import type { HevyWorkout } from '../integrations/hevy/hevyDataProcessor.js';
 import exerciseEntryRepository from '../models/exerciseEntry.js';
-import activityDetailsRepository from '../models/activityDetailsRepository.js';
 import workoutPresetRepository from '../models/workoutPresetRepository.js';
 import exercisePresetEntryRepository from '../models/exercisePresetEntryRepository.js';
+import { syncHevyWorkout } from '../integrations/hevy/hevyWorkoutRepository.js';
 
 const UID = 'user-1';
 const CID = 'user-1';
@@ -141,21 +180,12 @@ function sampleWorkout(): HevyWorkout {
   };
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function callForExercise(name: string): any[] | undefined {
-  return (
-    exerciseEntryRepository.createExerciseEntry as unknown as {
-      mock: { calls: unknown[][] };
-    }
-  ).mock.calls.find(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (c) => (c[1] as any).exercise_id === `exercise-${name}`
-  );
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function entryArgForExercise(name: string): any {
-  return callForExercise(name)?.[1];
+function entryArgForExercise(name: string) {
+  const entry = captureWorkout.mock.calls
+    .flatMap(([data]) => data.entries)
+    .find((item) => item.data.exercise_id === `exercise-${name}`);
+  if (!entry) throw new Error(`Missing entry for ${name}`);
+  return entry.data;
 }
 
 beforeEach(() => {
@@ -178,12 +208,14 @@ describe('processHevyWorkouts — field mapping', () => {
     );
   });
 
-  it('sets a stable per-exercise source_id (workout id + exercise index)', async () => {
+  it('sets a stable per-exercise source_id independent of the provider index', async () => {
     await processHevyWorkouts(UID, CID, [sampleWorkout()], 'UTC');
     expect(entryArgForExercise('Bulgarian Split Squat').source_id).toBe(
-      'workout-abc_0'
+      'workout-abc_exercise:B5D3A742:0'
     );
-    expect(entryArgForExercise('Pull Up').source_id).toBe('workout-abc_1');
+    expect(entryArgForExercise('Pull Up').source_id).toBe(
+      'workout-abc_exercise:1B2B1E7C:0'
+    );
   });
 
   it('maps the Hevy superset id to a numeric per-workout group', async () => {
@@ -288,13 +320,11 @@ describe('processHevyWorkouts — field mapping', () => {
 
   it('stores per-set duration in integer seconds (issue #1903)', async () => {
     await processHevyWorkouts(UID, CID, [sampleWorkout()], 'UTC');
+    expect(entryArgForExercise('Plank').sets.map((s) => s.duration)).toEqual([
+      90, 90,
+    ]);
     expect(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      entryArgForExercise('Plank').sets.map((s: any) => s.duration)
-    ).toEqual([90, 90]);
-    expect(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      entryArgForExercise('Pull Up').sets.every((s: any) => s.duration === null)
+      entryArgForExercise('Pull Up').sets.every((s) => s.duration === null)
     ).toBe(true);
   });
 });
@@ -304,43 +334,35 @@ describe('processHevyWorkouts — workout-preset grouping', () => {
     await processHevyWorkouts(UID, CID, [sampleWorkout()], 'UTC');
     expect(workoutPresetRepository.getWorkoutPresetByName).toHaveBeenCalledWith(
       UID,
-      'Vid plan A'
+      'Vid plan A',
+      preparationClient
     );
     expect(workoutPresetRepository.createWorkoutPreset).toHaveBeenCalledWith(
       expect.objectContaining({
         user_id: UID,
         name: 'Vid plan A',
         is_public: false,
-      })
-    );
-  });
-
-  it('creates one preset entry (session) for the workout, sourced Hevy', async () => {
-    await processHevyWorkouts(UID, CID, [sampleWorkout()], 'UTC');
-    expect(
-      exercisePresetEntryRepository.createExercisePresetEntry
-    ).toHaveBeenCalledTimes(1);
-    expect(
-      exercisePresetEntryRepository.createExercisePresetEntry
-    ).toHaveBeenCalledWith(
-      UID,
-      expect.objectContaining({
-        workout_preset_id: 42,
-        name: 'Vid plan A',
-        entry_date: '2026-07-13',
-        source: 'Hevy',
       }),
-      CID
+      preparationClient
     );
   });
 
-  it('links every exercise entry to the preset entry (5th arg + field)', async () => {
+  it('prepares one stable session identity for the workout', async () => {
     await processHevyWorkouts(UID, CID, [sampleWorkout()], 'UTC');
+    expect(captureWorkout).toHaveBeenCalledTimes(1);
+    expect(captureWorkout.mock.calls[0]![0].session).toMatchObject({
+      source_id: 'workout-abc',
+      workout_preset_id: 42,
+      name: 'Vid plan A',
+      entry_date: '2026-07-13',
+    });
+  });
+
+  it('prepares every exercise together with the session and timezone', async () => {
+    await processHevyWorkouts(UID, CID, [sampleWorkout()], 'UTC');
+    expect(captureWorkout.mock.calls[0]![0].entries).toHaveLength(3);
     for (const name of ['Bulgarian Split Squat', 'Pull Up', 'Plank']) {
-      const call = callForExercise(name)!;
-      expect(call[3]).toBe('Hevy'); // entrySource
-      expect(call[4]).toBe('preset-entry-1'); // exercisePresetEntryId (5th arg)
-      expect(call[1].exercise_preset_entry_id).toBe('preset-entry-1');
+      expect(entryArgForExercise(name).record_timezone).toBe('UTC');
     }
   });
 
@@ -357,7 +379,13 @@ describe('processHevyWorkouts — workout-preset grouping', () => {
       'exercise-Bulgarian Split Squat',
       null,
       expect.any(Array),
-      0
+      0,
+      'rep_goal',
+      null,
+      'weight',
+      5,
+      null,
+      preparationClient
     );
   });
 });
@@ -371,9 +399,7 @@ describe('processHevyWorkouts — duplicate workout guard', () => {
       [sampleWorkout(), sampleWorkout()],
       'UTC'
     );
-    expect(
-      exercisePresetEntryRepository.createExercisePresetEntry
-    ).toHaveBeenCalledTimes(1);
+    expect(captureWorkout).toHaveBeenCalledTimes(1);
     // 3 exercises, not 6.
     expect(
       workoutPresetRepository.addExerciseToWorkoutPreset
@@ -381,8 +407,25 @@ describe('processHevyWorkouts — duplicate workout guard', () => {
   });
 });
 
+describe('processHevyWorkouts — required processing failures', () => {
+  it('rejects the batch when a workout cannot be saved', async () => {
+    const second = sampleWorkout();
+    second.id = 'workout-2';
+    vi.mocked(syncHevyWorkout).mockRejectedValueOnce(
+      new Error('insert failed')
+    );
+
+    await expect(
+      processHevyWorkouts(UID, CID, [sampleWorkout(), second], 'UTC')
+    ).rejects.toThrow(
+      'Failed to import 1 Hevy workout(s): "Vid plan A" (2026-07-13).'
+    );
+    expect(syncHevyWorkout).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe('processHevyWorkouts — re-sync cleanup', () => {
-  it('clears existing Hevy entries and preset entries over the batch date range', async () => {
+  it('updates only the supplied workouts without clearing the date range', async () => {
     const older = sampleWorkout();
     older.id = 'workout-old';
     older.start_time = '2026-07-08T05:00:00+00:00';
@@ -391,10 +434,13 @@ describe('processHevyWorkouts — re-sync cleanup', () => {
 
     expect(
       exerciseEntryRepository.deleteExerciseEntriesByEntrySourceAndDate
-    ).toHaveBeenCalledWith(UID, '2026-07-08', '2026-07-13', 'Hevy');
+    ).not.toHaveBeenCalled();
     expect(
       exercisePresetEntryRepository.deleteExercisePresetEntriesByEntrySourceAndDate
-    ).toHaveBeenCalledWith(UID, '2026-07-08', '2026-07-13', 'Hevy');
+    ).not.toHaveBeenCalled();
+    expect(
+      captureWorkout.mock.calls.map(([data]) => data.session.source_id)
+    ).toEqual(['workout-abc', 'workout-old']);
   });
 });
 
@@ -402,21 +448,12 @@ describe('processHevyWorkouts — raw JSON activity detail', () => {
   it('stores full_activity_data per entry', async () => {
     await processHevyWorkouts(UID, CID, [sampleWorkout()], 'UTC');
 
-    expect(activityDetailsRepository.createActivityDetail).toHaveBeenCalledWith(
-      UID,
+    expect(captureWorkout.mock.calls[0]![0].entries[0]!.detail).toEqual(
       expect.objectContaining({
-        exercise_entry_id: 'entry-1',
-        provider_name: 'Hevy',
-        detail_type: 'full_activity_data',
-        detail_data: expect.objectContaining({
-          workout: expect.objectContaining({ id: 'workout-abc' }),
-          exercise: expect.objectContaining({ title: 'Bulgarian Split Squat' }),
-        }),
+        workout: expect.objectContaining({ id: 'workout-abc' }),
+        exercise: expect.objectContaining({ title: 'Bulgarian Split Squat' }),
       })
     );
-    // One detail row per exercise
-    expect(
-      activityDetailsRepository.createActivityDetail
-    ).toHaveBeenCalledTimes(3);
+    expect(captureWorkout.mock.calls[0]![0].entries).toHaveLength(3);
   });
 });

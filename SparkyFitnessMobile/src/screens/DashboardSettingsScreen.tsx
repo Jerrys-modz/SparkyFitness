@@ -102,6 +102,12 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
   const setCaffeineCardVisible = useAppPreferencesStore(
     (s) => s.setCaffeineCardVisible
   );
+  const bloodAlcoholCardVisible = useAppPreferencesStore(
+    (s) => s.bloodAlcoholCardVisible
+  );
+  const setBloodAlcoholCardVisible = useAppPreferencesStore(
+    (s) => s.setBloodAlcoholCardVisible
+  );
   const askSparkyVisible = useAppPreferencesStore((s) => s.askSparkyVisible);
   const setAskSparkyVisible = useAppPreferencesStore(
     (s) => s.setAskSparkyVisible
@@ -140,6 +146,18 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
   const setMindfulnessCardVisible = useAppPreferencesStore(
     (s) => s.setMindfulnessCardVisible
   );
+  const oralCareCardVisible = useAppPreferencesStore(
+    (s) => s.oralCareCardVisible
+  );
+  const setOralCareCardVisible = useAppPreferencesStore(
+    (s) => s.setOralCareCardVisible
+  );
+  const labResultsCardVisible = useAppPreferencesStore(
+    (s) => s.labResultsCardVisible
+  );
+  const setLabResultsCardVisible = useAppPreferencesStore(
+    (s) => s.setLabResultsCardVisible
+  );
   const trainingLoadCardVisible = useAppPreferencesStore(
     (s) => s.trainingLoadCardVisible
   );
@@ -166,6 +184,7 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
     exercise: exerciseCardVisible,
     hydration: hydrationCardVisible,
     caffeine: caffeineCardVisible,
+    bloodAlcohol: bloodAlcoholCardVisible,
     fasting: fastingCardVisible,
     cycle: cycleCardVisible,
     medications: medicationsCardVisible,
@@ -174,6 +193,8 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
     progressPhotos: progressPhotosCardVisible,
     healthTrends: healthTrendsCardVisible,
     mindfulness: mindfulnessCardVisible,
+    oralCare: oralCareCardVisible,
+    labResults: labResultsCardVisible,
     trainingLoad: trainingLoadCardVisible,
   };
 
@@ -197,6 +218,9 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
           break;
         case 'caffeine':
           setCaffeineCardVisible(isVisible);
+          break;
+        case 'bloodAlcohol':
+          setBloodAlcoholCardVisible(isVisible);
           break;
         case 'fasting':
           setFastingCardVisible(isVisible);
@@ -222,6 +246,12 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
         case 'mindfulness':
           setMindfulnessCardVisible(isVisible);
           break;
+        case 'oralCare':
+          setOralCareCardVisible(isVisible);
+          break;
+        case 'labResults':
+          setLabResultsCardVisible(isVisible);
+          break;
         case 'trainingLoad':
           setTrainingLoadCardVisible(isVisible);
           break;
@@ -234,6 +264,7 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
       setExerciseCardVisible,
       setHydrationCardVisible,
       setCaffeineCardVisible,
+      setBloodAlcoholCardVisible,
       setFastingCardVisible,
       setCycleCardVisible,
       setMedicationsCardVisible,
@@ -242,6 +273,8 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
       setProgressPhotosCardVisible,
       setHealthTrendsCardVisible,
       setMindfulnessCardVisible,
+      setOralCareCardVisible,
+      setLabResultsCardVisible,
       setTrainingLoadCardVisible,
     ]
   );

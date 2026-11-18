@@ -17,7 +17,7 @@ import {
 } from './externalFoodSearchService.js';
 import {
   searchOpenFoodFactsByBarcodeFields,
-  hasUsableOffCoreNutrition,
+  hasCompleteOffCoreNutrition,
   mapOpenFoodFactsProduct,
 } from '../integrations/openfoodfacts/openFoodFactsService.js';
 import {
@@ -153,9 +153,11 @@ export interface FetchProviderFoodDetailsParams {
   /** Explicit external provider row; when omitted the active default is used. */
   providerId?: string;
   language?: string;
+  /** Aborts the provider request (OpenFoodFacts only). */
+  signal?: AbortSignal;
   /**
-   * Return null for an OpenFoodFacts product without nutrient values, which
-   * would otherwise map to zeros.
+   * Return null for an OpenFoodFacts product missing energy, protein,
+   * carbohydrates or fat, which would otherwise map to zeros.
    */
   requireNutrition?: boolean;
 }
@@ -175,6 +177,7 @@ export async function fetchProviderFoodDetails({
   externalId,
   providerId,
   language = 'en',
+  signal,
   requireNutrition = false,
 }: FetchProviderFoodDetailsParams): Promise<unknown | null> {
   if (!isValidProviderType(providerType)) {
@@ -201,12 +204,13 @@ export async function fetchProviderFoodDetails({
         language,
         offProvider ? credentialUserId : undefined,
         offProvider?.id,
-        offProvider?.scope ?? 'personal'
+        offProvider?.scope ?? 'personal',
+        signal
       );
       if (
         data.status === 1 &&
         data.product &&
-        (!requireNutrition || hasUsableOffCoreNutrition(data.product))
+        (!requireNutrition || hasCompleteOffCoreNutrition(data.product))
       ) {
         return mapOpenFoodFactsProduct(data.product, { language });
       }

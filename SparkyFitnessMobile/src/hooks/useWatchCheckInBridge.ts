@@ -6,7 +6,9 @@ import WatchConnectivity, {
   type WatchCheckInPayload,
   type WatchContextPayload,
   type WatchContainerPayload,
+  type WatchExerciseSummaryPayload,
   type WatchHistoryPoint,
+  type WatchSleepSnapshotPayload,
   type WatchWaterIntakePayload,
   type WatchWaterDeletePayload,
   type WatchWaterLogPayload,
@@ -28,7 +30,6 @@ import {
   updateEntry,
 } from '../services/api/medicationsApi';
 import {
-  caffeineActiveQueryKey,
   medicationsListQueryKey,
   medicationEntriesQueryKey,
   measurementsQueryKey,
@@ -37,6 +38,7 @@ import {
   waterContainersQueryKey,
   waterIntakeLogQueryKey,
 } from './queryKeys';
+import { invalidateIntakeKinetics } from './invalidateIntakeKinetics';
 import { refreshHealthSyncCache } from './refreshHealthSyncCache';
 import { getTodayDate, addDays, getDeviceTimezone } from '../utils/dateUtils';
 import {
@@ -59,6 +61,9 @@ import { WATCH_PAGE_KEYS } from '../constants/watchPages';
 import { resolveKeyOrder } from '../utils/reorderUtils';
 import { buildWatchGoalNutrients, shownInOrder } from '../utils/watchNutrients';
 import { useCustomNutrients } from './useCustomNutrients';
+import { useSleepDay } from './useSleepDay';
+import { formatClockTime, resolveSleepZone } from '../utils/sleepDay';
+import { getSessionCalories, getWorkoutSummary } from '../utils/workoutSession';
 import { useTranslation } from 'react-i18next';
 import type { CheckInMeasurement } from '../types/measurements';
 import type { WorkoutPreset } from '../types/workoutPresets';
@@ -81,12 +86,15 @@ import { useRunProgram } from '../services/runProgramService';
 import { suggestedPaceRangesFromRace } from '../utils/suggestedRanges';
 import { buildWatchRunPlans } from '../utils/watchRunPlans';
 import { useZone2HeartRateBand } from './useZone2HeartRateBand';
+import { useWatchHeartRateZoneFloors } from './useWatchHeartRateZoneFloors';
 import {
   getWatchIndoorScale,
   onWatchIndoorScaleChange,
 } from '../services/watchIndoorScale';
 import { presetName } from '../components/recording/IntervalSetup';
 import { programWorkoutLabel } from '../components/recording/RunProgramCard';
+import { getAppLocale } from '../localization';
+import { normalizeEnergyUnit } from '@workspace/shared';
 
 /** Saved workouts the watch may start. Presets with no exercises are omitted:
  * the server rejects a session that has none. */
@@ -175,6 +183,8 @@ const NO_FIGURES_FOR_TODAY = {
   waterLog: [] as WatchWaterLogPayload[],
   medications: null,
   goalNutrients: null,
+  sleep: null,
+  exerciseSummary: null,
 } as const;
 
 /**
@@ -275,8 +285,15 @@ export function useWatchCheckInBridge(enabled: boolean): void {
   );
   const watchUpNextPage = useAppPreferencesStore((s) => s.watchUpNextPage);
   const watchLargerText = useAppPreferencesStore((s) => s.watchLargerText);
-  const watchClassicWorkout = useAppPreferencesStore(
-    (s) => s.watchClassicWorkout
+  const watchNewWorkout = useAppPreferencesStore((s) => s.watchNewWorkout);
+  const watchWorkoutCountdown = useAppPreferencesStore(
+    (s) => s.watchWorkoutCountdown
+  );
+  const watchHoldCountdown = useAppPreferencesStore(
+    (s) => s.watchHoldCountdown
+  );
+  const watchWorkoutTopLine = useAppPreferencesStore(
+    (s) => s.watchWorkoutTopLine
   );
   const watchDoubleTapEnabled = useAppPreferencesStore(
     (s) => s.watchDoubleTapEnabled
@@ -311,6 +328,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
   // A weighted carry's distance follows the phone's distance unit: the watch
   // shows metres, or yards when the phone is set to miles.
   const distanceUnit = watchDistanceUnit(preferences?.default_distance_unit);
+  const energyUnit = normalizeEnergyUnit(preferences?.energy_unit);
   const { status: programStatus, enabled: programEnabled } = useRunProgram();
   // The learned indoor distance factor, re-read whenever a correction
   // changes it, so the next context push carries the new value.
@@ -349,6 +367,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     [paceReferenceOnWatch, paceReferenceRace, programStatus]
   );
   const zone2Band = useZone2HeartRateBand(enabled);
+  const heartRateZoneFloors = useWatchHeartRateZoneFloors(enabled);
   const runPlans = useMemo(
     () =>
       buildWatchRunPlans(
@@ -633,6 +652,107 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     t,
   ]);
 
+  const { wakeUp: mainSleep, naps: sleepNaps } = useSleepDay(summaryDate, {
+    enabled,
+  });
+  const profileTimezone = preferences?.timezone ?? null;
+  const watchSleep: WatchSleepSnapshotPayload | null = useMemo(() => {
+    if (!mainSleep && sleepNaps.length === 0) return null;
+    const napSeconds = sleepNaps.reduce(
+      (sum, nap) => sum + Math.max(0, nap.time_asleep_in_seconds ?? 0),
+      0
+    );
+    const mainAsleepSeconds = mainSleep
+      ? Math.max(0, mainSleep.time_asleep_in_seconds ?? 0)
+      : 0;
+    const mainInBedSeconds = mainSleep
+      ? Math.max(
+          0,
+          mainSleep.duration_in_seconds ?? mainSleep.time_asleep_in_seconds ?? 0
+        )
+      : 0;
+    const zone = mainSleep
+      ? resolveSleepZone(mainSleep, profileTimezone)
+      : null;
+    const bedtime = mainSleep
+      ? formatClockTime(mainSleep.bedtime, timeFormat, zone)
+      : '';
+    const wakeTime = mainSleep
+      ? formatClockTime(mainSleep.wake_time, timeFormat, zone)
+      : '';
+    return {
+      day: summaryDate,
+      totalSeconds: Math.round(mainAsleepSeconds + napSeconds),
+      timeInBedSeconds: Math.round(mainInBedSeconds),
+      sleepScore:
+        mainSleep?.sleep_score != null
+          ? Math.round(mainSleep.sleep_score)
+          : null,
+      bedtime: bedtime === '—' ? '' : bedtime,
+      wakeTime: wakeTime === '—' ? '' : wakeTime,
+      deepSeconds:
+        mainSleep?.deep_sleep_seconds != null
+          ? Math.round(mainSleep.deep_sleep_seconds)
+          : null,
+      remSeconds:
+        mainSleep?.rem_sleep_seconds != null
+          ? Math.round(mainSleep.rem_sleep_seconds)
+          : null,
+      lightSeconds:
+        mainSleep?.light_sleep_seconds != null
+          ? Math.round(mainSleep.light_sleep_seconds)
+          : null,
+      awakeSeconds:
+        mainSleep?.awake_sleep_seconds != null
+          ? Math.round(mainSleep.awake_sleep_seconds)
+          : null,
+      restingHeartRate:
+        mainSleep?.resting_heart_rate != null
+          ? Math.round(mainSleep.resting_heart_rate)
+          : null,
+      hrvMs:
+        mainSleep?.avg_overnight_hrv != null
+          ? Math.round(mainSleep.avg_overnight_hrv)
+          : null,
+      spo2:
+        mainSleep?.average_spo2_value != null
+          ? Math.round(mainSleep.average_spo2_value)
+          : null,
+      napCount: sleepNaps.length,
+      napSeconds: Math.round(napSeconds),
+    };
+  }, [mainSleep, sleepNaps, profileTimezone, timeFormat, summaryDate]);
+
+  const watchExerciseSummary: WatchExerciseSummaryPayload | null =
+    useMemo(() => {
+      if (!dailySummary) return null;
+      const loggedSessions = dailySummary.exerciseEntries.flatMap((entry) => {
+        if (
+          entry.type !== 'preset' &&
+          (entry.name ?? entry.exercise_snapshot?.name) === 'Active Calories'
+        ) {
+          return [];
+        }
+        const summary = getWorkoutSummary(entry, t);
+        return [
+          {
+            name: summary.name,
+            durationMinutes: Math.round(Number(summary.duration) || 0),
+            calories: Math.round(Number(getSessionCalories(entry)) || 0),
+          },
+        ];
+      });
+      return {
+        day: summaryDate,
+        minutes: Math.round(dailySummary.exerciseMinutes || 0),
+        minutesGoal: Math.round(dailySummary.exerciseMinutesGoal || 0),
+        calories: Math.round(dailySummary.otherExerciseCalories || 0),
+        caloriesGoal: Math.round(dailySummary.exerciseCaloriesGoal || 0),
+        sessionCount: loggedSessions.length,
+        sessions: loggedSessions.slice(0, 3),
+      };
+    }, [dailySummary, summaryDate, t]);
+
   const figuresForSummaryDate = useMemo(
     () => ({
       calorieGoalProgress,
@@ -653,6 +773,8 @@ export function useWatchCheckInBridge(enabled: boolean): void {
       waterLog: watchWaterLog,
       medications: watchMedications,
       goalNutrients,
+      sleep: watchSleep,
+      exerciseSummary: watchExerciseSummary,
     }),
     [
       calorieGoalProgress,
@@ -673,6 +795,8 @@ export function useWatchCheckInBridge(enabled: boolean): void {
       watchWaterLog,
       watchMedications,
       goalNutrients,
+      watchSleep,
+      watchExerciseSummary,
     ]
   );
 
@@ -767,6 +891,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         failedClientIds: failedClientIdsRef.current.slice(-20),
         weightUnit,
         distanceUnit,
+        energyUnit,
         containers: watchContainers,
         // Goal and display unit ride outside the day gate: the watch treats
         // both as account configuration and carries them forward, which is
@@ -780,12 +905,16 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         setScreenMetrics: watchSetScreenMetrics,
         upNextPage: watchUpNextPage,
         largerText: watchLargerText,
-        classicWorkout: watchClassicWorkout,
+        newWorkout: watchNewWorkout,
+        workoutCountdown: watchWorkoutCountdown,
+        holdCountdown: watchHoldCountdown,
+        workoutTopLine: watchWorkoutTopLine,
         // This build handles a skipped dose from the watch.
         medicationSkip: true,
         // ... and "do this exercise now" from the workout pages.
         exerciseDoNow: true,
         runVoiceCues: recording.audioCues,
+        appLanguage: getAppLocale(),
         runAutoPause: recording.autoPause,
         runCheckInMinutes: recording.checkInMinutes,
         ...(recording.heartRateBand
@@ -801,6 +930,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
             }
           : {}),
         runPlans,
+        ...(heartRateZoneFloors ? { heartRateZoneFloors } : {}),
         ...(indoorDistanceScale ? { indoorDistanceScale } : {}),
         startableWorkouts,
         suggestedExercises,
@@ -843,6 +973,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
   }, [
     weightUnit,
     distanceUnit,
+    energyUnit,
     hapticsEnabled,
     restAlertsEnabled,
     watchDoubleTapEnabled,
@@ -850,8 +981,12 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     watchSetScreenMetrics,
     watchUpNextPage,
     watchLargerText,
-    watchClassicWorkout,
+    watchNewWorkout,
+    watchWorkoutCountdown,
+    watchHoldCountdown,
+    watchWorkoutTopLine,
     runPlans,
+    heartRateZoneFloors,
     indoorDistanceScale,
     startableWorkouts,
     suggestedExercises,
@@ -1143,9 +1278,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
           queryClient.invalidateQueries({
             queryKey: waterIntakeLogQueryKey(payload.entryDate),
           }),
-          queryClient.invalidateQueries({
-            queryKey: caffeineActiveQueryKey(payload.entryDate),
-          }),
+          invalidateIntakeKinetics(queryClient, payload.entryDate),
         ]);
 
         addLog(
@@ -1228,9 +1361,11 @@ export function useWatchCheckInBridge(enabled: boolean): void {
           queryClient.invalidateQueries({
             queryKey: waterIntakeLogQueryKey(today),
           }),
-          queryClient.invalidateQueries({
-            queryKey: caffeineActiveQueryKey(today),
-          }),
+          // The server also deletes a food entry linked to the log row (a
+          // drink container tied to a food, possibly alcoholic), and the
+          // delete carries no day: the row can be from an earlier day the
+          // watch still lists, so refresh every day's curves.
+          invalidateIntakeKinetics(queryClient),
         ]);
 
         addLog(`Watch deleted water log entry ${payload.entryId}`, 'INFO');

@@ -14,7 +14,7 @@ import { formatZodError } from './errors.js';
  * sent with every request.
  */
 export const CATEGORY_SUMMARIES: Record<ChatToolCategorySlug, string> = {
-  food: 'log meals/water, search foods, view diaries, favorites, meal plans, saved food preferences and recipe/meal-plan tasks, active caffeine, custom nutrients, water containers, allergens, and barcode lookup',
+  food: 'log meals/water, search foods, view diaries, favorites, meal plans, saved food preferences and recipe/meal-plan tasks, active caffeine, estimated blood alcohol, custom nutrients, water containers, allergens, and barcode lookup',
   exercise:
     'log workouts, search exercises, suggest alternative exercises (injury, equipment, variety), rate how workouts felt and explain adaptive workout suggestions, view exercise diaries, exercise stats/analytics, create/manage workout plans and next workouts, follow and adjust a run program such as Beginner 5K',
   checkin:
@@ -22,7 +22,8 @@ export const CATEGORY_SUMMARIES: Record<ChatToolCategorySlug, string> = {
   goals: 'view/change goals and targets',
   reports:
     'daily/weekly summaries, progress reports, trends, TDEE, the daily dashboard calorie-balance summary, and whether two tracked things go together or changed since a habit started',
-  coaching: 'coaching plans, nudges, patterns, and check-in wizard',
+  coaching:
+    'coaching plans, weekly calorie target review, nudges, patterns, and check-in wizard',
   vision: 'analyze food photos and scan nutrition labels',
   profile:
     'profile details, preferences, units, timezone, habits, connected integrations, and synced-data listing',

@@ -25,7 +25,9 @@ import { saveActiveWorkoutSession } from './useActiveWorkoutAutosave';
 import {
   attachExerciseEntryWatchTelemetry,
   deleteWorkout,
+  getWorkout,
   setExerciseEntryEffort,
+  updateWorkout,
 } from '../services/api/exerciseApi';
 import { ApiError } from '../services/api/errors';
 import { addLog } from '../services/LogService';
@@ -310,6 +312,10 @@ export function useWatchWorkoutBridge(
   // loading, or a flush already walking its snapshot, must not bring their
   // telemetry back and attach it to an entry that stays in the diary.
   const discardedSessionsRef = useRef<Set<string>>(new Set());
+  // Sessions the wearer finished on the watch, so clearing the phone's live
+  // store does not echo `stopWorkout` back while the watch's finish summary,
+  // effort prompt, or preset-update card is open.
+  const watchStoppedSessionsRef = useRef<Set<string>>(new Set());
   const onPendingChangeRef = useRef(onTelemetryPendingChange);
   const onWatchFinishedRef = useRef(onWatchFinishedWorkout);
   // Ratings from the watch waiting for their session to be saved and its
@@ -409,17 +415,35 @@ export function useWatchWorkoutBridge(
         );
         return;
       }
+      const alreadyCompleted = state.completedSetIds[payload.setId] != null;
+      // Bundled Wear OS `workoutStop` replays only recover completions the
+      // phone missed; if the set is already complete (e.g. after a restart
+      // cleared `handledSetClientIdsRef`), do not overwrite phone edits.
+      if (
+        alreadyCompleted &&
+        payload.replay === true &&
+        payload.rpeOnly !== true
+      ) {
+        return;
+      }
+      const applyRpeOnly = payload.rpeOnly === true && alreadyCompleted;
       // Values the wearer typed on the watch land first: `completeSet` runs
       // the store's assumed-value adoption, which only fills a field that is
       // still empty, so patching afterwards would be overwriting a value the
       // store had already committed. Each field is omitted unless the watch
       // actually had one — writing null would clear the planned value.
+      // Only Wear OS's explicit `rpeOnly` follow-up skips value fields on an
+      // already-completed set so phone-side edits stay intact; normal
+      // completions without `rpeOnly` (including Apple Watch) keep their
+      // original behavior where watch values win.
       const patch: ActiveSetPatch = {};
-      if (payload.weightKg != null) patch.weight = payload.weightKg;
-      if (payload.reps != null) patch.reps = payload.reps;
-      if (payload.duration != null)
-        patch.duration = Math.round(payload.duration);
-      if (payload.distanceKm != null) patch.distance = payload.distanceKm;
+      if (!applyRpeOnly) {
+        if (payload.weightKg != null) patch.weight = payload.weightKg;
+        if (payload.reps != null) patch.reps = payload.reps;
+        if (payload.duration != null)
+          patch.duration = Math.round(payload.duration);
+        if (payload.distanceKm != null) patch.distance = payload.distanceKm;
+      }
       if (
         payload.rpe != null &&
         Number.isFinite(payload.rpe) &&
@@ -431,19 +455,22 @@ export function useWatchWorkoutBridge(
       if (Object.keys(patch).length > 0) {
         state.updateSetField(payload.setId, patch);
       }
-      // The watch has reported the duration it timed. The phone's own
-      // stopwatch for this set (started from the watch's) is done.
-      state.clearSetTimer(payload.setId);
-      clampedWatchTimerStart.delete(payload.setId);
+      if (!applyRpeOnly) {
+        // The watch has reported the duration it timed. The phone's own
+        // stopwatch for this set (started from the watch's) is done.
+        state.clearSetTimer(payload.setId);
+        clampedWatchTimerStart.delete(payload.setId);
 
-      state.completeSet(
-        payload.setId,
-        boundedWatchCompletedAt(
-          payload.completedAt,
-          state.startedAt,
-          Date.now()
-        )
-      );
+        state.completeSet(
+          payload.setId,
+          boundedWatchCompletedAt(
+            payload.completedAt,
+            state.startedAt,
+            Date.now()
+          )
+        );
+      }
+      if (applyRpeOnly && Object.keys(patch).length === 0) return;
       // Flushed immediately rather than left to the debounced autosave: the
       // phone screen that normally drives that debounce may not even be
       // open while the wearer is logging entirely from the watch.
@@ -926,9 +953,103 @@ export function useWatchWorkoutBridge(
         );
         return;
       }
+      // The save was asynchronous: the phone may have ended this workout
+      // and started another while it was in flight. A stop that no longer
+      // owns the live session is dropped here; the phone's own Finish flow
+      // has already stamped the ended session, and continuing could act
+      // on ids the store no longer backs.
+      if (useActiveWorkoutStore.getState().sessionId !== payload.sessionId) {
+        addLog(
+          `Watch workout-stop ignored: session ${payload.sessionId} stopped being the live one during the save`,
+          'DEBUG'
+        );
+        return;
+      }
+      // #1995 phase 1: same lifecycle stamp as the phone's Finish flow,
+      // so a session ended from the wrist derives partial/completed from
+      // its sets instead of lingering in progress. The stamp presents the
+      // revision the save just adopted from the server (or the one the
+      // session was seeded with, when the flush was clean), so it can
+      // never finish a newer session that another device resumed or
+      // edited in between: the server refuses with 409, the revision is
+      // refreshed once, and a stamp that still fails keeps the session
+      // live so the wearer can finish on the phone, whose Finish flow
+      // retries both the save and the stamp.
+      const stampFromWrist = async (): Promise<boolean> => {
+        let revision = useActiveWorkoutStore.getState().session?.revision;
+        // A session restored from storage can lack the revision, and a
+        // clean save never fetches it: fetch the server's current one
+        // first so the very first stamp is guarded too. Refuse rather
+        // than stamp unguarded.
+        if (revision == null) {
+          try {
+            revision = (await getWorkout(payload.sessionId)).revision;
+          } catch {
+            return false;
+          }
+          if (revision == null) return false;
+        }
+        for (let stampAttempt = 0; stampAttempt < 2; stampAttempt += 1) {
+          try {
+            await updateWorkout(payload.sessionId, {
+              finished_at: new Date().toISOString(),
+              revision,
+            });
+            return true;
+          } catch (error) {
+            if (
+              stampAttempt === 0 &&
+              error instanceof ApiError &&
+              error.statusCode === 409
+            ) {
+              // Another device changed the session after this phone's save:
+              // adopt the server's current revision and retry once instead
+              // of presenting the stale revision again.
+              try {
+                revision = (await getWorkout(payload.sessionId)).revision;
+                // A session without a revision cannot be guarded:
+                // refuse instead of stamping unguarded.
+                if (revision == null) return false;
+              } catch {
+                return false;
+              }
+              continue;
+            }
+            return false;
+          }
+        }
+        return false;
+      };
+      // Capture the entry date before the async stamp: the store must not
+      // be re-read afterwards, when the session may have been swapped
+      // mid-stamp.
+      const entryDate = entryDateOf(useActiveWorkoutStore.getState().session);
+      const stamped = await stampFromWrist();
+      if (!stamped) {
+        addLog(
+          `Watch finish kept the phone workout open: stamping finished_at for session ${payload.sessionId} failed`,
+          'WARNING'
+        );
+        return;
+      }
+      if (entryDate != null) {
+        invalidateExerciseCache(queryClient, entryDate);
+      }
+      // The stamp was one more async gap in which the phone could have
+      // ended this workout and started a new one: recheck before clearing,
+      // so a stale stop never clears the newer live session.
+      if (useActiveWorkoutStore.getState().sessionId !== payload.sessionId) {
+        addLog(
+          `Watch workout-stop stamped session ${payload.sessionId} but left the newer live session untouched`,
+          'DEBUG'
+        );
+        await settleEfforts();
+        return;
+      }
       const celebration = buildWorkoutCelebration(
         useActiveWorkoutStore.getState()
       );
+      watchStoppedSessionsRef.current.add(payload.sessionId);
       useActiveWorkoutStore.getState().clearWorkout();
       onWatchFinishedRef.current?.(celebration, payload.sessionId);
       // The wearer may already have rated it while the save was running.
@@ -1429,11 +1550,13 @@ export function useWatchWorkoutBridge(
             activeSetId: prevState.activeSetId,
           };
         }
-        void WatchConnectivity?.stopWorkout(
-          ended,
-          new Date().toISOString(),
-          false
-        );
+        if (!watchStoppedSessionsRef.current.delete(ended)) {
+          void WatchConnectivity?.stopWorkout(
+            ended,
+            new Date().toISOString(),
+            false
+          );
+        }
         // Posts what has arrived so far. The watch answers that stop signal
         // with its own final drain, which lands afterwards and re-posts the
         // completed series — see `handleHeartRateBatch`.
@@ -1443,6 +1566,7 @@ export function useWatchWorkoutBridge(
         // The same diary session can be opened again after a discard. Its
         // new run is a fresh arm, so an old discard must not drop its data.
         discardedSessionsRef.current.delete(state.sessionId);
+        watchStoppedSessionsRef.current.delete(state.sessionId);
         track(state.sessionId, state.session);
       }
     });

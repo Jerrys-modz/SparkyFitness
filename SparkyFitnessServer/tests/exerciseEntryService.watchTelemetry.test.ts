@@ -140,6 +140,32 @@ describe('attachWatchTelemetryToExerciseEntry', () => {
     );
   });
 
+  it('writes a cadence and stride alone, leaving heart rate and calories out', async () => {
+    await attachWatchTelemetryToExerciseEntry(
+      userId,
+      userId,
+      entryId,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      104.5,
+      124
+    );
+
+    expect(
+      exerciseEntryRepository.applyWatchTelemetryAtomically
+    ).toHaveBeenCalledWith(
+      entryId,
+      userId,
+      userId,
+      { stride_length_cm: 104.5, avg_cadence: 124 },
+      null,
+      undefined,
+      false
+    );
+  });
+
   it("404s instead of attaching telemetry to another user's entry", async () => {
     // @ts-expect-error TS(2339): mock method not on typed function.
     exerciseEntryRepository.getExerciseEntryOwnerId.mockResolvedValue(
@@ -459,6 +485,36 @@ describe('attachWatchTelemetryToExerciseEntry heart rate series', () => {
     expect(samples).toHaveLength(10);
     expect(samples[0]).toMatchObject({ ex: entryId, bpm: 150 });
     expect(options).toMatchObject({ mode: 'merge', ex: entryId });
+  });
+
+  it('keeps the series under the watch provider by default', async () => {
+    await attachWatchTelemetryToExerciseEntry(
+      userId,
+      userId,
+      entryId,
+      series(150)
+    );
+    expect(vi.mocked(upsertSamplesByDay).mock.calls[0][3]).toBe(
+      'SparkyFitness Watch'
+    );
+  });
+
+  it('keeps the series under the provider the caller names', async () => {
+    await attachWatchTelemetryToExerciseEntry(
+      userId,
+      userId,
+      entryId,
+      series(150),
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      'Google Health'
+    );
+    expect(vi.mocked(upsertSamplesByDay).mock.calls[0][3]).toBe(
+      'Google Health'
+    );
   });
 
   it('writes no series when the snapshot was rejected', async () => {

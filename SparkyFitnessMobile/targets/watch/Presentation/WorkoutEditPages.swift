@@ -19,7 +19,7 @@ struct SetOptionsPage: View {
     @State private var confirmingDelete = false
 
     var body: some View {
-        EditPage(title: "Set options", compact: store.isPerSide(step)) {
+        EditPage(title: String(localized: "watch.workout.setOptions", defaultValue: "Set options"), compact: store.isPerSide(step)) {
             Button(String(localized: "watch.workout.addSet", defaultValue: "Add Set")) {
                 Haptics.tap()
                 session.sendWorkoutEdit(.addSet(exerciseEntryId: step.exerciseEntryId))
@@ -74,17 +74,17 @@ struct SetOptionsPage: View {
     }
 }
 
-private struct SetTypeSheet: View {
+struct SetTypeSheet: View {
     let current: String?
     let onPick: (String) -> Void
 
     @Environment(\.dismiss) private var dismiss
 
     private let types: [(id: String, name: String)] = [
-        ("normal", "Normal"),
-        ("warmup", "Warm-up"),
-        ("drop", "Drop set"),
-        ("failure", "Failure"),
+        ("normal", String(localized: "watch.workout.setType.normal", defaultValue: "Normal")),
+        ("warmup", String(localized: "watch.workout.setType.warmup", defaultValue: "Warm-up")),
+        ("drop", String(localized: "watch.workout.setType.drop", defaultValue: "Drop set")),
+        ("failure", String(localized: "watch.workout.setType.failure", defaultValue: "Failure")),
     ]
 
     var body: some View {
@@ -110,7 +110,7 @@ private struct SetTypeSheet: View {
     }
 }
 
-private struct SetSideSheet: View {
+struct SetSideSheet: View {
     let current: String?
     let onPick: (String) -> Void
     let onAddOtherSide: () -> Void
@@ -168,7 +168,7 @@ struct ExerciseOptionsPage: View {
     @State private var swapping = false
 
     var body: some View {
-        EditPage(title: "Exercise options") {
+        EditPage(title: String(localized: "watch.workout.exerciseOptions", defaultValue: "Exercise options")) {
             if checkIn.context.exerciseDoNow == true, !store.upcomingExercises.isEmpty {
                 Button(String(localized: "watch.workout.swapExercise", defaultValue: "Swap Exercise")) {
                     Haptics.tap()
@@ -214,7 +214,7 @@ struct WorkoutActionsPage: View {
     @State private var confirmingDiscard = false
 
     var body: some View {
-        EditPage(title: "Workout") {
+        EditPage(title: String(localized: "watch.workout.title", defaultValue: "Workout")) {
             Button(String(localized: "watch.workout.addExercise", defaultValue: "Add Exercise")) {
                 Haptics.tap()
                 addingExercise = true

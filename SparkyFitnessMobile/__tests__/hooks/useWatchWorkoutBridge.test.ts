@@ -10,6 +10,7 @@ import {
   useActiveWorkoutStore,
 } from '../../src/stores/activeWorkoutStore';
 import {
+  getWorkout,
   updateWorkout,
   deleteWorkout,
   attachExerciseEntryWatchTelemetry,
@@ -29,6 +30,7 @@ import { ApiError } from '../../src/services/api/errors';
 import { clearServerConfigCache } from '../../src/services/storage';
 
 jest.mock('../../src/services/api/exerciseApi', () => ({
+  getWorkout: jest.fn(),
   updateWorkout: jest.fn(),
   deleteWorkout: jest.fn(),
   attachExerciseEntryWatchTelemetry: jest.fn(),
@@ -88,6 +90,7 @@ jest.mock('../../modules/watch-connectivity', () => {
 const mockUpdateWorkout = updateWorkout as jest.MockedFunction<
   typeof updateWorkout
 >;
+const mockGetWorkout = getWorkout as jest.MockedFunction<typeof getWorkout>;
 const mockAttachTelemetry =
   attachExerciseEntryWatchTelemetry as jest.MockedFunction<
     typeof attachExerciseEntryWatchTelemetry
@@ -178,6 +181,7 @@ function makeSession(
     description: null,
     notes: null,
     source: 'sparky',
+    revision: 1,
     total_duration_minutes: 60,
     activity_details: [],
     exercises: [
@@ -662,6 +666,163 @@ describe('useWatchWorkoutBridge', () => {
     });
 
     expect(getStore().session!.exercises[0].sets[0].rpe).toBe(9.5);
+  });
+
+  it('applies only RPE on an rpeOnly follow-up for an already-completed set, preserving phone edits', async () => {
+    renderHook(() => useWatchWorkoutBridge(true));
+    act(() => {
+      getStore().startWorkout(makeSession());
+    });
+
+    await act(async () => {
+      fire('onSetCompleted', {
+        clientId: 'client-1',
+        sessionId: 'session-1',
+        setId: '101',
+        weightKg: 80,
+        reps: 10,
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    const firstCompletedAt = getStore().completedSetIds['101'];
+    expect(firstCompletedAt).toBeDefined();
+
+    // Phone edits weight/reps before the watch gets confirmation.
+    act(() => {
+      getStore().updateSetField('101', { weight: 85, reps: 12 });
+    });
+
+    // Delayed Wear OS RPE follow-up still carries the watch's original values,
+    // flagged with rpeOnly: true so only RPE is patched on the completed set.
+    await act(async () => {
+      fire('onSetCompleted', {
+        clientId: 'client-2',
+        sessionId: 'session-1',
+        setId: '101',
+        weightKg: 80,
+        reps: 10,
+        rpe: 8.5,
+        rpeOnly: true,
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const set = getStore().session!.exercises[0].sets[0];
+    expect(set.weight).toBe(85);
+    expect(set.reps).toBe(12);
+    expect(set.rpe).toBe(8.5);
+    expect(getStore().completedSetIds['101']).toBe(firstCompletedAt);
+  });
+
+  it('still overwrites an already-completed set when a normal completion arrives without rpeOnly', async () => {
+    renderHook(() => useWatchWorkoutBridge(true));
+    act(() => {
+      getStore().startWorkout(makeSession());
+      getStore().updateSetField('101', { weight: 85, reps: 12 });
+      getStore().completeSet('101');
+    });
+
+    await act(async () => {
+      fire('onSetCompleted', {
+        clientId: 'apple-watch-1',
+        sessionId: 'session-1',
+        setId: '101',
+        weightKg: 90,
+        reps: 8,
+        rpe: 9,
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const set = getStore().session!.exercises[0].sets[0];
+    expect(set.weight).toBe(90);
+    expect(set.reps).toBe(8);
+    expect(set.rpe).toBe(9);
+  });
+
+  it('recovers full values from an rpeOnly follow-up if the initial completion never arrived', async () => {
+    renderHook(() => useWatchWorkoutBridge(true));
+    act(() => {
+      getStore().startWorkout(makeSession());
+    });
+
+    await act(async () => {
+      fire('onSetCompleted', {
+        clientId: 'wear-rpe-followup-1',
+        sessionId: 'session-1',
+        setId: '101',
+        weightKg: 82.5,
+        reps: 9,
+        rpe: 8,
+        rpeOnly: true,
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const set = getStore().session!.exercises[0].sets[0];
+    expect(set.weight).toBe(82.5);
+    expect(set.reps).toBe(9);
+    expect(set.rpe).toBe(8);
+    expect(getStore().completedSetIds['101']).toBeDefined();
+  });
+
+  it('ignores a replayed completion for an already-completed set so phone edits survive restarts', async () => {
+    renderHook(() => useWatchWorkoutBridge(true));
+    act(() => {
+      getStore().startWorkout(makeSession());
+      getStore().updateSetField('101', { weight: 85, reps: 12, rpe: 9 });
+      getStore().completeSet('101');
+    });
+
+    await act(async () => {
+      fire('onSetCompleted', {
+        clientId: 'replayed-after-restart-1',
+        sessionId: 'session-1',
+        setId: '101',
+        weightKg: 80,
+        reps: 10,
+        rpe: 7,
+        replay: true,
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const set = getStore().session!.exercises[0].sets[0];
+    expect(set.weight).toBe(85);
+    expect(set.reps).toBe(12);
+    expect(set.rpe).toBe(9);
+  });
+
+  it('applies a replayed completion when the set was not yet completed on the phone', async () => {
+    renderHook(() => useWatchWorkoutBridge(true));
+    act(() => {
+      getStore().startWorkout(makeSession());
+    });
+
+    await act(async () => {
+      fire('onSetCompleted', {
+        clientId: 'replayed-missed-1',
+        sessionId: 'session-1',
+        setId: '101',
+        weightKg: 80,
+        reps: 10,
+        rpe: 8,
+        replay: true,
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const set = getStore().session!.exercises[0].sets[0];
+    expect(set.weight).toBe(80);
+    expect(set.reps).toBe(10);
+    expect(set.rpe).toBe(8);
+    expect(getStore().completedSetIds['101']).toBeDefined();
   });
 
   it('ignores an effort outside 1 to 10', async () => {
@@ -2787,6 +2948,51 @@ describe('useWatchWorkoutBridge across sessions, failures and watch finishes', (
     expect(Object.keys(celebration?.completedSetIds ?? {})).toEqual(['101']);
   });
 
+  it('fetches the server revision before stamping when a restored session lacks one', async () => {
+    const onWatchFinished = jest.fn();
+    mockUpdateWorkout.mockResolvedValue(null);
+    mockGetWorkout.mockResolvedValue({ ...makeSession(), revision: 3 });
+    renderHook(() =>
+      useWatchWorkoutBridge(true, true, undefined, onWatchFinished)
+    );
+    act(() => {
+      getStore().startWorkout({ ...makeSession(), revision: null } as any);
+    });
+    await act(async () => {
+      fire('onWorkoutStop', { sessionId: 'session-1' });
+      for (let i = 0; i < 5; i += 1) await Promise.resolve();
+    });
+
+    expect(mockGetWorkout).toHaveBeenCalledWith('session-1');
+    expect(mockUpdateWorkout).toHaveBeenCalledTimes(1);
+    const [stampId, stampPayload] = mockUpdateWorkout.mock.calls[0];
+    expect(stampId).toBe('session-1');
+    expect(stampPayload.revision).toBe(3);
+    expect(getStore().sessionId).toBeNull();
+    expect(onWatchFinished).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the phone workout open when the server has no revision for a restored session', async () => {
+    const onWatchFinished = jest.fn();
+    mockUpdateWorkout.mockResolvedValue(null);
+    mockGetWorkout.mockResolvedValue({ ...makeSession(), revision: null });
+    renderHook(() =>
+      useWatchWorkoutBridge(true, true, undefined, onWatchFinished)
+    );
+    act(() => {
+      getStore().startWorkout({ ...makeSession(), revision: null } as any);
+    });
+    await act(async () => {
+      fire('onWorkoutStop', { sessionId: 'session-1' });
+      for (let i = 0; i < 5; i += 1) await Promise.resolve();
+    });
+
+    expect(mockGetWorkout).toHaveBeenCalledWith('session-1');
+    expect(mockUpdateWorkout).not.toHaveBeenCalled();
+    expect(getStore().sessionId).toBe('session-1');
+    expect(onWatchFinished).not.toHaveBeenCalled();
+  });
+
   it('does not report a watch finish for a stop the phone already handled', async () => {
     const onWatchFinished = jest.fn();
     renderHook(() =>
@@ -2805,6 +3011,26 @@ describe('useWatchWorkoutBridge across sessions, failures and watch finishes', (
       await Promise.resolve();
     });
     expect(onWatchFinished).not.toHaveBeenCalled();
+  });
+
+  it('does not echo stopWorkout back to the watch for a watch-initiated finish', async () => {
+    const onWatchFinished = jest.fn();
+    renderHook(() =>
+      useWatchWorkoutBridge(true, true, undefined, onWatchFinished)
+    );
+    act(() => {
+      getStore().startWorkout(makeSession());
+    });
+    mockStopWorkout.mockClear();
+
+    await act(async () => {
+      fire('onWorkoutStop', { sessionId: 'session-1' });
+      for (let i = 0; i < 6; i += 1) await Promise.resolve();
+    });
+
+    expect(getStore().sessionId).toBeNull();
+    expect(onWatchFinished).toHaveBeenCalledWith(null, 'session-1');
+    expect(mockStopWorkout).not.toHaveBeenCalled();
   });
 });
 

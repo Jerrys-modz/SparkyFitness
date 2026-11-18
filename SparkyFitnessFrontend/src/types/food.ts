@@ -42,6 +42,11 @@ export interface FoodVariant {
   // provider reports units (USDA, OFF). Import-only; used to prefill/display
   // a custom nutrient's unit.
   provider_nutrient_units?: Record<string, string>;
+  // Standard nutrient id per provider field (same label keys as
+  // provider_nutrients), when the provider maps fields by nutrient code
+  // (Swiss Food, Livsmedelsverket). Import-only; used to badge fields a
+  // standard column captures.
+  provider_nutrient_standard?: Record<string, string>;
   source?: 'manual' | 'ai_estimate' | 'imported';
   ai_confidence?: 'high' | 'medium' | 'low' | null;
   allergens?: string[] | null;
@@ -76,6 +81,8 @@ export interface Food {
   provider_external_id?: string;
   provider_type?: FoodProviderType | 'nutritionix';
   provider_verified?: boolean;
+  recipe_has_nutrition?: boolean;
+  recipe_servings?: number | null;
   default_variant?: FoodVariant;
   variants?: FoodVariant[];
   is_quick_food?: boolean;
@@ -152,6 +159,8 @@ export interface FoodEntry {
    * which is shown alongside it rather than copied into it.
    */
   notes?: string | null;
+  /** Cooked weight eaten, in `unit`; `quantity` is the raw weight (#3534). */
+  cooked_quantity?: number | null;
   // Snapshotted nutrient data
   calories?: number;
   protein?: number;
@@ -257,6 +266,7 @@ export type NumericFoodVariantKeys = Exclude<
   | 'custom_nutrients'
   | 'provider_nutrients'
   | 'provider_nutrient_units'
+  | 'provider_nutrient_standard'
   // AI-Assisted Unit Conversions provenance — these are strings/enums, not
   // numerics, so the form-variant `string | ''` mapping must not include them.
   | 'user_id'

@@ -15,7 +15,7 @@ struct MedicationsView: View {
     @State private var path: [String] = []
 
     /// Yesterday's doses are worse than none — discarded the same way
-    /// `GoalSummaryView` discards stale nutrition.
+    /// `ClassicGoalSummaryView` discards stale nutrition.
     private var snapshot: MedicationSnapshot? {
         guard let snapshot = store.context.medications, snapshot.isToday else { return nil }
         return snapshot
@@ -277,7 +277,7 @@ struct MedicationDoseView: View {
     private func act(_ action: MedicationTapAction) {
         // `.click`, not `.success`: all that is certain yet is that the tap
         // registered, the same reasoning as a water tap.
-        WKInterfaceDevice.current().play(.click)
+        Haptics.tap()
         let clientId = store.recordMedicationTap(dose, action: action)
         session.sendMedicationTap(dose, clientId: clientId, action: action)
         dismiss()

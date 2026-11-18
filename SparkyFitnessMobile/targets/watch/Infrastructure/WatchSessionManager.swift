@@ -300,13 +300,15 @@ final class WatchSessionManager: NSObject, ObservableObject {
     /// Asks the phone to say a cue (its headphones are the ones in the wearer's
     /// ears). Returns false when the phone cannot be reached right now, so the
     /// caller speaks it on the watch; otherwise `fallback` runs if the phone
-    /// does not confirm in time or the send fails.
-    func relayRunCue(_ text: String, interrupt: Bool, fallback: @escaping () -> Void) -> Bool {
+    /// does not confirm in time or the send fails. `language` is the BCP 47 tag
+    /// of the language the text is written in, or empty when it includes words
+    /// the phone wrote, so the phone falls back to the app language.
+    func relayRunCue(_ text: String, interrupt: Bool, language: String, fallback: @escaping () -> Void) -> Bool {
         guard WCSession.isSupported(), isActivated, WCSession.default.isReachable else { return false }
         let id = UUID().uuidString
         pendingCues[id] = fallback
         WCSession.default.sendMessage(
-            OutboundPayloads.runCue(id: id, text: text, interrupt: interrupt),
+            OutboundPayloads.runCue(id: id, text: text, interrupt: interrupt, language: language),
             replyHandler: nil
         ) { [weak self] _ in
             Task { @MainActor in self?.failCue(id) }
@@ -736,6 +738,8 @@ final class WatchSessionManager: NSObject, ObservableObject {
         case "intervalTiming": handle(intervalTiming: payload)
         case "setTargets": handle(setTargets: payload)
         case "workoutPlanUpdate": handle(workoutPlanUpdate: payload)
+        case "exerciseImage":
+            if ExerciseDemoStore.receive(payload) { ExerciseDemoStore.shared.didChange() }
         case "recordingState":
             if let update = ContextPayloadMapper.recordingUpdate(from: payload) {
                 RecordingStore.shared.apply(update)
@@ -781,7 +785,8 @@ final class WatchSessionManager: NSObject, ObservableObject {
         if workoutStore.plan?.sessionId == plan.sessionId { return }
         // A wrist-only run already holds the watch's one workout session; a
         // second would end one of them. The workout carries on on the phone.
-        if WatchRunStore.shared.isActive { return }
+        // So does an indoor run whose workout is still being written to Health.
+        if WatchRunStore.shared.isActive || WatchRunHealthKitController.shared.holdsWorkoutSession { return }
 
         // Recovery may still be reattaching the previous HealthKit session.
         // Queue the plan and let that finish (and stop the old session)
@@ -895,6 +900,12 @@ final class WatchSessionManager: NSObject, ObservableObject {
                 previousEndsAt: previousEndsAt,
                 endsAt: endsAt
             ))
+        }
+        // A weight, reps or distance typed here reaches the phone before the
+        // set is logged, so both show the same number. Held until the wearer
+        // stops adjusting (see `queueValueEdit`).
+        workoutStore.onSetValueEditedHere = { [weak self] setId, weightKg, reps, distanceKm in
+            self?.queueValueEdit(setId: setId, weightKg: weightKg, reps: reps, distanceKm: distanceKm)
         }
         // A hold countdown or stopwatch started here starts the phone's too.
         workoutStore.onSetTimerStartedHere = { [weak self] setId, startedAt in
@@ -1298,6 +1309,68 @@ final class WatchSessionManager: NSObject, ObservableObject {
         )
     }
 
+    /// Typed values waiting to go to the phone, one entry per set. The crown
+    /// commits after every short pause, and each message makes the phone send
+    /// its whole target list back, which the watch then rebuilds and saves
+    /// while the wearer is still turning. So the values are held until the
+    /// wearer has stopped for `valueEditQuietNanos`, then sent once, with the
+    /// fields of several edits merged.
+    private struct PendingValueEdit {
+        var sessionId: String
+        var armedAt: Date?
+        var at: Date
+        var weightKg: Double? = nil
+        var reps: Double? = nil
+        var distanceKm: Double? = nil
+    }
+
+    private var pendingValueEdits: [String: PendingValueEdit] = [:]
+    private var valueEditFlush: Task<Void, Never>?
+    private static let valueEditQuietNanos: UInt64 = 1_500_000_000
+
+    private func queueValueEdit(setId: String, weightKg: Double?, reps: Double?, distanceKm: Double?) {
+        guard let plan = workoutStore.plan else { return }
+        let sessionId = plan.sessionId
+        // An edit held from an earlier arm of this workout is not merged into
+        // one from the current arm.
+        var edit = pendingValueEdits[setId].flatMap {
+            $0.sessionId == sessionId && Self.sameArm($0.armedAt, plan.armedAt) ? $0 : nil
+        } ?? PendingValueEdit(sessionId: sessionId, armedAt: plan.armedAt, at: Date())
+        if let weightKg { edit.weightKg = weightKg }
+        if let reps { edit.reps = reps }
+        if let distanceKm { edit.distanceKm = distanceKm }
+        edit.at = Date()
+        pendingValueEdits[setId] = edit
+        valueEditFlush?.cancel()
+        valueEditFlush = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: Self.valueEditQuietNanos)
+            guard !Task.isCancelled else { return }
+            self?.flushValueEdits()
+        }
+    }
+
+    /// Sends what is held. An edit for a workout, or an arm of it, that is no
+    /// longer the live one is dropped.
+    private func flushValueEdits() {
+        let edits = pendingValueEdits
+        pendingValueEdits = [:]
+        for (setId, edit) in edits {
+            guard let plan = workoutStore.plan,
+                  plan.sessionId == edit.sessionId,
+                  Self.sameArm(edit.armedAt, plan.armedAt) else { continue }
+            transfer(OutboundPayloads.workoutEditSetValues(
+                sessionId: edit.sessionId,
+                clientId: UUID().uuidString,
+                setId: setId,
+                weightKg: edit.weightKg,
+                reps: edit.reps,
+                distanceKm: edit.distanceKm,
+                at: edit.at,
+                armedAt: edit.armedAt
+            ))
+        }
+    }
+
     /// The phone added, removed or regrouped exercises or sets mid-workout.
     /// Applied to the running plan of the same arm; a start still being held
     /// (HealthKit busy, recovery in flight) takes the newer plan instead.
@@ -1540,6 +1613,12 @@ final class WatchSessionManager: NSObject, ObservableObject {
     /// Ends the workout. The stop signal waits until HealthKit has finished
     /// the workout and the tail has been queued. See `finishCollection`.
     func endWorkout() {
+        // The summary will ask whether to update the saved workout: tell the
+        // phone first so it holds its own prompt for the answer.
+        if workoutStore.usesNewWorkoutView(), workoutStore.changedFromPreset,
+           let sessionId = workoutStore.plan?.sessionId, WCSession.isSupported() {
+            transfer(OutboundPayloads.presetUpdateAnswer(sessionId: sessionId, update: false, waiting: true))
+        }
         requestFinish(sendStop: true)
     }
 
@@ -1663,10 +1742,13 @@ final class WatchSessionManager: NSObject, ObservableObject {
                     )
                 }
                 let next = self.pendingPlan
+                let watchStartedFinish = sendStop || self.pendingSendStop
                 self.pendingPlan = nil
                 self.pendingSendStop = false
                 self.workoutStore.recordFinalHeartRate(self.heartRateReadings(samples))
-                let summary = next == nil ? self.workoutStore.makeSummary() : nil
+                let summary = next == nil
+                    ? self.workoutStore.makeSummary(askPresetUpdate: watchStartedFinish)
+                    : nil
                 self.workoutStore.reset()
                 self.workoutStore.recordSummary(summary)
                 self.collectionInFlight = false

@@ -1,5 +1,7 @@
 package com.sparkyapps.sparkyfitness.wear
 
+import androidx.compose.ui.graphics.toArgb
+import com.SparkyApps.SparkyFitnessMobile.R
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
@@ -407,5 +409,166 @@ class WearOsParityTest {
         val workoutIdx = activePages.indexOf(WatchPage.WORKOUT)
         val nowPlayingIdx = activePages.indexOf(WatchPage.NOW_PLAYING)
         assertEquals(workoutIdx + 1, nowPlayingIdx)
+    }
+
+    @Test
+    fun `tiles models build nutrition, sleep, medications, and exercise summaries`() {
+        val today = CheckInDate.today()
+        val rawCtx = JSONObject().apply {
+            put("today", today)
+            put("caloriesConsumed", 1650.0)
+            put("caloriesBurned", 380.0)
+            put("caloriesRemaining", 550.0)
+            put("calorieGoalProgress", 0.75)
+            put("proteinConsumed", 130.0)
+            put("proteinGoal", 170.0)
+            put("proteinGoalProgress", 0.76)
+            put("carbsConsumed", 180.0)
+            put("carbsGoal", 220.0)
+            put("carbsGoalProgress", 0.82)
+            put("fatConsumed", 50.0)
+            put("fatGoal", 65.0)
+            put("fatGoalProgress", 0.77)
+            put("goalNutrients", JSONArray().apply {
+                put(JSONObject().apply {
+                    put("key", "protein")
+                    put("label", "Protein")
+                    put("unit", "g")
+                    put("consumed", 130.0)
+                    put("goal", 170.0)
+                    put("progress", 0.76)
+                })
+                put(JSONObject().apply {
+                    put("key", "dietary_fiber")
+                    put("label", "Fiber")
+                    put("unit", "g")
+                    put("consumed", 24.0)
+                    put("goal", 32.0)
+                    put("progress", 0.75)
+                })
+            })
+            put("sleep", JSONObject().apply {
+                put("day", today)
+                put("totalSeconds", 27900)
+                put("timeInBedSeconds", 28800)
+                put("sleepScore", 86)
+                put("bedtime", "11:00 PM")
+                put("wakeTime", "6:45 AM")
+                put("deepSeconds", 5400)
+                put("remSeconds", 6000)
+                put("lightSeconds", 16500)
+                put("restingHeartRate", 54)
+                put("hrvMs", 64)
+            })
+            put("medications", JSONArray().apply {
+                put(JSONObject().apply {
+                    put("id", "m1:s1")
+                    put("medicationId", "m1")
+                    put("scheduleId", "s1")
+                    put("name", "Vitamin D")
+                    put("detail", "2000 IU")
+                    put("time", "08:00 AM")
+                    put("status", "taken")
+                })
+                put(JSONObject().apply {
+                    put("id", "m2:s2")
+                    put("medicationId", "m2")
+                    put("scheduleId", "s2")
+                    put("name", "Magnesium")
+                    put("detail", "400 mg")
+                    put("time", "09:00 PM")
+                    put("status", "pending")
+                })
+            })
+            put("exerciseSummary", JSONObject().apply {
+                put("day", today)
+                put("minutes", 45)
+                put("minutesGoal", 60)
+                put("calories", 380)
+                put("caloriesGoal", 500)
+                put("sessionCount", 1)
+                put("sessions", JSONArray().apply {
+                    put(JSONObject().apply {
+                        put("name", "Upper Body Push")
+                        put("durationMinutes", 45)
+                        put("calories", 380)
+                    })
+                })
+            })
+        }
+
+        val ctx = ContextPayloadMapper.parseContext(rawCtx, WatchContext.empty)
+
+        val nutritionTile = TileModels.buildNutritionTileModel(ctx.nutrition)
+        assertTrue(nutritionTile.hasData)
+        assertEquals(1650, nutritionTile.consumedKcal)
+        assertEquals(2200, nutritionTile.goalKcal)
+        assertEquals(2, nutritionTile.macros.size)
+        assertEquals("Protein", nutritionTile.macros[0].label)
+        assertEquals("130/170g", nutritionTile.macros[0].valueText)
+        assertEquals(SparkyColors.Cyan.toArgb(), nutritionTile.macros[0].colorArgb)
+        assertEquals("Fiber", nutritionTile.macros[1].label)
+        assertEquals("24/32g", nutritionTile.macros[1].valueText)
+        assertEquals(SparkyColors.Green.toArgb(), nutritionTile.macros[1].colorArgb)
+
+        val resolveString: (Int, Array<out Any>) -> String = { id, args ->
+            when (id) {
+                R.string.tile_sleep_no_logged -> "No sleep logged today"
+                R.string.tile_sleep_in_bed -> "In bed ${args[0]}"
+                R.string.tile_meds_not_synced -> "Not synced"
+                R.string.tile_meds_taken_count -> "${args[0]} / ${args[1]} Taken"
+                R.string.tile_meds_open_app -> "Open app to sync"
+                R.string.tile_meds_none_today -> "No doses scheduled today"
+                R.string.tile_meds_pending_today -> "${args[0]} pending today"
+                R.string.tile_meds_skipped_done -> "${args[0]} skipped \u00B7 All done"
+                R.string.tile_meds_all_done -> "All doses completed"
+                R.string.tile_exercise_steps_count -> "${args[0]} steps"
+                R.string.tile_exercise_goal_minutes -> "Goal ${args[0]}m"
+                R.string.tile_exercise_planned_today -> "Workout planned today"
+                R.string.tile_exercise_tap_start -> "Tap to start a workout"
+                else -> error("Unexpected string resource id: $id")
+            }
+        }
+        val resolvePlural: (Int, Int, Array<out Any>) -> String = { id, qty, args ->
+            when (id) {
+                R.plurals.tile_sleep_naps -> if (qty == 1) "${args[0]} nap (${args[1]})" else "${args[0]} naps (${args[1]})"
+                R.plurals.tile_exercise_workouts -> if (qty == 1) "${args[0]} workout" else "${args[0]} workouts"
+                else -> error("Unexpected plural resource id: $id")
+            }
+        }
+
+        val sleepTile = TileModels.buildSleepTileModel(ctx.sleep)
+        assertTrue(sleepTile.hasData)
+        assertEquals("7h 45m", TileModels.formatSleepDuration(sleepTile, resolveString))
+        assertEquals(86, sleepTile.sleepScore)
+        assertEquals(SleepWindow.BedWake("11:00 PM", "6:45 AM"), sleepTile.window)
+        assertEquals("11:00 PM \u2013 6:45 AM", TileModels.formatSleepWindow(sleepTile.window, resolveString, resolvePlural))
+        assertEquals(3, sleepTile.stages.size)
+        assertEquals(R.string.sleep_stage_deep, sleepTile.stages[0].labelRes)
+        assertEquals(R.string.sleep_stage_rem, sleepTile.stages[1].labelRes)
+        assertEquals(R.string.sleep_stage_light, sleepTile.stages[2].labelRes)
+        assertEquals("RHR 54bpm \u00B7 HRV 64ms", sleepTile.biometricsText)
+
+        val medsTile = TileModels.buildMedicationsTileModel(ctx.medications)
+        assertTrue(medsTile.hasData)
+        assertEquals(1, medsTile.takenCount)
+        assertEquals(2, medsTile.totalCount)
+        assertEquals(1, medsTile.pendingCount)
+        assertEquals("1 / 2 Taken", TileModels.formatMedicationsHeadline(medsTile, resolveString))
+        assertEquals("1 pending today", TileModels.formatMedicationsSubtitle(medsTile, resolveString))
+        assertEquals("Magnesium", medsTile.doseRows[0].name)
+
+        val exerciseTile = TileModels.buildExerciseTileModel(
+            exercise = ctx.exerciseSummary,
+            scheduledWorkouts = emptyList(),
+            steps = null,
+            stepGoal = 10000
+        )
+        assertTrue(exerciseTile.hasData)
+        assertEquals(45, exerciseTile.minutes)
+        assertEquals(60, exerciseTile.minutesGoal)
+        assertEquals("45m \u00B7 380/500 kcal", TileModels.formatExerciseHeadline(exerciseTile, resolveString))
+        assertEquals("Goal 60m \u00B7 1 workout", TileModels.formatExerciseSubtitle(exerciseTile, resolveString, resolvePlural))
+        assertEquals("Upper Body Push", exerciseTile.rows[0].title)
     }
 }

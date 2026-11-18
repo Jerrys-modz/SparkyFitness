@@ -139,7 +139,7 @@ export function useSymptomMutations(fromDate: string, toDate: string) {
  * date range, the ongoing-episode banner, and the cycle hub, which reads
  * cycle-source entries from the same table.
  */
-const invalidateEntries = (queryClient: QueryClient) => {
+export const invalidateSymptomEntryCaches = (queryClient: QueryClient) => {
   queryClient.invalidateQueries({ queryKey: symptomEntriesRootQueryKey });
   queryClient.invalidateQueries({ queryKey: symptomOngoingQueryKey });
   queryClient.invalidateQueries({ queryKey: ['symptoms', 'entry'] });
@@ -167,15 +167,19 @@ export function useOngoingEpisodes(enabled = true) {
 export function useSymptomEntriesDetailed({
   fromDate,
   toDate,
+  overlapping = false,
   enabled = true,
 }: {
   fromDate: string;
   toDate: string;
+  /** Also the episodes that overlap the range without being logged in it. */
+  overlapping?: boolean;
   enabled?: boolean;
 }) {
   const query = useQuery<SymptomEntryResponse[]>({
-    queryKey: symptomEntriesDetailedQueryKey(fromDate, toDate),
-    queryFn: () => fetchSymptomEntriesDetailed(fromDate, toDate),
+    queryKey: symptomEntriesDetailedQueryKey(fromDate, toDate, overlapping),
+    queryFn: () =>
+      fetchSymptomEntriesDetailed(fromDate, toDate, { overlapping }),
     enabled,
   });
   useRefetchOnFocus(query.refetch, enabled);
@@ -266,7 +270,7 @@ export function useSymptomActions() {
   const logEntry = useMutation({
     mutationFn: (body: CreateSymptomEntryBody) => logSymptomEntry(body),
     onSuccess: (data) => {
-      invalidateEntries(queryClient);
+      invalidateSymptomEntryCaches(queryClient);
       if (data?.id && data.started_at && !data.ended_at) {
         void scheduleOngoingEpisodeNudge(
           data.id,
@@ -284,7 +288,7 @@ export function useSymptomActions() {
     mutationFn: ({ id, body }: { id: string; body: UpdateSymptomEntryBody }) =>
       patchSymptomEntry(id, body),
     onSuccess: (data) => {
-      invalidateEntries(queryClient);
+      invalidateSymptomEntryCaches(queryClient);
       if (data?.id && data.ended_at) {
         void cancelOngoingEpisodeNudge(data.id);
       }
@@ -300,7 +304,7 @@ export function useSymptomActions() {
     mutationFn: ({ id, body }: { id: string; body: EndSymptomEpisodeBody }) =>
       endSymptomEpisode(id, body),
     onSuccess: (_data, variables) => {
-      invalidateEntries(queryClient);
+      invalidateSymptomEntryCaches(queryClient);
       void cancelOngoingEpisodeNudge(variables.id);
     },
     onError: onError(
@@ -311,7 +315,7 @@ export function useSymptomActions() {
   const addSeverity = useMutation({
     mutationFn: ({ id, severity }: { id: string; severity: number }) =>
       addSymptomSeverity(id, severity),
-    onSuccess: () => invalidateEntries(queryClient),
+    onSuccess: () => invalidateSymptomEntryCaches(queryClient),
     onError: onError(
       t('symptoms.severityFailed', {
         defaultValue: 'Could not update severity',
@@ -322,7 +326,7 @@ export function useSymptomActions() {
   const removeEntry = useMutation({
     mutationFn: (id: string) => deleteSymptomEntry(id),
     onSuccess: (_data, id) => {
-      invalidateEntries(queryClient);
+      invalidateSymptomEntryCaches(queryClient);
       void cancelOngoingEpisodeNudge(id);
     },
     onError: onError(

@@ -1,4 +1,8 @@
 // hooks/Exercises/useEditExerciseForm.ts
+import {
+  AUTOMATIC_HEALTH_ACTIVITY_TYPE,
+  healthActivityTypeSelectValue,
+} from '@/utils/healthActivityType';
 import { useState } from 'react';
 import { error } from '@/utils/logging';
 import type { Exercise as ExerciseInterface } from '@/types/exercises';
@@ -41,6 +45,9 @@ export function useEditExerciseForm() {
   const [editExerciseCategory, setEditExerciseCategory] = useState('general');
   const [editExerciseModality, setEditExerciseModality] =
     useState<ExerciseModality>('weight_reps');
+  // 'automatic' (no override) or a health activity type key (#1750).
+  const [editExerciseHealthActivityType, setEditExerciseHealthActivityType] =
+    useState(AUTOMATIC_HEALTH_ACTIVITY_TYPE);
   const [editExerciseLoadConvention, setEditExerciseLoadConvention] =
     useState<ExerciseLoadConvention>('total');
   const [editExerciseCalories, setEditExerciseCalories] = useState(300);
@@ -79,6 +86,9 @@ export function useEditExerciseForm() {
     // silently retrack an exercise the user already logged against.
     setEditExerciseModality(
       resolveExerciseModality(exercise.modality, exercise.category)
+    );
+    setEditExerciseHealthActivityType(
+      healthActivityTypeSelectValue(exercise.health_activity_type)
     );
     setEditExerciseLoadConvention(
       isExerciseLoadConvention(exercise.load_convention)
@@ -137,6 +147,8 @@ export function useEditExerciseForm() {
         name: editExerciseName,
         category: editExerciseCategory,
         modality: editExerciseModality,
+        // 'automatic' clears the override server-side.
+        health_activity_type: editExerciseHealthActivityType,
         load_convention: editExerciseLoadConvention,
         calories_per_hour: convertEnergy(
           editExerciseCalories,
@@ -271,6 +283,8 @@ export function useEditExerciseForm() {
     setEditExerciseCategory,
     editExerciseModality,
     setEditExerciseModality,
+    editExerciseHealthActivityType,
+    setEditExerciseHealthActivityType,
     editExerciseLoadConvention,
     setEditExerciseLoadConvention,
     editExerciseCalories,

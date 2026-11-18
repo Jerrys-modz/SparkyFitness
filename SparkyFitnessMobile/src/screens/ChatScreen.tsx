@@ -53,7 +53,12 @@ import {
   useChatRuntime,
   AssistantChatTransport,
 } from '@assistant-ui/react-ai-sdk';
-import { ASK_USER_TOOL_NAME } from '@workspace/shared';
+import {
+  chatApprovalResponsesReady,
+  ASK_USER_TOOL_NAME,
+} from '@workspace/shared';
+import ApprovalCard from '../components/chat/ApprovalCard';
+import OutsideSourceLine from '../components/chat/OutsideSourceLine';
 import Icon from '../components/Icon';
 import ActionSheet, { type ActionSheetRef } from '../components/ActionSheet';
 import SafeImage from '../components/SafeImage';
@@ -86,6 +91,7 @@ import {
   type PickedChatImage,
 } from '../utils/pickImage';
 import { resolveSpeechLocale } from '../utils/speechLocale';
+import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import {
   useActiveAiServiceSetting,
@@ -161,10 +167,12 @@ function ChatKeyboardAvoidingView(
 function useSparkyChatRuntime({
   baseUrl,
   serviceConfigId,
+  conversationId,
   initialMessages,
 }: {
   baseUrl: string;
   serviceConfigId: string;
+  conversationId: string;
   initialMessages: InitialMessages;
 }) {
   const { t } = useTranslation();
@@ -185,16 +193,21 @@ function useSparkyChatRuntime({
             : {};
         },
         // Merged into the request body alongside `messages`; the server reads it.
-        body: { service_config_id: serviceConfigId },
+        body: {
+          service_config_id: serviceConfigId,
+          conversationId,
+          approvals: true,
+        },
       }),
-    [baseUrl, serviceConfigId]
+    [baseUrl, serviceConfigId, conversationId]
   );
 
   // Thread-level safety net: a per-message error box can't render if the stream
-  // fails before any assistant message exists, so surface a toast too. (AI SDK 6
-  // redacts mid-stream server errors to a generic message on the client unless the
-  // server supplies an onError mapper to its stream response — out of mobile scope.)
+  // fails before any assistant message exists, so surface a toast too. The server's
+  // stream onError mapper passes provider error messages through, so this shows them.
   return useChatRuntime({
+    joinStrategy: 'none',
+    sendAutomaticallyWhen: chatApprovalResponsesReady,
     transport,
     // Seed prior history (the runtime ignores changes after mount — see ChatThread's key).
     messages: initialMessages,
@@ -217,7 +230,9 @@ function useSparkyChatRuntime({
 function MessageBubble({
   role,
   onOpenLightbox,
+  onClearChat,
 }: {
+  onClearChat: () => void;
   role: MessageRole;
   onOpenLightbox: (images: string[], index?: number) => void;
 }) {
@@ -326,7 +341,9 @@ function MessageBubble({
                 )
               }
               renderToolCall={({ part }) =>
-                part.toolName === ASK_USER_TOOL_NAME ? (
+                part.approval ? (
+                  <ApprovalCard part={part} />
+                ) : part.toolName === ASK_USER_TOOL_NAME ? (
                   <AskUserToolCard part={part} />
                 ) : (
                   <ToolCallCard part={part} />
@@ -340,6 +357,7 @@ function MessageBubble({
       {/* Error box + actions sit below the bubble and only apply to assistant
           messages. ErrorPrimitive.Root self-gates (renders null with no error). */}
       <MessagePrimitive.If assistant>
+        <OutsideSourceLine onClearChat={onClearChat} />
         <ErrorPrimitive.Root
           style={{
             flexDirection: 'row',
@@ -1030,6 +1048,18 @@ function Composer({
   const [recording, setRecording] = useState(false);
   const [voiceBusy, setVoiceBusy] = useState(false);
   const [pickerBusy, setPickerBusy] = useState(false);
+  const pendingApproval = useAuiState(
+    (state) =>
+      state.thread.messages
+        .at(-1)
+        ?.content.some(
+          (part) =>
+            part.type === 'tool-call' &&
+            part.approval &&
+            part.approval.approved === undefined &&
+            !part.approval.resolution
+        ) ?? false
+  );
   const running = useAuiState((state) => state.thread.isRunning);
   const voiceLevel = useSharedValue(0);
   const handleVoiceVolume = useCallback(
@@ -1072,6 +1102,14 @@ function Composer({
         gap: 8,
       }}
     >
+      {pendingApproval && (
+        <Text className="text-text-secondary text-sm px-3">
+          {t('chat.approval.composerHint', {
+            defaultValue:
+              'Answer the step above first, or keep typing to skip it.',
+          })}
+        </Text>
+      )}
       <ComposerAttachmentStrip onOpenLightbox={onOpenLightbox} />
       <View
         style={{
@@ -1210,14 +1248,18 @@ function ChatThread({
   serviceConfigId,
   voiceServiceConfigId,
   voiceInputEnabled,
+  conversationId,
   initialMessages,
   onRunningChange,
   autoFocusReady,
+  onClearChat,
 }: {
+  onClearChat: () => void;
   baseUrl: string;
   serviceConfigId: string;
   voiceServiceConfigId?: string | null;
   voiceInputEnabled: boolean;
+  conversationId: string;
   initialMessages: InitialMessages;
   onRunningChange: (running: boolean) => void;
   autoFocusReady: boolean;
@@ -1227,6 +1269,7 @@ function ChatThread({
   const runtime = useSparkyChatRuntime({
     baseUrl,
     serviceConfigId,
+    conversationId,
     initialMessages,
   });
 
@@ -1349,6 +1392,7 @@ function ChatThread({
             {({ message }) => (
               <MessageBubble
                 role={message.role}
+                onClearChat={onClearChat}
                 onOpenLightbox={openLightbox}
               />
             )}
@@ -1405,6 +1449,17 @@ export default function ChatScreen({
   // Remounting ChatThread by key resets the in-memory runtime (it ignores
   // `messages` changes after mount), so bump this to clear the thread.
   const [threadKey, setThreadKey] = useState(0);
+  // Kept across reopening the chat so session-affine providers keep their
+  // session; rotated when the history is cleared or the provider changes.
+  const chatConversationId = useAppPreferencesStore(
+    (s) => s.chatConversationId
+  );
+  const chatConversationServiceId = useAppPreferencesStore(
+    (s) => s.chatConversationServiceId
+  );
+  const startChatConversation = useAppPreferencesStore(
+    (s) => s.startChatConversation
+  );
   const { data: setting, isLoading: loadingSetting } =
     useActiveAiServiceSetting();
   const { preferences, refetch: refetchPreferences } = usePreferences({
@@ -1454,9 +1509,32 @@ export default function ChatScreen({
 
   const serviceConfigId = setting?.id ?? null;
 
+  useEffect(() => {
+    if (!serviceConfigId) return;
+    if (!chatConversationId || chatConversationServiceId !== serviceConfigId) {
+      let cancelled = false;
+      void (async () => {
+        // The history is global, not per provider; refetch so the new thread seeds from the latest messages.
+        await queryClient.refetchQueries({ queryKey: chatHistoryQueryKey });
+        if (!cancelled) startChatConversation(serviceConfigId);
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }
+  }, [
+    queryClient,
+    serviceConfigId,
+    chatConversationId,
+    chatConversationServiceId,
+    startChatConversation,
+  ]);
+
   const handleClear = useCallback(() => {
     Alert.alert(
-      t('chat.clearTitle', { defaultValue: 'Clear chat' }),
+      t('chat.clearConfirm.title', {
+        defaultValue: 'Clear chat?',
+      }),
       t('chat.clearMessage', {
         defaultValue:
           'This permanently deletes your Sparky chat history. This cannot be undone.',
@@ -1474,6 +1552,7 @@ export default function ChatScreen({
               await clearAllChatHistory();
               // Reset the raw (pre-select) cache so a remount seeds an empty thread.
               queryClient.setQueryData(chatHistoryQueryKey, []);
+              startChatConversation(serviceConfigId);
               setThreadKey((k) => k + 1);
             } catch (error) {
               addLog('Failed to clear chat history', 'ERROR', [
@@ -1493,7 +1572,7 @@ export default function ChatScreen({
         },
       ]
     );
-  }, [queryClient, t]);
+  }, [queryClient, serviceConfigId, startChatConversation, t]);
 
   // Clear chat is disabled while a stream runs so the server's in-flight
   // onFinish save can't resurrect the exchange after the DELETE.
@@ -1555,6 +1634,11 @@ export default function ChatScreen({
                 'No active AI provider. Configure one in the web app first.',
             })}
           />
+        ) : !chatConversationId ||
+          chatConversationServiceId !== serviceConfigId ? (
+          <View className="flex-1 items-center justify-center">
+            <ActivityIndicator color={accent} />
+          </View>
         ) : (
           <ChatThread
             key={threadKey}
@@ -1564,8 +1648,10 @@ export default function ChatScreen({
             voiceInputEnabled={
               !!preferences && preferences.voice_input_enabled !== false
             }
+            conversationId={chatConversationId}
             initialMessages={initialMessages}
             onRunningChange={setRunning}
+            onClearChat={handleClear}
             autoFocusReady={transitionComplete}
           />
         )}

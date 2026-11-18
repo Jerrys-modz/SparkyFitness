@@ -1,3 +1,7 @@
+import {
+  findFoodByExactName,
+  NAME_RESOLUTION_WINDOW,
+} from './foodNameResolution.js';
 import { tool } from 'ai';
 import { z } from 'zod';
 import {
@@ -26,11 +30,13 @@ import {
   type ProviderFoodVariant,
   type ProviderLookupResult,
 } from '../../services/foodProviderLookupService.js';
+import { PARTIAL_SERVING_DATA } from '../../utils/foodRanking.js';
 import { fetchProviderFoodDetails } from '../../services/foodProviderDetailService.js';
 import {
   resolveFoodPortion,
   validateNutritionReference,
   nutrientNumber,
+  normalizePortionUnit,
   type PortionVariant,
 } from '../../utils/foodPortionResolver.js';
 import { ERRORS, formatZodError } from './errors.js';
@@ -59,6 +65,7 @@ import {
   normalizeServingUnit,
   scaleNutritionForConsumedAmount,
 } from '../../utils/foodUtils.js';
+import { actorUserIdFor } from '../../db/poolManager.js';
 
 const VALID_ACTIONS = [
   'search_food',
@@ -102,10 +109,19 @@ const COUNT_BASED_UNITS = [
   'pack',
 ];
 
-// Window for tool-layer exact-name matching over the server's substring
-// search. An exact match could fall outside it only when more than this many
-// foods contain the searched name as a substring.
-const NAME_RESOLUTION_WINDOW = 500;
+// One detail read while the chat waits on a lookup; the OpenFoodFacts default
+// (10 s) is for user-initiated requests.
+const SERVING_RETRY_MS = 4_000;
+
+// Not every provider client takes an abort signal (FatSecret does not), so the
+// chat stops waiting at the deadline even when the request itself runs on.
+function withinServingRetry<T>(work: Promise<T | null>): Promise<T | null> {
+  let timer: NodeJS.Timeout | undefined;
+  const deadline = new Promise<null>((resolve) => {
+    timer = setTimeout(() => resolve(null), SERVING_RETRY_MS);
+  });
+  return Promise.race([work, deadline]).finally(() => clearTimeout(timer));
+}
 
 // Optional inputs and nullable DB columns are treated alike: absent.
 function isSet<T>(value: T | null | undefined): value is T {
@@ -555,7 +571,7 @@ async function resolveFoodEntryByName(
 ): Promise<{ ok: true; entryId: string } | { ok: false; message: string }> {
   const date = entryDate || todayInZone(tz);
   const rows: DiaryEntryNameRow[] = await foodEntryService.getFoodEntriesByDate(
-    userId,
+    actorUserIdFor(userId),
     userId,
     date
   );
@@ -775,23 +791,6 @@ async function searchFoodInternal(
   return buildPaginatedResult(rows.map(projectFoodItem), totalCount, offset);
 }
 
-// Case-insensitive exact name lookup (MCP's `name ILIKE $1` without
-// wildcards). Returns the raw catalog row including default_variant.
-async function findFoodByExactName(userId: string, name: string) {
-  const rows = await foodRepository.getFoodsWithPagination(
-    name,
-    null,
-    userId,
-    NAME_RESOLUTION_WINDOW,
-    0,
-    null
-  );
-  return rows.find(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (r: any) => String(r.name).toLowerCase() === name.toLowerCase()
-  );
-}
-
 // Per-day nutrition totals with the user's energy-unit conversion applied —
 // MCP's getNutritionalSummary row shape (fiber/sugar aliases included).
 // Shared with the report tools.
@@ -800,7 +799,10 @@ export async function getNutritionalSummaryRows(
   startDate: string,
   endDate: string
 ) {
-  const prefs = await preferenceService.getUserPreferences(userId, userId);
+  const prefs = await preferenceService.getUserPreferences(
+    actorUserIdFor(userId),
+    userId
+  );
   const energyUnit = (prefs?.energy_unit as string) || 'kcal';
   const rows = await reportRepository.getDailyNutritionTotalsRange(
     userId,
@@ -846,7 +848,10 @@ export async function getWaterHistoryRows(
   startDate?: string,
   endDate?: string
 ) {
-  const prefs = await preferenceService.getUserPreferences(userId, userId);
+  const prefs = await preferenceService.getUserPreferences(
+    actorUserIdFor(userId),
+    userId
+  );
   const waterUnit = (prefs?.water_display_unit as string) || 'ml';
   const rows = await measurementRepository.getWaterTotalsByDateRange(
     userId,
@@ -873,7 +878,8 @@ async function fetchVerifiedProviderFood(
   userId: string,
   providerType: string,
   externalId: string,
-  providerId?: string
+  providerId?: string,
+  signal?: AbortSignal
 ): Promise<ProviderFoodItem | null> {
   try {
     const detail = await fetchProviderFoodDetails({
@@ -882,6 +888,7 @@ async function fetchVerifiedProviderFood(
       providerType,
       externalId,
       providerId,
+      signal,
       requireNutrition: true,
     });
     if (
@@ -1296,7 +1303,23 @@ Actions:
                 return `No verified match is available for "${args.food_name}"${result.source === 'unavailable' ? '; one or more providers failed' : ''}. Try another provider or official source (up to three candidates), then ask for the label or portion weight. Do not invent nutrition.`;
               }
 
-              const f = result.food;
+              let f = result.food;
+              // A search result built from a summary (OpenFoodFacts without
+              // Product Opener hydration, FatSecret without its detail call)
+              // can quote a different serving than the full record that
+              // log_external_food saves. Fetch the shown match's full record.
+              if (f[PARTIAL_SERVING_DATA] && f.provider_external_id) {
+                f =
+                  (await withinServingRetry(
+                    fetchVerifiedProviderFood(
+                      userId,
+                      result.source,
+                      String(f.provider_external_id),
+                      result.provider_id,
+                      AbortSignal.timeout(SERVING_RETRY_MS)
+                    )
+                  )) ?? f;
+              }
               let text = `### Found match in **${result.source}**:\n`;
               text += `**${f.name}**`;
               if (f.brand) text += ` (${f.brand})`;
@@ -1317,6 +1340,9 @@ Actions:
                   : pickBestVariant(f);
               if (v) {
                 text += `\n  Serving Size: ${v.serving_size} ${v.serving_unit}`;
+                if (f[PARTIAL_SERVING_DATA])
+                  text +=
+                    ' (from the search summary; the full record was unavailable, so log by weight)';
                 text += `\n  Energy: ${v.calories ?? v.energy ?? 0} kcal`;
                 text += `\n  Macros: Protein: ${v.protein}g | Carbs: ${v.carbs}g | Fat: ${v.fat}g`;
                 if (
@@ -1386,7 +1412,11 @@ Actions:
                   ...(f.provider_external_id
                     ? { external_id: String(f.provider_external_id) }
                     : {}),
-                  quantity: 1,
+                  ...((result.source === 'openfoodfacts' ||
+                    f[PARTIAL_SERVING_DATA]) &&
+                  v
+                    ? { quantity: Number(v.serving_size), unit: v.serving_unit }
+                    : { quantity: 1 }),
                   meal_type: '<breakfast|lunch|dinner|snacks>',
                 });
                 text += `\n\nNote: this external result is not saved in the food database yet. To save and log it in one step, call sparky_manage_food with: ${exampleCall} (adjust quantity and meal_type). Do NOT pass the External ID as food_id.`;
@@ -1442,7 +1472,7 @@ Actions:
               const entryDate = args.entry_date || todayInZone(tz);
               const entry = await foodEntryService.createFoodEntry(
                 userId,
-                userId,
+                actorUserIdFor(userId),
                 {
                   user_id: userId,
                   food_id: foodId,
@@ -1580,7 +1610,7 @@ Actions:
                 if (!logged.ok) return ERRORS.VALIDATION(logged.message);
                 const entry = await foodEntryService.createFoodEntry(
                   userId,
-                  userId,
+                  actorUserIdFor(userId),
                   {
                     user_id: userId,
                     food_id: match.id,
@@ -1630,6 +1660,31 @@ Actions:
                   );
                 }
                 match = detail;
+              }
+              // Same summary gap as in lookup_food_nutrition: save from the
+              // full record so the reference matches what the lookup quoted.
+              if (match[PARTIAL_SERVING_DATA] && match.provider_external_id) {
+                match =
+                  (await fetchVerifiedProviderFood(
+                    userId,
+                    result.source,
+                    String(match.provider_external_id),
+                    result.provider_id
+                  )) ?? match;
+              }
+              // Still the summary: its reference serving may not be the one
+              // the lookup quoted, so a serving count could log the wrong
+              // amount. Only a weight or volume converts safely.
+              if (match[PARTIAL_SERVING_DATA]) {
+                const unit = normalizePortionUnit(args.unit);
+                if (
+                  getConversionFactor('g', unit) === null &&
+                  getConversionFactor('ml', unit) === null
+                ) {
+                  return ERRORS.VALIDATION(
+                    'Full details for this item are unavailable, so its serving size is unconfirmed; nothing was logged. Log it by weight or volume (for example 30 g), or retry.'
+                  );
+                }
               }
               const providerVariants = match.variants?.length
                 ? match.variants
@@ -1818,21 +1873,25 @@ Actions:
                   'The imported food has no saved reference variant; nothing was logged.'
                 );
 
-              await foodEntryService.createFoodEntry(userId, userId, {
-                user_id: userId,
-                food_id: food.id,
-                variant_id: logged.variant.id,
-                entry_date: entryDate,
-                quantity: logged.quantity,
-                unit: logged.unit,
-                meal_type_id: mealType.id,
-                entry_time: resolveEntryTime(
-                  args.entry_time,
-                  mealType,
-                  entryDate,
-                  tz
-                ),
-              });
+              await foodEntryService.createFoodEntry(
+                userId,
+                actorUserIdFor(userId),
+                {
+                  user_id: userId,
+                  food_id: food.id,
+                  variant_id: logged.variant.id,
+                  entry_date: entryDate,
+                  quantity: logged.quantity,
+                  unit: logged.unit,
+                  meal_type_id: mealType.id,
+                  entry_time: resolveEntryTime(
+                    args.entry_time,
+                    mealType,
+                    entryDate,
+                    tz
+                  ),
+                }
+              );
               let savedMsg = `Saved "${food.name}" from ${result.source} and logged ${logged.quantity} ${logged.unit} to ${mealType.name} on ${entryDate}. Reference: ${logged.variant.serving_size} ${logged.variant.serving_unit}. ${formatConsumedNutrition(logged.quantity, logged.variant.serving_size, logged.variant)}`;
               if (args.is_quick_food) {
                 savedMsg +=
@@ -1925,21 +1984,25 @@ Actions:
               let msg = `Food "${food.name}" created with ${v?.calories || 0} kcal per ${v?.serving_size || 100}${v?.serving_unit || 'g'}.`;
               if (mealType) {
                 const entryDate = args.entry_date || todayInZone(tz);
-                await foodEntryService.createFoodEntry(userId, userId, {
-                  user_id: userId,
-                  food_id: food.id,
-                  variant_id: v?.id,
-                  entry_date: entryDate,
-                  quantity: targetQuantity,
-                  unit: targetUnit,
-                  meal_type_id: mealType.id,
-                  entry_time: resolveEntryTime(
-                    args.entry_time,
-                    mealType,
-                    entryDate,
-                    tz
-                  ),
-                });
+                await foodEntryService.createFoodEntry(
+                  userId,
+                  actorUserIdFor(userId),
+                  {
+                    user_id: userId,
+                    food_id: food.id,
+                    variant_id: v?.id,
+                    entry_date: entryDate,
+                    quantity: targetQuantity,
+                    unit: targetUnit,
+                    meal_type_id: mealType.id,
+                    entry_time: resolveEntryTime(
+                      args.entry_time,
+                      mealType,
+                      entryDate,
+                      tz
+                    ),
+                  }
+                );
                 msg += ` Also logged to ${mealType.name} for ${entryDate}.`;
               }
               if (args.is_quick_food) {
@@ -2033,16 +2096,20 @@ Actions:
                   throw error;
                 }
               }
-              await foodEntryService.createFoodEntryMeal(userId, userId, {
-                user_id: userId,
-                meal_template_id: mealId,
-                meal_type_id: mealType.id,
-                entry_date: args.entry_date,
-                name: mealName,
-                quantity: args.quantity || 1,
-                unit: args.unit || 'serving',
-                _clientMealModelVersion: 2,
-              });
+              await foodEntryService.createFoodEntryMeal(
+                userId,
+                actorUserIdFor(userId),
+                {
+                  user_id: userId,
+                  meal_template_id: mealId,
+                  meal_type_id: mealType.id,
+                  entry_date: args.entry_date,
+                  name: mealName,
+                  quantity: args.quantity || 1,
+                  unit: args.unit || 'serving',
+                  _clientMealModelVersion: 2,
+                }
+              );
               return formatConfirmation(
                 `Meal "${mealName}" logged for ${mealType.name} on ${args.entry_date}.`
               );
@@ -2051,12 +2118,12 @@ Actions:
             case 'list_diary': {
               const date = args.entry_date || todayInZone(tz);
               const prefs = await preferenceService.getUserPreferences(
-                userId,
+                actorUserIdFor(userId),
                 userId
               );
               const eUnit = (prefs?.energy_unit as string) || 'kcal';
               const foodRows = await foodEntryService.getFoodEntriesByDate(
-                userId,
+                actorUserIdFor(userId),
                 userId,
                 date
               );
@@ -2473,7 +2540,7 @@ Actions:
                 if (entryType === 'food_entry') {
                   await foodEntryService.updateFoodEntry(
                     userId,
-                    userId,
+                    actorUserIdFor(userId),
                     entryId,
                     {
                       ...(replacementVariantId
@@ -2519,7 +2586,7 @@ Actions:
                       }
                       await foodEntryService.moveFoodEntryMealToMealType(
                         userId,
-                        userId,
+                        actorUserIdFor(userId),
                         entryId,
                         mealType.id
                       );
@@ -2545,7 +2612,7 @@ Actions:
                   }
                   await foodEntryService.updateFoodEntryMeal(
                     userId,
-                    userId,
+                    actorUserIdFor(userId),
                     entryId,
                     {
                       meal_template_id: existing.meal_template_id,
@@ -2716,7 +2783,7 @@ Actions:
               const copied = mealType
                 ? await foodEntryService.copyFoodEntries(
                     userId,
-                    userId,
+                    actorUserIdFor(userId),
                     sourceDate,
                     mealType.id,
                     targetDate,
@@ -2724,7 +2791,7 @@ Actions:
                   )
                 : await foodEntryService.copyAllFoodEntries(
                     userId,
-                    userId,
+                    actorUserIdFor(userId),
                     sourceDate,
                     targetDate
                   );
@@ -2777,7 +2844,7 @@ Actions:
             case 'log_water': {
               await measurementService.logWaterIntakeAmount(
                 userId,
-                userId,
+                actorUserIdFor(userId),
                 args.entry_date,
                 args.amount_ml
               );
@@ -2995,7 +3062,7 @@ Actions:
             parsed.data.offset
           );
           const foodEntries = await foodEntryService.getFoodEntriesByDateRange(
-            userId,
+            actorUserIdFor(userId),
             userId,
             startDate,
             endDate

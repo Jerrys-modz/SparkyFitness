@@ -41,12 +41,13 @@ enum MacroKind {
         }
     }
 
-    /// Matches the macro colours in targets/watch's GoalPalette.
+    /// Matches the macro colours in targets/watch's GoalPalette, through the
+    /// `ComplicationPalette` mirror in EnergyGoalComplication.swift.
     var tint: Color {
         switch self {
-        case .protein: return .red
-        case .carbs: return .yellow
-        case .fat: return .blue
+        case .protein: return ComplicationPalette.protein
+        case .carbs: return ComplicationPalette.carbs
+        case .fat: return ComplicationPalette.fat
         }
     }
 }
@@ -214,9 +215,10 @@ struct MacroComplicationView: View {
 }
 
 struct ProteinGoalComplication: Widget {
-    // Must match MacroKind.protein.kind. Literals throughout, like the other
-    // complications: a configuration built from interpolated strings crashed
-    // the extension at load on watchOS 27.
+    // Must match ComplicationPublisher's Energy.kinds (targets/watch), which
+    // reloads this kind whenever energyGoalSnapshot changes. Literals
+    // throughout, like the other complications: a configuration built from
+    // interpolated strings crashed the extension at load on watchOS 27.
     let kind: String = "proteinGoalComplication"
 
     var body: some WidgetConfiguration {

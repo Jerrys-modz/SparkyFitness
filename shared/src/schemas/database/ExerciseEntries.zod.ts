@@ -37,6 +37,7 @@ export const exerciseEntriesSchema = z.object({
   sort_order: z.number().nullable(),
   superset_group: z.number().nullable(),
   modality: z.string().nullable(),
+  health_activity_type: z.string().nullable(),
   // Optional: entry payloads built by clients and imports omit it, and the
   // column defaults to 'total'.
   load_convention: z.string().optional(),
@@ -129,6 +130,7 @@ export const exerciseEntriesInitializerSchema = z.object({
   sort_order: z.number().optional().nullable(),
   superset_group: z.number().optional().nullable(),
   modality: z.string().optional().nullable(),
+  health_activity_type: z.string().optional().nullable(),
   load_convention: z.string().optional(),
   max_heart_rate: z.number().optional().nullable(),
   heart_rate_recovery_1min: z.number().optional().nullable(),

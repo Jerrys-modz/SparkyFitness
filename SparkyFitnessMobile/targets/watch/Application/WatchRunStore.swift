@@ -98,6 +98,8 @@ final class WatchRunStore: ObservableObject {
             && !RecordingStore.shared.isActive
             && !WorkoutHealthKitController.shared.hasLiveSession
             && !RecordingHealthKitController.shared.hasLiveSession
+            // An indoor run's workout still waiting for Health keeps its session.
+            && !healthKit.holdsWorkoutSession
     }
 
     private let healthKit = WatchRunHealthKitController.shared
@@ -133,6 +135,10 @@ final class WatchRunStore: ObservableObject {
         }
         healthKit.onLocation = { [weak self] point, accuracy, date in
             Task { @MainActor in self?.routeFix(point, accuracy: accuracy, at: date) }
+        }
+        // A held indoor workout freed its session: Start can show again.
+        healthKit.onHeldReleased = { [weak self] in
+            Task { @MainActor in self?.objectWillChange.send() }
         }
         healthKit.onGpsAccuracy = { [weak self] accuracy in
             Task { @MainActor in
@@ -333,7 +339,11 @@ final class WatchRunStore: ObservableObject {
             switch event {
             case .approachingCue(let routeCue):
                 Haptics.routeCue()
-                cue(routeCue.spoken(distanceMeters: update.snapshot.nextCue?.distanceMeters ?? 0, inMiles: usesMiles))
+                // A route's own wording is not in the watch's language.
+                cue(
+                    routeCue.spoken(distanceMeters: update.snapshot.nextCue?.distanceMeters ?? 0, inMiles: usesMiles),
+                    containsPhoneText: routeCue.text != nil
+                )
             case .wentOffRoute:
                 Haptics.offRoute()
                 cue(String(localized: "watch.route.offRouteSpoken", defaultValue: "You are off the route."))
@@ -413,6 +423,48 @@ final class WatchRunStore: ObservableObject {
                     self.lastSplitElapsed = resumedAt
                     self.phase = recovery.paused ? .paused : .running
                     completion(true)
+                case .awaitingDistance(let unscaled, let elapsed):
+                    // The run had ended and the app went before the treadmill
+                    // answer: ask again. Its paused session is held meanwhile.
+                    self.followRoute(nil)
+                    let scale = Self.scale(for: unscaled.kind, place: unscaled.place)
+                    var scaled = unscaled.scalingDistance(by: scale)
+                    scaled.distanceScale = scale
+                    self.kind = scaled.kind
+                    self.place = scaled.place
+                    self.distanceScale = scale
+                    self.metrics = scaled.metrics
+                    self.summary = nil
+                    self.plan = self.healthKit.plan
+                    self.pendingResult = scaled
+                    self.pendingElapsed = elapsed
+                    self.phase = .confirmingDistance
+                    completion(true)
+                case .answeredHeld(let unscaled, let answer, let scale, let queued):
+                    // Answered before the app went: the same settled run, with
+                    // the factor it used then. Health's write is the
+                    // controller's; the phone gets the run unless it has it.
+                    self.followRoute(nil)
+                    guard !queued else { completion(true); return }
+                    var scaled = unscaled.scalingDistance(by: scale)
+                    scaled.distanceScale = scale
+                    let result = Self.settle(scaled, answer: answer)
+                    if WatchSessionManager.shared.sendRunFinished(result) {
+                        self.healthKit.messageQueued(clientId: result.clientId)
+                    }
+                    self.kind = result.kind
+                    self.place = result.place
+                    self.metrics = result.metrics
+                    self.summary = Summary(
+                        kind: result.kind,
+                        place: result.place,
+                        elapsed: result.activeSeconds,
+                        metrics: result.metrics,
+                        saved: true,
+                        clientId: result.clientId
+                    )
+                    self.phase = .finished
+                    completion(true)
                 case .salvaged(let unscaled):
                     self.followRoute(nil)
                     // The Health session was lost; the run itself was not.
@@ -469,9 +521,11 @@ final class WatchRunStore: ObservableObject {
         return plan.doneText
     }
 
-    private func cue(_ text: String) {
+    /// `containsPhoneText`: the cue includes words the phone wrote (see
+    /// `WatchRunCues.speak`).
+    private func cue(_ text: String, containsPhoneText: Bool = false) {
         guard settings.voiceCues else { return }
-        WatchRunCues.shared.speak(text, interrupt: true)
+        WatchRunCues.shared.speak(text, interrupt: true, containsPhoneText: containsPhoneText)
     }
 
     /// Turns auto-pause on or off mid-run. Turning it off while it holds the
@@ -710,9 +764,10 @@ final class WatchRunStore: ObservableObject {
             let planStep = plan.steps[position.index]
             let step = planStep.isDistance
                 ? WatchRunCues.stepText(label: position.label, meters: planStep.meters ?? 0, inMiles: planStep.inMiles)
-                : WatchRunCues.stepText(label: position.label, seconds: planStep.seconds)
+                : WatchRunCues.stepText(label: position.label, seconds: planStep.seconds, language: phoneLanguage)
             let intro = first ? plan.startText : nil
-            WatchRunCues.shared.speak(intro.map { "\($0) \(step)" } ?? step, interrupt: true)
+            // The step name comes from the phone, in the app's language.
+            WatchRunCues.shared.speak(intro.map { "\($0) \(step)" } ?? step, interrupt: true, containsPhoneText: true)
         }
     }
 
@@ -743,7 +798,7 @@ final class WatchRunStore: ObservableObject {
         case .milestone(let meters):
             WatchRunCues.shared.speak(WatchRunCues.milestoneText(meters: meters))
         case .stepWarning(let next):
-            WatchRunCues.shared.speak(WatchRunCues.stepWarningText(next: next))
+            WatchRunCues.shared.speak(WatchRunCues.stepWarningText(next: next), containsPhoneText: next != nil)
         case .lastMinute:
             WatchRunCues.shared.speak(WatchRunCues.lastMinuteText)
         case .halfway:
@@ -776,6 +831,12 @@ final class WatchRunStore: ObservableObject {
         healthKit.planPosition()
     }
 
+    /// The language of words the phone wrote: the app's when the phone has said
+    /// what it is, else the catalog's.
+    private var phoneLanguage: String {
+        CheckInStore.shared.context.appLanguage ?? WatchRunCues.languageTag
+    }
+
     private var usesMiles: Bool {
         CheckInStore.shared.context.distanceUnit == "miles"
     }
@@ -806,7 +867,7 @@ final class WatchRunStore: ObservableObject {
             phase = .paused
             autoPaused = true
             healthKit.pause(automatic: true)
-            WKInterfaceDevice.current().play(.stop)
+            Haptics.autoPaused()
             cue(String(localized: "watch.run.cue.autoPaused", defaultValue: "Auto-paused."))
             pushLive(force: true)
         case .resume:
@@ -814,7 +875,7 @@ final class WatchRunStore: ObservableObject {
             phase = .running
             autoPaused = false
             healthKit.resume()
-            WKInterfaceDevice.current().play(.start)
+            Haptics.autoResumed()
             cue(String(localized: "watch.run.cue.resumed", defaultValue: "Resumed."))
             pushLive(force: true)
         case .none:
@@ -882,18 +943,24 @@ final class WatchRunStore: ObservableObject {
                 // cue that reaches it behind that work is confirmed late, so the
                 // watch gave up waiting and said the cue too (heard twice).
                 if save {
+                    let done = self.programDoneText(completed: scaled?.planCompleted ?? false)
+                    // With the program's done sentence the cue is the phone's
+                    // language, durations included.
+                    let language = done == nil ? nil : self.phoneLanguage
                     let finished = ending.showsDistance
                         ? WatchRunCues.finishText(
                             title: ending.title(endingPlace),
                             distanceMeters: metrics.distanceMeters,
                             seconds: elapsed,
-                            usesMiles: self.usesMiles
+                            usesMiles: self.usesMiles,
+                            language: language
                         )
                         : WatchRunCues.finishText(
                             title: ending.title(endingPlace),
-                            seconds: elapsed
+                            seconds: elapsed,
+                            language: language
                         )
-                    self.cue(self.programDoneText(completed: scaled?.planCompleted ?? false).map { "\(finished) \($0)" } ?? finished)
+                    self.cue(done.map { "\(finished) \($0)" } ?? finished, containsPhoneText: done != nil)
                 }
                 // The Health workout is stamped so the phone's import skips
                 // it; this message is how the run reaches the diary.
@@ -921,32 +988,59 @@ final class WatchRunStore: ObservableObject {
     /// or nil to keep the watch's figure. Sends the run to the phone either
     /// way, then shows the summary.
     func confirmDistance(_ meters: Double?) {
-        guard phase == .confirmingDistance, var result = pendingResult else { return }
-        let shown = result.metrics.distanceMeters
-        if let meters, meters > 0 {
-            result.estimatedDistanceMeters = shown
-            result = result.scalingDistance(by: shown > 0 ? meters / shown : 1)
-            // A watch that measured nothing still takes the machine's figure.
-            result.metrics.distanceMeters = meters
-        }
+        guard phase == .confirmingDistance, let pending = pendingResult else { return }
+        let answer = meters.flatMap { $0 > 0 ? $0 : nil }
+        let result = Self.settle(pending, answer: answer)
         pendingResult = nil
         // Say the finish once the distance is settled (the machine's figure, if
         // given), and before the run is handed to the phone, as on the other
         // finish path: a cue confirmed behind the phone's filing is heard twice.
+        let done = programDoneText(completed: result.planCompleted)
         let finished = WatchRunCues.finishText(
             title: result.kind.title(result.place),
             distanceMeters: result.metrics.distanceMeters,
             seconds: pendingElapsed,
-            usesMiles: usesMiles
+            usesMiles: usesMiles,
+            language: done == nil ? nil : phoneLanguage
         )
-        cue(programDoneText(completed: result.planCompleted).map { "\(finished) \($0)" } ?? finished)
-        // The snapshot stays until the message is durably queued.
-        if WatchSessionManager.shared.sendRunFinished(result) {
-            WatchRunSnapshotStore.clear()
+        cue(done.map { "\(finished) \($0)" } ?? finished, containsPhoneText: done != nil)
+        // The Health workout was held for this answer: write it with the final
+        // figure, then send the run with the workout's heart-rate zones. Health
+        // answers within `finishWorkoutTimeout`, without zones if it is slow.
+        // The answer is in the snapshot before anything is written, so a kill
+        // from here on still sends this settled run (`answeredHeld`), and the
+        // snapshot stays until both the message is queued and Health has the
+        // workout; until then the held session keeps a new run from starting.
+        healthKit.finishHeld(
+            answer: answer,
+            finalDistanceMeters: result.metrics.distanceMeters,
+            scale: result.distanceScale
+        ) { outcome in
+            let zones = outcome.zones
+            Task { @MainActor in
+                var sent = result
+                sent.appleZones = zones
+                if WatchSessionManager.shared.sendRunFinished(sent) {
+                    self.healthKit.messageQueued(clientId: result.clientId)
+                }
+            }
         }
         metrics = result.metrics
         summary = Summary(kind: result.kind, place: result.place, elapsed: pendingElapsed, metrics: result.metrics, saved: true, clientId: result.clientId)
         phase = .finished
+    }
+
+    /// The run once the treadmill question is answered: `answer` is what the
+    /// machine showed, or nil to keep the watch's figure. Used for the answer
+    /// and again for a run rebuilt after a relaunch, so both come out the same.
+    private static func settle(_ scaled: WatchRunResult, answer: Double?) -> WatchRunResult {
+        guard let answer else { return scaled }
+        let shown = scaled.metrics.distanceMeters
+        var result = scaled.scalingDistance(by: shown > 0 ? answer / shown : 1)
+        result.estimatedDistanceMeters = shown
+        // A watch that measured nothing still takes the machine's figure.
+        result.metrics.distanceMeters = answer
+        return result
     }
 
     /// The learned indoor factor for a new run; outdoors the GPS needs none.
@@ -999,6 +1093,6 @@ final class WatchRunStore: ObservableObject {
             completion(true)
             return
         }
-        healthKit.saveEffort(score, completion: completion)
+        healthKit.saveEffort(score, for: summary?.clientId, completion: completion)
     }
 }

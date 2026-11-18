@@ -34,6 +34,8 @@ struct GoalSummaryView: View {
                 }
             }
             .padding(.horizontal, 2)
+            // The page dots sit over the bottom of the screen.
+            .padding(.bottom, WatchStyle.s(16))
         }
     }
 
@@ -45,7 +47,7 @@ struct GoalSummaryView: View {
     private var headlineRow: some View {
         VStack(spacing: 4) {
             calorieRing
-            Text(String(localized: "watch.goals.eatenBurned", defaultValue: "\(nutrition.map { whole($0.caloriesConsumed) } ?? "–") eaten · \(nutrition.map { whole($0.caloriesBurned) } ?? "–") burned"))
+            Text(String(localized: "watch.goals.eatenBurned", defaultValue: "\(nutrition.map { whole(store.context.energyFromKcal($0.caloriesConsumed)) } ?? "–") eaten · \(nutrition.map { whole(store.context.energyFromKcal($0.caloriesBurned)) } ?? "–") burned"))
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
@@ -93,25 +95,35 @@ struct GoalSummaryView: View {
     /// it, so the sign does the work the word can't.
     private var calorieValueText: String {
         guard let nutrition else { return "–" }
-        return whole(nutrition.caloriesRemaining)
+        return whole(store.context.energyFromKcal(nutrition.caloriesRemaining))
     }
 
     private var calorieCaption: String {
-        guard let nutrition, nutrition.caloriesRemaining < 0 else {
-            return String(localized: "watch.goals.kcalLeft", defaultValue: "kcal left")
+        let over = (nutrition?.caloriesRemaining ?? 0) < 0
+        if store.context.usesKilojoules {
+            return over
+                ? String(localized: "watch.goals.kjOver", defaultValue: "kJ over")
+                : String(localized: "watch.goals.kjLeft", defaultValue: "kJ left")
         }
-        return String(localized: "watch.goals.kcalOver", defaultValue: "kcal over")
+        return over
+            ? String(localized: "watch.goals.kcalOver", defaultValue: "kcal over")
+            : String(localized: "watch.goals.kcalLeft", defaultValue: "kcal left")
     }
 
     /// Unsigned here even though the visible number is signed: "minus 254
     /// calories over goal" is worse spoken than written, and the words
     /// already say which side of the goal the wearer is on.
     private var calorieAccessibilityLabel: String {
-        guard let nutrition else { return "Calories not synced yet" }
-        let amount = whole(abs(nutrition.caloriesRemaining))
+        guard let nutrition else { return String(localized: "watch.goals.caloriesNotSynced", defaultValue: "Calories not synced yet") }
+        let amount = whole(store.context.energyFromKcal(abs(nutrition.caloriesRemaining)))
+        if store.context.usesKilojoules {
+            return nutrition.caloriesRemaining < 0
+                ? String(localized: "watch.goals.kilojoulesOverGoal", defaultValue: "\(amount) kilojoules over goal")
+                : String(localized: "watch.goals.kilojoulesLeft", defaultValue: "\(amount) kilojoules left")
+        }
         return nutrition.caloriesRemaining < 0
-            ? "\(amount) calories over goal"
-            : "\(amount) calories left"
+            ? String(localized: "watch.goals.caloriesOverGoal", defaultValue: "\(amount) calories over goal")
+            : String(localized: "watch.goals.caloriesLeft", defaultValue: "\(amount) calories left")
     }
 
     // MARK: - Nutrients
@@ -124,21 +136,31 @@ struct GoalSummaryView: View {
     private var rows: [NutrientRow?] {
         if let rows = nutrition?.rows { return rows }
         return [
-            macroRow("protein", "Protein", nutrition?.protein),
-            macroRow("carbs", "Carbs", nutrition?.carbs),
-            macroRow("fat", "Fat", nutrition?.fat),
+            macroRow("protein", Self.macroTitle("protein"), nutrition?.protein),
+            macroRow("carbs", Self.macroTitle("carbs"), nutrition?.carbs),
+            macroRow("fat", Self.macroTitle("fat"), nutrition?.fat),
         ]
     }
 
     private var macroRows: some View {
         VStack(spacing: 7) {
             ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
-                nutrientRow(row, placeholderTitle: Self.placeholderTitles[safe: index], index: index)
+                nutrientRow(row, placeholderKey: Self.placeholderKeys[safe: index], index: index)
             }
         }
     }
 
-    private static let placeholderTitles = ["Protein", "Carbs", "Fat"]
+    private static let placeholderKeys = ["protein", "carbs", "fat"]
+
+    /// The fixed macros' names; `key` is also what picks the row's colour, so
+    /// it is never the translated text.
+    private static func macroTitle(_ key: String) -> String {
+        switch key {
+        case "protein": return String(localized: "watch.goals.protein", defaultValue: "Protein")
+        case "carbs": return String(localized: "watch.goals.carbs", defaultValue: "Carbs")
+        default: return String(localized: "watch.goals.fat", defaultValue: "Fat")
+        }
+    }
 
     /// The fixed macros as rows. Nil before the phone has synced today, which
     /// the row draws as dashes.
@@ -147,16 +169,16 @@ struct GoalSummaryView: View {
         return NutrientRow(
             key: key,
             label: title,
-            unit: "g",
+            unit: String(localized: "watch.unit.grams", defaultValue: "g"),
             consumed: macro.consumed,
             goal: macro.hasGoal ? macro.goal : nil,
             progress: macro.progress
         )
     }
 
-    private func nutrientRow(_ row: NutrientRow?, placeholderTitle: String?, index: Int) -> some View {
-        let color = GoalPalette.color(forNutrient: row?.key ?? placeholderTitle?.lowercased() ?? "", index: index)
-        let title = row?.label ?? placeholderTitle ?? ""
+    private func nutrientRow(_ row: NutrientRow?, placeholderKey: String?, index: Int) -> some View {
+        let color = GoalPalette.color(forNutrient: row?.key ?? placeholderKey ?? "", index: index)
+        let title = row?.label ?? placeholderKey.map(Self.macroTitle) ?? ""
         return VStack(alignment: .leading, spacing: 3) {
             HStack(alignment: .firstTextBaseline, spacing: 3) {
                 Text(title)

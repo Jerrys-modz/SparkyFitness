@@ -1,3 +1,7 @@
+import {
+  chatApprovalResponsesReady,
+  savedChatMessageMetadata,
+} from '@workspace/shared';
 import { formatDateToYYYYMMDD } from '@/lib/utils';
 import { useActiveAIService } from '@/hooks/AI/useAIServiceSettings';
 import { useAuth } from '@/hooks/useAuth';
@@ -17,12 +21,14 @@ import { Thread } from '@/components/thread';
 import { useToast } from '@/hooks/use-toast';
 import { useChatToolCategories } from '@/contexts/ChatToolCategoriesContext';
 import { useEffect } from 'react';
+import { useActiveUser } from '@/contexts/ActiveUserContext';
 import { useQueryClient } from '@tanstack/react-query';
 import { FoodAssistantState } from '@/components/ai/FoodAssistantState';
 
 import { MessagePart, ImagePart } from '@/types/Chatbot_types';
 import { type UIMessage } from 'ai';
 import { resizeImageBase64 } from '@/utils/imageResize';
+import { getChatConversationId } from '@/utils/chatConversationId';
 
 import { useTranslation } from 'react-i18next';
 interface SparkyChatInnerProps {
@@ -30,17 +36,20 @@ interface SparkyChatInnerProps {
     id: string;
     chat_tool_profile?: 'full' | 'core' | null;
   } | null;
+  onClearChat?: () => void;
   history: Array<{
     id: string;
     content: string;
     isUser: boolean;
     parts?: MessagePart[];
+    metadata?: unknown;
   }>;
 }
 
 const SparkyChatInner = ({
   activeAIServiceSetting,
   history,
+  onClearChat,
 }: SparkyChatInnerProps) => {
   const { t } = useTranslation();
   const invalidateDiary = useDiaryInvalidation();
@@ -48,6 +57,7 @@ const SparkyChatInner = ({
   const queryClient = useQueryClient();
   const userDate = formatDateToYYYYMMDD(new Date());
   const { toast } = useToast();
+  const { activeUserId } = useActiveUser();
 
   // Runtime tool-category selection, scoped to the active service and prefilled
   // from its full/core profile. getSelected() is stable and reads the latest
@@ -93,6 +103,7 @@ const SparkyChatInner = ({
       role: msg.isUser ? ('user' as const) : ('assistant' as const),
       content: msg.content,
       parts,
+      metadata: savedChatMessageMetadata(msg.metadata, msg.id),
       attachments,
     };
   }) as unknown as NonNullable<
@@ -100,9 +111,12 @@ const SparkyChatInner = ({
   >['messages'];
 
   const runtime = useChatRuntime({
+    joinStrategy: 'none',
+    sendAutomaticallyWhen: chatApprovalResponsesReady,
     transport: new AssistantChatTransport({
       api: '/api/chat/stream',
       body: {
+        approvals: true,
         service_config_id: activeAIServiceSetting?.id,
         user_date: userDate,
       },
@@ -145,6 +159,9 @@ const SparkyChatInner = ({
             // closure never sends a stale set). Empty => server falls back to
             // the service's profile default.
             toolCategories: hasCustomSelection ? getSelected() : undefined,
+            // Stable per-conversation ID. The server pins providers that need
+            // session affinity (OpenCode Go) to it.
+            conversationId: await getChatConversationId(activeUserId ?? ''),
             messages: processedMessages,
           },
         };
@@ -187,14 +204,15 @@ const SparkyChatInner = ({
         }
       />
       <div className="flex-1 overflow-hidden py-4">
-        <Thread runtime={runtime} />
+        <Thread runtime={runtime} onClearChat={onClearChat} />
       </div>
     </div>
   );
 };
 
-const SparkyChatInterface = () => {
+const SparkyChatInterface = ({ onClearChat }: { onClearChat?: () => void }) => {
   const { user } = useAuth();
+  const { activeUserId } = useActiveUser();
   const { data: activeAIServiceSetting, isLoading: isActiveServiceLoading } =
     useActiveAIService(!!user);
   const { data: preferences, isLoading: isPrefsLoading } =
@@ -214,8 +232,10 @@ const SparkyChatInterface = () => {
 
   return (
     <SparkyChatInner
+      key={activeUserId ?? ''}
       activeAIServiceSetting={activeAIServiceSetting || null}
       history={history || []}
+      onClearChat={onClearChat}
     />
   );
 };

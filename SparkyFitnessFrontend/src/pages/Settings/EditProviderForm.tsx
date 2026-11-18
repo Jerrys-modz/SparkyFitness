@@ -11,6 +11,11 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Clipboard } from 'lucide-react';
 import { RoutingProviderFields } from './RoutingProviderFields';
+import { ProviderSyncFrequencyFields } from './ProviderSyncFrequencyFields';
+import { WeatherProviderFields } from './WeatherProviderFields';
+import { McpServerFields } from './McpServerFields';
+import { MCP_SERVER_PROVIDER_TYPE } from '@workspace/shared';
+import { isProviderTypeOffered } from '@/utils/settings';
 import { Trans, useTranslation } from 'react-i18next';
 import type { ExternalDataProvider } from './ExternalProviderSettings';
 import { toast } from '@/hooks/use-toast';
@@ -42,6 +47,9 @@ export const EditProviderForm = ({
   // Fatsecret shares the credential fields with Nutritionix, but its dashboard
   // issues OAuth 2.0 Client ID / Client Secret rather than an App ID / App Key.
   const isFatsecret = editData.provider_type === 'fatsecret';
+  // The API refuses to change a tool server into another type, or another
+  // type into one.
+  const isMcpServer = provider.provider_type === MCP_SERVER_PROVIDER_TYPE;
   return (
     <form
       onSubmit={(e) => {
@@ -70,6 +78,7 @@ export const EditProviderForm = ({
             {t('settings.editProviderForm.providerType', 'Provider Type')}
           </Label>
           <Select
+            disabled={isMcpServer}
             value={editData.provider_type || ''}
             onValueChange={(value) =>
               setEditData((prev) => ({
@@ -90,12 +99,15 @@ export const EditProviderForm = ({
             </SelectTrigger>
             <SelectContent>
               {(providerTypes || [])
+                .filter(
+                  (type) =>
+                    isProviderTypeOffered(type, isAdminMode) &&
+                    (type.id === MCP_SERVER_PROVIDER_TYPE) === isMcpServer
+                )
                 .map((type) => ({
                   value: type.id,
                   label: type.display_name,
-                  is_strictly_private: type.is_strictly_private,
                 }))
-                .filter((type) => !isAdminMode || !type.is_strictly_private)
                 .map((type) => (
                   <SelectItem key={type.value} value={type.value}>
                     {type.label}
@@ -225,6 +237,38 @@ export const EditProviderForm = ({
       )}
       {editData.provider_type === 'valhalla' && (
         <RoutingProviderFields
+          idPrefix="edit"
+          baseUrl={editData.base_url}
+          appKey={editData.app_key}
+          onBaseUrlChange={(value) =>
+            setEditData((prev) => ({ ...prev, base_url: value }))
+          }
+          onAppKeyChange={(value) =>
+            setEditData((prev) => ({ ...prev, app_key: value }))
+          }
+        />
+      )}
+      {isMcpServer && (
+        <McpServerFields
+          idPrefix="edit"
+          providerId={provider.id}
+          savedBaseUrl={provider.base_url}
+          baseUrl={editData.base_url}
+          appKey={editData.app_key}
+          options={editData.provider_options}
+          onBaseUrlChange={(value) =>
+            setEditData((prev) => ({ ...prev, base_url: value }))
+          }
+          onAppKeyChange={(value) =>
+            setEditData((prev) => ({ ...prev, app_key: value }))
+          }
+          onOptionsChange={(options) =>
+            setEditData((prev) => ({ ...prev, provider_options: options }))
+          }
+        />
+      )}
+      {editData.provider_type === 'open_meteo' && (
+        <WeatherProviderFields
           idPrefix="edit"
           baseUrl={editData.base_url}
           appKey={editData.app_key}
@@ -763,6 +807,28 @@ export const EditProviderForm = ({
               </p>
             </>
           )}
+          {provider.garmin_service_reachable === false && (
+            <div
+              role="alert"
+              className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4"
+            >
+              <div className="flex items-center gap-2 text-red-700 dark:text-red-400">
+                <div className="h-2 w-2 bg-red-500 rounded-full"></div>
+                <span className="font-medium">
+                  {t(
+                    'settings.editProviderForm.garminServiceUnreachable',
+                    'Garmin service unreachable'
+                  )}
+                </span>
+              </div>
+              <p className="text-sm text-muted-foreground mt-2">
+                {t(
+                  'settings.editProviderForm.garminServiceUnreachableDescription',
+                  'SparkyFitness cannot reach the Garmin service, so Garmin data cannot be synced. Check that the Garmin microservice is running.'
+                )}
+              </p>
+            </div>
+          )}
         </>
       )}
       {editData.provider_type === 'fitbit' && (
@@ -1248,52 +1314,14 @@ export const EditProviderForm = ({
           </p>
         </>
       )}
-      {(editData.provider_type === 'withings' ||
-        editData.provider_type === 'garmin' ||
-        editData.provider_type === 'fitbit' ||
-        editData.provider_type === 'oura' ||
-        editData.provider_type === 'googlehealth' ||
-        editData.provider_type === 'strava' ||
-        editData.provider_type === 'polar' ||
-        editData.provider_type === 'coros_mcp' ||
-        editData.provider_type === 'hevy' ||
-        editData.provider_type === 'liftosaur' ||
-        editData.provider_type === 'intervals') && (
-        <div>
-          <Label htmlFor="edit_sync_frequency">
-            {t('settings.editProviderForm.syncFrequency', 'Sync Frequency')}
-          </Label>
-          <Select
-            value={editData.sync_frequency || 'manual'}
-            onValueChange={(value) =>
-              setEditData((prev) => ({
-                ...prev,
-                sync_frequency: value as 'hourly' | 'daily' | 'manual',
-              }))
-            }
-          >
-            <SelectTrigger id="edit_sync_frequency">
-              <SelectValue
-                placeholder={t(
-                  'settings.editProviderForm.selectSyncFrequency',
-                  'Select sync frequency'
-                )}
-              />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="manual">
-                {t('settings.editProviderForm.manual', 'Manual')}
-              </SelectItem>
-              <SelectItem value="hourly">
-                {t('settings.editProviderForm.hourly', 'Hourly')}
-              </SelectItem>
-              <SelectItem value="daily">
-                {t('settings.editProviderForm.daily', 'Daily')}
-              </SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      )}
+      <ProviderSyncFrequencyFields
+        idPrefix="edit"
+        providerType={editData.provider_type}
+        frequency={editData.sync_frequency}
+        onFrequencyChange={(value) =>
+          setEditData((prev) => ({ ...prev, sync_frequency: value }))
+        }
+      />
       {editData.provider_type === 'swissfood' && (
         <div className="col-span-2 space-y-2">
           <p className="text-sm text-muted-foreground">

@@ -176,6 +176,8 @@ export interface CreateExercisePayload {
   category: string;
   /** Silently dropped by pre-modality servers (they derive from category). */
   modality?: ExerciseModality;
+  /** Health activity type key (#1750); omitted is Automatic. Older servers drop it. */
+  health_activity_type?: string;
   /** Silently dropped by servers from before volume counting. */
   load_convention?: ExerciseLoadConvention;
   /** Omit when blank — server defaults missing/falsy values to 0. */
@@ -197,6 +199,8 @@ export interface UpdateExercisePayload {
   category?: string;
   /** Sent only when the user changes it; omitted preserves (server COALESCEs). */
   modality?: ExerciseModality;
+  /** A key sets the override, 'automatic' clears it, omitted preserves it. */
+  health_activity_type?: string;
   /** Sent only when the user changes it; changing it also updates the exercise's logged entries. */
   load_convention?: ExerciseLoadConvention;
   calories_per_hour?: number;
@@ -269,6 +273,10 @@ export const transformExerciseRow = (
   category: (row.category as string | null) ?? null,
   // Guarded: server rows are untyped, and pre-modality servers omit the field.
   modality: isExerciseModality(row.modality) ? row.modality : null,
+  health_activity_type:
+    typeof row.health_activity_type === 'string'
+      ? row.health_activity_type
+      : null,
   equipment: parseJsonArray(row.equipment),
   primary_muscles: parseJsonArray(row.primary_muscles),
   secondary_muscles: parseJsonArray(row.secondary_muscles),
@@ -505,6 +513,21 @@ export const setExerciseEntryStrideLength = async (
   return attachExerciseEntryWatchTelemetry(id, { strideLengthCm });
 };
 
+/**
+ * Sets the cadence and stride of an entry alone, through the telemetry-only
+ * endpoint. For a watch run filed before its steps had reached Apple Health,
+ * whose form is measured afterwards.
+ */
+export const setExerciseEntryForm = async (
+  id: string,
+  form: { avgCadence: number; strideLengthCm: number | null }
+): Promise<void> => {
+  return attachExerciseEntryWatchTelemetry(id, {
+    avgCadence: form.avgCadence,
+    ...(form.strideLengthCm != null && { strideLengthCm: form.strideLengthCm }),
+  });
+};
+
 export const getWorkout = async (
   id: string
 ): Promise<PresetSessionResponse> => {
@@ -572,6 +595,8 @@ export const attachExerciseEntryWatchTelemetry = async (
     }[];
     /** Stride length in cm; null clears it. */
     strideLengthCm?: number | null;
+    /** Average cadence in steps per minute; null clears it. */
+    avgCadence?: number | null;
   }
 ): Promise<void> => {
   return apiFetch<void>({

@@ -39,10 +39,51 @@ describe('classifyByKeywords', () => {
     );
   });
 
+  it('sends blood alcohol questions to food (sparky_get_blood_alcohol)', () => {
+    expect(classifyByKeywords('how drunk am I right now')).toContain('food');
+    expect(classifyByKeywords('what is my BAC')).toContain('food');
+    expect(classifyByKeywords('how intoxicated am I')).toContain('food');
+  });
+
   it('matches new exercise synonyms (swim/bike/yoga)', () => {
     expect(classifyByKeywords('went swimming today')).toContain('exercise');
     expect(classifyByKeywords('did a bike ride')).toContain('exercise');
     expect(classifyByKeywords('finished a yoga session')).toContain('exercise');
+  });
+
+  it('routes training-review phrasing to exercise', () => {
+    expect(classifyByKeywords('how is my training going?')).toContain(
+      'exercise'
+    );
+    expect(classifyByKeywords('my bench has plateaued')).toContain('exercise');
+    expect(classifyByKeywords('has my squat stalled?')).toContain('exercise');
+  });
+
+  it('adds the training-review guidance only when exercise is active', () => {
+    const withExercise = getSystemPrompt('UTC', '', 'full', ['exercise']);
+    expect(withExercise).toContain('training_review');
+    expect(withExercise).toContain('run_review');
+    expect(getSystemPrompt('UTC', '', 'full', ['food'])).not.toContain(
+      'training_review'
+    );
+    expect(getSystemPrompt('UTC', '', 'core', ['exercise'])).not.toContain(
+      'training_review'
+    );
+  });
+
+  it('adds the calorie-target guidance with the coaching category on the full profile', () => {
+    expect(getSystemPrompt('UTC', '', 'full', ['coaching'])).toContain(
+      '## CALORIE TARGET REVIEWS'
+    );
+    expect(getSystemPrompt('UTC', '', 'full', ['food'])).not.toContain(
+      '## CALORIE TARGET REVIEWS'
+    );
+    expect(getSystemPrompt('UTC', '', 'core', ['coaching'])).not.toContain(
+      '## CALORIE TARGET REVIEWS'
+    );
+    expect(classifyByKeywords('can you recalibrate my targets?')).toContain(
+      'coaching'
+    );
   });
 
   it('matches the new coaching keyword rule', () => {
@@ -298,7 +339,11 @@ describe('heldBackChatTools', () => {
       heldBackChatTools([
         user('I eat 2 eggs, 1 spoon olive oil and 50gr bread.'),
       ])
-    ).toEqual(['sparky_food_assistant_state', 'sparky_get_caffeine_kinetics']);
+    ).toEqual([
+      'sparky_food_assistant_state',
+      'sparky_get_caffeine_kinetics',
+      'sparky_get_blood_alcohol',
+    ]);
   });
 
   it('keeps a tool once any user message in the chat asks for it', () => {
@@ -308,6 +353,12 @@ describe('heldBackChatTools', () => {
     expect(
       heldBackChatTools([user('how much caffeine is left before bedtime?')])
     ).not.toContain('sparky_get_caffeine_kinetics');
+    expect(
+      heldBackChatTools([user('how much alcohol is in my blood right now?')])
+    ).not.toContain('sparky_get_blood_alcohol');
+    expect(
+      heldBackChatTools([user('Estimate my intoxication after drinking')])
+    ).not.toContain('sparky_get_blood_alcohol');
   });
 
   it('keeps the task tool for an edit across several diary entries', () => {
@@ -328,6 +379,6 @@ describe('heldBackChatTools', () => {
         },
         user('and tomorrow?'),
       ])
-    ).toEqual(['sparky_food_assistant_state']);
+    ).toEqual(['sparky_food_assistant_state', 'sparky_get_blood_alcohol']);
   });
 });

@@ -4,6 +4,7 @@ import { log } from '../config/logging.js';
 import {
   performBackup,
   performRestore,
+  RestoreInProgressError,
   BACKUP_DIR,
   BACKUP_FILE_PATTERN,
   listBackups,
@@ -68,6 +69,7 @@ async function ensureTempUploadDirectory() {
   }
 }
 ensureTempUploadDirectory(); // Call once on startup
+
 /**
  * @swagger
  * tags:
@@ -156,8 +158,12 @@ router.post('/manual', authenticate, isAdmin, async (req, res) => {
  *                   type: string
  *       400:
  *         description: No backup file uploaded.
+ *       409:
+ *         description: Another restore is already running.
  *       500:
  *         description: Server error during restore.
+ *       503:
+ *         description: Another restore is already running (refused before the upload, with Retry-After); the restore was not started.
  */
 router.post(
   '/restore',
@@ -200,6 +206,9 @@ router.post(
           .json({ message: 'Restore failed.', error: result.error });
       }
     } catch (error) {
+      if (error instanceof RestoreInProgressError) {
+        return res.status(409).json({ message: error.message });
+      }
       log('error', 'Error during restore:', error);
       res.status(500).json({
         message: 'Internal server error during restore.',

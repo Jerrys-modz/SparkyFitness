@@ -1,26 +1,32 @@
 import type { QueryClient } from '@tanstack/react-query';
 import {
-  caffeineActiveQueryKey,
-  caffeineActiveRootQueryKey,
+  glucoseContextQueryKeyRoot,
   dailySummaryQueryKey,
   dailySummaryRootQueryKey,
+  familyCopySourceQueryKey,
+  familyCopySourceRootQueryKey,
   fastingRootQueryKey,
   foodEntriesRangeRootQueryKey,
   foodsQueryKey,
   waterIntakeLogQueryKey,
 } from './queryKeys';
+import { invalidateIntakeKinetics } from './invalidateIntakeKinetics';
 
 export function invalidateFoodCache(
   queryClient: QueryClient,
   entryDate?: string
 ) {
+  void queryClient.invalidateQueries({ queryKey: glucoseContextQueryKeyRoot });
   if (entryDate) {
+    void queryClient.invalidateQueries({
+      queryKey: familyCopySourceQueryKey(entryDate),
+      refetchType: 'all',
+    });
     void queryClient.invalidateQueries({
       queryKey: dailySummaryQueryKey(entryDate),
       refetchType: 'all',
     });
-    void queryClient.invalidateQueries({
-      queryKey: caffeineActiveQueryKey(entryDate),
+    void invalidateIntakeKinetics(queryClient, entryDate, {
       refetchType: 'all',
     });
     void queryClient.invalidateQueries({
@@ -29,11 +35,14 @@ export function invalidateFoodCache(
     });
   } else {
     void queryClient.invalidateQueries({
-      queryKey: dailySummaryRootQueryKey,
+      queryKey: familyCopySourceRootQueryKey,
       refetchType: 'all',
     });
     void queryClient.invalidateQueries({
-      queryKey: caffeineActiveRootQueryKey,
+      queryKey: dailySummaryRootQueryKey,
+      refetchType: 'all',
+    });
+    void invalidateIntakeKinetics(queryClient, undefined, {
       refetchType: 'all',
     });
   }

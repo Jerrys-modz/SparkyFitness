@@ -130,25 +130,46 @@ function retryAfterMs(error: unknown): number | null {
     : 5_000;
 }
 
-async function intervalsGet<T>(
-  creds: IntervalsCredentials,
-  path: string,
-  params: Record<string, string>
+async function withRateLimitRetry<T>(
+  call: () => Promise<{ data: T }>
 ): Promise<T> {
-  const url = `${INTERVALS_API_BASE_URL}/athlete/${encodeURIComponent(creds.athleteId)}${path}`;
-  const config = {
-    auth: { username: 'API_KEY', password: creds.apiKey },
-    params,
-  };
   try {
-    return (await axios.get<T>(url, config)).data;
+    return (await call()).data;
   } catch (error) {
     const wait = retryAfterMs(error);
     if (wait === null) throw error;
     log('warn', `[intervalsService] Rate limited; retrying in ${wait}ms.`);
     await new Promise((resolve) => setTimeout(resolve, wait));
-    return (await axios.get<T>(url, config)).data;
+    return (await call()).data;
   }
+}
+
+function athleteUrl(creds: IntervalsCredentials, path: string): string {
+  return `${INTERVALS_API_BASE_URL}/athlete/${encodeURIComponent(creds.athleteId)}${path}`;
+}
+
+function basicAuth(creds: IntervalsCredentials) {
+  return { username: 'API_KEY', password: creds.apiKey };
+}
+
+async function intervalsGet<T>(
+  creds: IntervalsCredentials,
+  path: string,
+  params: Record<string, string>
+): Promise<T> {
+  return withRateLimitRetry(() =>
+    axios.get<T>(athleteUrl(creds, path), { auth: basicAuth(creds), params })
+  );
+}
+
+async function intervalsPut(
+  creds: IntervalsCredentials,
+  path: string,
+  body: unknown
+): Promise<void> {
+  await withRateLimitRetry(() =>
+    axios.put(athleteUrl(creds, path), body, { auth: basicAuth(creds) })
+  );
 }
 
 /** HTTP status of an Intervals.icu API error (0 when there is none). */
@@ -232,16 +253,27 @@ async function syncIntervalsData(
     wellness ?? []
   );
 
-  const client = await getSystemClient();
-  try {
-    await client.query(
-      `UPDATE external_data_providers
-       SET last_sync_at = NOW(), updated_at = NOW()
-       WHERE id = $1`,
-      [creds.providerId]
+  // The scheduler reads last_sync_at to decide when a daily sync is due, so a
+  // sync with failed activities leaves it alone to be retried next tick. A
+  // replay fetches nothing new and leaves it alone too: moving it would make the
+  // scheduler skip the next live daily sync.
+  if (failed === 0 && !replay) {
+    const client = await getSystemClient();
+    try {
+      await client.query(
+        `UPDATE external_data_providers
+         SET last_sync_at = NOW(), updated_at = NOW()
+         WHERE id = $1 AND user_id = $2`,
+        [creds.providerId, userId]
+      );
+    } finally {
+      client.release();
+    }
+  } else if (failed > 0) {
+    log(
+      'warn',
+      `[intervalsService] Intervals.icu sync for user ${userId} failed on ${failed} activities; last_sync_at not updated.`
     );
-  } finally {
-    client.release();
   }
 
   log(
@@ -293,5 +325,13 @@ async function disconnect(
   }
 }
 
-export { syncIntervalsData, getStatus, disconnect };
+export {
+  syncIntervalsData,
+  getStatus,
+  disconnect,
+  getIntervalsCredentials,
+  intervalsGet,
+  intervalsPut,
+};
+export type { IntervalsCredentials };
 export default { syncIntervalsData, getStatus, disconnect };

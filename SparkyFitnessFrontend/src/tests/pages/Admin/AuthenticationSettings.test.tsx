@@ -81,6 +81,100 @@ describe('AuthenticationSettings passkey switch', () => {
   });
 });
 
+describe('AuthenticationSettings magic link switch', () => {
+  afterEach(() => jest.clearAllMocks());
+
+  it('turns magic link login off', () => {
+    renderWith({ enable_magic_link_login: true });
+    const toggle = screen.getByRole('switch', {
+      name: 'Enable Magic Link Login',
+    });
+    expect(toggle).toBeChecked();
+    fireEvent.click(toggle);
+    expect(updateSettings).toHaveBeenCalledWith(
+      expect.objectContaining({ enable_magic_link_login: false }),
+      expect.anything()
+    );
+  });
+
+  it('shows magic link login as on when the server does not report it', () => {
+    renderWith({});
+    expect(
+      screen.getByRole('switch', { name: 'Enable Magic Link Login' })
+    ).toBeChecked();
+  });
+
+  it('locks the switch when the environment manages it', () => {
+    renderWith({
+      enable_magic_link_login: false,
+      is_magic_link_login_env_configured: true,
+    });
+    expect(
+      screen.getByRole('switch', { name: 'Enable Magic Link Login' })
+    ).toBeDisabled();
+    expect(screen.getAllByText('Managed by Env')).toHaveLength(1);
+  });
+
+  it('shows how to force magic link login back on', () => {
+    renderWith({ enable_magic_link_login: false });
+    expect(
+      screen.getByText('SPARKY_FITNESS_FORCE_MAGIC_LINK_LOGIN=true')
+    ).toBeInTheDocument();
+  });
+});
+
+describe('AuthenticationSettings MCP OAuth settings', () => {
+  afterEach(() => jest.clearAllMocks());
+
+  it('warns that approved applications receive write access', () => {
+    renderWith({ mcp_oauth_enabled: false, mcp_oauth_available: true });
+
+    expect(
+      screen.getByText(/full MCP access, including tools that can write/i)
+    ).toBeInTheDocument();
+  });
+
+  it('disables the switch and explains when the public URL is unsupported', () => {
+    renderWith({
+      mcp_oauth_enabled: false,
+      mcp_oauth_available: false,
+      mcp_oauth_unavailable_reason: 'Public HTTPS is required.',
+    });
+
+    expect(
+      screen.getByRole('switch', { name: 'Remote MCP OAuth' })
+    ).toBeDisabled();
+    expect(screen.getByText('Public HTTPS is required.')).toBeInTheDocument();
+  });
+
+  it('saves one trimmed redirect allowlist entry per line', () => {
+    renderWith({
+      mcp_oauth_allowed_redirect_uris: [
+        'https://claude.ai/api/mcp/auth_callback',
+      ],
+    });
+    fireEvent.change(screen.getByLabelText('Allowed OAuth redirect URIs'), {
+      target: {
+        value:
+          'https://claude.com/api/mcp/auth_callback\n\nhttp://localhost:*  ',
+      },
+    });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Save OAuth redirect allowlist' })
+    );
+
+    expect(updateSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mcp_oauth_allowed_redirect_uris: [
+          'https://claude.com/api/mcp/auth_callback',
+          'http://localhost:*',
+        ],
+      }),
+      expect.anything()
+    );
+  });
+});
+
 describe('AuthenticationSettings release check switch', () => {
   afterEach(() => jest.clearAllMocks());
 

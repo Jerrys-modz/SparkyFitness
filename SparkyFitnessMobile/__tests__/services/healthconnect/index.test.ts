@@ -1598,6 +1598,178 @@ describe('enrichExerciseSessions', () => {
     });
   });
 
+  test.each([
+    'ActiveCaloriesBurned',
+    'TotalCaloriesBurned',
+    'BasalMetabolicRate',
+  ])('rejects an asynchronous %s calorie read failure', async (failedType) => {
+    const failure = new Error('Binder transaction failed');
+    mockAggregateRecord.mockImplementation(
+      ({ recordType }: { recordType: string }) => {
+        if (recordType === failedType) return Promise.reject(failure);
+        if (recordType === 'ActiveCaloriesBurned') {
+          return Promise.resolve({
+            ACTIVE_CALORIES_TOTAL: { inKilocalories: 0 },
+          });
+        }
+        if (recordType === 'TotalCaloriesBurned') {
+          return Promise.resolve({ ENERGY_TOTAL: { inKilocalories: 75 } });
+        }
+        if (recordType === 'BasalMetabolicRate') {
+          return Promise.resolve({
+            BASAL_CALORIES_TOTAL: { inKilocalories: 75 },
+          });
+        }
+        return Promise.resolve({});
+      }
+    );
+
+    await expect(
+      enrichExerciseSessions([makeSession()], createTelemetryRunContext())
+    ).rejects.toBe(failure);
+  });
+
+  test.each([
+    ['ActiveCaloriesBurned', 'API call quota exceeded'],
+    ['TotalCaloriesBurned', 'Health Connect client is not initialized'],
+  ])(
+    'rejects an asynchronous fallback %s failure',
+    async (failedType, message) => {
+      const failure = new Error(message);
+      mockAggregateRecord.mockImplementation(
+        ({
+          recordType,
+          dataOriginFilter,
+        }: {
+          recordType: string;
+          dataOriginFilter?: string[];
+        }) => {
+          if (!dataOriginFilter && recordType === failedType) {
+            return Promise.reject(failure);
+          }
+          if (recordType === 'ActiveCaloriesBurned') {
+            return Promise.resolve({
+              ACTIVE_CALORIES_TOTAL: { inKilocalories: 0 },
+            });
+          }
+          if (recordType === 'TotalCaloriesBurned') {
+            return Promise.resolve({ ENERGY_TOTAL: { inKilocalories: 75 } });
+          }
+          if (recordType === 'BasalMetabolicRate') {
+            return Promise.resolve({
+              BASAL_CALORIES_TOTAL: { inKilocalories: 75 },
+            });
+          }
+          return Promise.resolve({});
+        }
+      );
+
+      await expect(
+        enrichExerciseSessions([makeSession()], createTelemetryRunContext())
+      ).rejects.toBe(failure);
+    }
+  );
+
+  test.each<[string, string, number]>([
+    ['ActiveCaloriesBurned', 'Permission denied', 225],
+    ['TotalCaloriesBurned', 'Record type is not supported', 200],
+    ['BasalMetabolicRate', 'SecurityException: permission denied', 200],
+  ])(
+    'keeps the optional %s fallback when access is unavailable',
+    async (unavailableType, message, expectedCalories) => {
+      mockAggregateRecord.mockImplementation(
+        ({ recordType }: { recordType: string }) => {
+          if (recordType === unavailableType) {
+            return Promise.reject(new Error(message));
+          }
+          if (recordType === 'ActiveCaloriesBurned') {
+            return Promise.resolve({
+              ACTIVE_CALORIES_TOTAL: { inKilocalories: 200 },
+            });
+          }
+          if (recordType === 'TotalCaloriesBurned') {
+            return Promise.resolve({ ENERGY_TOTAL: { inKilocalories: 300 } });
+          }
+          if (recordType === 'BasalMetabolicRate') {
+            return Promise.resolve({
+              BASAL_CALORIES_TOTAL: { inKilocalories: 75 },
+            });
+          }
+          return Promise.resolve({});
+        }
+      );
+
+      const result = await enrichExerciseSessions(
+        [makeSession()],
+        createTelemetryRunContext()
+      );
+      expect(result[0]).toMatchObject({
+        energy: { inKilocalories: expectedCalories },
+      });
+    }
+  );
+
+  test.each([
+    'PERMISSION_ERROR',
+    'AGGREGATION_NOT_SUPPORTED',
+    'SDK_VERSION_ERROR',
+  ])(
+    'keeps active calories when optional basal access fails with code %s',
+    async (code) => {
+      mockAggregateRecord.mockImplementation(
+        ({ recordType }: { recordType: string }) => {
+          if (recordType === 'BasalMetabolicRate') {
+            return Promise.reject(
+              Object.assign(new Error('Native read failed'), { code })
+            );
+          }
+          if (recordType === 'ActiveCaloriesBurned') {
+            return Promise.resolve({
+              ACTIVE_CALORIES_TOTAL: { inKilocalories: 200 },
+            });
+          }
+          if (recordType === 'TotalCaloriesBurned') {
+            return Promise.resolve({ ENERGY_TOTAL: { inKilocalories: 300 } });
+          }
+          return Promise.resolve({});
+        }
+      );
+
+      const result = await enrichExerciseSessions(
+        [makeSession()],
+        createTelemetryRunContext()
+      );
+      expect(result[0]).toMatchObject({ energy: { inKilocalories: 200 } });
+    }
+  );
+
+  test('keeps valid calories when optional distance and step reads fail', async () => {
+    mockAggregateRecord.mockImplementation(
+      ({ recordType }: { recordType: string }) => {
+        if (recordType === 'Distance' || recordType === 'Steps') {
+          return Promise.reject(new Error('Binder transaction failed'));
+        }
+        if (recordType === 'ActiveCaloriesBurned') {
+          return Promise.resolve({
+            ACTIVE_CALORIES_TOTAL: { inKilocalories: 200 },
+          });
+        }
+        if (recordType === 'TotalCaloriesBurned') {
+          return Promise.resolve({ ENERGY_TOTAL: { inKilocalories: 300 } });
+        }
+        return Promise.resolve({
+          BASAL_CALORIES_TOTAL: { inKilocalories: 75 },
+        });
+      }
+    );
+
+    const result = await enrichExerciseSessions(
+      [makeSession()],
+      createTelemetryRunContext()
+    );
+    expect(result[0]).toMatchObject({ energy: { inKilocalories: 225 } });
+  });
+
   test('leaves record untouched when both calorie aggregates return 0', async () => {
     mockAggregateRecord.mockImplementation(
       ({ recordType }: { recordType: string }) => {
@@ -3404,5 +3576,197 @@ describe('telemetry cache commits only after a successful upload (PR #2218 revie
     await enrichExerciseSessions(sessions, createTelemetryRunContext());
 
     expect(mockReadRecords).not.toHaveBeenCalled();
+  });
+});
+
+describe('daily totals leave out exercise write-back records (#1750)', () => {
+  const {
+    setOwnPackageName,
+  } = require('../../../src/services/healthconnect/dataTransformation');
+  const {
+    saveHealthPreference,
+  } = require('../../../src/services/healthconnect/preferences');
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    await AsyncStorage.clear();
+    mockReadRecords.mockResolvedValue(offsetlessProbeResult());
+    setOwnPackageName('com.sparky.app');
+  });
+
+  afterEach(() => {
+    setOwnPackageName(null);
+  });
+
+  // Answers per record type and filter, since the active-calorie read also
+  // asks for other calorie types.
+  const answer = (withOwn: number, withoutOwn: number, origins: string[]) =>
+    mockAggregateGroupByPeriod.mockImplementation(
+      async (request: { recordType: string; dataOriginFilter?: string[] }) => {
+        if (request.recordType !== 'ActiveCaloriesBurned') return [];
+        return request.dataOriginFilter
+          ? [
+              periodBucket(2024, 1, 15, {
+                ACTIVE_CALORIES_TOTAL: { inKilocalories: withoutOwn },
+                dataOrigins: request.dataOriginFilter,
+              }),
+            ]
+          : [
+              periodBucket(2024, 1, 15, {
+                ACTIVE_CALORIES_TOTAL: { inKilocalories: withOwn },
+                dataOrigins: origins,
+              }),
+            ];
+      }
+    );
+
+  const activeCalls = () =>
+    mockAggregateGroupByPeriod.mock.calls
+      .map(([request]) => request)
+      .filter(
+        (request: { recordType: string }) =>
+          request.recordType === 'ActiveCaloriesBurned'
+      );
+
+  test('re-aggregates without this app once it has written a workout', async () => {
+    await saveHealthPreference('writebackExerciseFilterOwn', true);
+    answer(700, 500, ['com.sparky.app', 'com.watch.app']);
+
+    const result = await getAggregatedActiveCaloriesByDate(
+      localMidnight(2024, 1, 15),
+      localEndOfDay(2024, 1, 15)
+    );
+
+    expect(result[0].value).toBe(500);
+    expect(activeCalls()[1]).toMatchObject({
+      dataOriginFilter: ['com.watch.app'],
+    });
+  });
+
+  test('leaves the query alone until something was written', async () => {
+    answer(700, 500, ['com.sparky.app', 'com.watch.app']);
+
+    const result = await getAggregatedActiveCaloriesByDate(
+      localMidnight(2024, 1, 15),
+      localEndOfDay(2024, 1, 15)
+    );
+
+    expect(result[0].value).toBe(700);
+    expect(activeCalls()).toHaveLength(1);
+  });
+
+  test('reads nothing when this app was the only contributor', async () => {
+    await saveHealthPreference('writebackExerciseFilterOwn', true);
+    answer(300, 0, ['com.sparky.app']);
+
+    const result = await getAggregatedActiveCaloriesByDate(
+      localMidnight(2024, 1, 15),
+      localEndOfDay(2024, 1, 15)
+    );
+
+    expect(result).toEqual([]);
+  });
+
+  test('finds an app hidden behind this app by priority deduplication', async () => {
+    await saveHealthPreference('writebackExerciseFilterOwn', true);
+    answer(300, 200, ['com.sparky.app']);
+    const ownStart = '2024-01-15T08:00:00.000Z';
+    mockReadRecords.mockImplementation(
+      async (
+        _recordType: string,
+        options: {
+          dataOriginFilter?: string[];
+          timeRangeFilter?: { startTime?: string };
+        }
+      ) => {
+        if (options.dataOriginFilter?.includes('com.sparky.app')) {
+          return {
+            records: [
+              {
+                startTime: ownStart,
+                endTime: '2024-01-15T08:30:00.000Z',
+                metadata: { dataOrigin: 'com.sparky.app' },
+              },
+            ],
+          };
+        }
+        if (options.timeRangeFilter?.startTime === ownStart) {
+          return {
+            records: [
+              { metadata: { dataOrigin: 'com.sparky.app' } },
+              { metadata: { dataOrigin: 'com.watch.app' } },
+            ],
+          };
+        }
+        return offsetlessProbeResult();
+      }
+    );
+
+    const result = await getAggregatedActiveCaloriesByDate(
+      localMidnight(2024, 1, 15),
+      localEndOfDay(2024, 1, 15)
+    );
+
+    expect(result[0].value).toBe(200);
+    expect(activeCalls()[1]).toMatchObject({
+      dataOriginFilter: ['com.watch.app'],
+    });
+  });
+
+  test('fails the day when origin discovery cannot be read', async () => {
+    await saveHealthPreference('writebackExerciseFilterOwn', true);
+    answer(300, 200, ['com.sparky.app']);
+    mockReadRecords.mockImplementation(
+      async (_recordType: string, options: { dataOriginFilter?: string[] }) => {
+        if (options.dataOriginFilter?.includes('com.sparky.app')) {
+          throw new Error('quota');
+        }
+        return offsetlessProbeResult();
+      }
+    );
+
+    const result = await getAggregatedActiveCaloriesByDateDetailed(
+      localMidnight(2024, 1, 15),
+      localEndOfDay(2024, 1, 15)
+    );
+
+    expect(result.error).toContain('quota');
+    expect(result.records).toEqual([]);
+  });
+
+  test('fails the day when origin discovery runs past its page limit', async () => {
+    await saveHealthPreference('writebackExerciseFilterOwn', true);
+    answer(300, 200, ['com.sparky.app']);
+    mockReadRecords.mockImplementation(
+      async (_recordType: string, options: { dataOriginFilter?: string[] }) => {
+        if (options.dataOriginFilter?.includes('com.sparky.app')) {
+          return { records: [], pageToken: 'more' };
+        }
+        return offsetlessProbeResult();
+      }
+    );
+
+    const result = await getAggregatedActiveCaloriesByDateDetailed(
+      localMidnight(2024, 1, 15),
+      localEndOfDay(2024, 1, 15)
+    );
+
+    expect(result.error).toContain('origin discovery exceeded');
+  });
+
+  test('drops written sessions before enrichment', async () => {
+    const result = await enrichExerciseSessions(
+      [
+        {
+          startTime: '2024-01-15T08:00:00Z',
+          endTime: '2024-01-15T08:30:00Z',
+          metadata: {
+            clientRecordId: 'sparky-exercise-individual-e1-session-1',
+          },
+        },
+      ],
+      createTelemetryRunContext()
+    );
+    expect(result).toEqual([]);
   });
 });
