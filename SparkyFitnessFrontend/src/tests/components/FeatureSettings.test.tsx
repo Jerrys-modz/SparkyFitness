@@ -34,6 +34,16 @@ jest.mock('@/hooks/Settings/useWebFeatures', () => ({
   }),
 }));
 
+let mockAppetiteOn = true;
+const mockSetAppetite = jest.fn();
+jest.mock('@/hooks/Settings/useFeatureChoices', () => ({
+  useWebFeatureEnabled: () => mockAppetiteOn,
+  useSetWebFeatureEnabled: () => ({
+    mutate: mockSetAppetite,
+    isPending: false,
+  }),
+}));
+
 function renderSettings() {
   return render(
     <Accordion type="multiple" defaultValue={['features']}>
@@ -48,6 +58,7 @@ describe('FeatureSettings', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockActingOnBehalf = false;
+    mockAppetiteOn = true;
     mockCycle = {
       on: false,
       state: 'ready',
@@ -91,7 +102,8 @@ describe('FeatureSettings', () => {
     (state) => {
       mockCycle = { ...mockCycle, state, settings: undefined };
       const { container } = renderSettings();
-      expect(screen.queryByRole('switch')).not.toBeInTheDocument();
+      // Only cycle's own switch: the other features keep theirs.
+      expect(document.getElementById('feature-cycle')).toBeNull();
       expect(container.textContent).not.toMatch(/cycle|period|fertil|pregnan/i);
     }
   );
@@ -128,6 +140,15 @@ describe('FeatureSettings', () => {
     const { container } = renderSettings();
     expect(screen.getByRole('switch', { name: 'Wellness' })).toBeChecked();
     expect(container.textContent).not.toMatch(/cycle|period|fertil|pregnan/i);
+  });
+
+  it('lists the hunger and cravings switch under Nutrition and saves a change', () => {
+    renderSettings();
+    expect(screen.getByText('Nutrition')).toBeInTheDocument();
+    const toggle = screen.getByRole('switch', { name: 'Hunger and cravings' });
+    expect(toggle).toBeChecked();
+    fireEvent.click(toggle);
+    expect(mockSetAppetite).toHaveBeenCalledWith(false);
   });
 
   it('shows a note instead of the switches while acting for someone else', () => {
