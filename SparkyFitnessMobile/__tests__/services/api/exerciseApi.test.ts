@@ -14,6 +14,7 @@ import {
   deleteExerciseFromLibrary,
   attachExerciseEntryWatchTelemetry,
   setExerciseEntryStrideLength,
+  setExerciseEntryDistance,
   type CreateExerciseEntryPayload,
 } from '../../../src/services/api/exerciseApi';
 import {
@@ -685,6 +686,56 @@ describe('exerciseApi - createExerciseEntry / updateExerciseEntry', () => {
       await expect(
         setExerciseEntryStrideLength('entry-1', 100)
       ).rejects.toThrow('Server error: 404 - Not Found');
+    });
+  });
+
+  describe('setExerciseEntryDistance', () => {
+    beforeEach(() => {
+      mockGetActiveServerConfig.mockResolvedValue(testConfig);
+    });
+
+    it('sends only the distance without a belt speed', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({}),
+      });
+      await setExerciseEntryDistance('entry-1', 3.4);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://example.com/api/exercise-entries/entry-1/distance',
+        expect.objectContaining({ body: JSON.stringify({ distance_km: 3.4 }) })
+      );
+    });
+
+    it('sends the belt speed with the distance', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({}),
+      });
+      await setExerciseEntryDistance('entry-1', 3.4, 2.24);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          body: JSON.stringify({ distance_km: 3.4, belt_speed_mps: 2.24 }),
+        })
+      );
+    });
+
+    it('sends the distance again without the belt speed when the server refuses it', async () => {
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 400,
+          text: () => Promise.resolve('Bad Request'),
+        })
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({}) });
+      await setExerciseEntryDistance('entry-1', 3.4, 2.24);
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+      expect(mockFetch).toHaveBeenLastCalledWith(
+        expect.any(String),
+        expect.objectContaining({ body: JSON.stringify({ distance_km: 3.4 }) })
+      );
     });
   });
 

@@ -35,6 +35,7 @@ import {
   bucketsFromAppleWorkoutZones,
   appleWorkoutZonesFromWire,
   observedMaxBpm,
+  splitIndoorRunWalk,
   type HrSample,
 } from '@workspace/shared';
 import heartRateZoneService from './heartRateZoneService.js';
@@ -828,7 +829,32 @@ async function setExerciseEntryDistance(
         [exerciseEntryId, body.distance_km / previousKm]
       );
     }
-    if (previousKm > 0) {
+    // With the run block's belt speed, the run block keeps its belt distance
+    // and the walking takes the rest. Without it, or when the series cannot
+    // be split sensibly, every row is scaled alike.
+    let splitSeries: [number, number][] | null = null;
+    if (body.belt_speed_mps !== undefined) {
+      const stored = (await client.query(
+        'SELECT points FROM exercise_entry_distance_series WHERE exercise_entry_id = $1',
+        [exerciseEntryId]
+      )) as { rows: { points: [number, number][] }[] };
+      const points = stored.rows[0]?.points;
+      if (Array.isArray(points)) {
+        splitSeries =
+          splitIndoorRunWalk(
+            points,
+            body.distance_km * 1000,
+            body.belt_speed_mps
+          )?.series ?? null;
+      }
+    }
+    if (splitSeries) {
+      await client.query(
+        `UPDATE exercise_entry_distance_series SET points = $2::jsonb, updated_at = NOW()
+         WHERE exercise_entry_id = $1`,
+        [exerciseEntryId, JSON.stringify(splitSeries)]
+      );
+    } else if (previousKm > 0) {
       // The pace chart moves with the corrected distance, as the laps do.
       await client.query(
         `UPDATE exercise_entry_distance_series SET
