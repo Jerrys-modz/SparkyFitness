@@ -1541,6 +1541,7 @@ function ActiveWorkoutExerciseCard({
                 <ActiveWorkoutSetRow
                   set={effectiveSet}
                   modality={modality}
+                  loadConvention={exercise.exercise_snapshot?.load_convention}
                   bodyWeightKg={bodyWeightKg}
                   distanceUnit={distanceUnit}
                   renderKey={renderKey}

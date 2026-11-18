@@ -2566,6 +2566,7 @@ async function updateExerciseEntriesSnapshot(
       calories_per_hour: exercise.calories_per_hour,
       modality: exercise.modality,
       health_activity_type: exercise.health_activity_type ?? null,
+      load_convention: exercise.load_convention,
     };
     // Update all relevant exercise entries for the authenticated user
     await exerciseRepository.updateExerciseEntriesSnapshot(

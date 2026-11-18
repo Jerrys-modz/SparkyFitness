@@ -8,6 +8,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import ExerciseLoadConventionField from './ExerciseLoadConventionField';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -180,6 +181,12 @@ export default function EditExerciseDialog({ form }: EditExerciseDialogProps) {
                 </p>
               </div>
             </div>
+            <ExerciseLoadConventionField
+              id="edit-load-convention"
+              modality={form.editExerciseModality}
+              value={form.editExerciseLoadConvention}
+              onChange={form.setEditExerciseLoadConvention}
+            />
 
             {/* Calories/Hour */}
             <div className="grid grid-cols-4 items-center gap-4">

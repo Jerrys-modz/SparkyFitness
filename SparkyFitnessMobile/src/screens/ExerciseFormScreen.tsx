@@ -20,8 +20,10 @@ import {
   guessHealthActivityType,
   HEALTH_ACTIVITY_TYPES,
   type HealthActivityType,
+  isExerciseLoadConvention,
   isExerciseModality,
   isHealthActivityType,
+  type ExerciseLoadConvention,
   CANONICAL_MUSCLES,
   CANONICAL_EQUIPMENT,
   resolveCanonicalOrCustomMuscle,
@@ -135,6 +137,8 @@ interface ExerciseFormState {
    * Apple Health / Health Connect; `AUTOMATIC_HEALTH_ACTIVITY_TYPE` for none.
    */
   healthActivityType: string;
+  /** How logged weight and reps count toward volume (#3157). */
+  loadConvention: ExerciseLoadConvention;
   caloriesPerHourText: string;
   description: string;
   equipment: string[];
@@ -283,6 +287,36 @@ const ExerciseFormBody: React.FC<ExerciseFormBodyProps> = ({
     }));
   }, [state.modality, localizeOption]);
 
+  // Only an exercise that logs a weight against reps has volume to count, and a
+  // bodyweight exercise has no pair of dumbbells.
+  const loadConventionOptions = useMemo(() => {
+    const modality = isExerciseModality(state.modality) ? state.modality : null;
+    if (modality !== 'weight_reps' && modality !== 'bodyweight_reps') return [];
+    const options = [
+      {
+        label: t('workout.loadConvention.total', {
+          defaultValue: 'Total load',
+        }),
+        value: 'total',
+      },
+      {
+        label: t('workout.loadConvention.per_hand', {
+          defaultValue: 'Weight per hand',
+        }),
+        value: 'per_hand',
+      },
+      {
+        label: t('workout.loadConvention.per_side', {
+          defaultValue: 'Reps per side',
+        }),
+        value: 'per_side',
+      },
+    ];
+    return modality === 'weight_reps'
+      ? options
+      : options.filter((opt) => opt.value !== 'per_hand');
+  }, [state.modality, t]);
+
   const renderPicker = (
     label: string,
     options: readonly { label: string; value: string }[],
@@ -373,6 +407,19 @@ const ExerciseFormBody: React.FC<ExerciseFormBodyProps> = ({
         (modality) =>
           setState((prev) => ({ ...prev, modality, modalityManuallySet: true }))
       )}
+
+      {loadConventionOptions.length > 0
+        ? renderPicker(
+            t('workout.loadConvention.label', {
+              defaultValue: 'Volume counting',
+            }),
+            loadConventionOptions,
+            state.loadConvention,
+            (loadConvention) =>
+              isExerciseLoadConvention(loadConvention) &&
+              setState((prev) => ({ ...prev, loadConvention }))
+          )
+        : null}
 
       <View className="gap-1.5">
         {renderPicker(
@@ -629,6 +676,9 @@ const buildCreatePayload = (
   if (isHealthActivityType(state.healthActivityType)) {
     payload.health_activity_type = state.healthActivityType;
   }
+  if (state.loadConvention !== 'total') {
+    payload.load_convention = state.loadConvention;
+  }
 
   if (caloriesValue !== undefined) payload.calories_per_hour = caloriesValue;
   if (state.equipment.length > 0) payload.equipment = state.equipment;
@@ -656,6 +706,7 @@ const formStateFromExercise = (
   healthActivityType: isHealthActivityType(exercise.health_activity_type)
     ? exercise.health_activity_type
     : AUTOMATIC_HEALTH_ACTIVITY_TYPE,
+  loadConvention: exercise.load_convention ?? 'total',
   caloriesPerHourText:
     exercise.calories_per_hour > 0 ? String(exercise.calories_per_hour) : '',
   description: exercise.description ?? '',
@@ -694,6 +745,7 @@ const CreateExerciseMode: React.FC<CreateExerciseModeProps> = ({
           modality: deriveExerciseModality('general'),
           modalityManuallySet: false,
           healthActivityType: AUTOMATIC_HEALTH_ACTIVITY_TYPE,
+          loadConvention: 'total',
           caloriesPerHourText: '',
           description: '',
           equipment: [],
@@ -808,6 +860,9 @@ const buildEditPayload = (
     healthActivityTypeOrAutomatic(initial.health_activity_type)
   ) {
     payload.health_activity_type = nextHealthActivityType;
+  }
+  if (state.loadConvention !== (initial.load_convention ?? 'total')) {
+    payload.load_convention = state.loadConvention;
   }
 
   if (

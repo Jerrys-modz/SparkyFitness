@@ -106,6 +106,7 @@ struct WorkoutMoreExercisePage: View {
     @EnvironmentObject private var checkIn: CheckInStore
 
     @State private var choosingType = false
+    @State private var choosingSide = false
     @State private var confirmingDelete = false
     @State private var swapping = false
     @State private var confirmingDeleteExercise = false
@@ -114,6 +115,7 @@ struct WorkoutMoreExercisePage: View {
     var body: some View {
         let upcoming = store.upcomingExercises
         let plates = platesTile
+        let perSide = store.isPerSide(step)
         VStack(spacing: WatchStyle.m(6)) {
             MoreSection(String(localized: "watch.workout.moreThisSet", defaultValue: "This set"))
             MoreRow {
@@ -127,9 +129,17 @@ struct WorkoutMoreExercisePage: View {
                     addSetTile
                 }
             }
+            // A one-sided exercise also gets Side (Left, Right, Both, Add
+            // Other Side), which takes the next free slot.
             if plates != nil {
                 MoreRow {
                     addSetTile
+                    if perSide { sideTile } else { deleteSetTile }
+                }
+                if perSide { MoreRow(lone: true) { deleteSetTile } }
+            } else if perSide {
+                MoreRow {
+                    sideTile
                     deleteSetTile
                 }
             } else {
@@ -158,6 +168,17 @@ struct WorkoutMoreExercisePage: View {
             SetTypeSheet(current: step.plannedSet.setType) { type in
                 session.sendWorkoutEdit(.setSetType(setId: step.plannedSet.setId, type: type))
             }
+        }
+        .sheet(isPresented: $choosingSide) {
+            SetSideSheet(
+                current: step.plannedSet.side,
+                onPick: { side in
+                    session.sendWorkoutEdit(.setSetSide(setId: step.plannedSet.setId, side: side))
+                },
+                onAddOtherSide: {
+                    session.sendWorkoutEdit(.addOtherSide(setId: step.plannedSet.setId))
+                }
+            )
         }
         .sheet(isPresented: $swapping) { SwapExerciseSheet() }
         #if DEBUG
@@ -211,6 +232,13 @@ struct WorkoutMoreExercisePage: View {
         }
     }
 
+    private var sideTile: some View {
+        MoreTile(
+            String(localized: "watch.workout.moreSide", defaultValue: "Side"),
+            subtitle: Self.sideName(step.plannedSet.side)
+        ) { choosingSide = true }
+    }
+
     private var deleteSetTile: some View {
         MoreTile(String(localized: "watch.workout.moreDeleteSet", defaultValue: "Delete Set"), destructive: true) { confirmingDelete = true }
     }
@@ -229,6 +257,14 @@ struct WorkoutMoreExercisePage: View {
             summary = String(localized: "watch.workout.platesNotExact", defaultValue: "Not exact")
         }
         return (config, weightKg, summary)
+    }
+
+    private static func sideName(_ side: String?) -> String {
+        switch side?.lowercased() {
+        case "left": return String(localized: "watch.workout.sideLeft", defaultValue: "Left")
+        case "right": return String(localized: "watch.workout.sideRight", defaultValue: "Right")
+        default: return String(localized: "watch.workout.moreSideBoth", defaultValue: "Both")
+        }
     }
 
     private static func typeName(_ type: String?) -> String {

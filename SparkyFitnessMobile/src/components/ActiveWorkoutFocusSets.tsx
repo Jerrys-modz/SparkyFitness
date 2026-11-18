@@ -202,6 +202,8 @@ interface FocusSetRowProps {
   onToggleSetDetail?: (setKey: string) => void;
   /** Read-only weight-derived column (Vol / 1RM / 10RM) in place of the effort input. */
   bodyWeightKg: number | null;
+  /** How the exercise's weight and reps count toward volume (#3157). */
+  loadConvention?: string | null;
   /** This row holds the keyboard; `activeField` names the input. */
   isFocused: boolean;
   activeField: SetInputField;
@@ -234,6 +236,7 @@ const FocusSetRow = React.memo(function FocusSetRow({
   onPressSetType,
   onToggleSetDetail,
   bodyWeightKg,
+  loadConvention,
   isFocused,
   activeField,
   nextSetKey,
@@ -382,6 +385,13 @@ const FocusSetRow = React.memo(function FocusSetRow({
       : undefined;
 
   const letter = setTypeLetter(set.set_type);
+  // L or R after the number for a set done on one side, as in the list view.
+  const sideLetter =
+    set.side === 'left'
+      ? t('workout.sideLeftShort', { defaultValue: 'L' })
+      : set.side === 'right'
+        ? t('workout.sideRightShort', { defaultValue: 'R' })
+        : '';
   const isCurrent = state === 'current';
   const setIndicator = (
     <Text
@@ -392,6 +402,7 @@ const FocusSetRow = React.memo(function FocusSetRow({
       ]}
     >
       {letter ?? displayNumber}
+      {sideLetter}
     </Text>
   );
   // Tap the set number to change this set's type; the menu anchors to it.
@@ -526,7 +537,8 @@ const FocusSetRow = React.memo(function FocusSetRow({
                 set,
                 modality,
                 bodyWeightKg,
-                weightUnit
+                weightUnit,
+                loadConvention
               )}
             </Text>
           ) : (
@@ -769,6 +781,7 @@ function ActiveWorkoutFocusSets({
             weightUnit={weightUnit}
             weightStep={weightStep}
             bodyWeightKg={bodyWeightKg}
+            loadConvention={exercise.exercise_snapshot?.load_convention}
             onPressSetType={onPressSetType}
             onToggleSetDetail={onToggleSetDetail}
             onCompleteSet={onCompleteSet}

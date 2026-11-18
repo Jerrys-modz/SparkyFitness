@@ -31,11 +31,13 @@ function watchPlanStructureKey(plan: WatchWorkoutStartPayload): string {
       exercise.imageKey ?? null,
       exercise.imageCount ?? null,
       exercise.muscle ?? null,
+      exercise.perSide ?? false,
       exercise.sets.map((set) => [
         set.setId,
         set.setType,
         set.restSeconds,
         set.restAfterSeconds,
+        set.side ?? null,
       ]),
     ]),
     plan.setOrder,

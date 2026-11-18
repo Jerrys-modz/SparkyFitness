@@ -14,7 +14,9 @@ import {
 import { usePreferences } from '@/contexts/PreferencesContext';
 import { useAuth } from '@/hooks/useAuth';
 import {
+  isExerciseLoadConvention,
   resolveExerciseModality,
+  type ExerciseLoadConvention,
   type ExerciseModality,
 } from '@workspace/shared';
 
@@ -46,6 +48,8 @@ export function useEditExerciseForm() {
   // 'automatic' (no override) or a health activity type key (#1750).
   const [editExerciseHealthActivityType, setEditExerciseHealthActivityType] =
     useState(AUTOMATIC_HEALTH_ACTIVITY_TYPE);
+  const [editExerciseLoadConvention, setEditExerciseLoadConvention] =
+    useState<ExerciseLoadConvention>('total');
   const [editExerciseCalories, setEditExerciseCalories] = useState(300);
   const [editExerciseDescription, setEditExerciseDescription] = useState('');
   const [editExerciseLevel, setEditExerciseLevel] = useState('');
@@ -85,6 +89,11 @@ export function useEditExerciseForm() {
     );
     setEditExerciseHealthActivityType(
       healthActivityTypeSelectValue(exercise.health_activity_type)
+    );
+    setEditExerciseLoadConvention(
+      isExerciseLoadConvention(exercise.load_convention)
+        ? exercise.load_convention
+        : 'total'
     );
     setEditExerciseCalories(
       Math.round(
@@ -140,6 +149,7 @@ export function useEditExerciseForm() {
         modality: editExerciseModality,
         // 'automatic' clears the override server-side.
         health_activity_type: editExerciseHealthActivityType,
+        load_convention: editExerciseLoadConvention,
         calories_per_hour: convertEnergy(
           editExerciseCalories,
           energyUnit,
@@ -275,6 +285,8 @@ export function useEditExerciseForm() {
     setEditExerciseModality,
     editExerciseHealthActivityType,
     setEditExerciseHealthActivityType,
+    editExerciseLoadConvention,
+    setEditExerciseLoadConvention,
     editExerciseCalories,
     setEditExerciseCalories,
     editExerciseDescription,

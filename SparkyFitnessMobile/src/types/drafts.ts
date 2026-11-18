@@ -14,6 +14,7 @@ export interface WorkoutDraftSet {
   notes?: string | null;
   rpe?: number | null;
   rir?: number | null;
+  side?: 'left' | 'right' | null;
   completedAt?: string | null;
   isPr?: boolean;
 }

@@ -13,6 +13,7 @@ import type {
   ExerciseAlternativeMode,
   ExerciseAlternativesResponse,
   ExerciseHistoryResponse,
+  ExerciseLoadConvention,
   ExerciseModality,
   ExerciseStatsResponse,
   CreatePresetSessionRequest,
@@ -177,6 +178,8 @@ export interface CreateExercisePayload {
   modality?: ExerciseModality;
   /** Health activity type key (#1750); omitted is Automatic. Older servers drop it. */
   health_activity_type?: string;
+  /** Silently dropped by servers from before volume counting. */
+  load_convention?: ExerciseLoadConvention;
   /** Omit when blank — server defaults missing/falsy values to 0. */
   calories_per_hour?: number;
   description: string | null;
@@ -198,6 +201,8 @@ export interface UpdateExercisePayload {
   modality?: ExerciseModality;
   /** A key sets the override, 'automatic' clears it, omitted preserves it. */
   health_activity_type?: string;
+  /** Sent only when the user changes it; changing it also updates the exercise's logged entries. */
+  load_convention?: ExerciseLoadConvention;
   calories_per_hour?: number;
   /** Empty string clears, omitted/null preserves (server COALESCEs nulls). */
   description?: string | null;

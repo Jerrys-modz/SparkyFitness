@@ -162,6 +162,12 @@ export function buildWatchWorkoutStartPayload(
       ),
       ...watchPlateFields(exercise.exercise_snapshot?.equipment),
       ...watchDemoFields(exercise.exercise_snapshot),
+      // Side controls are only useful on a one-sided exercise, or one that
+      // already has a side set so it can still be changed.
+      ...(exercise.exercise_snapshot?.load_convention === 'per_side' ||
+      exercise.sets.some((set) => set.side)
+        ? { perSide: true }
+        : {}),
       sets: exercise.sets.map((set) => {
         const setId = String(set.id);
         const target = targets.get(setId);
@@ -182,6 +188,7 @@ export function buildWatchWorkoutStartPayload(
           restSeconds: restSecBySetId.get(setId) ?? 0,
           restAfterSeconds: set.rest_time ?? getDefaultRestSec(),
           setType: set.set_type ?? null,
+          side: set.side ?? null,
         };
       }),
     })),

@@ -14,6 +14,7 @@ const actions = {
   addSetToExercise: jest.fn(),
   deleteSet: jest.fn(),
   updateSetField: jest.fn(),
+  addOtherSideSet: jest.fn(),
   removeExercise: jest.fn(),
   doExerciseNow: jest.fn(),
   addExercise: jest.fn(),
@@ -130,6 +131,38 @@ describe('applyWatchWorkoutEdit', () => {
     await edit({ action: 'setValues', setId: '16', weightKg: 60, at: 2000 });
     await edit({ action: 'setValues', setId: '16', reps: 5, at: 1000 });
     expect(actions.updateSetField).toHaveBeenLastCalledWith('16', { reps: 5 });
+  });
+
+  it('sets a set to the left, right or both sides', async () => {
+    await edit({ action: 'setSetSide', setId: '12', side: 'left' });
+    await edit({ action: 'setSetSide', setId: '12', side: 'right' });
+    await edit({ action: 'setSetSide', setId: '12', side: 'both' });
+    expect(actions.updateSetField).toHaveBeenNthCalledWith(1, '12', {
+      side: 'left',
+    });
+    expect(actions.updateSetField).toHaveBeenNthCalledWith(2, '12', {
+      side: 'right',
+    });
+    expect(actions.updateSetField).toHaveBeenNthCalledWith(3, '12', {
+      side: null,
+    });
+  });
+
+  it('adds the other side of a set', async () => {
+    await edit({ action: 'addOtherSide', setId: '12' });
+    expect(actions.addOtherSideSet).toHaveBeenCalledWith('12');
+  });
+
+  it('applies a repeated side edit once', async () => {
+    const payload = {
+      sessionId: 'sess-1',
+      clientId: 'dup-side',
+      action: 'addOtherSide' as const,
+      setId: '12',
+    };
+    await applyWatchWorkoutEdit(payload);
+    await applyWatchWorkoutEdit(payload);
+    expect(actions.addOtherSideSet).toHaveBeenCalledTimes(1);
   });
 
   it('loads and adds an exercise', async () => {

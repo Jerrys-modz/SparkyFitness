@@ -639,7 +639,8 @@ enum ContextPayloadMapper {
                     timed: rawSet["timed"] as? Bool,
                     carry: rawSet["carry"] as? Bool,
                     targetDistanceKm: doubleValue(rawSet["targetDistanceKm"]),
-                    weighted: rawSet["weighted"] as? Bool
+                    weighted: rawSet["weighted"] as? Bool,
+                    side: rawSet["side"] as? String
                 )
             }
             return PlannedExercise(
@@ -652,6 +653,7 @@ enum ContextPayloadMapper {
                 imageKey: raw["imageKey"] as? String,
                 imageCount: intValue(raw["imageCount"]),
                 muscle: raw["muscle"] as? String,
+                perSide: raw["perSide"] as? Bool,
                 sets: sets
             )
         }

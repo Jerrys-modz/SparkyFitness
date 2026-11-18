@@ -501,6 +501,8 @@ export interface WatchPlannedSetPayload {
   restAfterSeconds?: number;
   /** `normal` | `warmup` | `drop` … drives the watch's "Warmup 1/2" label. */
   setType?: string | null;
+  /** `left` | `right` for a single-arm / single-leg set; absent = both sides. */
+  side?: 'left' | 'right' | null;
 }
 
 /**
@@ -551,6 +553,12 @@ export interface WatchPlannedExercisePayload {
   imageCount?: number;
   /** Primary muscle ("Chest"), for the line under the name on the demo page. */
   muscle?: string;
+  /**
+   * True for a one-sided exercise (per-side reps), or one with a set already
+   * marked left or right. The watch shows the Side and Add Other Side options
+   * only then. Absent from an older phone build.
+   */
+  perSide?: boolean;
   sets: WatchPlannedSetPayload[];
 }
 
@@ -796,6 +804,8 @@ export interface WatchWorkoutEditPayload {
     | 'addSet'
     | 'deleteSet'
     | 'setSetType'
+    | 'setSetSide'
+    | 'addOtherSide'
     | 'addExercise'
     | 'deleteExercise'
     | 'doExerciseNow'
@@ -807,7 +817,7 @@ export interface WatchWorkoutEditPayload {
    * goes in front of. Absent from an older watch: the phone's cursor is used.
    */
   anchorEntryId?: string;
-  /** For `deleteSet` and `setSetType`. */
+  /** For `deleteSet`, `setSetType`, `setSetSide` and `addOtherSide`. */
   setId?: string;
   /** For `addExercise`: the library exercise to add. */
   exerciseId?: string;
@@ -829,6 +839,8 @@ export interface WatchWorkoutEditPayload {
    * arm is dropped. Absent from an older watch.
    */
   armedAt?: number;
+  /** For `setSetSide`: `left`, `right` or `both`. */
+  side?: string;
 }
 
 /** The wearer's answer to the watch's "update this workout?" question, asked

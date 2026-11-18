@@ -11,7 +11,9 @@ import {
   modalityRecordsReps,
   resolveExerciseModality,
   setVolumeKg,
+  volumeMultiplier,
 } from '@workspace/shared';
+import { setVolumeSql } from '../utils/exerciseLoadSql.js';
 
 describe('effectiveLoadKg', () => {
   it('is the set weight for an ordinary exercise', () => {
@@ -171,5 +173,58 @@ describe('weight_distance and weight_duration modalities', () => {
     expect(
       setVolumeKg({ weight: 100, reps: null }, 'weight_distance', 80)
     ).toBe(0);
+  });
+});
+
+describe('load convention (#3157)', () => {
+  it('counts a set once under total, and for an unknown or missing convention', () => {
+    expect(volumeMultiplier('total', null)).toBe(1);
+    expect(volumeMultiplier(undefined, null)).toBe(1);
+    expect(volumeMultiplier('sideways', 'left')).toBe(1);
+  });
+
+  it('counts two dumbbells twice, however the set is marked', () => {
+    expect(volumeMultiplier('per_hand', null)).toBe(2);
+    expect(volumeMultiplier('per_hand', 'left')).toBe(2);
+  });
+
+  it('counts per-side reps twice only for a set that did both sides', () => {
+    expect(volumeMultiplier('per_side', null)).toBe(2);
+    expect(volumeMultiplier('per_side', 'left')).toBe(1);
+    expect(volumeMultiplier('per_side', 'right')).toBe(1);
+  });
+
+  it('turns 2 x 20 kg dumbbells for 3 x 10 into 1200 kg, as logged weight stays 20', () => {
+    const sets = [1, 2, 3].map(() => ({ weight: 20, reps: 10 }));
+    const volume = (convention: string) =>
+      sets.reduce(
+        (sum, set) => sum + setVolumeKg(set, 'weight_reps', null, convention),
+        0
+      );
+    expect(volume('total')).toBe(600);
+    expect(volume('per_hand')).toBe(1200);
+  });
+
+  it('does not double count a unilateral exercise logged once per side', () => {
+    const left = { weight: 30, reps: 8, side: 'left' as const };
+    const right = { weight: 30, reps: 8, side: 'right' as const };
+    const both = { weight: 30, reps: 8 };
+    const volume = (set: typeof both, convention: string) =>
+      setVolumeKg(set, 'weight_reps', null, convention);
+    expect(volume(left, 'per_side') + volume(right, 'per_side')).toBe(480);
+    expect(volume(both, 'per_side')).toBe(480);
+  });
+
+  it('leaves the load, and so 1RM and PRs, as logged', () => {
+    expect(effectiveLoadKg(20, 'weight_reps', null)).toBe(20);
+  });
+
+  it('mirrors the multipliers in SQL', () => {
+    const sql = setVolumeSql('e', 's');
+    expect(sql).toContain("WHEN 'per_hand' THEN 2");
+    expect(sql).toContain(
+      "WHEN 'per_side' THEN CASE WHEN s.side IS NULL THEN 2 ELSE 1 END"
+    );
+    expect(sql).toContain('s.reps');
   });
 });

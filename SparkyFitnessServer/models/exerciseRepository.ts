@@ -39,6 +39,8 @@ interface ExerciseEntrySnapshotUpdate {
   calories_per_hour: number | null;
   modality: string | null;
   health_activity_type: string | null;
+  /** Omitted or null keeps each entry's stored convention. */
+  load_convention?: string | null;
 }
 async function updateExerciseEntriesSnapshot(
   userId: string,
@@ -53,7 +55,8 @@ async function updateExerciseEntriesSnapshot(
           exercise_name = $1,
           calories_per_hour = $2,
           modality = $3,
-          health_activity_type = $6
+          health_activity_type = $6,
+          load_convention = COALESCE($7, load_convention)
        WHERE user_id = $4 AND exercise_id = $5
        RETURNING id`,
       [
@@ -63,6 +66,7 @@ async function updateExerciseEntriesSnapshot(
         userId,
         exerciseId,
         newSnapshotData.health_activity_type ?? null,
+        newSnapshotData.load_convention ?? null,
       ]
     );
     return result.rowCount;

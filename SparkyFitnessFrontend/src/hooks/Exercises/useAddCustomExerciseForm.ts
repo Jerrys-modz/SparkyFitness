@@ -8,6 +8,7 @@ import type { Exercise } from '@/types/exercises';
 import {
   deriveExerciseModality,
   isHealthActivityType,
+  type ExerciseLoadConvention,
   type ExerciseModality,
 } from '@workspace/shared';
 
@@ -31,6 +32,8 @@ export function useAddCustomExerciseForm(
   // 'automatic' (no override) or a health activity type key (#1750).
   const [newExerciseHealthActivityType, setNewExerciseHealthActivityType] =
     useState(AUTOMATIC_HEALTH_ACTIVITY_TYPE);
+  const [newExerciseLoadConvention, setNewExerciseLoadConvention] =
+    useState<ExerciseLoadConvention>('total');
   const [newExerciseCalories, setNewExerciseCalories] = useState(300);
   const [manualCaloriesPerHour, setManualCaloriesPerHour] = useState<
     number | undefined
@@ -66,6 +69,7 @@ export function useAddCustomExerciseForm(
     setNewExerciseCategory('general');
     setPinnedModality(null);
     setNewExerciseHealthActivityType(AUTOMATIC_HEALTH_ACTIVITY_TYPE);
+    setNewExerciseLoadConvention('total');
     setNewExerciseCalories(300);
     setManualCaloriesPerHour(undefined);
     setNewExerciseDescription('');
@@ -91,6 +95,7 @@ export function useAddCustomExerciseForm(
         ...(isHealthActivityType(newExerciseHealthActivityType)
           ? { health_activity_type: newExerciseHealthActivityType }
           : {}),
+        load_convention: newExerciseLoadConvention,
         calories_per_hour:
           manualCaloriesPerHour !== undefined
             ? manualCaloriesPerHour
@@ -200,6 +205,8 @@ export function useAddCustomExerciseForm(
     setNewExerciseModality: setPinnedModality,
     newExerciseHealthActivityType,
     setNewExerciseHealthActivityType,
+    newExerciseLoadConvention,
+    setNewExerciseLoadConvention,
     newExerciseCalories,
     manualCaloriesPerHour,
     setManualCaloriesPerHour,

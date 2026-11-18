@@ -148,6 +148,54 @@ describe('ReportsTables duration-only exercise sets', () => {
   });
 });
 
+describe('ReportsTables volume counting (#3157)', () => {
+  const dumbbellEntry = (loadConvention?: string) =>
+    ({
+      id: 'entry-db',
+      entry_date: '2026-05-15',
+      duration_minutes: 20,
+      calories_burned: 100,
+      exercises: {
+        id: 'exercise-db',
+        name: 'Dumbbell Press',
+        modality: 'weight_reps',
+        load_convention: loadConvention,
+      },
+      sets: [1, 2, 3].map((n) => ({
+        id: `set-${n}`,
+        set_number: n,
+        set_type: 'Working Set',
+        reps: 10,
+        weight: 20,
+      })),
+    }) as unknown as DailyExerciseEntry;
+
+  const tonnage = (entry: DailyExerciseEntry) => {
+    const { unmount } = renderTable([entry]);
+    const weights = screen
+      .getAllByRole('cell')
+      .map((c) => c.textContent ?? '')
+      .filter((text) => text.includes('lbs'))
+      .map((text) => parseFloat(text.replace(/,/g, '')));
+    unmount();
+    return Math.max(...weights);
+  };
+
+  it('counts both dumbbells for a per-hand exercise, and one load otherwise', () => {
+    const total = tonnage(dumbbellEntry());
+    expect(tonnage(dumbbellEntry('total'))).toBeCloseTo(total, 0);
+    expect(tonnage(dumbbellEntry('per_hand'))).toBeCloseTo(total * 2, 0);
+  });
+
+  it('counts both sides of a per-side set logged once, but not a set marked left', () => {
+    const total = tonnage(dumbbellEntry());
+    expect(tonnage(dumbbellEntry('per_side'))).toBeCloseTo(total * 2, 0);
+    const marked = dumbbellEntry('per_side');
+    marked.sets = marked.sets.map((set) => ({ ...set, side: 'left' }));
+    expect(tonnage(marked)).toBeCloseTo(total, 0);
+  });
+});
+
 describe('ReportsTables table type filter', () => {
   it('renders all tables by default', () => {
     renderTable();

@@ -3,14 +3,20 @@ import userRepository from '../models/userRepository.js';
 import { log } from '../config/logging.js';
 import { loadUserTimezone } from '../utils/timezoneLoader.js';
 import { userAge } from '../utils/dateHelpers.js';
-import type { ExerciseEntrySetRequest, Exercises } from '@workspace/shared';
+import {
+  volumeMultiplier,
+  type ExerciseEntrySetRequest,
+  type Exercises,
+} from '@workspace/shared';
 
 type CalorieExercise = Partial<
-  Pick<Exercises, 'level' | 'calories_per_hour'>
+  Pick<Exercises, 'level' | 'calories_per_hour' | 'load_convention'>
 > & {
   category?: Exercises['category'] | { name?: string | null };
 };
-type CalorieSet = Pick<ExerciseEntrySetRequest, 'reps' | 'weight'>;
+type CalorieSet = Pick<ExerciseEntrySetRequest, 'reps' | 'weight'> & {
+  side?: string | null;
+};
 export type PreparedCalorieEstimator = (sets?: readonly CalorieSet[]) => number;
 
 // Approximate MET values based on exercise category and level
@@ -105,12 +111,23 @@ async function prepareCalorieEstimator(
   return (sets) => {
     let met;
     if (category === 'strength' && sets && sets.length > 0) {
-      // Enhanced MET calculation for strength training
+      // Enhanced MET calculation for strength training. The exercise's load
+      // convention (#3157) says how many times a set's reps were performed: a
+      // per-side set logged once did both sides, so it counts twice in the
+      // session's average weight, while a set marked left or right counts once.
+      // Per-hand weights scale every set alike, which the weight ratio below
+      // already cancels. The estimated 1RM stays on the weight as logged.
+      const repsPerformed = (set: CalorieSet): number =>
+        (Number(set.reps) || 0) *
+        volumeMultiplier(
+          exercise.load_convention,
+          set.side === 'left' || set.side === 'right' ? set.side : null
+        );
       const totalVolume = sets.reduce(
-        (acc, set) => acc + Number(set.reps) * Number(set.weight),
+        (acc, set) => acc + repsPerformed(set) * (Number(set.weight) || 0),
         0
       );
-      const totalReps = sets.reduce((acc, set) => acc + Number(set.reps), 0);
+      const totalReps = sets.reduce((acc, set) => acc + repsPerformed(set), 0);
       // Brzycki formula for 1RM estimation, applied per set (it is only valid
       // for sets below ~37 reps). The strongest set defines the ceiling that
       // the session's average weight is measured against.

@@ -1061,6 +1061,7 @@ const EditExerciseEntryDialog = ({
                     {sets.map((set, setIndex) => (
                       <SortableSetItem
                         showRir
+                        showSide
                         id={set._dndId}
                         key={set._dndId}
                         set={set}

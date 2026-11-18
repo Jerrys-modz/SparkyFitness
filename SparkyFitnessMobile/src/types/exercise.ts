@@ -1,4 +1,7 @@
-import type { ExerciseModality } from '@workspace/shared';
+import type {
+  ExerciseLoadConvention,
+  ExerciseModality,
+} from '@workspace/shared';
 
 export interface Exercise {
   id: string;
@@ -8,6 +11,8 @@ export interface Exercise {
   modality?: ExerciseModality | null;
   /** Health activity type override (#1750); null/absent is Automatic. */
   health_activity_type?: string | null;
+  /** How logged weight and reps count toward volume; absent on older servers, which means `total`. */
+  load_convention?: ExerciseLoadConvention;
   equipment: string[];
   primary_muscles: string[];
   secondary_muscles: string[];

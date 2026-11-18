@@ -1,6 +1,9 @@
 import { z } from 'zod';
 import { paginationSchema } from './Pagination.api.zod.ts';
-import { EXERCISE_MODALITIES } from '../../constants/exercise.ts';
+import {
+  EXERCISE_LOAD_CONVENTIONS,
+  EXERCISE_MODALITIES,
+} from '../../constants/exercise.ts';
 
 /**
  * Wire enum for exercise modality. Optional on response schemas so
@@ -8,6 +11,13 @@ import { EXERCISE_MODALITIES } from '../../constants/exercise.ts';
  * to `resolveExerciseModality(modality, category)`.
  */
 export const exerciseModalitySchema = z.enum(EXERCISE_MODALITIES);
+
+/**
+ * How the exercise's logged weight and reps count toward volume (#3157).
+ * Optional so servers from before this setting still satisfy the contract;
+ * clients treat a missing value as `total`.
+ */
+export const exerciseLoadConventionSchema = z.enum(EXERCISE_LOAD_CONVENTIONS);
 
 // --- Query contracts ---
 
@@ -90,6 +100,7 @@ export const exerciseLibraryItemSchema = z
     modality: exerciseModalitySchema.optional(),
     /** Health activity type override (#1750); null is Automatic. Optional: older servers omit it. */
     health_activity_type: z.string().nullable().optional(),
+    load_convention: exerciseLoadConventionSchema.optional(),
     images: z.array(z.string()),
     calories_per_hour: z.number().nullable(),
     description: z.string().nullable(),
@@ -124,6 +135,7 @@ export const externalExerciseSearchItemSchema = z
     source: z.string(),
     category: z.string().nullable(),
     modality: exerciseModalitySchema.optional(),
+    load_convention: exerciseLoadConventionSchema.optional(),
     calories_per_hour: z.number().nullable(),
     description: z.string().optional(),
     force: z.string().nullable().optional(),

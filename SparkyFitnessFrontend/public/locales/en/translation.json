@@ -1253,6 +1253,7 @@
       "nameLabel": "Name",
       "categoryLabel": "Category",
       "modalityLabel": "Tracking type",
+      "loadConventionLabel": "Volume counting",
       "selectCategoryPlaceholder": "Select a category",
       "categoryGeneral": "General",
       "categoryStrength": "Strength",
@@ -1301,6 +1302,14 @@
       "healthActivityTypeAll": "All activities",
       "healthActivityTypeSearch": "Search activities",
       "healthActivityTypeNoMatches": "No matches"
+    },
+    "loadConvention": {
+      "total": "Total load",
+      "perHand": "Weight per hand",
+      "perSide": "Reps per side",
+      "totalHint": "The logged weight is the whole load.",
+      "perHandHint": "The logged weight is one dumbbell, so volume counts it twice.",
+      "perSideHint": "Reps are for each side. A set with no side counts both sides."
     },
     "modality": {
       "weightReps": "Weight & Reps",
@@ -8151,6 +8160,12 @@
     "restSec": "Rest (s)",
     "rpe": "RPE",
     "rir": "RIR",
+    "side": {
+      "label": "Side (left / right / both)",
+      "leftShort": "L",
+      "rightShort": "R",
+      "bothShort": "LR"
+    },
     "startTimer": "Start timer",
     "stopTimer": "Stop timer",
     "type": "Type",

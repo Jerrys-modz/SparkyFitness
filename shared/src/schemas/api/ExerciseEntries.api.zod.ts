@@ -1,6 +1,9 @@
 import { z } from 'zod';
 import { paginationSchema } from './Pagination.api.zod.ts';
-import { exerciseModalitySchema } from './Exercises.api.zod.ts';
+import {
+  exerciseLoadConventionSchema,
+  exerciseModalitySchema,
+} from './Exercises.api.zod.ts';
 import { workoutFormatSchema } from './WorkoutPresets.api.zod.ts';
 import { gpsTrackPointSchema } from '../database/ExerciseEntryGpsPoints.zod.ts';
 import { CALORIE_LINK_RESOLUTIONS } from '../../utils/exerciseCalorieLink.ts';
@@ -70,6 +73,7 @@ export const exerciseSnapshotResponseSchema = z
     name: z.string(),
     category: z.string().nullable(),
     modality: exerciseModalitySchema.nullable().optional(),
+    load_convention: exerciseLoadConventionSchema.optional(),
     images: z.array(z.string()).nullable(),
     primary_muscles: z.array(z.string()).nullable(),
     secondary_muscles: z.array(z.string()).nullable(),
@@ -103,6 +107,9 @@ export const exerciseSnapshotResponseSchema = z
 export const entryExerciseSnapshotResponseSchema =
   exerciseSnapshotResponseSchema.extend({ id: z.string().nullable() });
 
+/** Which side a single-arm or single-leg set was done on. null = both. */
+export const setSideSchema = z.enum(['left', 'right']);
+
 /** A single set within an exercise entry */
 export const exerciseEntrySetResponseSchema = z.object({
   id: z.number(),
@@ -120,6 +127,8 @@ export const exerciseEntrySetResponseSchema = z.object({
   started_at: z.string().nullable().optional(),
   is_pr: z.boolean(),
   rir: z.number().nullable().optional(),
+  // Optional: servers from before side tracking omit it.
+  side: setSideSchema.nullable().optional(),
   // Km. Optional: pre-distance servers omit it.
   distance: z.number().nullable().optional(),
   // Progression & Equipment Fields
@@ -172,6 +181,7 @@ export const exerciseEntrySetRequestSchema = z
     notes: z.string().nullable().optional(),
     rpe: z.number().nullable().optional(),
     rir: z.number().min(RIR_MIN).max(RIR_MAX).nullable().optional(),
+    side: setSideSchema.nullable().optional(),
     completed_at: z.iso.datetime().nullable().optional(),
     // When the set was started. Omitted on an update keeps the stored value,
     // so clients that do not send it yet do not clear it; null clears it.
@@ -604,6 +614,8 @@ export const exerciseProgressResponseSchema = z.object({
   category: z.string().nullable().optional(),
   /** The entry's modality; `bodyweight_reps` sets add body weight to load. */
   modality: exerciseModalitySchema.nullable().optional(),
+  /** How the entry's logged weight and reps count toward volume; missing is `total`. */
+  load_convention: exerciseLoadConventionSchema.optional(),
   /** The lifter's body weight that day (kg), null with no check-ins. */
   body_weight_kg: z.number().nullable().optional(),
   sets: z.array(exerciseProgressSetSchema),

@@ -141,13 +141,13 @@ describe('live workout save (reconcile by set id)', () => {
     expect(updates).toHaveLength(3);
     for (const [sql] of updates) {
       expect(sql).toMatch(
-        /started_at = CASE WHEN \$15::boolean THEN \$16::timestamptz ELSE started_at END/
+        /started_at = CASE WHEN \$16::boolean THEN \$17::timestamptz ELSE started_at END/
       );
     }
     const startParams = updates.map(([, params]) => [
-      params![12],
-      params![14],
+      params![13],
       params![15],
+      params![16],
     ]);
     expect(startParams).toEqual([
       [1, false, null],

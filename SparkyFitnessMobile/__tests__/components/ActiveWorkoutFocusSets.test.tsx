@@ -45,7 +45,8 @@ function makeSet(overrides?: Partial<WorkoutCardSet>): WorkoutCardSet {
 function makeExercise(
   sets: WorkoutCardSet[],
   modality = 'weight_reps',
-  equipment?: string[]
+  equipment?: string[],
+  loadConvention?: string
 ): WorkoutCardExercise {
   return {
     id: 'entry-1',
@@ -54,6 +55,7 @@ function makeExercise(
       name: 'Bench Press',
       modality,
       equipment,
+      load_convention: loadConvention,
     } as never,
     sets,
   } as WorkoutCardExercise;
@@ -63,6 +65,7 @@ interface RenderOptions {
   sets?: WorkoutCardSet[];
   modality?: string;
   equipment?: string[];
+  loadConvention?: string;
   completedSetIds?: Record<string, number>;
   activeSetId?: string | null;
   weightUnit?: 'kg' | 'lbs';
@@ -95,7 +98,8 @@ function renderSets(options: RenderOptions = {}) {
       exercise={makeExercise(
         options.sets ?? [makeSet()],
         options.modality,
-        options.equipment
+        options.equipment,
+        options.loadConvention
       )}
       completedSetIds={options.completedSetIds ?? {}}
       activeSetId={options.activeSetId ?? null}
@@ -320,6 +324,33 @@ describe('ActiveWorkoutFocusSets', () => {
     expect(getByText('W')).toBeTruthy();
     expect(getByText('1')).toBeTruthy();
     expect(queryByText('2')).toBeNull();
+  });
+
+  it('marks a set done on one side with L or R after its number', () => {
+    const { getByText } = renderSets({
+      sets: [
+        makeSet({ side: 'left' }),
+        makeSet({ id: 102, set_number: 2, side: 'right' }),
+        makeSet({ id: 103, set_number: 3 }),
+      ],
+    });
+    expect(getByText('1L')).toBeTruthy();
+    expect(getByText('2R')).toBeTruthy();
+    expect(getByText('3')).toBeTruthy();
+  });
+
+  it("counts volume by the exercise's load convention", () => {
+    const { getByText } = renderSets({
+      metricColumn: 'volume',
+      loadConvention: 'per_side',
+      sets: [
+        makeSet({ weight: 20, reps: 10 }),
+        makeSet({ id: 102, set_number: 2, weight: 20, reps: 10, side: 'left' }),
+      ],
+    });
+    // A set with no side did both sides; a left set counts once.
+    expect(getByText('400')).toBeTruthy();
+    expect(getByText('200')).toBeTruthy();
   });
 
   it('shows the RIR effort column and activates it with the render key', () => {

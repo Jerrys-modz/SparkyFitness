@@ -41,6 +41,10 @@ struct PlannedSet: Codable, Equatable, Identifiable {
     /// A loaded hold: the weight box stays beside the timer even when no
     /// weight is planned yet.
     var weighted: Bool? = nil
+    /// `left` or `right` for a single-arm / single-leg set; nil means both
+    /// sides together. Optional so an older phone, or a snapshot saved before
+    /// this existed, still decodes.
+    var side: String? = nil
 
     var id: String { setId }
 }
@@ -73,6 +77,10 @@ struct PlannedExercise: Codable, Equatable, Identifiable {
     var imageCount: Int? = nil
     /// Primary muscle ("Chest"), for the line under the name on the demo page.
     var muscle: String? = nil
+    /// A one-sided exercise, or one with a set already marked left or right.
+    /// Only then does the set options page offer Side and Add Other Side.
+    /// Optional so an older phone, or a saved snapshot, still decodes.
+    var perSide: Bool? = nil
     let sets: [PlannedSet]
 
     var id: String { exerciseEntryId }
@@ -200,8 +208,25 @@ struct WorkoutStep: Identifiable, Equatable {
 
     var id: String { plannedSet.setId }
 
-    /// "Warmup 1/2" / "Set 2/3" — what sits under the exercise name.
+    /// "Warmup 1/2" / "Set 2/3" — what sits under the exercise name, with
+    /// " · L" or " · R" for a set done on one side.
     var label: String {
+        "\(typeLabel)\(sideSuffix)"
+    }
+
+    /// " · L" / " · R" for a one-sided set, empty for both sides.
+    var sideSuffix: String {
+        switch plannedSet.side?.lowercased() {
+        case "left":
+            return String(localized: "watch.workout.setLabel.sideLeftSuffix", defaultValue: " · L")
+        case "right":
+            return String(localized: "watch.workout.setLabel.sideRightSuffix", defaultValue: " · R")
+        default:
+            return ""
+        }
+    }
+
+    private var typeLabel: String {
         switch plannedSet.setType?.lowercased() {
         case "warmup":
             return String(localized: "watch.workout.setLabel.warmup", defaultValue: "Warmup \(setNumber)/\(setCount)")
@@ -238,6 +263,10 @@ enum WorkoutEditAction: Equatable {
     case addSet(exerciseEntryId: String)
     case deleteSet(setId: String)
     case setSetType(setId: String, type: String)
+    /// `side` is `left`, `right` or `both`.
+    case setSetSide(setId: String, side: String)
+    /// Copy a set for the opposite side, right after it.
+    case addOtherSide(setId: String)
     case addExercise(exerciseId: String)
     case deleteExercise(exerciseEntryId: String)
     /// Moves an upcoming exercise in front of the current one and starts it.
