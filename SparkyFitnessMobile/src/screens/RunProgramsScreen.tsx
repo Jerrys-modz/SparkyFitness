@@ -31,6 +31,9 @@ import RunProgramGuide, {
 } from '../components/recording/RunProgramGuide';
 import Button from '../components/ui/Button';
 import SegmentedControl from '../components/SegmentedControl';
+import ProgramActionRow, {
+  ProgramActionList,
+} from '../components/recording/ProgramActionRow';
 import CalendarSheet, {
   type CalendarSheetRef,
 } from '../components/CalendarSheet';
