@@ -18,11 +18,8 @@ import { formatTimeWithPreference } from '@/utils/timeFormatters';
 import { axisLabelValue } from '@/utils/chartUtils';
 import { useResolvedHeartRateZones } from '@/hooks/Settings/useHeartRateZones';
 import { HeartRateZoneLegend } from '@/components/HeartRateZoneLegend';
-import {
-  zoneEdges,
-  zoneGradientStops,
-  zoneStroke,
-} from '@/utils/heartRateZoneBands';
+import { zoneEdgeLines, zoneGradientStops } from '@workspace/shared';
+import { zoneStroke } from '@/utils/heartRateZoneBands';
 
 interface ActivityHeartRateChartProps {
   data: ChartDataPoint[];
@@ -43,8 +40,8 @@ export const ActivityHeartRateChart = ({
   const { resolved, isDefault, displayZones, bands } =
     useResolvedHeartRateZones();
 
-  // Color edges follow the person's own zones, not fixed bpm values
-  const edges = useMemo(() => zoneEdges(bands), [bands]);
+  // Dotted zone lines follow the person's own zones, in each zone's color
+  const edges = useMemo(() => zoneEdgeLines(bands), [bands]);
   const gradientStops = useMemo(() => {
     const values = data
       .map((p) => Number(p.heartRate))
@@ -149,13 +146,14 @@ export const ActivityHeartRateChart = ({
                     return String(value);
                   }}
                 />
-                {edges.map((bpm) => (
+                {edges.map((edge) => (
                   <ReferenceLine
-                    key={bpm}
-                    y={bpm}
-                    stroke="hsl(var(--muted-foreground))"
-                    strokeDasharray="4 4"
-                    strokeOpacity={0.3}
+                    key={edge.bpm}
+                    y={edge.bpm}
+                    stroke={edge.color}
+                    strokeDasharray="2 5"
+                    strokeWidth={1.5}
+                    strokeOpacity={0.8}
                   />
                 ))}
                 <Line
