@@ -2204,9 +2204,7 @@ async function createGroupedWorkoutSession(
 function resolveEditedCaloriesBurned(
   clientCalories: unknown,
   existingEntry:
-    | { active_calories?: unknown; calories_burned?: unknown }
-    | null
-    | undefined,
+    { active_calories?: unknown; calories_burned?: unknown } | null | undefined,
   recomputed: number
 ): number {
   if (typeof clientCalories === 'number') return clientCalories;
