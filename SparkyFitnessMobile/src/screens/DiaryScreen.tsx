@@ -45,6 +45,7 @@ import { BedTimeCard, NapsCard, WakeUpCard } from '../components/SleepCards';
 import StatusView from '../components/StatusView';
 import { ServerStatusView } from '../components/ServerGate';
 import OfflineBanner from '../components/OfflineBanner';
+import Toast from 'react-native-toast-message';
 import { useOfflineDiaryDay } from '../hooks/useOfflineDiaryDay';
 import { mergeWaitingWorkouts } from '../offline/diaryDay';
 import Button from '../components/ui/Button';
@@ -607,6 +608,20 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
       }
       navigation.navigate('WorkoutDetail', { session });
     } else {
+      // A run saved on the phone is not on the server yet, so its details
+      // (route, laps, records) are not there to open.
+      if (waitingSessionIds.has(session.id)) {
+        Toast.show({
+          type: 'info',
+          text1: t('offline.runWaitingTitle', {
+            defaultValue: 'Waiting to upload',
+          }),
+          text2: t('offline.runWaitingHint', {
+            defaultValue: 'Its details are there once it has uploaded.',
+          }),
+        });
+        return;
+      }
       const synced = cardioSessionFromDiaryEntry(session, distanceUnit);
       if (synced) {
         navigation.navigate('CardioSession', {

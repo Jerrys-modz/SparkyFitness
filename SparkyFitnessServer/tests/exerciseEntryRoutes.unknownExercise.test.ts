@@ -30,7 +30,11 @@ vi.mock('../middleware/uploadMiddleware.js', () => ({
   })),
 }));
 vi.mock('../services/exerciseService.js', () => ({
-  default: { createExerciseEntry: vi.fn(), updateExerciseEntry: vi.fn() },
+  default: {
+    createExerciseEntry: vi.fn(),
+    createOrReplayExerciseEntry: vi.fn(),
+    updateExerciseEntry: vi.fn(),
+  },
 }));
 vi.mock('../services/exerciseEntryService.js', () => ({ default: {} }));
 vi.mock('../services/fitImportService.js', () => ({ default: {} }));
@@ -59,7 +63,7 @@ describe('exercise entry routes with an unknown exercise_id', () => {
   // the entry model's create and update snapshot lookups, answered by the
   // shared error handler.
   it('POST returns 404 for an unknown exercise', async () => {
-    vi.mocked(exerciseService.createExerciseEntry).mockRejectedValue(
+    vi.mocked(exerciseService.createOrReplayExerciseEntry).mockRejectedValue(
       unknownExercise('Exercise not found.')
     );
 
@@ -134,7 +138,7 @@ describe('exercise entry routes with an unknown exercise_id', () => {
   });
 
   it('leaves other failures to the error handler', async () => {
-    vi.mocked(exerciseService.createExerciseEntry).mockRejectedValue(
+    vi.mocked(exerciseService.createOrReplayExerciseEntry).mockRejectedValue(
       new Error('Unexpected failure')
     );
 
@@ -149,7 +153,7 @@ describe('exercise entry routes with an unknown exercise_id', () => {
   });
 
   it('does not match on the message alone', async () => {
-    vi.mocked(exerciseService.createExerciseEntry).mockRejectedValue(
+    vi.mocked(exerciseService.createOrReplayExerciseEntry).mockRejectedValue(
       new Error('Exercise not found.')
     );
 

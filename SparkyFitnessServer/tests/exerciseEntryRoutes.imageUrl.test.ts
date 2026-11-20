@@ -38,7 +38,11 @@ vi.mock('../middleware/checkPermissionMiddleware.js', () => ({
   ),
 }));
 vi.mock('../services/exerciseService.js', () => ({
-  default: { createExerciseEntry: vi.fn(), updateExerciseEntry: vi.fn() },
+  default: {
+    createExerciseEntry: vi.fn(),
+    createOrReplayExerciseEntry: vi.fn(),
+    updateExerciseEntry: vi.fn(),
+  },
 }));
 vi.mock('../models/exerciseEntry.js', () => ({
   default: { isExerciseImageReferenced: vi.fn() },
@@ -73,6 +77,8 @@ const uploadedFiles = () => {
 const updateData = () =>
   vi.mocked(exerciseService.updateExerciseEntry).mock.calls[0][3];
 const createData = () =>
+  vi.mocked(exerciseService.createOrReplayExerciseEntry).mock.calls[0][2];
+const fromPlanData = () =>
   vi.mocked(exerciseService.createExerciseEntry).mock.calls[0][2];
 
 beforeEach(() => {
@@ -86,6 +92,10 @@ beforeEach(() => {
   });
   vi.mocked(exerciseService.createExerciseEntry).mockResolvedValue({
     id: ENTRY_ID,
+  });
+  vi.mocked(exerciseService.createOrReplayExerciseEntry).mockResolvedValue({
+    entry: { id: ENTRY_ID },
+    replayed: false,
   });
   vi.mocked(exerciseEntryDb.isExerciseImageReferenced).mockResolvedValue(false);
 });
@@ -187,7 +197,7 @@ describe('POST /exercise-entries/from-plan image_url', () => {
       })
       .expect(201);
 
-    expect(createData()).not.toHaveProperty('image_url');
+    expect(fromPlanData()).not.toHaveProperty('image_url');
   });
 });
 
@@ -209,7 +219,7 @@ describe('POST /exercise-entries image_url', () => {
   });
 
   it('removes the upload when the entry could not be created', async () => {
-    vi.mocked(exerciseService.createExerciseEntry).mockRejectedValue(
+    vi.mocked(exerciseService.createOrReplayExerciseEntry).mockRejectedValue(
       new Error('Unexpected failure')
     );
 
