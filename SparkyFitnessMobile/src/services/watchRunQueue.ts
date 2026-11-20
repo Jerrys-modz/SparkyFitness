@@ -283,26 +283,38 @@ export async function readWaitingWatchRuns(): Promise<WaitingWatchRun[]> {
     .filter((run) => run.entryId != null);
 }
 
+/** What removing a waiting watch run came to. */
+export type WatchRunDiscard =
+  | { outcome: 'removed'; entryDate: string }
+  /** An attempt had created its entry on the server; the caller removes that. */
+  | { outcome: 'on_server'; entryDate: string }
+  | { outcome: 'none' };
+
 /**
- * Drops a watch run that is only on the phone, for the person who deletes it
- * from the Diary. It is marked handled, so a copy the watch sends again is
- * not filed. False when no such run is waiting, or an attempt already created
- * its entry on the server, where it must be deleted from the Diary.
+ * Drops a watch run that is still waiting, for the person who deletes it from
+ * the Diary. It is marked handled, so a copy the watch sends again is not
+ * filed. A run whose entry already reached the server is dropped from the
+ * queue too (its remaining steps are abandoned) and reported as `on_server`.
  */
-export function discardWaitingWatchRun(entryId: string): Promise<boolean> {
+export function discardWaitingWatchRun(
+  entryId: string
+): Promise<WatchRunDiscard> {
   return serial(async () => {
     const queue = await readQueue();
     const run = queue.find(
-      (item) => (item.entryClientId ?? item.entryId) === entryId
+      (item) => item.entryId === entryId || item.entryClientId === entryId
     );
-    if (!run || run.entryId) return false;
+    if (!run) return { outcome: 'none' };
     await AsyncStorage.setItem(
       QUEUE_KEY,
       JSON.stringify(queue.filter((item) => item !== run))
     );
     await markDone(run.payload.clientId);
     notifyOutboxChanged();
-    return true;
+    return {
+      outcome: run.entryId ? 'on_server' : 'removed',
+      entryDate: toLocalDateString(new Date(run.payload.startedAt)),
+    };
   });
 }
 

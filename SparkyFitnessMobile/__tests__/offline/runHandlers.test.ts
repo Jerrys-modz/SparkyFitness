@@ -1,5 +1,6 @@
 import { ApiError } from '../../src/services/api/errors';
 import { saveRecordedActivity } from '../../src/services/gpsRecordingSave';
+import { deleteExerciseEntry } from '../../src/services/api/exerciseApi';
 import { saveFitnessTest } from '../../src/services/fitnessTestService';
 import { completeProgramWorkout } from '../../src/services/runProgramService';
 import { putCacheRows } from '../../src/offline/cacheStore';
@@ -9,9 +10,12 @@ import { registerRunHandlers } from '../../src/offline/handlers/run';
 import { getOutboxRow, listUnconfirmedOutbox } from '../../src/offline/outbox';
 import {
   RUN_FITNESS_TEST,
+  RUN_DELETE,
   RUN_PROGRAM_TICK,
   RUN_SAVE,
   queueRecordedRun,
+  queueRunDelete,
+  noteZonesForQueuedRun,
   type QueuedRecordingPayload,
 } from '../../src/offline/runHandOver';
 import {
@@ -29,6 +33,9 @@ jest.mock('../../src/services/storage', () => ({
 }));
 jest.mock('../../src/services/gpsRecordingSave', () => ({
   saveRecordedActivity: jest.fn(),
+}));
+jest.mock('../../src/services/api/exerciseApi', () => ({
+  deleteExerciseEntry: jest.fn(),
 }));
 jest.mock('../../src/services/fitnessTestService', () => ({
   saveFitnessTest: jest.fn(),
@@ -175,7 +182,7 @@ describe('queued runs', () => {
 
   it('parks a run the server refuses for the person', async () => {
     await queueRecordedRun(input);
-    mockSave.mockRejectedValue(new ApiError(400, 'bad'));
+    mockSave.mockRejectedValue(new ApiError('bad', 400));
     await drainOutbox('manual');
     const [row] = await listUnconfirmedOutbox(db, 's1');
     expect(row!.status).toBe('failed');
@@ -234,7 +241,7 @@ describe('queued runs', () => {
       entryDate: '2026-11-16',
       form: null,
     });
-    mockTick.mockRejectedValue(new ApiError(409, 'not due'));
+    mockTick.mockRejectedValue(new ApiError('not due', 409));
     const summary = await drainOutbox('manual');
     expect(summary).toEqual({ synced: 2, remaining: 0 });
     const rows = await listUnconfirmedOutbox(db, 's1');
@@ -257,5 +264,46 @@ describe('queued runs', () => {
     const [row] = await listUnconfirmedOutbox(db, 's1');
     expect(row!.kind).toBe(RUN_PROGRAM_TICK);
     expect((await getOutboxRow(db, row!.id))!.status).toBe('pending');
+  });
+
+  it('removes a run the person deleted after it reached the server', async () => {
+    await queueRunDelete(ENTRY_ID, '2026-11-16');
+    const [row] = await listUnconfirmedOutbox(db, 's1');
+    expect(row).toMatchObject({ kind: RUN_DELETE, entityId: ENTRY_ID });
+    jest.mocked(deleteExerciseEntry).mockResolvedValue(undefined);
+    expect(await drainOutbox('manual')).toEqual({ synced: 1, remaining: 0 });
+    expect(deleteExerciseEntry).toHaveBeenCalledWith(ENTRY_ID);
+  });
+
+  it('counts a run that is already gone as removed', async () => {
+    await queueRunDelete(ENTRY_ID, '2026-11-16');
+    jest
+      .mocked(deleteExerciseEntry)
+      .mockRejectedValue(new ApiError('gone', 404));
+    expect(await drainOutbox('manual')).toEqual({ synced: 1, remaining: 0 });
+  });
+
+  it('keeps the removal waiting while the connection is down', async () => {
+    await queueRunDelete(ENTRY_ID, '2026-11-16');
+    jest
+      .mocked(deleteExerciseEntry)
+      .mockRejectedValue(new TypeError('Network request failed'));
+    expect(await drainOutbox('manual')).toEqual({ synced: 0, remaining: 1 });
+  });
+
+  it('keeps zones Apple sent while an attempt was running when it writes its progress', async () => {
+    await queueRecordedRun(input);
+    const zones = [{ index: 1, seconds: 600 }] as never;
+    mockSave.mockImplementationOnce(async (...args) => {
+      // Apple's zones arrive while this attempt is going on.
+      await noteZonesForQueuedRun(session.id, zones);
+      await args[6]!.onProgress({ entryId: ENTRY_ID, form: null });
+      throw new TypeError('Network request failed');
+    });
+    await drainOutbox('manual');
+    const [row] = await listUnconfirmedOutbox(db, 's1');
+    const payload = row!.payload as QueuedRecordingPayload;
+    expect(payload.appleZones).toEqual(zones);
+    expect(payload.progress).toEqual({ entryId: ENTRY_ID, form: null });
   });
 });

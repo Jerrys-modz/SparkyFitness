@@ -33,8 +33,9 @@ If you try to start a workout offline before the phone has ever refreshed, the a
 - Log a workout after the fact (**Log past workout**, or the **Add workout** form) and edit a workout you already logged. The change is kept on your phone and uploads later, like any other offline workout.
 
 - Record a run, walk or ride with the phone's GPS, or an indoor session, from **Record activity**. When you save it and your server cannot be reached, the run is kept on your phone. The summary opens straight away from what the phone measured, and your personal records and the rest of the analysis appear once it uploads. A fitness test or training-program workout you finished is filed and ticked off after the run uploads. Heart rate from a paired watch is kept with it.
-- A walk or run you record on your Apple Watch alone is kept the same way, and uploads once the watch's data has reached your phone and your server can be reached.
-- See a run that is waiting in the **Diary** with the **Waiting to upload** mark. Its details (route, laps, records) open once it has uploaded. To remove it before that, swipe it away or long-press it; once it has started uploading, delete it from the Diary after it has finished.
+- A walk or run you record on your Apple Watch alone is kept the same way, and uploads once the watch's data has reached your phone and your server can be reached. It shows in **Settings → Offline** as **Run on watch**, and **Upload now** sends it too.
+- See a run that is waiting in the **Diary** with the **Waiting to upload** mark. Its details (route, laps, records) open once it has uploaded. To remove it, swipe it away or long-press it. If it had already reached your server while its upload was still going on, it is deleted there too.
+- Apple's heart rate zones for a run arrive after the workout ends. They are kept with a run that is still waiting, or added to it once it has uploaded.
 
 Starting a run with no connection works, but the training program, saved routes and suggested paces need your server, so they are not offered until it is back.
 

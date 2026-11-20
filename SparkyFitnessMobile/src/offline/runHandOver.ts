@@ -18,7 +18,9 @@ import { notifyOutboxChanged } from './events';
 import {
   deleteUnconfirmedForEntity,
   enqueueOutbox,
+  listOutboxByKind,
   listUnconfirmedOutbox,
+  updateOutboxRow,
 } from './outbox';
 import { signedInUserId } from './syncEngine';
 
@@ -29,7 +31,10 @@ export const RUN_PROGRAM_TICK = 'run.program_tick';
 /** Files a fitness test against the run once it is on the server. */
 export const RUN_FITNESS_TEST = 'run.fitness_test';
 
-/** The payload shape of the three kinds above, as this build writes them. */
+/** Removes a run from the server that the person deleted after it got there. */
+export const RUN_DELETE = 'run.delete';
+
+/** The payload shape of the four kinds above, as this build writes them. */
 export const RUN_PAYLOAD_VERSION = 1;
 
 /** Payload of a `run.save` row for a run the phone recorded itself. */
@@ -166,28 +171,116 @@ export async function queueRecordedRun(
   }
 }
 
+/** What removing a waiting run came to. */
+export type DiscardOutcome =
+  /** It was only on the phone and is gone. */
+  | { outcome: 'removed'; entryDate: string | null }
+  /** An attempt had put it on the server; the rest of its upload is dropped. */
+  | { outcome: 'on_server'; entryDate: string | null }
+  | { outcome: 'none' };
+
 /**
- * Removes a run that is still waiting to upload, with the follow-ups waiting
- * for it. False when nothing was removed: the run is not queued, or an
- * attempt already put it on the server, where it must be deleted from the
- * Diary once it is there.
+ * Removes a run still waiting to upload, with the follow-ups waiting for it.
+ * A run an attempt already created on the server is `on_server`: the caller
+ * queues its removal there with {@link queueRunDelete}.
  */
-export async function discardQueuedRun(entryId: string): Promise<boolean> {
+export async function discardQueuedRun(
+  entryId: string
+): Promise<DiscardOutcome> {
   try {
     const serverConfigId = await getActiveServerConfigId();
-    if (!serverConfigId) return false;
+    if (!serverConfigId) return { outcome: 'none' };
     const db = await getOfflineDb();
     const row = (await listUnconfirmedOutbox(db, serverConfigId)).find(
       (candidate) =>
         candidate.kind === RUN_SAVE && candidate.entityId === entryId
     );
-    if (!row) return false;
-    if ((row.payload as QueuedRecordingPayload).progress?.entryId) return false;
+    if (!row) return { outcome: 'none' };
+    const onServer = Boolean(
+      (row.payload as QueuedRecordingPayload).progress?.entryId
+    );
     await deleteUnconfirmedForEntity(db, serverConfigId, entryId);
+    notifyOutboxChanged();
+    return {
+      outcome: onServer ? 'on_server' : 'removed',
+      entryDate: row.entryDate,
+    };
+  } catch (error) {
+    addLog(`[Offline] Could not discard the run: ${error}`, 'ERROR');
+    return { outcome: 'none' };
+  }
+}
+
+/**
+ * Queues the removal of a run that reached the server, for a person who
+ * deletes it from the Diary while its upload was still going on. The Diary
+ * hides it at once (`OfflineDiaryDay.deleted`). True once the row is written.
+ */
+export async function queueRunDelete(
+  entryId: string,
+  entryDate: string | null
+): Promise<boolean> {
+  try {
+    const serverConfigId = await getActiveServerConfigId();
+    if (!serverConfigId) return false;
+    const db = await getOfflineDb();
+    await enqueueOutbox(db, {
+      id: newUuid(),
+      serverConfigId,
+      userId: await signedInUserId(db, serverConfigId),
+      kind: RUN_DELETE,
+      entityId: entryId,
+      entryDate,
+      payload: { id: entryId },
+      payloadVersion: RUN_PAYLOAD_VERSION,
+    });
     notifyOutboxChanged();
     return true;
   } catch (error) {
-    addLog(`[Offline] Could not discard the run: ${error}`, 'ERROR');
+    addLog(`[Offline] Could not queue the removal: ${error}`, 'ERROR');
     return false;
+  }
+}
+
+/** What became of Apple's heart rate zones for a run that was queued. */
+export type QueuedZonesOutcome =
+  /** The run still waits: the zones are kept with it and go up with it. */
+  | { outcome: 'queued' }
+  /** The run is on the server already; the zones are posted to its entry. */
+  | { outcome: 'on_server'; entryId: string }
+  | { outcome: 'none' };
+
+/**
+ * Apple sends a workout's zones after the run ends, so a run that was queued
+ * can get them late. While the run waits they are added to its row; once it
+ * has uploaded the caller posts them to the entry itself.
+ */
+export async function noteZonesForQueuedRun(
+  recordingId: string,
+  zones: AppleWorkoutZoneDuration[]
+): Promise<QueuedZonesOutcome> {
+  try {
+    const serverConfigId = await getActiveServerConfigId();
+    if (!serverConfigId) return { outcome: 'none' };
+    const db = await getOfflineDb();
+    const row = (await listOutboxByKind(db, serverConfigId, RUN_SAVE))
+      .reverse()
+      .find(
+        (candidate) =>
+          (candidate.payload as QueuedRecordingPayload).session?.id ===
+          recordingId
+      );
+    if (!row) return { outcome: 'none' };
+    const payload = row.payload as QueuedRecordingPayload;
+    if (row.status === 'synced') {
+      return { outcome: 'on_server', entryId: payload.entryId };
+    }
+    await updateOutboxRow(db, row.id, {
+      payload: { ...payload, appleZones: zones },
+    });
+    return { outcome: 'queued' };
+  } catch (error) {
+    addLog(`[Offline] Could not keep the heart rate zones: ${error}`, 'ERROR');
+    return { outcome: 'none' };
   }
 }

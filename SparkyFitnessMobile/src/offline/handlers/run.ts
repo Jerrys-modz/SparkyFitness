@@ -7,10 +7,12 @@ import { completeProgramWorkout } from '../../services/runProgramService';
 import { serverMayBeDown } from '../../utils/serverErrors';
 import { ApiError } from '../../services/api/errors';
 import { getOfflineDb } from '../db';
-import { updateOutboxRow } from '../outbox';
+import { deleteExerciseEntry } from '../../services/api/exerciseApi';
+import { getOutboxRow, updateOutboxRow } from '../outbox';
 import { sendResultFromError } from '../syncEngine';
 import type { OutboxHandler, OutboxRow, SendResult } from '../types';
 import {
+  RUN_DELETE,
   RUN_FITNESS_TEST,
   RUN_PAYLOAD_VERSION,
   RUN_PROGRAM_TICK,
@@ -47,11 +49,16 @@ async function sendRecordedRun(row: OutboxRow): Promise<SendResult> {
         appleZones: payload.appleZones,
         resume: payload.progress,
         onProgress: async (progress) => {
-          // Only while this attempt still owns the row.
+          // Merged into the stored payload, not this attempt's copy of it:
+          // heart-rate zones Apple sent after the run was queued may have been
+          // added to the row meanwhile. Only while this attempt owns the row.
+          const db = await getOfflineDb();
+          const latest = (await getOutboxRow(db, row.id))?.payload as
+            QueuedRecordingPayload | undefined;
           await updateOutboxRow(
-            await getOfflineDb(),
+            db,
             row.id,
-            { payload: { ...payload, progress } },
+            { payload: { ...(latest ?? payload), progress } },
             undefined,
             { onlyIfStatus: 'sending' }
           );
@@ -101,6 +108,20 @@ async function sendFitnessTest(row: OutboxRow): Promise<SendResult> {
   }
 }
 
+/** Removes a run from the server that the person deleted after it got there. */
+async function sendRunDelete(row: OutboxRow): Promise<SendResult> {
+  try {
+    await deleteExerciseEntry(row.entityId);
+    return { outcome: 'synced' };
+  } catch (error) {
+    // Already gone is what was asked for.
+    if (error instanceof ApiError && error.statusCode === 404) {
+      return { outcome: 'synced' };
+    }
+    return sendResultFromError(error);
+  }
+}
+
 const base = {
   payloadVersion: RUN_PAYLOAD_VERSION,
   // Version 1 is the first shape; nothing older exists to convert.
@@ -112,6 +133,7 @@ const handlers: OutboxHandler[] = [
   { ...base, kind: RUN_SAVE, send: sendRecordedRun },
   { ...base, kind: RUN_PROGRAM_TICK, send: sendProgramTick },
   { ...base, kind: RUN_FITNESS_TEST, send: sendFitnessTest },
+  { ...base, kind: RUN_DELETE, send: sendRunDelete },
 ];
 
 /** Makes queued runs sendable. Called once at app start. */

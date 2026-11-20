@@ -99,37 +99,38 @@ const SwipeableExerciseRow: React.FC<SwipeableExerciseRowProps> = ({
   // A run saved on the phone is not on the server yet: removing it drops it
   // from the upload queue instead of deleting an entry the server lacks.
   const isWaitingRun = waitingToUpload && session.type === 'individual';
-  const confirmDiscardWaitingRun = () => {
+  const discardRun = () => {
+    void discardWaitingRun(session.id).then((removed) => {
+      if (removed) {
+        onDeleteSuccess();
+      } else {
+        // It finished uploading meanwhile, so it is an ordinary entry now.
+        Toast.show({
+          type: 'info',
+          text1: t('offline.discardRun.notNow', {
+            defaultValue: 'Already uploaded',
+          }),
+          text2: t('offline.discardRun.notNowHint', {
+            defaultValue: 'Delete it again to remove it.',
+          }),
+        });
+      }
+    });
+  };
+  const confirmDiscardRun = () => {
     Alert.alert(
       session.type === 'individual'
         ? (session.name ?? session.exercise_snapshot?.name ?? '')
         : '',
       t('offline.discardRun.message', {
         defaultValue:
-          'This run is only on this phone. Removing it deletes it for good.',
+          'Removing this run deletes it for good. If it has already reached your server it is deleted there too.',
       }),
       [
         {
           text: t('common.delete', { defaultValue: 'Delete' }),
           style: 'destructive',
-          onPress: () => {
-            void discardWaitingRun(session.id).then((removed) => {
-              if (removed) {
-                onDeleteSuccess();
-              } else {
-                Toast.show({
-                  type: 'info',
-                  text1: t('offline.discardRun.notNow', {
-                    defaultValue: 'Uploading now',
-                  }),
-                  text2: t('offline.discardRun.notNowHint', {
-                    defaultValue:
-                      'Delete it from the Diary once it has uploaded.',
-                  }),
-                });
-              }
-            });
-          },
+          onPress: discardRun,
         },
         {
           text: t('common.cancel', { defaultValue: 'Cancel' }),
@@ -138,12 +139,11 @@ const SwipeableExerciseRow: React.FC<SwipeableExerciseRowProps> = ({
       ]
     );
   };
+  // The swipe action asks first; the long-press menu already has.
   const confirmAndDelete = isWaitingRun
-    ? confirmDiscardWaitingRun
+    ? confirmDiscardRun
     : confirmAndDeleteSaved;
-  const deleteEntry = isWaitingRun
-    ? confirmDiscardWaitingRun
-    : deleteSavedEntry;
+  const deleteEntry = isWaitingRun ? discardRun : deleteSavedEntry;
 
   // Keep the latest invalidateCache in a ref so the post-collapse callback
   // (run via runOnJS after the delete) always invokes the current one. Written

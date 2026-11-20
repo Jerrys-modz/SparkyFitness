@@ -611,3 +611,27 @@ it('drops distance and pace for a jump rope, and shows its measured calories', (
   expect(screen.queryByText('Avg pace')).toBeNull();
   expect(screen.queryByText('Treadmill distance')).toBeNull();
 });
+
+it('says a run saved on the phone is waiting to upload, and offers nothing that needs the server', () => {
+  renderScreen(
+    params({
+      waitingToUpload: true,
+      entryId: null,
+      editableDistance: true,
+    })
+  );
+  expect(screen.getByTestId('run-summary-waiting')).toBeTruthy();
+  expect(screen.queryByText('New personal record')).toBeNull();
+  // The treadmill distance edit needs an entry on the server.
+  expect(screen.queryByText('Treadmill distance')).toBeNull();
+});
+
+it('offers the treadmill distance edit once the run is on the server', () => {
+  renderScreen(params({ entryId: 'entry-1', editableDistance: true }));
+  expect(screen.getByText('Treadmill distance')).toBeTruthy();
+});
+
+it('shows no waiting note for a run that is on the server', () => {
+  renderScreen(params({ entryId: 'entry-1' }));
+  expect(screen.queryByTestId('run-summary-waiting')).toBeNull();
+});

@@ -22,11 +22,24 @@ jest.mock('../../src/services/gpsRecordingService', () => ({
   addHeartRateSamples: jest.fn(() => Promise.resolve()),
   noteLiveHeartRate: jest.fn(() => Promise.resolve()),
   elapsedSeconds: jest.fn(() => 0),
+  noteAppleWorkoutZones: jest.fn(),
+  savedRecordingEntryId: jest.fn(() => null),
+  peekAppleWorkoutZones: jest.fn(() => null),
+  clearAppleWorkoutZones: jest.fn(),
+  clearSavedRecordingEntryId: jest.fn(),
+}));
+jest.mock('../../src/services/api/exerciseApi', () => ({
+  attachExerciseEntryWatchTelemetry: jest.fn(() => Promise.resolve()),
+}));
+jest.mock('../../src/offline/runHandOver', () => ({
+  noteZonesForQueuedRun: jest.fn(),
 }));
 
 import { useWatchRecordingBridge } from '../../src/hooks/useWatchRecordingBridge';
 import * as service from '../../src/services/gpsRecordingService';
 import { useLiveHeartRateStore } from '../../src/stores/liveHeartRateStore';
+import { attachExerciseEntryWatchTelemetry } from '../../src/services/api/exerciseApi';
+import { noteZonesForQueuedRun } from '../../src/offline/runHandOver';
 
 const watch = (
   jest.requireMock('../../modules/watch-connectivity') as {
@@ -386,5 +399,89 @@ describe('useWatchRecordingBridge', () => {
       'batch-1',
       [{ t: Date.UTC(2026, 9, 6, 10, 0, 0), bpm: 141 }]
     );
+  });
+
+  describe('Apple heart rate zones that arrive after Finish', () => {
+    const wireZones = [1, 2, 3, 4, 5].map((index) => ({
+      index,
+      minimumBpm: 100 + index * 10,
+      maximumBpm: 110 + index * 10,
+      seconds: 60 * index,
+    }));
+    const send = () =>
+      handlers.onRecordingHeartRate({
+        sessionId: 'rec-1',
+        clientId: 'batch-z',
+        samples: [],
+        appleZones: wireZones,
+      });
+    const flush = () => act(async () => undefined);
+
+    it('go straight to the entry when the run was saved to the server', async () => {
+      setSnapshot(baseSession);
+      renderHook(() => useWatchRecordingBridge(true));
+      (mockedService.savedRecordingEntryId as jest.Mock).mockReturnValue(
+        'entry-9'
+      );
+      (mockedService.peekAppleWorkoutZones as jest.Mock).mockReturnValue(
+        wireZones
+      );
+
+      send();
+      await flush();
+
+      expect(attachExerciseEntryWatchTelemetry).toHaveBeenCalledWith(
+        'entry-9',
+        expect.objectContaining({ appleZones: expect.any(Array) })
+      );
+      expect(noteZonesForQueuedRun).not.toHaveBeenCalled();
+    });
+
+    it('are kept with a run still waiting to upload', async () => {
+      setSnapshot(baseSession);
+      renderHook(() => useWatchRecordingBridge(true));
+      (mockedService.savedRecordingEntryId as jest.Mock).mockReturnValue(null);
+      jest
+        .mocked(noteZonesForQueuedRun)
+        .mockResolvedValue({ outcome: 'queued' });
+
+      send();
+      await flush();
+
+      expect(noteZonesForQueuedRun).toHaveBeenCalledWith(
+        'rec-1',
+        expect.arrayContaining([expect.objectContaining({ seconds: 60 })])
+      );
+      expect(attachExerciseEntryWatchTelemetry).not.toHaveBeenCalled();
+    });
+
+    it('are posted to the entry of a queued run once it has uploaded', async () => {
+      setSnapshot(baseSession);
+      renderHook(() => useWatchRecordingBridge(true));
+      (mockedService.savedRecordingEntryId as jest.Mock).mockReturnValue(null);
+      jest
+        .mocked(noteZonesForQueuedRun)
+        .mockResolvedValue({ outcome: 'on_server', entryId: 'entry-q' });
+
+      send();
+      await flush();
+
+      expect(attachExerciseEntryWatchTelemetry).toHaveBeenCalledWith(
+        'entry-q',
+        expect.objectContaining({ appleZones: expect.any(Array) })
+      );
+    });
+
+    it('are dropped quietly when the recording was never queued', async () => {
+      setSnapshot(baseSession);
+      renderHook(() => useWatchRecordingBridge(true));
+      (mockedService.savedRecordingEntryId as jest.Mock).mockReturnValue(null);
+      jest.mocked(noteZonesForQueuedRun).mockResolvedValue({ outcome: 'none' });
+
+      send();
+      await flush();
+
+      expect(attachExerciseEntryWatchTelemetry).not.toHaveBeenCalled();
+    });
   });
 });

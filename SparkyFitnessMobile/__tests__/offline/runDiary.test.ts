@@ -12,8 +12,11 @@ import {
   updateOutboxRow,
 } from '../../src/offline/outbox';
 import {
+  RUN_SAVE,
   discardQueuedRun,
+  noteZonesForQueuedRun,
   queueRecordedRun,
+  queueRunDelete,
   type QueuedRecordingPayload,
 } from '../../src/offline/runHandOver';
 import {
@@ -139,23 +142,81 @@ describe('a run saved on the phone in the Diary', () => {
       programTick: { programId: 'p1', index: 0 },
     });
     expect(await listUnconfirmedOutbox(db, 's1')).toHaveLength(2);
-    expect(await discardQueuedRun(ENTRY_ID)).toBe(true);
+    expect(await discardQueuedRun(ENTRY_ID)).toEqual({
+      outcome: 'removed',
+      entryDate: '2026-11-16',
+    });
     expect(await listUnconfirmedOutbox(db, 's1')).toHaveLength(0);
   });
 
-  it('is not removed once an attempt put the entry on the server', async () => {
-    await queueRecordedRun(input);
-    const [row] = await listUnconfirmedOutbox(db, 's1');
+  it('is reported as on the server once an attempt created the entry', async () => {
+    await queueRecordedRun({
+      ...input,
+      programTick: { programId: 'p1', index: 0 },
+    });
+    const row = (await listUnconfirmedOutbox(db, 's1')).find(
+      (candidate) => candidate.kind === RUN_SAVE
+    );
     const payload = row!.payload as QueuedRecordingPayload;
     await updateOutboxRow(db, row!.id, {
       payload: { ...payload, progress: { entryId: ENTRY_ID } },
     });
-    expect(await discardQueuedRun(ENTRY_ID)).toBe(false);
-    expect(await listUnconfirmedOutbox(db, 's1')).toHaveLength(1);
+    expect(await discardQueuedRun(ENTRY_ID)).toEqual({
+      outcome: 'on_server',
+      entryDate: '2026-11-16',
+    });
+    // The rest of its upload is dropped; the caller queues the removal.
+    expect(await listUnconfirmedOutbox(db, 's1')).toHaveLength(0);
   });
 
-  it('answers false for a run that is not queued', async () => {
-    expect(await discardQueuedRun(ENTRY_ID)).toBe(false);
+  it('answers none for a run that is not queued', async () => {
+    expect(await discardQueuedRun(ENTRY_ID)).toEqual({ outcome: 'none' });
+  });
+
+  it('is hidden from the Diary once its removal is queued', async () => {
+    expect(await queueRunDelete(ENTRY_ID, '2026-11-16')).toBe(true);
+    const day = await readOfflineDiaryDay('2026-11-16');
+    expect(day.deleted).toEqual([ENTRY_ID]);
+    const merged = mergeWaitingWorkouts(
+      [{ type: 'individual', id: ENTRY_ID } as never],
+      day.waiting,
+      day.deleted
+    );
+    expect(merged).toEqual([]);
+  });
+
+  describe('late heart rate zones from Apple', () => {
+    const zones = [{ index: 1, seconds: 600 }] as never;
+
+    it('are kept with a run that is still waiting', async () => {
+      await queueRecordedRun(input);
+      expect(await noteZonesForQueuedRun(session.id, zones)).toEqual({
+        outcome: 'queued',
+      });
+      const [row] = await listUnconfirmedOutbox(db, 's1');
+      expect((row!.payload as QueuedRecordingPayload).appleZones).toEqual(
+        zones
+      );
+    });
+
+    it('go to the entry once the run has uploaded', async () => {
+      await queueRecordedRun(input);
+      const [row] = await listUnconfirmedOutbox(db, 's1');
+      await updateOutboxRow(db, row!.id, {
+        status: 'synced',
+        syncedAt: Date.now(),
+      });
+      expect(await noteZonesForQueuedRun(session.id, zones)).toEqual({
+        outcome: 'on_server',
+        entryId: ENTRY_ID,
+      });
+    });
+
+    it('are left alone for a recording that was never queued', async () => {
+      expect(await noteZonesForQueuedRun('rec-unknown', zones)).toEqual({
+        outcome: 'none',
+      });
+    });
   });
 });
 

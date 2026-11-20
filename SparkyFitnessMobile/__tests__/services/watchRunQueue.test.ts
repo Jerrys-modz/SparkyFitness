@@ -757,14 +757,17 @@ describe('a run waiting on the phone', () => {
   test('can be deleted, and a copy the watch sends again is not filed', async () => {
     await enqueueWatchRun(run('z'));
     const [waiting] = await readWaitingWatchRuns();
-    expect(await discardWaitingWatchRun(waiting!.entryId!)).toBe(true);
+    expect(await discardWaitingWatchRun(waiting!.entryId!)).toEqual({
+      outcome: 'removed',
+      entryDate: '2026-10-10',
+    });
     expect(await readWaitingWatchRuns()).toEqual([]);
     expect(await enqueueWatchRun(run('z'))).toBe(false);
     expect(await processWatchRunQueue('km')).toEqual([]);
     expect(mockedSave).not.toHaveBeenCalled();
   });
 
-  test('cannot be deleted once an attempt created the entry', async () => {
+  test('is dropped from the queue but reported as on the server once an attempt created the entry', async () => {
     await enqueueWatchRun(run('v'));
     const [waiting] = await readWaitingWatchRuns();
     mockedSave.mockImplementationOnce(async (_p, _u, _e, onEntryCreated) => {
@@ -772,6 +775,17 @@ describe('a run waiting on the phone', () => {
       throw new Error('offline');
     });
     await processWatchRunQueue('km');
-    expect(await discardWaitingWatchRun(waiting!.entryId!)).toBe(false);
+    expect(await discardWaitingWatchRun(waiting!.entryId!)).toEqual({
+      outcome: 'on_server',
+      entryDate: '2026-10-10',
+    });
+    expect(await readWaitingWatchRuns()).toEqual([]);
+    expect(await enqueueWatchRun(run('v'))).toBe(false);
+  });
+
+  test('answers none for a run that is not waiting', async () => {
+    expect(await discardWaitingWatchRun('nothing')).toEqual({
+      outcome: 'none',
+    });
   });
 });

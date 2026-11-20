@@ -1,5 +1,6 @@
 import React from 'react';
 import { act, fireEvent, render } from '@testing-library/react-native';
+import Toast from 'react-native-toast-message';
 import { RefreshControl } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import DiaryScreen from '../../src/screens/DiaryScreen';
@@ -22,6 +23,11 @@ import { EMPTY_SUPPLEMENT_TOTALS } from '@workspace/shared';
 import type { DailySummary, MacroSummary } from '../../src/types/dailySummary';
 import type { FoodEntry } from '../../src/types/foodEntries';
 import { buildSleepEntry } from '../helpers/sleepFixtures';
+
+jest.mock('react-native-toast-message', () => ({
+  __esModule: true,
+  default: { show: jest.fn() },
+}));
 
 type DiaryScreenProps = React.ComponentProps<typeof DiaryScreen>;
 type DateNavigatorProps = React.ComponentProps<typeof DateNavigatorComponent>;
@@ -234,10 +240,20 @@ jest.mock('../../src/components/FoodSummary', () => {
 });
 
 jest.mock('../../src/components/ExerciseSummary', () => {
-  const { View } = require('react-native');
+  const { View, Pressable } = require('react-native');
   return {
     __esModule: true,
-    default: () => <View testID="exercise-summary" />,
+    default: (props: {
+      exerciseEntries?: unknown[];
+      onPressWorkout?: (entry: unknown) => void;
+    }) => (
+      <View testID="exercise-summary">
+        <Pressable
+          testID="exercise-summary-open-first"
+          onPress={() => props.onPressWorkout?.(props.exerciseEntries?.[0])}
+        />
+      </View>
+    ),
   };
 });
 
@@ -703,6 +719,11 @@ describe('DiaryScreen sleep cards', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    // A test that puts a waiting workout on the day must not leak it into the next.
+    (useOfflineDiaryDay as jest.Mock).mockReturnValue({
+      saved: null,
+      waiting: [],
+    });
     useDiaryDateStore.setState({
       selectedDate: '2024-06-15',
       lastKnownToday: getTodayDate(),
@@ -751,6 +772,49 @@ describe('DiaryScreen sleep cards', () => {
       saved: null,
       waiting: [],
     });
+  });
+
+  test('tapping a run that is waiting to upload says so instead of opening a screen that needs the server', () => {
+    configureSleep({ wakeUp: null, naps: [], bedTime: null });
+    (useOfflineDiaryDay as jest.Mock).mockReturnValue({
+      saved: null,
+      waiting: [
+        {
+          type: 'individual',
+          id: 'run-1',
+          name: 'Running',
+          exercise_id: null,
+          duration_minutes: 25,
+          calories_burned: 250,
+          entry_date: '2026-11-16',
+          notes: null,
+          distance: 5,
+          avg_heart_rate: null,
+          source: 'Manual',
+          sets: [],
+          exercise_snapshot: null,
+          activity_details: [],
+          superset_group: null,
+        },
+      ],
+      deleted: [],
+    });
+    (mockNavigation.navigate as jest.Mock).mockClear();
+
+    const { getByTestId } = renderScreen();
+    fireEvent.press(getByTestId('exercise-summary-open-first'));
+
+    expect(mockNavigation.navigate).not.toHaveBeenCalledWith(
+      'ActivityDetail',
+      expect.anything()
+    );
+    expect(mockNavigation.navigate).not.toHaveBeenCalledWith(
+      'CardioSession',
+      expect.anything()
+    );
+    expect(Toast.show).toHaveBeenCalledWith(
+      expect.objectContaining({ text1: 'offline.runWaitingTitle' })
+    );
   });
 
   test('a nap alone is enough to keep the day non-empty', () => {

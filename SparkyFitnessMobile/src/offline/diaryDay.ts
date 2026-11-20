@@ -16,7 +16,11 @@ import { CACHE_COLLECTIONS } from './collections';
 import { getOfflineDb } from './db';
 import { notifyDiaryDaySaved } from './events';
 import { listUnconfirmedOutbox } from './outbox';
-import { RUN_SAVE, type QueuedRecordingPayload } from './runHandOver';
+import {
+  RUN_DELETE,
+  RUN_SAVE,
+  type QueuedRecordingPayload,
+} from './runHandOver';
 import { signedInUserId } from './syncEngine';
 import type { OfflineDb, OutboxRow } from './types';
 import {
@@ -247,7 +251,9 @@ export async function readOfflineDiaryDay(
     if (local.entry_date === date) byId.set(local.id, local);
   }
   const deleted = rows
-    .filter((row) => row.kind === WORKOUT_SESSION_DELETE)
+    .filter(
+      (row) => row.kind === WORKOUT_SESSION_DELETE || row.kind === RUN_DELETE
+    )
     .map((row) => row.entityId);
   return { saved, waiting: [...byId.values()], deleted };
 }

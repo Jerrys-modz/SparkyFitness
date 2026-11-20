@@ -24,6 +24,7 @@ import {
   type RecordingSnapshot,
 } from '../services/gpsRecordingService';
 import { attachExerciseEntryWatchTelemetry } from '../services/api/exerciseApi';
+import { noteZonesForQueuedRun } from '../offline/runHandOver';
 import { addLog } from '../services/LogService';
 import { useLiveHeartRateStore } from '../stores/liveHeartRateStore';
 import { notificationText } from '../utils/recordingNotification';
@@ -252,7 +253,21 @@ export function useWatchRecordingBridge(enabled: boolean): void {
         if (!zones) return;
         noteAppleWorkoutZones(payload.sessionId, zones);
         const entryId = savedRecordingEntryId(payload.sessionId);
-        if (!entryId || !peekAppleWorkoutZones(payload.sessionId)) return;
+        if (!entryId) {
+          // A run saved on the phone for a later upload keeps its zones with it,
+          // or, once it has uploaded, they go to its entry.
+          void noteZonesForQueuedRun(payload.sessionId, zones)
+            .then((kept) =>
+              kept.outcome === 'on_server'
+                ? attachExerciseEntryWatchTelemetry(kept.entryId, {
+                    appleZones: zones,
+                  })
+                : undefined
+            )
+            .catch((error: unknown) => logError('store apple zones', error));
+          return;
+        }
+        if (!peekAppleWorkoutZones(payload.sessionId)) return;
         void attachExerciseEntryWatchTelemetry(entryId, { appleZones: zones })
           .then(() => {
             clearAppleWorkoutZones(payload.sessionId);
