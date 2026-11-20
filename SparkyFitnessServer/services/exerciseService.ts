@@ -2204,7 +2204,9 @@ async function createGroupedWorkoutSession(
 function resolveEditedCaloriesBurned(
   clientCalories: unknown,
   existingEntry:
-    { active_calories?: unknown; calories_burned?: unknown } | null | undefined,
+    | { active_calories?: unknown; calories_burned?: unknown }
+    | null
+    | undefined,
   recomputed: number
 ): number {
   if (typeof clientCalories === 'number') return clientCalories;
@@ -2867,8 +2869,73 @@ export { getExerciseStats };
 export { getExerciseStatsBatch };
 export { getAvailableEquipment };
 export { getAvailableMuscleGroups };
+/**
+ * Postgres unique-violation on the diary entry's primary key: the
+ * client-minted id is already taken, by this user (a repeated create) or by
+ * someone else.
+ */
+function isExerciseEntryIdTaken(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null) return false;
+  const pgError = error as { code?: unknown; constraint?: unknown };
+  return (
+    pgError.code === '23505' && pgError.constraint === 'exercise_entries_pkey'
+  );
+}
+
+/**
+ * Creates a diary exercise entry, or, when the data carries a client-minted
+ * `id` this user has already created, returns that stored entry untouched
+ * (`replayed: true`). A phone that never heard the answer to its first create
+ * (a run saved offline and uploaded later) can send it again without making a
+ * second entry. Without an `id` it behaves exactly like `createExerciseEntry`.
+ */
+async function createOrReplayExerciseEntry(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  authenticatedUserId: any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  actingUserId: any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  entryData: any,
+  options: { skipDuplicateCheck?: boolean; entrySource?: string } = {}
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): Promise<{ entry: any; replayed: boolean }> {
+  const clientEntryId: string | null = entryData?.id ?? null;
+  const findOwn = async () => {
+    if (clientEntryId === null) return null;
+    const existing = await exerciseEntryDb.getExerciseEntryById(
+      clientEntryId,
+      authenticatedUserId
+    );
+    return existing && existing.user_id === authenticatedUserId
+      ? existing
+      : null;
+  };
+  const stored = await findOwn();
+  if (stored) return { entry: stored, replayed: true };
+  try {
+    const entry = await createExerciseEntry(
+      authenticatedUserId,
+      actingUserId,
+      entryData,
+      options
+    );
+    return { entry, replayed: false };
+  } catch (error) {
+    if (clientEntryId === null || !isExerciseEntryIdTaken(error)) throw error;
+    // Taken between the lookup and the insert: this user's own copy (two
+    // copies of one create racing) or somebody else's, which row-level
+    // security hides from the lookup.
+    const racing = await findOwn();
+    if (racing) return { entry: racing, replayed: true };
+    throw createServiceError(
+      409,
+      'A diary entry with this id cannot be created.'
+    );
+  }
+}
 export { createExercise };
 export { createExerciseEntry };
+export { createOrReplayExerciseEntry };
 export { getExerciseEntryById };
 export { updateExerciseEntry };
 export { deleteExerciseEntry };
@@ -2909,6 +2976,7 @@ export default {
   getAvailableMuscleGroups,
   createExercise,
   createExerciseEntry,
+  createOrReplayExerciseEntry,
   getExerciseEntryById,
   updateExerciseEntry,
   deleteExerciseEntry,

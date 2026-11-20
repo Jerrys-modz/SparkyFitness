@@ -26,7 +26,7 @@ vi.mock('../middleware/uploadMiddleware.js', () => ({
   })),
 }));
 vi.mock('../services/exerciseService.js', () => ({
-  default: { createExerciseEntry: vi.fn() },
+  default: { createOrReplayExerciseEntry: vi.fn() },
 }));
 vi.mock('../services/exerciseEntryService.js', () => ({ default: {} }));
 vi.mock('../services/fitImportService.js', () => ({ default: {} }));
@@ -45,8 +45,9 @@ app.use((err: any, _req: any, res: any, _next: any) => {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.mocked(exerciseService.createExerciseEntry).mockResolvedValue({
-    id: 'entry-1',
+  vi.mocked(exerciseService.createOrReplayExerciseEntry).mockResolvedValue({
+    entry: { id: 'entry-1' },
+    replayed: false,
   });
 });
 
@@ -62,9 +63,12 @@ describe('POST /exercise-entries duplicate-check wiring', () => {
       })
       .expect(201);
 
-    expect(exerciseService.createExerciseEntry).toHaveBeenCalledTimes(1);
-    const [, , , options] = vi.mocked(exerciseService.createExerciseEntry).mock
-      .calls[0];
+    expect(exerciseService.createOrReplayExerciseEntry).toHaveBeenCalledTimes(
+      1
+    );
+    const [, , , options] = vi.mocked(
+      exerciseService.createOrReplayExerciseEntry
+    ).mock.calls[0];
     expect(options).toEqual({ skipDuplicateCheck: true });
   });
 
@@ -80,9 +84,12 @@ describe('POST /exercise-entries duplicate-check wiring', () => {
       })
       .expect(201);
 
-    expect(exerciseService.createExerciseEntry).toHaveBeenCalledTimes(1);
-    const [, , , options] = vi.mocked(exerciseService.createExerciseEntry).mock
-      .calls[0];
+    expect(exerciseService.createOrReplayExerciseEntry).toHaveBeenCalledTimes(
+      1
+    );
+    const [, , , options] = vi.mocked(
+      exerciseService.createOrReplayExerciseEntry
+    ).mock.calls[0];
     expect(options).toEqual({ skipDuplicateCheck: false });
   });
 });

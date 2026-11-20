@@ -26,6 +26,8 @@ import {
   useDeleteWorkout,
 } from '../hooks/useExerciseMutations';
 import { useEnergyUnit } from '../hooks/useEnergyUnit';
+import Toast from 'react-native-toast-message';
+import { discardWaitingRun } from '../offline/waitingRuns';
 
 /**
  * Derived lifecycle status of a session (#1995 phase 1), as a badge color.
@@ -88,8 +90,60 @@ const SwipeableExerciseRow: React.FC<SwipeableExerciseRowProps> = ({
     onSuccess: onDeleteSuccess,
   });
 
-  const { confirmAndDelete, deleteEntry, invalidateCache } =
-    session.type === 'preset' ? workoutDelete : exerciseDelete;
+  const {
+    confirmAndDelete: confirmAndDeleteSaved,
+    deleteEntry: deleteSavedEntry,
+    invalidateCache,
+  } = session.type === 'preset' ? workoutDelete : exerciseDelete;
+
+  // A run saved on the phone is not on the server yet: removing it drops it
+  // from the upload queue instead of deleting an entry the server lacks.
+  const isWaitingRun = waitingToUpload && session.type === 'individual';
+  const confirmDiscardWaitingRun = () => {
+    Alert.alert(
+      session.type === 'individual'
+        ? (session.name ?? session.exercise_snapshot?.name ?? '')
+        : '',
+      t('offline.discardRun.message', {
+        defaultValue:
+          'This run is only on this phone. Removing it deletes it for good.',
+      }),
+      [
+        {
+          text: t('common.delete', { defaultValue: 'Delete' }),
+          style: 'destructive',
+          onPress: () => {
+            void discardWaitingRun(session.id).then((removed) => {
+              if (removed) {
+                onDeleteSuccess();
+              } else {
+                Toast.show({
+                  type: 'info',
+                  text1: t('offline.discardRun.notNow', {
+                    defaultValue: 'Uploading now',
+                  }),
+                  text2: t('offline.discardRun.notNowHint', {
+                    defaultValue:
+                      'Delete it from the Diary once it has uploaded.',
+                  }),
+                });
+              }
+            });
+          },
+        },
+        {
+          text: t('common.cancel', { defaultValue: 'Cancel' }),
+          style: 'cancel',
+        },
+      ]
+    );
+  };
+  const confirmAndDelete = isWaitingRun
+    ? confirmDiscardWaitingRun
+    : confirmAndDeleteSaved;
+  const deleteEntry = isWaitingRun
+    ? confirmDiscardWaitingRun
+    : deleteSavedEntry;
 
   // Keep the latest invalidateCache in a ref so the post-collapse callback
   // (run via runOnJS after the delete) always invokes the current one. Written

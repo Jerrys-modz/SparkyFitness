@@ -12,8 +12,10 @@ import {
   markRecordingSaved,
   peekAppleWorkoutZones,
   clearAppleWorkoutZones,
+  type RecordedHeartRate,
   type RecordingSession,
 } from './gpsRecordingService';
+import { serverMayBeDown } from '../utils/serverErrors';
 import { addLog } from './LogService';
 import {
   learnFromIndoorEntry,
@@ -24,7 +26,12 @@ import {
 import { computeFormMetrics, type FormMetrics } from '../utils/stride';
 import { assignShoeToExerciseEntry, fetchShoes } from './api/shoesApi';
 import { findShoeThatReachedLimit } from './shoeWear';
-import type { ShoeResponse } from '@workspace/shared';
+import type { AppleWorkoutZoneDuration, ShoeResponse } from '@workspace/shared';
+import {
+  EXERCISE_NAMES,
+  FALLBACK_CALORIES_PER_HOUR,
+  INDOOR_ENTRY_NAMES,
+} from '../utils/recordingEntry';
 import { buildActivitySetsPayload } from '../utils/workoutSession';
 import { toLocalDateString } from '../utils/dateUtils';
 import {
@@ -36,26 +43,8 @@ import {
   summarizeRecording,
   toWorkoutGpsPoints,
   type RecordedPoint,
-  type RecordingActivity,
   type DiaryActivity,
 } from '../utils/gpsRecording';
-
-/** Library names the three activities are logged under. */
-const EXERCISE_NAMES: Record<DiaryActivity, string> = {
-  walk: 'Walking',
-  run: 'Running',
-  ride: 'Cycling',
-  jumpRope: 'Jump Rope',
-};
-
-// Only used when the library has no exercise of that name, so the entry still
-// gets a calorie estimate. Rough figures for an average adult.
-const FALLBACK_CALORIES_PER_HOUR: Record<DiaryActivity, number> = {
-  walk: 250,
-  run: 600,
-  ride: 450,
-  jumpRope: 700,
-};
 
 /**
  * Finds the library exercise a recording is logged against, creating a cardio
@@ -85,17 +74,6 @@ export async function resolveRecordingExercise(
     description: null,
   });
 }
-
-/**
- * Names an indoor entry is logged under. They avoid "Treadmill Walk": sport
- * detection reads "treadmill" as running, so a walk would match two sports and
- * fall back to "other". "Indoor" is a modifier, not a sport.
- */
-const INDOOR_ENTRY_NAMES: Record<RecordingActivity, string> = {
-  walk: 'Indoor Walking',
-  run: 'Indoor Running',
-  ride: 'Indoor Cycling',
-};
 
 const pad = (value: number) => String(value).padStart(2, '0');
 
@@ -142,6 +120,33 @@ async function measureForm(
   }
 }
 
+/** What a queued upload has already done, so the next attempt skips it. */
+export interface RecordingSaveProgress {
+  /** The entry exists on the server (the create was answered). */
+  entryId?: string;
+  /** Cadence and stride put on that entry. */
+  form?: FormMetrics | null;
+  shoeDone?: boolean;
+  trackDone?: boolean;
+}
+
+/**
+ * How a recording that was saved on the phone is uploaded later (the Upload
+ * queue). Without these `saveRecordedActivity` saves from the live recording
+ * as before.
+ */
+export interface QueuedRecordingSave {
+  /** The entry's id, made on the phone: the create is safe to repeat. */
+  clientEntryId: string;
+  /** Heart rate held with the recording; the live recording is gone by now. */
+  heartRate: readonly RecordedHeartRate[];
+  appleZones: AppleWorkoutZoneDuration[] | null;
+  /** Where an earlier attempt got to. */
+  resume: RecordingSaveProgress;
+  /** Called after each step so the progress is kept before the next one. */
+  onProgress: (progress: RecordingSaveProgress) => Promise<void>;
+}
+
 export interface SavedRecording {
   entryId: string;
   entryDate: string;
@@ -171,8 +176,12 @@ export async function saveRecordedActivity(
   distanceUnit: 'km' | 'miles',
   indoorDistanceKm: number | null = null,
   indoorEstimate: IndoorDistanceEstimate | null = null,
-  acceptedIndoorEstimate = false
+  acceptedIndoorEstimate = false,
+  queued?: QueuedRecordingSave
 ): Promise<SavedRecording> {
+  // The id the entry is created under: the same one on every attempt, so a
+  // create whose answer was lost is recognised by the server.
+  const clientEntryId = queued?.clientEntryId ?? session.entryClientId;
   const indoor = session.indoor === true;
   const started = new Date(session.startedAt);
   const entryDate = toLocalDateString(started);
@@ -183,10 +192,20 @@ export async function saveRecordedActivity(
       : null
     : Math.round(summarizeRecording(points).distanceMeters) / METERS_PER_KM;
 
-  let entryId = session.savedEntryId;
+  // A queued upload keeps its own progress: the live recording may already be
+  // gone, or be a different one, so it is never read or marked here.
+  const resume = queued?.resume ?? {};
+  let entryId = queued ? resume.entryId : session.savedEntryId;
   let wornOutShoe: ShoeResponse | null = null;
   // A retry reuses what the first save put on the entry.
-  let form: FormMetrics | null = entryId ? (session.savedForm ?? null) : null;
+  let form: FormMetrics | null = entryId
+    ? ((queued ? resume.form : session.savedForm) ?? null)
+    : null;
+  const progress: RecordingSaveProgress = { ...resume };
+  const remember = async (step: Partial<RecordingSaveProgress>) => {
+    Object.assign(progress, step);
+    await queued?.onProgress({ ...progress });
+  };
   if (!entryId) {
     const exercise = await resolveRecordingExercise(session.activity);
     form = await measureForm(
@@ -197,6 +216,7 @@ export async function saveRecordedActivity(
       indoorEstimate
     );
     const created = await createExerciseEntry({
+      ...(clientEntryId ? { id: clientEntryId } : {}),
       exercise_id: exercise.id,
       exercise_name: indoor
         ? INDOOR_ENTRY_NAMES[session.activity]
@@ -217,7 +237,11 @@ export async function saveRecordedActivity(
       }),
     });
     entryId = created.id;
-    await markRecordingSaved(entryId, form);
+    if (queued) {
+      await remember({ entryId, form });
+    } else {
+      await markRecordingSaved(entryId, form);
+    }
     // Once, with the entry: a retry of a failed track upload must not teach
     // the same session twice. Best effort, never part of the save failing.
     try {
@@ -248,12 +272,18 @@ export async function saveRecordedActivity(
       const message = error instanceof Error ? error.message : String(error);
       addLog(`[GPS Recording] Could not learn stride: ${message}`, 'WARNING');
     }
-    if (session.activity === 'run') {
+    if (session.activity === 'run' && !queued) {
       wornOutShoe = await assignDefaultShoe(entryId);
     }
   }
+  // A queued upload assigns the shoe as a step of its own, so a connection
+  // lost right after the create still gets it on the next attempt.
+  if (queued && session.activity === 'run' && !progress.shoeDone) {
+    await assignDefaultShoe(entryId, true);
+    await remember({ shoeDone: true });
+  }
 
-  if (!indoor) {
+  if (!indoor && !(queued && progress.trackDone)) {
     const unitMeters =
       distanceUnit === 'miles' ? METERS_PER_MILE : METERS_PER_KM;
     await attachExerciseEntryGpsTrack(entryId, {
@@ -266,8 +296,9 @@ export async function saveRecordedActivity(
           : computeSplits(points, unitMeters)
       ),
     });
+    if (queued) await remember({ trackDone: true });
   }
-  await attachWatchHeartRate(entryId, session.id);
+  await attachWatchHeartRate(entryId, session.id, queued);
   return { entryId, entryDate, form, ...(wornOutShoe && { wornOutShoe }) };
 }
 
@@ -278,7 +309,9 @@ export async function saveRecordedActivity(
  * route upload does not undo a shoe the person changed in between.
  */
 async function assignDefaultShoe(
-  entryId: string
+  entryId: string,
+  /** A queued upload: a lost connection fails the step so it is tried again. */
+  retryWhenUnreachable = false
 ): Promise<ShoeResponse | null> {
   try {
     const shoes = await fetchShoes('active');
@@ -292,6 +325,7 @@ async function assignDefaultShoe(
       defaultShoe.is_worn_out
     ).catch(() => null);
   } catch (error) {
+    if (retryWhenUnreachable && serverMayBeDown(error)) throw error;
     const message = error instanceof Error ? error.message : String(error);
     addLog(
       `[GPS Recording] Could not assign default shoe: ${message}`,
@@ -308,11 +342,16 @@ async function assignDefaultShoe(
  */
 async function attachWatchHeartRate(
   entryId: string,
-  sessionId: string
+  sessionId: string,
+  queued?: QueuedRecordingSave
 ): Promise<void> {
   try {
-    const samples = await getHeartRateSamples();
-    const appleZones = peekAppleWorkoutZones(sessionId);
+    // A queued upload carries the readings it was saved with; the live
+    // recording they came from is gone.
+    const samples = queued ? queued.heartRate : await getHeartRateSamples();
+    const appleZones = queued
+      ? queued.appleZones
+      : peekAppleWorkoutZones(sessionId);
     // The server needs two readings to measure any time in a zone, unless
     // Apple already summed the zones.
     if (samples.length < 2 && !appleZones) return;
@@ -327,8 +366,11 @@ async function attachWatchHeartRate(
         : {}),
       ...(appleZones ? { appleZones } : {}),
     });
-    if (appleZones) clearAppleWorkoutZones(sessionId);
+    if (appleZones && !queued) clearAppleWorkoutZones(sessionId);
   } catch (error) {
+    // The run is on the server but its heart rate is not: a queued upload is
+    // tried again rather than finishing without it.
+    if (queued && serverMayBeDown(error)) throw error;
     const message = error instanceof Error ? error.message : String(error);
     addLog(
       `[GPS Recording] Could not attach watch heart rate: ${message}`,

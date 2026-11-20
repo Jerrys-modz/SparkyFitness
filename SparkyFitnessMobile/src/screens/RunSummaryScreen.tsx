@@ -475,6 +475,20 @@ const RunSummaryScreen: React.FC<Props> = ({ navigation, route }) => {
           </View>
         ) : null}
 
+        {summary.waitingToUpload ? (
+          <View
+            testID="run-summary-waiting"
+            className="bg-surface rounded-xl p-4 mb-4"
+          >
+            <Text className="text-text-secondary text-sm">
+              {t('runSummary.waitingToUpload', {
+                defaultValue:
+                  'Saved on this phone. Personal records and the rest of the analysis appear once it uploads.',
+              })}
+            </Text>
+          </View>
+        ) : null}
+
         {newRecords.length > 0 ? (
           <View
             className="bg-surface rounded-xl p-4 mb-4"

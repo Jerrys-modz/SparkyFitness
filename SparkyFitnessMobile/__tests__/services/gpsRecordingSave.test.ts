@@ -17,6 +17,7 @@ import {
 import {
   resolveRecordingExercise,
   saveRecordedActivity,
+  type QueuedRecordingSave,
 } from '../../src/services/gpsRecordingSave';
 import {
   learnFromIndoorEntry,
@@ -502,5 +503,149 @@ describe('saveRecordedActivity default shoe', () => {
     );
     expect(mockedFetchShoes).not.toHaveBeenCalled();
     expect(mockedAssignShoe).not.toHaveBeenCalled();
+  });
+});
+
+describe('saveRecordedActivity for a queued upload', () => {
+  const clientEntryId = '33333333-3333-4333-8333-333333333333';
+  const queuedSave = (
+    overrides: Partial<QueuedRecordingSave> = {}
+  ): QueuedRecordingSave => ({
+    clientEntryId,
+    heartRate: [],
+    appleZones: null,
+    resume: {},
+    onProgress: jest.fn(async () => undefined),
+    ...overrides,
+  });
+
+  it('creates the entry under the id made on the phone and keeps its progress', async () => {
+    mockedCreateEntry.mockResolvedValue({ id: clientEntryId } as never);
+    const queued = queuedSave();
+    await saveRecordedActivity(
+      session,
+      points,
+      'km',
+      null,
+      null,
+      false,
+      queued
+    );
+
+    expect(mockedCreateEntry.mock.calls[0]![0]).toMatchObject({
+      id: clientEntryId,
+    });
+    const steps = jest.mocked(queued.onProgress).mock.calls.map((c) => c[0]);
+    expect(steps[0]).toMatchObject({ entryId: clientEntryId });
+    expect(steps.at(-1)).toMatchObject({ shoeDone: true, trackDone: true });
+    // The live recording is gone by now: it is never marked or read.
+    expect(markRecordingSaved).not.toHaveBeenCalled();
+    expect(mockedHeartRate).not.toHaveBeenCalled();
+  });
+
+  it('sends the live recording its own entry id too', async () => {
+    await saveRecordedActivity(
+      { ...session, entryClientId: clientEntryId },
+      points,
+      'km'
+    );
+    expect(mockedCreateEntry.mock.calls[0]![0]).toMatchObject({
+      id: clientEntryId,
+    });
+  });
+
+  it('does not create the entry again once an attempt got that far', async () => {
+    await saveRecordedActivity(
+      session,
+      points,
+      'km',
+      null,
+      null,
+      false,
+      queuedSave({ resume: { entryId: clientEntryId, form: null } })
+    );
+    expect(mockedCreateEntry).not.toHaveBeenCalled();
+    expect(mockedAttach).toHaveBeenCalledTimes(1);
+  });
+
+  it('skips the shoe and the route an earlier attempt finished', async () => {
+    await saveRecordedActivity(
+      session,
+      points,
+      'km',
+      null,
+      null,
+      false,
+      queuedSave({
+        resume: {
+          entryId: clientEntryId,
+          shoeDone: true,
+          trackDone: true,
+        },
+      })
+    );
+    expect(mockedFetchShoes).not.toHaveBeenCalled();
+    expect(mockedAttach).not.toHaveBeenCalled();
+  });
+
+  it('fails the step when the connection is lost at the shoe, to try again', async () => {
+    mockedFetchShoes.mockRejectedValue(new TypeError('Network request failed'));
+    await expect(
+      saveRecordedActivity(
+        session,
+        points,
+        'km',
+        null,
+        null,
+        false,
+        queuedSave()
+      )
+    ).rejects.toThrow('Network request failed');
+    expect(mockedAttach).not.toHaveBeenCalled();
+  });
+
+  it('sends the heart rate it was saved with', async () => {
+    const heartRate = [
+      { t: T0, bpm: 140 },
+      { t: T0 + 60_000, bpm: 150 },
+    ];
+    await saveRecordedActivity(
+      session,
+      points,
+      'km',
+      null,
+      null,
+      false,
+      queuedSave({ heartRate })
+    );
+    expect(mockedTelemetry).toHaveBeenCalledWith(
+      'entry-1',
+      expect.objectContaining({
+        hrSamples: [
+          { t: new Date(T0).toISOString(), bpm: 140 },
+          { t: new Date(T0 + 60_000).toISOString(), bpm: 150 },
+        ],
+      })
+    );
+  });
+
+  it('fails the upload when the heart rate cannot be sent for a lost connection', async () => {
+    mockedTelemetry.mockRejectedValue(new TypeError('Network request failed'));
+    await expect(
+      saveRecordedActivity(
+        session,
+        points,
+        'km',
+        null,
+        null,
+        false,
+        queuedSave({
+          heartRate: [
+            { t: T0, bpm: 140 },
+            { t: T0 + 60_000, bpm: 150 },
+          ],
+        })
+      )
+    ).rejects.toThrow('Network request failed');
   });
 });

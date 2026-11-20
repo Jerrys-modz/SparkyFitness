@@ -8,12 +8,15 @@ import { accountGeneration, savedCopyReadable } from './accountGeneration';
 import { getActiveServerConfigId } from '../services/storage';
 import { addDays, getTodayDate } from '../utils/dateUtils';
 import type { Exercise } from '../types/exercise';
+import { buildLocalRun, buildLocalWatchRun } from './buildLocalRun';
+import { readWaitingWatchRuns } from '../services/watchRunQueue';
 import { buildLocalSession } from './buildLocalSession';
 import { getCacheRow, putCacheRows } from './cacheStore';
 import { CACHE_COLLECTIONS } from './collections';
 import { getOfflineDb } from './db';
 import { notifyDiaryDaySaved } from './events';
 import { listUnconfirmedOutbox } from './outbox';
+import { RUN_SAVE, type QueuedRecordingPayload } from './runHandOver';
 import { signedInUserId } from './syncEngine';
 import type { OfflineDb, OutboxRow } from './types';
 import {
@@ -31,7 +34,7 @@ export interface OfflineDiaryDay {
    * Workouts of that day still waiting to upload, as they will be once
    * uploaded. Shown in place of the saved copy of the same workout.
    */
-  waiting: PresetSessionResponse[];
+  waiting: ExerciseSessionResponse[];
   /** Workouts of that day whose removal is waiting to upload: hidden. */
   deleted: string[];
 }
@@ -125,7 +128,10 @@ async function sessionFromRow(
   serverConfigId: string,
   row: OutboxRow,
   saved: readonly ExerciseSessionResponse[]
-): Promise<PresetSessionResponse | null> {
+): Promise<ExerciseSessionResponse | null> {
+  if (row.kind === RUN_SAVE) {
+    return buildLocalRun(row.payload as QueuedRecordingPayload);
+  }
   if (row.kind === WORKOUT_SESSION_CREATE) {
     const payload = row.payload as CreatePresetSessionRequest;
     const exercises = payload.exercises ?? [];
@@ -224,13 +230,21 @@ export async function readOfflineDiaryDay(
   // uploaded: a later row for the same workout (an update after the create,
   // when a waiting workout was resumed and finished again) replaces the
   // earlier one, and builds on it for what the update does not carry.
-  const byId = new Map<string, PresetSessionResponse>();
+  const byId = new Map<string, ExerciseSessionResponse>();
   for (const row of rows) {
     const session = await sessionFromRow(db, serverConfigId, row, [
       ...(saved ?? []),
       ...byId.values(),
     ]);
     if (session) byId.set(session.id, session);
+  }
+  // Runs the watch recorded alone wait in their own queue; the Diary shows
+  // them too, unless the entry already reached the server and the saved day
+  // has it.
+  for (const run of await readWaitingWatchRuns().catch(() => [])) {
+    if (run.entryId == null || byId.has(run.entryId)) continue;
+    const local = buildLocalWatchRun(run.payload, run.entryId);
+    if (local.entry_date === date) byId.set(local.id, local);
   }
   const deleted = rows
     .filter((row) => row.kind === WORKOUT_SESSION_DELETE)
@@ -244,7 +258,7 @@ export async function readOfflineDiaryDay(
  */
 export function mergeWaitingWorkouts(
   sessions: readonly ExerciseSessionResponse[],
-  waiting: readonly PresetSessionResponse[],
+  waiting: readonly ExerciseSessionResponse[],
   deleted: readonly string[] = []
 ): ExerciseSessionResponse[] {
   if (deleted.length > 0) {

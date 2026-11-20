@@ -8979,6 +8979,7 @@
   },
   "runSummary": {
     "done": "Done",
+    "waitingToUpload": "Saved on this phone. Personal records and the rest of the analysis appear once it uploads.",
     "runSaved": "Run saved",
     "walkSaved": "Walk saved",
     "rideSaved": "Ride saved",
@@ -10932,6 +10933,15 @@
     "diaryNothingSaved": "Nothing saved for this day",
     "finishedTitle": "Saved on this phone",
     "finishedMessage": "It uploads when your server can be reached.",
+    "runSavedTitle": "Saved on this phone",
+    "runSavedMessage": "It uploads when your server can be reached.",
+    "runWaitingTitle": "Waiting to upload",
+    "runWaitingHint": "Its details are there once it has uploaded.",
+    "discardRun": {
+      "message": "This run is only on this phone. Removing it deletes it for good.",
+      "notNow": "Uploading now",
+      "notNowHint": "Delete it from the Diary once it has uploaded."
+    },
     "deleteSavedTitle": "Deleted on this phone",
     "deleteSavedMessage": "It is removed from your server once it can be reached.",
     "startedTitle": "Started offline",
@@ -10985,6 +10995,8 @@
     },
     "kind": {
       "workout": "Workout",
+      "run": "Run",
+      "runFollowUp": "Run details",
       "other": "Saved change"
     },
     "libraryNote": "Only workouts and exercises are available offline. Everything else in the Library needs a connection."

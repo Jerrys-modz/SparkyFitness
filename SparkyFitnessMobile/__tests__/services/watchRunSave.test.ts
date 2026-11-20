@@ -319,3 +319,16 @@ test('a jump rope files a Jump Rope entry with no distance', async () => {
     expect.objectContaining({ activeEnergyKcal: 210 })
   );
 });
+
+test('creates the entry under the id the phone made, and not under one it was not given', async () => {
+  const id = '44444444-4444-4444-8444-444444444444';
+  await saveWatchRun(outdoor, 'km', undefined, jest.fn(), null, id);
+  expect(createExerciseEntry).toHaveBeenLastCalledWith(
+    expect.objectContaining({ id })
+  );
+
+  await saveWatchRun(outdoor, 'km', undefined, jest.fn());
+  expect(
+    jest.mocked(createExerciseEntry).mock.calls.at(-1)![0]
+  ).not.toHaveProperty('id');
+});

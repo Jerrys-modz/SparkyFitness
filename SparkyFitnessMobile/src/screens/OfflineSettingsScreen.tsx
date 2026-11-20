@@ -27,6 +27,7 @@ import {
 import { refreshOfflinePack } from '../offline/offlinePack';
 import Switch from '../components/ui/Switch';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
+import { RUN_SAVE } from '../offline/runHandOver';
 import { drainOutbox } from '../offline/syncEngine';
 import type { OutboxRow, OutboxStatus } from '../offline/types';
 import {
@@ -77,6 +78,12 @@ function statusLabel(status: OutboxStatus, t: TFunction): string {
 function kindLabel(row: OutboxRow, t: TFunction): string {
   if (row.kind.startsWith('workout_')) {
     return t('offline.kind.workout', { defaultValue: 'Workout' });
+  }
+  if (row.kind === RUN_SAVE) {
+    return t('offline.kind.run', { defaultValue: 'Run' });
+  }
+  if (row.kind.startsWith('run.')) {
+    return t('offline.kind.runFollowUp', { defaultValue: 'Run details' });
   }
   return t('offline.kind.other', { defaultValue: 'Saved change' });
 }

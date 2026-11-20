@@ -533,6 +533,12 @@ export const createWorkout = async (
 };
 
 export interface CreateExerciseEntryPayload {
+  /**
+   * An entry id made on this phone (a run saved offline). The server answers
+   * a repeat of the same id with the stored entry, so a create whose answer
+   * was lost can be sent again without making a second entry.
+   */
+  id?: string;
   exercise_id: string;
   exercise_name?: string | null;
   duration_minutes: number;
