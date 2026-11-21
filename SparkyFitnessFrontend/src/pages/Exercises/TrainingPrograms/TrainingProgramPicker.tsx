@@ -17,6 +17,8 @@ import {
   programStructure,
 } from '@/utils/runPrograms';
 
+import TrainingProgramWeeks from './TrainingProgramWeeks';
+
 interface TrainingProgramPickerProps {
   /** The program the person holds now (running or paused), if any. */
   storedProgramId: string | null;
@@ -132,6 +134,7 @@ const TrainingProgramPicker = ({
                       )}
                 </p>
               ) : null}
+              {full ? <TrainingProgramWeeks program={full} /> : null}
               <Button
                 variant="outline"
                 disabled={busy || isCurrent}

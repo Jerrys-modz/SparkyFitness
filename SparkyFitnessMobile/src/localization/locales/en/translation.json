@@ -800,7 +800,8 @@
     "labResults": "Lab results",
     "labResultDetail": "Lab result",
     "labResultAdd": "Add lab result",
-    "labReportImport": "Import report"
+    "labReportImport": "Import report",
+    "runProgramBrowse": "All programs"
   },
   "activityShare": {
     "title": "Share Activity",
@@ -9391,6 +9392,17 @@
       "later": "Move my goal to {{date}}",
       "lower": "Plan a {{distance}} instead",
       "continue": "Continue anyway"
+    },
+    "browse": {
+      "open": "Browse all programs",
+      "openHint": "Look at any program week by week. Your plan stays as it is.",
+      "intro": "Look through any program, week by week. Nothing here changes the plan you are following.",
+      "current": "Current program",
+      "showWeeks": "Show every week",
+      "hideWeeks": "Hide the weeks",
+      "week": "Week {{week}}",
+      "workoutRun": "Run {{number}} · {{total}} min, {{effort}} min of effort",
+      "workoutWalk": "Walk {{number}} · {{total}} min, {{effort}} min brisk"
     }
   },
   "speechVoice": {

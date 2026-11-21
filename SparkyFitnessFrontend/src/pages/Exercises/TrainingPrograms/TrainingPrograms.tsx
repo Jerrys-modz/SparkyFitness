@@ -156,9 +156,17 @@ const TrainingPrograms = () => {
                   save.mutate(setPositionBody(program, next))
                 }
               />
-              <h2 className="pt-2 text-lg font-semibold">
-                {t('trainingPrograms.page.allPrograms', 'All programs')}
-              </h2>
+              <div className="pt-2">
+                <h2 className="text-lg font-semibold">
+                  {t('trainingPrograms.page.allPrograms', 'All programs')}
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  {t(
+                    'trainingPrograms.page.browseIntro',
+                    'Browsing a program below never changes the one you are following.'
+                  )}
+                </p>
+              </div>
             </>
           ) : null}
           <TrainingProgramPicker

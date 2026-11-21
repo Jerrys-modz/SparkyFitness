@@ -45,6 +45,19 @@ describe('TrainingProgramPicker', () => {
     ).toBeInTheDocument();
   });
 
+  it('shows every week of a program without starting it', () => {
+    const { onStart } = setup();
+    expect(screen.queryByTestId('training-weeks-beginner5k')).toBeNull();
+    fireEvent.click(screen.getByTestId('training-weeks-toggle-beginner5k'));
+    const weeks = within(screen.getByTestId('training-weeks-beginner5k'));
+    expect(weeks.getByText('Week 1')).toBeInTheDocument();
+    expect(weeks.getByText('Week 9')).toBeInTheDocument();
+    expect(
+      weeks.getAllByText(/^Run 1 · \d+ min, \d+ min of effort$/)
+    ).toHaveLength(9);
+    expect(onStart).not.toHaveBeenCalled();
+  });
+
   it('starts the program that was picked', () => {
     const { onStart } = setup();
     const card = within(screen.getByTestId('training-program-beginner5k'));
