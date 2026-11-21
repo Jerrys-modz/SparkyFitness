@@ -470,6 +470,15 @@ export const heartRateSamplesQueryKeyRoot = ['heartRateSamples'] as const;
 export const heartRateSamplesQueryKey = (startDate: string, endDate: string) =>
   [...heartRateSamplesQueryKeyRoot, startDate, endDate] as const;
 
+// --- Server administration (admins only) ---
+/** Who is signed in, for the admin check (`role`). */
+export const signedInIdentityQueryKey = ['signedInIdentity'] as const;
+export const adminGlobalSettingsQueryKey = ['adminGlobalSettings'] as const;
+export const adminUsersRootQueryKey = ['adminUsers'] as const;
+export const adminUsersQueryKey = (searchTerm: string) =>
+  [...adminUsersRootQueryKey, searchTerm] as const;
+export const adminBackupsQueryKey = ['adminBackups'] as const;
+
 // --- Optional features (#3487) ---
 export const featureChoicesQueryKey = ['featureChoices'] as const;
 

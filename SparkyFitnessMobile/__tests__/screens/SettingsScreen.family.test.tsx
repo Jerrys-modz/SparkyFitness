@@ -39,6 +39,10 @@ jest.mock('../../src/hooks/useNfcSupport', () => ({
     refetch: jest.fn(),
   }),
 }));
+let mockIsAdmin = false;
+jest.mock('../../src/hooks/useAdmin', () => ({
+  useIsAdmin: () => mockIsAdmin,
+}));
 jest.mock('../../src/hooks/useDiscreetMode', () => ({
   useDiscreetMode: () => ({ discreetMode: false }),
 }));
@@ -75,6 +79,7 @@ const mockUsePreferences = usePreferences as jest.MockedFunction<
 describe('SettingsScreen family diary entry', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockIsAdmin = false;
     mockUseServerConnection.mockReturnValue({ isConnected: true } as ReturnType<
       typeof useServerConnection
     >);
@@ -120,5 +125,28 @@ describe('SettingsScreen family diary entry', () => {
     );
 
     expect(queryByText('Family Diaries')).toBeNull();
+  });
+
+  test('offers Admin only to an admin of the server', () => {
+    const renderScreen = () =>
+      render(
+        <SafeAreaProvider
+          initialMetrics={{
+            frame: { x: 0, y: 0, width: 390, height: 844 },
+            insets: { top: 0, bottom: 0, left: 0, right: 0 },
+          }}
+        >
+          <SettingsScreen navigation={navigation} route={route} />
+        </SafeAreaProvider>
+      );
+
+    const first = renderScreen();
+    expect(first.queryByTestId('settings-row-admin')).toBeNull();
+    first.unmount();
+
+    mockIsAdmin = true;
+    const { getByTestId } = renderScreen();
+    fireEvent.press(getByTestId('settings-row-admin'));
+    expect(navigation.navigate).toHaveBeenCalledWith('AdminSettings');
   });
 });

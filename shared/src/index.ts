@@ -1,3 +1,4 @@
+export * from './schemas/api/AdminSettings.api.zod.ts';
 export * from './schemas/api/AiServiceSettings.api.zod.ts';
 export * from './schemas/api/AlcoholWeek.api.zod.ts';
 export * from './schemas/api/VoiceTranscription.api.zod.ts';

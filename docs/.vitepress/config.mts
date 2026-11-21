@@ -240,6 +240,7 @@ export default defineConfig({
             { text: 'Reverse Proxy Setup', link: '/administration/reverse-proxy' },
             { text: 'Manual Backup & Restore', link: '/administration/manual_backup_restore' },
             { text: 'Homepage Widget', link: '/administration/homepage-widget' },
+            { text: 'Admin in the Mobile App', link: '/administration/mobile-admin' },
           ],
         },
       ],

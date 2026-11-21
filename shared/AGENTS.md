@@ -80,6 +80,8 @@ _Last updated: 2026-11-21_
 
 - Chat approval capability: `src/schemas/api/Chat.api.zod.ts` defines `approvals` (default false). Only clients that render and respond to approval cards should send true; clients resend the saved assistant message ID and `approval-responded` tool parts. The same module defines outside-source metadata, saved-row history metadata and `chatApprovalResponsesReady`, which waits for every pending approval before resending.
 
+- Admin settings: `src/schemas/api/AdminSettings.api.zod.ts` is the mobile Admin screen's contract for `GET/PUT /api/admin/global-settings` (`adminGlobalSettingsSchema`, a loose object so a client sends back fields it does not know; `PUT` takes the whole object) and `GET /api/admin/users` (`adminUserSchema`, `adminUserListSchema`). The web still uses its own `GlobalSettings` type in `SparkyFitnessFrontend/src/types/admin.ts`.
+
 - Outside tool opt-in contracts: `src/schemas/api/McpServer.api.zod.ts` defines the safe per-person server list and whole-list save request; `UserPreferences.zod.ts` mirrors `chat_mcp_server_ids`.
 
 ## Naming Convention

@@ -190,6 +190,9 @@ import {
   SafeFamilyCopyReview,
   SafeCycleSettings,
   SafeFeatureSettings,
+  SafeAdminSettings,
+  SafeAdminUsers,
+  SafeAdminUserDetail,
   SafeCycleOnboarding,
   SafeGoalSetup,
   SafeCycleHub,
@@ -1492,6 +1495,21 @@ function AppContent() {
             name="FeatureSettings"
             component={SafeFeatureSettings}
             options={createStackScreenOptions(t('screens.features', { defaultValue: 'Features' }), { headerBackTitle: t('navigation.settings', { defaultValue: 'Settings' }) })}
+          />
+          <Stack.Screen
+            name="AdminSettings"
+            component={SafeAdminSettings}
+            options={createStackScreenOptions(t('screens.admin', { defaultValue: 'Admin' }), { headerBackTitle: t('navigation.settings', { defaultValue: 'Settings' }) })}
+          />
+          <Stack.Screen
+            name="AdminUsers"
+            component={SafeAdminUsers}
+            options={createStackScreenOptions(t('screens.adminUsers', { defaultValue: 'Users' }), { headerBackTitle: t('screens.admin', { defaultValue: 'Admin' }) })}
+          />
+          <Stack.Screen
+            name="AdminUserDetail"
+            component={SafeAdminUserDetail}
+            options={createStackScreenOptions(t('screens.adminUser', { defaultValue: 'User' }), { headerBackTitle: t('screens.adminUsers', { defaultValue: 'Users' }) })}
           />
           <Stack.Screen
             name="CycleSettings"
