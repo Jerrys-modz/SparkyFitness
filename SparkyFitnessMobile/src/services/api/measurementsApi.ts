@@ -1,5 +1,12 @@
 import { apiFetch } from './apiClient';
 import type { ServerConfig } from '../storage';
+import { putCacheRows } from '../../offline/cacheStore';
+import {
+  CACHE_COLLECTIONS,
+  SINGLE_DOCUMENT_KEY,
+} from '../../offline/collections';
+import { readSavedSingle } from '../../offline/foodLibrary';
+import { withOfflineFallback } from '../../offline/withOfflineFallback';
 import { ApiError } from './errors';
 import { getTodayDate } from '../../utils/dateUtils';
 
@@ -82,10 +89,23 @@ export const serverSupportsPerRecordWater = async (): Promise<boolean> => {
  * Fetches available water containers.
  */
 export const fetchWaterContainers = async (): Promise<WaterContainer[]> => {
-  return apiFetch<WaterContainer[]>({
-    endpoint: '/api/water-containers',
-    serviceName: 'Measurements API',
-    operation: 'fetch water containers',
+  return withOfflineFallback<WaterContainer[]>({
+    fetch: () =>
+      apiFetch<WaterContainer[]>({
+        endpoint: '/api/water-containers',
+        serviceName: 'Measurements API',
+        operation: 'fetch water containers',
+      }),
+    store: (db, serverConfigId, containers) =>
+      putCacheRows(db, serverConfigId, CACHE_COLLECTIONS.waterContainers, [
+        { key: SINGLE_DOCUMENT_KEY, payload: containers },
+      ]),
+    read: (db, serverConfigId) =>
+      readSavedSingle<WaterContainer[]>(
+        db,
+        serverConfigId,
+        CACHE_COLLECTIONS.waterContainers
+      ),
   });
 };
 
@@ -532,6 +552,11 @@ export const changeWaterIntake = async (params: {
   entryDate: string;
   changeDrinks: number;
   containerId: number;
+  /**
+   * Replay key for one "+" press (only valid with `changeDrinks` of 1). The
+   * server answers a repeat of the same key without logging another drink.
+   */
+  clientId?: string;
 }): Promise<WaterIntakeResponse> => {
   return apiFetch<WaterIntakeResponse>({
     endpoint: '/api/measurements/water-intake',
@@ -542,6 +567,7 @@ export const changeWaterIntake = async (params: {
       entry_date: params.entryDate,
       change_drinks: params.changeDrinks,
       container_id: params.containerId,
+      ...(params.clientId ? { client_id: params.clientId } : {}),
     },
   });
 };

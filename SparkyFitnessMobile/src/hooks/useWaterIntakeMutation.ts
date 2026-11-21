@@ -13,6 +13,7 @@ import type { WaterContainer } from '../types/measurements';
 import { dailySummaryQueryKey, waterContainersQueryKey } from './queryKeys';
 import { invalidateWaterIntakeQueries } from './invalidateWaterIntake';
 import { navigationRef as rootNavigationRef } from '../components/ActiveWorkoutBar';
+import { logDrinkOrQueue, type DrinkResult } from '../offline/logDrink';
 
 /**
  * Stand-in used when the user has no standard container of their own, matching
@@ -125,16 +126,34 @@ export function useWaterIntakeMutation({
     void AsyncStorage.setItem(SELECTED_CONTAINER_KEY, String(id));
   };
 
+  const showQueuedToast = () => {
+    Toast.show({
+      type: 'info',
+      text1: t('waterIntake.queued', {
+        defaultValue: 'Saved on this phone',
+      }),
+      text2: t('waterIntake.queuedMessage', {
+        defaultValue: 'It uploads when your server can be reached.',
+      }),
+    });
+  };
+
   const mutation = useMutation({
-    mutationFn: async (changeDrinks: number) => {
+    mutationFn: async (changeDrinks: number): Promise<DrinkResult> => {
       if (!activeContainer) {
         throw new Error('No water container configured');
       }
-      return changeWaterIntake({
-        entryDate: date,
-        changeDrinks,
-        containerId: activeContainer.id,
-      });
+      // Taking a drink off needs the server's current state, so only adding
+      // one can wait offline.
+      if (changeDrinks === 1) return logDrinkOrQueue(date, activeContainer.id);
+      return {
+        queued: false,
+        response: await changeWaterIntake({
+          entryDate: date,
+          changeDrinks,
+          containerId: activeContainer.id,
+        }),
+      };
     },
     onMutate: async (changeDrinks: number) => {
       if (!activeContainer) return;
@@ -165,14 +184,20 @@ export function useWaterIntakeMutation({
         }
       );
     },
-    onSuccess: (response) => {
+    onSuccess: (result) => {
+      // A drink waiting to upload keeps the amount shown from the press; the
+      // server's total does not include it yet.
+      if (result.queued) {
+        showQueuedToast();
+        return;
+      }
       queryClient.setQueryData<DailySummaryRawData>(
         dailySummaryQueryKey(date),
         (old) => {
           if (!old) return old;
           return {
             ...old,
-            waterIntake: { water_ml: response.water_ml },
+            waterIntake: { water_ml: result.response.water_ml },
           };
         }
       );
@@ -186,7 +211,10 @@ export function useWaterIntakeMutation({
         }),
       });
     },
-    onSettled: () => {
+    onSettled: (result) => {
+      // Refreshing now would replace the shown amount with one that lacks the
+      // waiting drink; the upload refreshes the day once it is confirmed.
+      if (result?.queued) return;
       invalidateWaterIntakeQueries(queryClient, date);
     },
   });
@@ -232,9 +260,12 @@ export function useWaterIntakeMutation({
   // foodWater x hydration_factor, which the client cannot predict, so the
   // server's total is what lands.
   const logPreset = useMutation({
-    mutationFn: (containerId: number) =>
-      changeWaterIntake({ entryDate: date, changeDrinks: 1, containerId }),
-    onSuccess: () => {
+    mutationFn: (containerId: number) => logDrinkOrQueue(date, containerId),
+    onSuccess: (result) => {
+      if (result.queued) {
+        showQueuedToast();
+        return;
+      }
       invalidateWaterIntakeQueries(queryClient, date);
     },
     onError: () => {

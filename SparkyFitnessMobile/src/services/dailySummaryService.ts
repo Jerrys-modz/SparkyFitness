@@ -10,6 +10,10 @@ import {
   fetchDailySummary,
   type DailySummaryApiResponse,
 } from './api/dailySummaryApi';
+import {
+  readWaitingForDay,
+  type WaitingForDay,
+} from '../offline/dailySummaryOverlay';
 import { resolveCollapsedFoodEntries } from '../utils/loggedMealCollapse';
 import { calculateExerciseStats } from '../utils/workoutSession';
 import type { DailySummary } from '../types/dailySummary';
@@ -66,12 +70,53 @@ export function rawFromDailySummaryResponse(
   };
 }
 
+/**
+ * Adds what is waiting to upload to a day's numbers. The server's summary, or
+ * the phone's copy of it, does not include those entries yet: they are listed
+ * with the day's food, counted in the calories, macros and the calorie
+ * balance, and added to the water total. Once uploaded they are in the
+ * server's numbers and no longer waiting, so nothing is counted twice.
+ */
+export function applyWaitingToRawData(
+  raw: DailySummaryRawData,
+  waiting: WaitingForDay
+): DailySummaryRawData {
+  if (waiting.foodEntries.length === 0 && waiting.waterMl === 0) return raw;
+  const addedCalories = calculateCaloriesConsumed(waiting.foodEntries);
+  const { calorieBalance, waterIntakeBreakdown } = raw;
+  return {
+    ...raw,
+    foodEntries: [...raw.foodEntries, ...waiting.foodEntries],
+    calorieBalance: calorieBalance && {
+      ...calorieBalance,
+      eaten: calorieBalance.eaten + addedCalories,
+      net: calorieBalance.net + addedCalories,
+      remaining: calorieBalance.remaining - addedCalories,
+    },
+    waterIntake: {
+      ...raw.waterIntake,
+      water_ml: (raw.waterIntake.water_ml || 0) + waiting.waterMl,
+    },
+    waterIntakeBreakdown: waterIntakeBreakdown && {
+      ...waterIntakeBreakdown,
+      manual_ml:
+        (Number(waterIntakeBreakdown.manual_ml) || 0) + waiting.waterMl,
+    },
+  };
+}
+
 export async function loadDailySummaryRawData(
   date: string
 ): Promise<DailySummaryRawData> {
   const data = await fetchDailySummary(date);
-  const foodEntries = await resolveCollapsedFoodEntries(date, data.foodEntries);
-  return rawFromDailySummaryResponse(data, foodEntries);
+  // Collapsing logged meals asks the server for their totals. With the server
+  // away the day still shows, with a logged meal as its component entries.
+  const foodEntries = await resolveCollapsedFoodEntries(
+    date,
+    data.foodEntries
+  ).catch(() => data.foodEntries);
+  const raw = rawFromDailySummaryResponse(data, foodEntries);
+  return applyWaitingToRawData(raw, await readWaitingForDay(date));
 }
 
 export function buildDailySummary(
