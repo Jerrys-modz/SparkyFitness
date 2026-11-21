@@ -5,20 +5,10 @@ import {
   FOOD_VARIANT_NUTRIENT_FIELDS,
   foodVolumeToMl,
 } from '@workspace/shared';
-import { getDietTemplate } from '@/constants/dietTemplates';
 import { EMPTY_MEAL_TOTALS } from '@/constants/nutrients';
 import i18n from '@/i18n';
 import type { FoodEntry, FoodVariant } from '@/types/food';
 import { FoodEntryMeal, MealTotals } from '@/types/meal';
-import {
-  ACTIVITY_MULTIPLIERS,
-  DEFAULT_CUSTOM_CALORIE_SAFETY_FLOOR,
-  calculateBmr,
-  computeCalorieTarget,
-  goalModeFromPrimaryGoal,
-  calculateAge,
-  type CalorieSafetyFloorMode,
-} from '@workspace/shared';
 import { getMealPercentage } from './goals';
 import { ExpandedGoals } from '@/types/goals';
 
@@ -619,123 +609,5 @@ export const getMealData = (
     type: mealType,
     entries: combinedEntries,
     targetCalories: goals ? (goals.calories * percentage) / 100 : 0,
-  };
-};
-
-export interface CalculatorFormData {
-  sex: 'male' | 'female' | '';
-  primaryGoal: 'lose_weight' | 'maintain_weight' | 'gain_weight' | '';
-  currentWeight: number | '';
-  height: number | '';
-  birthDate: string;
-  activityLevel: 'not_much' | 'light' | 'moderate' | 'heavy' | '';
-}
-
-export interface BasePlan {
-  bmr: number;
-  tdee: number;
-  finalDailyCalories: number;
-  macros: {
-    carbs: number;
-    protein: number;
-    fat: number;
-    fiber: number;
-  };
-}
-
-// ... (existing code)
-
-// ... (existing code)
-
-export const calculateBasePlan = (
-  formData: CalculatorFormData,
-  localSelectedDiet: string,
-  customPercentages: { carbs: number; protein: number; fat: number },
-  safetyFloor: {
-    calorieSafetyFloorMode: CalorieSafetyFloorMode;
-    calorieSafetyFloorValue: number;
-  } = {
-    calorieSafetyFloorMode: 'standard',
-    calorieSafetyFloorValue: DEFAULT_CUSTOM_CALORIE_SAFETY_FLOOR,
-  }
-): BasePlan | null => {
-  // formData values are already in Metric (kg/cm) because they come from UnitInput or normalized state
-  const weightKg = Number(formData.currentWeight) || 0;
-  const heightCm = Number(formData.height) || 0;
-
-  // Year subtraction is a year off until the birthday passes; calculateAge
-  // accounts for the month and day.
-  const age = formData.birthDate ? calculateAge(formData.birthDate) : 30;
-
-  if (
-    isNaN(weightKg) ||
-    isNaN(heightCm) ||
-    isNaN(age) ||
-    !formData.activityLevel ||
-    weightKg <= 0 ||
-    heightCm <= 0
-  ) {
-    return null;
-  }
-
-  const gender = formData.sex === 'male' ? 'male' : 'female';
-  const bmr = calculateBmr('Mifflin-St Jeor', weightKg, heightCm, age, gender);
-
-  // Route through the same engine the rest of the app uses, so the plan produced
-  // here matches what Calculation Settings will show afterwards. Presenting it as
-  // adaptive-with-no-history makes the baseline BMR x activity multiplier and
-  // applies the safety floors, which the previous ad-hoc math skipped entirely.
-  const targetResult = computeCalorieTarget({
-    goalMode: goalModeFromPrimaryGoal(formData.primaryGoal),
-    calculationMethod: 'adaptive',
-    customPercentage: 0,
-    bmr,
-    activityLevelMultiplier:
-      ACTIVITY_MULTIPLIERS[formData.activityLevel] ?? 1.2,
-    adaptiveTdee: null,
-    adaptiveTdeeFallback: true,
-    adaptiveTdeeDaysOfData: 0,
-    weightKg,
-    heightCm,
-    age,
-    gender,
-    currentGoalCalories: 0,
-    calculateBmrFn: calculateBmr,
-    calorieSafetyFloorMode: safetyFloor.calorieSafetyFloorMode,
-    calorieSafetyFloorValue: safetyFloor.calorieSafetyFloorValue,
-  });
-
-  const finalDailyCalories = Math.round(targetResult.finalTarget / 10) * 10;
-
-  const dietTemplate =
-    localSelectedDiet === 'custom'
-      ? {
-          carbsPercentage: customPercentages.carbs,
-          proteinPercentage: customPercentages.protein,
-          fatPercentage: customPercentages.fat,
-        }
-      : getDietTemplate(localSelectedDiet);
-
-  const fiberGrams = Math.round((finalDailyCalories / 1000) * 14);
-  const adjustedCalories = Math.max(0, finalDailyCalories - fiberGrams * 2);
-
-  const macros = {
-    carbs: Math.round(
-      (adjustedCalories * ((dietTemplate?.carbsPercentage ?? 0) / 100)) / 4
-    ),
-    protein: Math.round(
-      (adjustedCalories * ((dietTemplate?.proteinPercentage ?? 0) / 100)) / 4
-    ),
-    fat: Math.round(
-      (adjustedCalories * ((dietTemplate?.fatPercentage ?? 0) / 100)) / 9
-    ),
-    fiber: fiberGrams,
-  };
-
-  return {
-    bmr,
-    tdee: targetResult.baselineTdee,
-    finalDailyCalories,
-    macros,
   };
 };

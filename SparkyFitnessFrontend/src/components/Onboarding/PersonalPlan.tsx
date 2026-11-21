@@ -4,6 +4,9 @@ import { AlertTriangle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import type { ExpandedGoals } from '@/types/goals';
 import {
+  bodyFatFromOnboardingRange,
+  calculateBasePlan,
+  macroPercentagesOfCalories,
   FatBreakdownAlgorithm,
   MineralCalculationAlgorithm,
   VitaminCalculationAlgorithm,
@@ -11,7 +14,6 @@ import {
 } from '@workspace/shared';
 import { Save, PlayCircle } from 'lucide-react';
 import { useSaveGoalsMutation } from '@/hooks/Goals/useGoals';
-import { calculateBasePlan } from '@/utils/nutritionCalculations';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import type { ActivityLevel } from '@/contexts/PreferencesContext';
 import { useTranslation } from 'react-i18next';
@@ -36,22 +38,6 @@ interface PersonalPlanProps {
   localDateFormat: string;
   onOnboardingComplete: () => void;
 }
-
-/** Midpoint of each onboarding body-fat bucket, or null if unanswered. */
-const bodyFatFromRange = (range: string | undefined): number | null => {
-  switch (range) {
-    case 'Low (<15%)':
-      return 12;
-    case 'Medium (15-25%)':
-      return 20;
-    case 'High (25-35%)':
-      return 30;
-    case 'Very High (>35%)':
-      return 38;
-    default:
-      return null;
-  }
-};
 
 const PersonalPlan = ({
   formData,
@@ -318,8 +304,10 @@ const PersonalPlan = ({
         // Midpoint of the selected bucket. Rough, but it lets the lean-mass BMR
         // algorithms (Katch-McArdle, Cunningham) work at all rather than
         // silently falling back to Mifflin-St Jeor.
-        ...(bodyFatFromRange(formData.bodyFatRange) != null && {
-          body_fat_percentage: bodyFatFromRange(formData.bodyFatRange),
+        ...(bodyFatFromOnboardingRange(formData.bodyFatRange) != null && {
+          body_fat_percentage: bodyFatFromOnboardingRange(
+            formData.bodyFatRange
+          ),
         }),
       });
     } catch (e) {
@@ -334,23 +322,13 @@ const PersonalPlan = ({
           'kcal'
         );
 
-        const fiber = editedPlan.dietary_fiber || 0;
-        const macroCalories = Math.max(0, storedCalories - fiber * 2);
         const newGoals: ExpandedGoals = {
           ...editedPlan,
           calories: storedCalories,
-          protein_percentage:
-            macroCalories > 0
-              ? Math.round(((editedPlan.protein * 4) / macroCalories) * 100)
-              : 0,
-          carbs_percentage:
-            macroCalories > 0
-              ? Math.round(((editedPlan.carbs * 4) / macroCalories) * 100)
-              : 0,
-          fat_percentage:
-            macroCalories > 0
-              ? Math.round(((editedPlan.fat * 9) / macroCalories) * 100)
-              : 0,
+          ...macroPercentagesOfCalories({
+            ...editedPlan,
+            calories: storedCalories,
+          }),
           dietary_fiber: editedPlan.dietary_fiber,
           water_goal_ml: editedPlan.water_goal_ml,
           target_exercise_duration_minutes:

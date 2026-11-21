@@ -118,6 +118,8 @@ export type RootStackParamList = {
   CycleSettings: undefined;
   FeatureSettings: undefined;
   CycleOnboarding: undefined;
+  /** Goal setup wizard; `fromSignIn` when opened right after first sign-in. */
+  GoalSetup: { fromSignIn?: boolean } | undefined;
   CycleHub: undefined;
   CycleLogModal: { date?: string } | undefined;
   PregnancySetup: { pregnancy?: SharedPregnancy } | undefined;

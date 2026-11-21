@@ -4,6 +4,15 @@ SparkyFitness allows you to set and track various fitness and nutrition goals, h
 
 ---
 
+## Goal Setup
+
+New accounts are walked through a short goal setup: sex, main goal (lose, maintain or gain weight), current weight, height, date of birth, a rough body-fat estimate, goal weight, meals per day, how often you exercise, and whether exercise calories are added to your daily budget. It then suggests daily calories, protein, carbs, fat, fiber and water, which you can adjust before saving.
+
+- **Web:** shown the first time you sign in.
+- **Mobile app:** shown right after you first sign in to a server, if the account has not finished or skipped goal setup on the web or in the app. Accounts that are already set up go straight to the Dashboard. You can also run it at any time from **Settings → Goals → Work out my goals step by step**. On the phone you pick one of the preset eating styles (Balanced, Mediterranean, DASH, Atkins, Low fat, Low carb); a custom macro split and the advanced nutrient algorithms are set afterwards in Goals or on the web.
+
+Both use the same calculation, so the web and the app suggest the same numbers for the same answers. Saving sets today's goals and the days after it, keeps targets the setup does not ask about (such as caffeine or steps) when run from the app, records your weight and height on today's check-in, and stores your goal mode as maintain/manual so the goal you picked is not applied twice. **Skip** leaves your goals unchanged and is remembered, so you are not asked again after signing in.
+
 ## Goal Weight
 
 Set your goal weight under **Goals**. It was previously only asked once during onboarding. Enter it in your preferred weight unit (stones and pounds users enter pounds); it is stored in kilograms. **Clear** removes it. The mobile Weight chart uses it for the dashed goal line and the projected goal date.

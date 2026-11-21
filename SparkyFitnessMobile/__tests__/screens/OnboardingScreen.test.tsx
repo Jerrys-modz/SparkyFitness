@@ -49,6 +49,11 @@ jest.mock('../../src/services/LogService', () => ({
   addLog: jest.fn(),
 }));
 
+const mockShouldOfferGoalSetup = jest.fn().mockResolvedValue(false);
+jest.mock('../../src/hooks/useGoalSetup', () => ({
+  shouldOfferGoalSetup: () => mockShouldOfferGoalSetup(),
+}));
+
 jest.mock('../../src/hooks', () => ({
   queryClient: { invalidateQueries: jest.fn() },
   serverConnectionQueryKey: ['serverConnection'],
@@ -387,6 +392,36 @@ describe('OnboardingScreen', () => {
           screen: 'Dashboard',
         });
       });
+    });
+
+    test('a new account goes to goal setup after signing in', async () => {
+      mockShouldOfferGoalSetup.mockResolvedValueOnce(true);
+      mockLogin.mockResolvedValueOnce({
+        type: 'success',
+        sessionToken: 'tok-123',
+        user: { email: 'user@example.com' },
+      });
+
+      const result = renderScreen();
+      await goToPage2(result);
+      fireEvent.changeText(
+        result.getByPlaceholderText('email@example.com'),
+        'user@example.com'
+      );
+      fireEvent.changeText(
+        result.getByPlaceholderText('Password'),
+        'password123'
+      );
+      await act(async () => {
+        fireEvent.press(result.getByText('Connect'));
+      });
+
+      await waitFor(() => {
+        expect(mockReplace).toHaveBeenCalledWith('GoalSetup', {
+          fromSignIn: true,
+        });
+      });
+      expect(mockReplace).not.toHaveBeenCalledWith('Tabs', expect.anything());
     });
 
     test('Connect with Sign In shows error on failure', async () => {

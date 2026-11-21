@@ -1,14 +1,19 @@
 import { apiFetch } from './apiClient';
 import type { DailyGoals } from '../../types/goals';
+import type { ServerConfig } from '../storage';
 
 /**
  * Fetches daily goals for a given date.
  */
-export const fetchDailyGoals = async (date: string): Promise<DailyGoals> => {
+export const fetchDailyGoals = async (
+  date: string,
+  serverConfig?: ServerConfig
+): Promise<DailyGoals> => {
   return apiFetch<DailyGoals>({
     endpoint: `/api/goals/for-date?date=${date}`,
     serviceName: 'Goals API',
     operation: 'fetch goals',
+    serverConfig,
   });
 };
 
@@ -35,13 +40,15 @@ export const fetchGoalsRange = async (
 export const saveDailyGoals = async (
   startDate: string,
   goals: DailyGoals,
-  cascade: boolean
+  cascade: boolean,
+  serverConfig?: ServerConfig
 ): Promise<void> => {
   await apiFetch<unknown>({
     endpoint: '/api/goals/manage-timeline',
     serviceName: 'Goals API',
     operation: 'save goals',
     method: 'POST',
+    serverConfig,
     body: {
       p_start_date: startDate,
       p_cascade: cascade,
