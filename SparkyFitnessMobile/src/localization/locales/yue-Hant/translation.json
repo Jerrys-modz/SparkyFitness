@@ -9884,7 +9884,6 @@
     "result": {
       "missing": "呢個測試已經冇儲存.",
       "when": "{{date}} · {{test}}",
-      "derived": "閾值配速 {{pace}}。以 5K 計大約 {{time}}.",
       "changeTitle": "對比您 {{date}} 嘅測試",
       "changeThreshold": "閾值配速：{{change}}.",
       "pacesTitle": "您嘅訓練配速",

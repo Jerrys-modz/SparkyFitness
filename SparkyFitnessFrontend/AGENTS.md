@@ -1,4 +1,5 @@
 # AGENTS.md
+
 _Last updated: 2026-11-18_
 
 _Last updated: 2026-11-20_
@@ -42,6 +43,7 @@ pnpm run build
 ## Domain-Mirrored Layout (the most important convention)
 
 Features are organized by domain, and the same domain folder name appears in `src/pages/`, `src/api/`, and `src/hooks/`. A feature change usually touches the matching folder in all three:
+
 - Page domains: `Admin`, `Auth`, `Chat`, `CheckIn`, `Cycle`, `Diary`, `Errors`, `Exercises`, `Fasting`, `Foods`, `Goals`, `Integrations`, `Labs`, `Medications`, `Reports`, `Settings`, `Symptoms`.
 
 - Page domains: `Admin`, `Auth`, `Challenges`, `Chat`, `CheckIn`, `Cycle`, `Diary`, `Errors`, `Exercises`, `Fasting`, `Foods`, `Goals`, `Integrations`, `Labs`, `Medications`, `Reports`, `Settings`, `Symptoms`.

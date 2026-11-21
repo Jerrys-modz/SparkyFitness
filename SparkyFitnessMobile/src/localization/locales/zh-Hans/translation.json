@@ -9884,7 +9884,6 @@
     "result": {
       "missing": "该测试已不再保存。",
       "when": "{{date}} · {{test}}",
-      "derived": "阈值配速 {{pace}}。换算 5K 约 {{time}}。",
       "changeTitle": "对比你 {{date}} 的测试",
       "changeThreshold": "阈值配速：{{change}}。",
       "pacesTitle": "你的训练配速",

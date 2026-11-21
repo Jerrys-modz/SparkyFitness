@@ -50,16 +50,6 @@ jest.mock('@/hooks/Settings/useFeatureChoices', () => ({
   }),
 }));
 
-let mockAppetiteOn = true;
-const mockSetAppetite = jest.fn();
-jest.mock('@/hooks/Settings/useFeatureChoices', () => ({
-  useWebFeatureEnabled: () => mockAppetiteOn,
-  useSetWebFeatureEnabled: () => ({
-    mutate: mockSetAppetite,
-    isPending: false,
-  }),
-}));
-
 function renderSettings() {
   return render(
     <Accordion type="multiple" defaultValue={['features']}>
@@ -131,9 +121,20 @@ describe('FeatureSettings', () => {
     const toggle = screen.getByRole('switch', { name: 'Lab results' });
     expect(toggle).toBeChecked();
     expect(toggle).toBeEnabled();
+    // Each feature kept per platform says so (lab results and hunger).
     expect(
-      screen.getByText('Only this website. The mobile app has its own switch.')
-    ).toBeInTheDocument();
+      screen.getAllByText(
+        'Only this website. The mobile app has its own switch.'
+      )
+    ).toHaveLength(2);
+  });
+
+  it('lists hunger and cravings, on by default, and turns it off on this website', () => {
+    renderSettings();
+    const toggle = screen.getByRole('switch', { name: 'Hunger and cravings' });
+    expect(toggle).toBeChecked();
+    fireEvent.click(toggle);
+    expect(mockSetFeatureOn).toHaveBeenCalledWith('appetite', false);
   });
 
   it('turns lab results off on this website', () => {
@@ -166,8 +167,8 @@ describe('FeatureSettings', () => {
     // The defaults on an older server are covered in useWebFeatures.test.
     expect(screen.getByRole('switch', { name: 'Lab results' })).toBeDisabled();
     expect(
-      screen.getByText('Update your SparkyFitness server to change this.')
-    ).toBeInTheDocument();
+      screen.getAllByText('Update your SparkyFitness server to change this.')
+    ).not.toHaveLength(0);
     expect(
       screen.queryByRole('button', { name: 'Retry' })
     ).not.toBeInTheDocument();
@@ -177,7 +178,8 @@ describe('FeatureSettings', () => {
     mockChoice = { state: 'loadFailed', isPending: false };
     renderSettings();
     expect(screen.getByRole('switch', { name: 'Lab results' })).toBeDisabled();
-    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    // Every choice row shares the one read, so each offers its own Retry.
+    fireEvent.click(screen.getAllByRole('button', { name: 'Retry' })[0]!);
     expect(mockReloadChoices).toHaveBeenCalledTimes(1);
   });
 
@@ -213,15 +215,6 @@ describe('FeatureSettings', () => {
     const { container } = renderSettings();
     expect(screen.getByRole('switch', { name: 'Wellness' })).toBeChecked();
     expect(container.textContent).not.toMatch(/cycle|period|fertil|pregnan/i);
-  });
-
-  it('lists the hunger and cravings switch under Nutrition and saves a change', () => {
-    renderSettings();
-    expect(screen.getByText('Nutrition')).toBeInTheDocument();
-    const toggle = screen.getByRole('switch', { name: 'Hunger and cravings' });
-    expect(toggle).toBeChecked();
-    fireEvent.click(toggle);
-    expect(mockSetAppetite).toHaveBeenCalledWith(false);
   });
 
   it('shows a note instead of the switches while acting for someone else', () => {
