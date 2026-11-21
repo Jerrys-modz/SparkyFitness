@@ -45,8 +45,6 @@ interface SwipeableExerciseRowProps {
   getImageSource?: GetImageSource;
   weightUnit?: 'kg' | 'lbs';
   distanceUnit?: 'km' | 'miles';
-  /** Logged on this phone and not on the server yet (#1983). */
-  waitingToUpload?: boolean;
 }
 
 const SwipeableExerciseRow: React.FC<SwipeableExerciseRowProps> = ({
@@ -56,7 +54,6 @@ const SwipeableExerciseRow: React.FC<SwipeableExerciseRowProps> = ({
   getImageSource,
   weightUnit = 'kg',
   distanceUnit = 'km',
-  waitingToUpload = false,
 }) => {
   const { t } = useTranslation();
   const energyUnit = useEnergyUnit();
@@ -173,22 +170,6 @@ const SwipeableExerciseRow: React.FC<SwipeableExerciseRowProps> = ({
                   {name}
                 </Text>
                 <View className="flex-row items-center gap-2">
-                  {waitingToUpload && (
-                    <View
-                      testID="waiting-to-upload-pill"
-                      className="rounded-full px-1.5 py-0.5"
-                      style={{ backgroundColor: `${textMuted}20` }}
-                    >
-                      <Text
-                        className="text-xs font-medium"
-                        style={{ color: textMuted }}
-                      >
-                        {t('offline.status.pending', {
-                          defaultValue: 'Waiting to upload',
-                        })}
-                      </Text>
-                    </View>
-                  )}
                   {session.type === 'preset' &&
                     session.status != null &&
                     session.status !== 'completed' &&

@@ -2,10 +2,7 @@ import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { CompositeScreenProps } from '@react-navigation/native';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import {
-  hasSupplementNutrition,
-  type ExerciseSessionResponse,
-} from '@workspace/shared';
+import { hasSupplementNutrition } from '@workspace/shared';
 import React, {
   useCallback,
   useEffect,
@@ -42,9 +39,6 @@ import ServingAdjustSheet, {
 import { BedTimeCard, NapsCard, WakeUpCard } from '../components/SleepCards';
 import StatusView from '../components/StatusView';
 import { ServerStatusView } from '../components/ServerGate';
-import OfflineBanner from '../components/OfflineBanner';
-import { useOfflineDiaryDay } from '../hooks/useOfflineDiaryDay';
-import { mergeWaitingWorkouts } from '../offline/diaryDay';
 import Button from '../components/ui/Button';
 import {
   useCustomNutrients,
@@ -109,23 +103,10 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
   // push the date buttons onto the Add button; then only the calendar stays.
   const dateColumnCollapsed = useDateColumnCollapsed(verticalBar);
   const lastDateCollapsedRef = useRef<boolean | null>(null);
-  const {
-    isConnected,
-    isLoading: isConnectionLoading,
-    status: connectionStatus,
-    refetch: recheckConnection,
-  } = useServerConnection();
-  // Set up but not answering: the diary then shows the day's workouts from
-  // this phone (#1983) instead of the blocking message.
-  const isOffline = !isConnectionLoading && connectionStatus === 'unreachable';
+  const { isConnected, isLoading: isConnectionLoading } = useServerConnection();
   const { data: familyUsers = [] } = useFamilyUsers({ enabled: isConnected });
   const hasFamilyDiaries = isConnected && familyUsers.length > 0;
   const selectedDate = useDiaryDateStore((s) => s.selectedDate);
-  const offlineDay = useOfflineDiaryDay(selectedDate);
-  const waitingSessionIds = useMemo(
-    () => new Set(offlineDay.waiting.map((session) => session.id)),
-    [offlineDay.waiting]
-  );
   const setSelectedDate = useDiaryDateStore((s) => s.setSelectedDate);
   const goToPreviousDay = useDiaryDateStore((s) => s.goToPreviousDay);
   const goToNextDay = useDiaryDateStore((s) => s.goToNextDay);
@@ -425,9 +406,6 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
       summary?.foodEntries.length === 0 &&
       !hasSupplementNutrition(summary?.supplementTotals) && //A logged supplement is something the user recorded for this day, so the day is not empty even with no food, exercise or measurement.
       summary?.exerciseEntries.length === 0 &&
-      // A workout waiting to upload is on the day too (#1983), whether or
-      // not the server has it yet.
-      offlineDay.waiting.length === 0 &&
       !hasAnyMeasurement &&
       // A progress photo is something the user recorded for this day, so it
       // defeats the empty state exactly as a logged supplement does. Gated on
@@ -443,7 +421,6 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
     isSleepLoading,
     wakeUp,
     summary,
-    offlineDay.waiting,
     hasAnyMeasurement,
     isPhotosLoading,
     dayPhotos,
@@ -452,73 +429,7 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
     activePlans,
   ]);
 
-  const openWorkout = (session: ExerciseSessionResponse) =>
-    openExerciseSession(navigation, session, distanceUnit);
-
-  const renderOfflineDay = () => {
-    const sessions = mergeWaitingWorkouts(
-      offlineDay.saved ?? [],
-      offlineDay.waiting
-    );
-    return (
-      <ScrollView
-        className="flex-1 bg-background"
-        style={{ flex: 1 }}
-        contentContainerStyle={{
-          paddingHorizontal: 16,
-          paddingTop: usesNativeTabs && verticalBar ? 12 : 8,
-          paddingBottom: 80 + activeWorkoutBarPadding,
-        }}
-        contentInsetAdjustmentBehavior={usesNativeTabs ? 'automatic' : 'never'}
-        automaticallyAdjustsScrollIndicatorInsets={usesNativeTabs}
-        refreshControl={
-          <RefreshControl
-            refreshing={false}
-            onRefresh={() => void recheckConnection()}
-            tintColor={accentColor}
-          />
-        }
-      >
-        <OfflineBanner />
-        <Text
-          testID="diary-offline-note"
-          className="text-sm text-text-secondary my-3"
-        >
-          {t('offline.diaryNote', {
-            defaultValue:
-              'Only workouts are available offline. Food and other entries need a connection.',
-          })}
-        </Text>
-        {offlineDay.saved == null && sessions.length === 0 ? (
-          <StatusView
-            inline
-            icon="cloud-offline"
-            iconTone="muted"
-            title={t('offline.diaryNothingSaved', {
-              defaultValue: 'Nothing saved for this day',
-            })}
-          />
-        ) : (
-          <ExerciseSummary
-            exerciseEntries={sessions}
-            waitingSessionIds={waitingSessionIds}
-            entryDate={selectedDate}
-            getImageSource={getImageSource}
-            weightUnit={weightUnit}
-            distanceUnit={distanceUnit}
-            onAddExercise={() =>
-              addSheetRef.current?.present({ initialMenu: 'exercise' })
-            }
-            onPressPlanAssignment={handleStartPlanAssignment}
-            onPressWorkout={openWorkout}
-          />
-        )}
-      </ScrollView>
-    );
-  };
-
   const renderContent = () => {
-    if (isOffline) return renderOfflineDay();
     if (!isConnectionLoading && !isConnected) {
       return <ServerStatusView />;
     }
@@ -635,11 +546,7 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
               onPressMealType={openMealTypeDetail}
             />
             <ExerciseSummary
-              exerciseEntries={mergeWaitingWorkouts(
-                summary.exerciseEntries,
-                offlineDay.waiting
-              )}
-              waitingSessionIds={waitingSessionIds}
+              exerciseEntries={summary.exerciseEntries}
               entryDate={selectedDate}
               getImageSource={getImageSource}
               weightUnit={weightUnit}
@@ -670,7 +577,9 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
                 </>
               }
               onPressPlanAssignment={handleStartPlanAssignment}
-              onPressWorkout={openWorkout}
+              onPressWorkout={(session) =>
+                openExerciseSession(navigation, session, distanceUnit)
+              }
             />
             <NapsCard naps={naps} day={selectedDate} navigation={navigation} />
             <BedTimeCard
@@ -732,7 +641,7 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
 
   const content = (
     <>
-      {!isConnectionLoading && (isConnected || isOffline) ? (
+      {!isConnectionLoading && isConnected ? (
         <DateNavigator
           title={t('diary.title', { defaultValue: 'Diary' })}
           selectedDate={selectedDate}

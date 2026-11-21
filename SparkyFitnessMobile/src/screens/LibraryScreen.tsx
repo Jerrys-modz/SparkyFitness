@@ -27,7 +27,6 @@ import { useRunProgram } from '../services/runProgramService';
 import MealLibraryRow from '../components/MealLibraryRow';
 import StatusView from '../components/StatusView';
 import { ServerStatusView } from '../components/ServerGate';
-import OfflineLibrary from '../components/OfflineLibrary';
 import {
   useFavorites,
   useFoods,
@@ -72,11 +71,7 @@ const LibraryScreen: React.FC<LibraryScreenProps> = ({ navigation }) => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const { isNavigationLocked, runNavigationAction } =
     useNavigationActionGuard(navigation);
-  const {
-    isConnected,
-    isLoading: isConnectionLoading,
-    status: connectionStatus,
-  } = useServerConnection();
+  const { isConnected, isLoading: isConnectionLoading } = useServerConnection();
   const { favoriteFoods, favoriteMeals } = useFavorites({
     enabled: isConnected,
   });
@@ -205,27 +200,6 @@ const LibraryScreen: React.FC<LibraryScreenProps> = ({ navigation }) => {
     void refetchRecentMeals();
     void refetchRecentExercises();
   };
-
-  // A server that is set up but not answering: offer what the phone has saved.
-  if (connectionStatus === 'unreachable') {
-    return (
-      <View
-        className="flex-1 bg-background"
-        style={usesNativeTabs ? undefined : { paddingTop: insets.top }}
-      >
-        <OfflineLibrary
-          onOpenWorkoutPresets={() =>
-            runNavigationAction(() =>
-              navigation.navigate('WorkoutPresetsLibrary')
-            )
-          }
-          onOpenExercises={() =>
-            runNavigationAction(() => navigation.navigate('ExercisesLibrary'))
-          }
-        />
-      </View>
-    );
-  }
 
   if (!isConnectionLoading && !isConnected) {
     return (

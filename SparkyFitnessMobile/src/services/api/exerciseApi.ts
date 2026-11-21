@@ -1,16 +1,4 @@
 import { apiFetch, normalizeUrl } from './apiClient';
-import {
-  cacheCount,
-  getCacheRow,
-  listCacheRowsPage,
-  putCacheRows,
-  searchCacheRowsPage,
-} from '../../offline/cacheStore';
-import {
-  CACHE_COLLECTIONS,
-  exerciseStatsCacheKey,
-} from '../../offline/collections';
-import { withOfflineFallback } from '../../offline/withOfflineFallback';
 import { ApiError } from './errors';
 import {
   getActiveServerConfig,
@@ -84,34 +72,10 @@ export const fetchExerciseStats = async (
     params.set('excludePresetEntryId', excludePresetEntryId);
   if (presetId != null) params.set('presetId', String(presetId));
   const query = params.toString() ? `?${params.toString()}` : '';
-  const cacheKey = exerciseStatsCacheKey(exerciseId, presetId);
-  return withOfflineFallback<ExerciseStatsResponse>({
-    fetch: () =>
-      apiFetch<ExerciseStatsResponse>({
-        endpoint: `/api/v2/exercises/${encodeURIComponent(exerciseId)}/stats${query}`,
-        serviceName: 'Exercise API',
-        operation: 'fetch exercise stats',
-      }),
-    // An answer that leaves a session out is that session's view of the
-    // history, not the general one, so only the plain answer is kept.
-    store: excludePresetEntryId
-      ? undefined
-      : (db, serverConfigId, value) =>
-          putCacheRows(db, serverConfigId, CACHE_COLLECTIONS.exerciseStats, [
-            { key: cacheKey, payload: value },
-          ]),
-    // Offline the kept answer serves a live workout too: a workout that has
-    // not reached the server cannot be in the server's history, so there is
-    // nothing to leave out.
-    read: async (db, serverConfigId) => {
-      const row = await getCacheRow(
-        db,
-        serverConfigId,
-        CACHE_COLLECTIONS.exerciseStats,
-        cacheKey
-      );
-      return row ? (row.payload as ExerciseStatsResponse) : null;
-    },
+  return apiFetch<ExerciseStatsResponse>({
+    endpoint: `/api/v2/exercises/${encodeURIComponent(exerciseId)}/stats${query}`,
+    serviceName: 'Exercise API',
+    operation: 'fetch exercise stats',
   });
 };
 
@@ -137,77 +101,29 @@ export const fetchExerciseAlternatives = async (
 export const fetchSuggestedExercises = async (
   limit: number = 10
 ): Promise<SuggestedExercisesResponse> => {
-  return withOfflineFallback<SuggestedExercisesResponse>({
-    fetch: async () => {
-      const response = await apiFetch<{
-        recentExercises: Record<string, unknown>[];
-        topExercises: Record<string, unknown>[];
-      }>({
-        endpoint: `/api/exercises/suggested?limit=${limit}`,
-        serviceName: 'Exercise API',
-        operation: 'fetch suggested exercises',
-      });
-      return {
-        recentExercises: (response.recentExercises ?? []).map(
-          transformExerciseRow
-        ),
-        topExercises: (response.topExercises ?? []).map(transformExerciseRow),
-      };
-    },
-    store: (db, serverConfigId, value) =>
-      putCacheRows(db, serverConfigId, CACHE_COLLECTIONS.suggestedExercises, [
-        { key: String(limit), payload: value },
-      ]),
-    read: async (db, serverConfigId) => {
-      const row = await getCacheRow(
-        db,
-        serverConfigId,
-        CACHE_COLLECTIONS.suggestedExercises,
-        String(limit)
-      );
-      if (row) return row.payload as SuggestedExercisesResponse;
-      // Never opened online: no suggestions, but the saved library can
-      // still be searched, so answer empty rather than failing.
-      const saved = await cacheCount(
-        db,
-        serverConfigId,
-        CACHE_COLLECTIONS.exercise
-      );
-      return saved > 0 ? { recentExercises: [], topExercises: [] } : null;
-    },
+  const response = await apiFetch<{
+    recentExercises: Record<string, unknown>[];
+    topExercises: Record<string, unknown>[];
+  }>({
+    endpoint: `/api/exercises/suggested?limit=${limit}`,
+    serviceName: 'Exercise API',
+    operation: 'fetch suggested exercises',
   });
+  return {
+    recentExercises: (response.recentExercises ?? []).map(transformExerciseRow),
+    topExercises: (response.topExercises ?? []).map(transformExerciseRow),
+  };
 };
 
 export const searchExercises = async (
   searchTerm: string
 ): Promise<Exercise[]> => {
-  return withOfflineFallback<Exercise[]>({
-    fetch: async () => {
-      const response = await apiFetch<Record<string, unknown>[]>({
-        endpoint: `/api/exercises/search?searchTerm=${encodeURIComponent(searchTerm)}`,
-        serviceName: 'Exercise API',
-        operation: 'search exercises',
-      });
-      return (response ?? []).map(transformExerciseRow);
-    },
-    read: async (db, serverConfigId) => {
-      const saved = await cacheCount(
-        db,
-        serverConfigId,
-        CACHE_COLLECTIONS.exercise
-      );
-      if (saved === 0) return null;
-      const { rows } = await searchCacheRowsPage(
-        db,
-        serverConfigId,
-        CACHE_COLLECTIONS.exercise,
-        searchTerm,
-        50,
-        0
-      );
-      return rows.map((row) => row.payload as Exercise);
-    },
+  const response = await apiFetch<Record<string, unknown>[]>({
+    endpoint: `/api/exercises/search?searchTerm=${encodeURIComponent(searchTerm)}`,
+    serviceName: 'Exercise API',
+    operation: 'search exercises',
   });
+  return (response ?? []).map(transformExerciseRow);
 };
 
 export interface FetchExercisesPageOptions {
@@ -233,69 +149,18 @@ export const fetchExercisesPage = async ({
   if (searchTerm) {
     params.set('searchTerm', searchTerm);
   }
-  return withOfflineFallback<PaginatedExercisesPage>({
-    fetch: async () => {
-      const response = await apiFetch<{
-        exercises: Record<string, unknown>[];
-        pagination: Pagination;
-      }>({
-        endpoint: `/api/v2/exercises/search?${params.toString()}`,
-        serviceName: 'Exercise API',
-        operation: 'fetch exercises page',
-      });
-      return {
-        exercises: (response.exercises ?? []).map(transformExerciseRow),
-        pagination: response.pagination,
-      };
-    },
-    store: (db, serverConfigId, value) =>
-      putCacheRows(
-        db,
-        serverConfigId,
-        CACHE_COLLECTIONS.exercise,
-        value.exercises.map((exercise) => ({
-          key: exercise.id,
-          name: exercise.name,
-          payload: exercise,
-        }))
-      ),
-    read: async (db, serverConfigId) => {
-      // The library kept on the phone, filtered by name. The server's ranked
-      // search is not reproduced: this is a plain "name contains" match.
-      const saved = await cacheCount(
-        db,
-        serverConfigId,
-        CACHE_COLLECTIONS.exercise
-      );
-      if (saved === 0) return null;
-      const offset = (page - 1) * pageSize;
-      const { rows, total } = searchTerm.trim()
-        ? await searchCacheRowsPage(
-            db,
-            serverConfigId,
-            CACHE_COLLECTIONS.exercise,
-            searchTerm,
-            pageSize,
-            offset
-          )
-        : await listCacheRowsPage(
-            db,
-            serverConfigId,
-            CACHE_COLLECTIONS.exercise,
-            pageSize,
-            offset
-          );
-      return {
-        exercises: rows.map((row) => row.payload as Exercise),
-        pagination: {
-          page,
-          pageSize,
-          totalCount: total,
-          hasMore: offset + rows.length < total,
-        },
-      };
-    },
+  const response = await apiFetch<{
+    exercises: Record<string, unknown>[];
+    pagination: Pagination;
+  }>({
+    endpoint: `/api/v2/exercises/search?${params.toString()}`,
+    serviceName: 'Exercise API',
+    operation: 'fetch exercises page',
   });
+  return {
+    exercises: (response.exercises ?? []).map(transformExerciseRow),
+    pagination: response.pagination,
+  };
 };
 
 export const fetchExercisesCount = async (): Promise<number> => {
@@ -445,26 +310,14 @@ export const transformExerciseRow = (
  * Exercise Detail screen when it was opened from a workout/preset row that only
  * carried a sparse snapshot (name/category/images).
  */
-export const fetchExerciseById = async (id: string): Promise<Exercise> =>
-  withOfflineFallback<Exercise>({
-    fetch: async () => {
-      const response = await apiFetch<Record<string, unknown>>({
-        endpoint: `/api/exercises/${encodeURIComponent(id)}`,
-        serviceName: 'Exercise API',
-        operation: 'fetch exercise by id',
-      });
-      return transformExerciseRow(response);
-    },
-    read: async (db, serverConfigId) => {
-      const row = await getCacheRow(
-        db,
-        serverConfigId,
-        CACHE_COLLECTIONS.exercise,
-        id
-      );
-      return row ? (row.payload as Exercise) : null;
-    },
+export const fetchExerciseById = async (id: string): Promise<Exercise> => {
+  const response = await apiFetch<Record<string, unknown>>({
+    endpoint: `/api/exercises/${encodeURIComponent(id)}`,
+    serviceName: 'Exercise API',
+    operation: 'fetch exercise by id',
   });
+  return transformExerciseRow(response);
+};
 
 /**
  * Creates a custom exercise. The server endpoint is multipart-only, so this
@@ -525,11 +378,7 @@ export async function createExercise(
 }
 
 export const createWorkout = async (
-  payload: CreatePresetSessionRequest,
-  options?: {
-    /** Gives up sooner than the default; used where an offline fallback waits. */
-    timeoutMs?: number;
-  }
+  payload: CreatePresetSessionRequest
 ): Promise<PresetSessionResponse> => {
   return apiFetch<PresetSessionResponse>({
     endpoint: '/api/exercise-preset-entries/',
@@ -537,7 +386,6 @@ export const createWorkout = async (
     operation: 'create workout',
     method: 'POST',
     body: payload,
-    ...(options?.timeoutMs != null ? { timeoutMs: options.timeoutMs } : {}),
   });
 };
 

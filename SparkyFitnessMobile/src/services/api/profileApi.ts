@@ -3,40 +3,18 @@ import type {
   GoalWeightPlanResponse,
   SetGoalWeightResponse,
 } from '@workspace/shared';
-import { getCacheRow, putCacheRows } from '../../offline/cacheStore';
-import {
-  CACHE_COLLECTIONS,
-  SINGLE_DOCUMENT_KEY,
-} from '../../offline/collections';
-import { withOfflineFallback } from '../../offline/withOfflineFallback';
 import { UserProfile } from '../../types/profile';
 
 /**
  * Fetches the user's profile.
  */
-export const fetchProfile = async (): Promise<UserProfile> =>
-  withOfflineFallback<UserProfile>({
-    fetch: () =>
-      apiFetch<UserProfile>({
-        endpoint: '/api/identity/profiles',
-        serviceName: 'Profile API',
-        operation: 'fetch profile',
-      }),
-    store: (db, serverConfigId, profile) =>
-      putCacheRows(db, serverConfigId, CACHE_COLLECTIONS.profile, [
-        { key: SINGLE_DOCUMENT_KEY, payload: profile },
-      ]),
-    read: async (db, serverConfigId) => {
-      const row = await getCacheRow(
-        db,
-        serverConfigId,
-        CACHE_COLLECTIONS.profile,
-        SINGLE_DOCUMENT_KEY
-      );
-      return row ? (row.payload as UserProfile) : null;
-    },
+export const fetchProfile = async (): Promise<UserProfile> => {
+  return apiFetch<UserProfile>({
+    endpoint: '/api/identity/profiles',
+    serviceName: 'Profile API',
+    operation: 'fetch profile',
   });
-
+};
 /**
  * Sets the goal weight (kilograms), or clears it (and its date) with null.
  * `targetDate` is YYYY-MM-DD, null to remove the date, or omitted to keep it.

@@ -124,11 +124,7 @@ const WorkoutFeedbackCard: React.FC<WorkoutFeedbackCardProps> = ({
       ? t('workoutFeedback.saving', { defaultValue: 'Saving…' })
       : saveState === 'saved'
         ? t('workoutFeedback.saved', { defaultValue: 'Saved' })
-        : saveState === 'queued'
-          ? t('workoutFeedback.queued', {
-              defaultValue: 'Will be sent when you are back online',
-            })
-          : null;
+        : null;
 
   return (
     <View
