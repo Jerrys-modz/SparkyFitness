@@ -1,4 +1,5 @@
 import Button from '../components/ui/Button';
+import AiServicesSection from '../components/AiServicesSection';
 import { useChatMcpServers } from '../hooks/useChatMcpServers';
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -47,7 +48,7 @@ function ToggleCard({
   );
 }
 
-const AiSettingsScreen: React.FC<AiSettingsScreenProps> = () => {
+const AiSettingsScreen: React.FC<AiSettingsScreenProps> = ({ navigation }) => {
   const { t } = useTranslation();
   const {
     servers,
@@ -180,7 +181,7 @@ const AiSettingsScreen: React.FC<AiSettingsScreenProps> = () => {
           </View>
         )}
         <Text className="text-text-primary text-base font-semibold mb-1">
-          {t('aiSettings.server.title', { defaultValue: 'Server AI provider' })}
+          {t('aiSettings.server.inUseTitle', { defaultValue: 'In use now' })}
         </Text>
         <View className="bg-surface rounded-xl p-3 mb-6 shadow-sm">
           <Text
@@ -190,12 +191,19 @@ const AiSettingsScreen: React.FC<AiSettingsScreenProps> = () => {
             {providerText}
           </Text>
           <Text className="text-text-secondary text-sm mt-2">
-            {t('aiSettings.server.description', {
+            {t('aiSettings.server.inUseDescription', {
               defaultValue:
-                'Used for label scans unless an on-device option below handles them. Providers are set up in the web app.',
+                'The service your chat, photo logging and label scans use right now. Label scans can run on this phone instead, below.',
             })}
           </Text>
         </View>
+
+        <AiServicesSection
+          onAdd={() => navigation.navigate('AiServiceForm')}
+          onEdit={(serviceId) =>
+            navigation.navigate('AiServiceForm', { serviceId })
+          }
+        />
 
         <Text className="text-text-primary text-base font-semibold mb-1">
           {t('aiSettings.onDevice.title', {

@@ -385,6 +385,9 @@ export const workoutPlansQueryKey = ['workoutPlanTemplates', 'list'] as const;
 export const activeWorkoutPlanQueryKey = (date: string) =>
   ['workoutPlanTemplates', 'active', date] as const;
 
+/** Root of every AI service query below; invalidate it after any AI change. */
+export const aiServiceSettingsRootQueryKey = ['ai-service-settings'] as const;
+export const aiServicesQueryKey = ['ai-service-settings', 'list'] as const;
 export const activeAiServiceSettingQueryKey = [
   'ai-service-settings',
   'active',

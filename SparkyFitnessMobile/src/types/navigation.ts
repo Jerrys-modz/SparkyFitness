@@ -369,6 +369,8 @@ export type RootStackParamList = {
       }
     | { mode: 'edit-exercise'; exercise: Exercise; returnKey: string };
   AiSettings: undefined;
+  /** Add an AI service, or edit one of the person's own with `serviceId`. */
+  AiServiceForm: { serviceId?: string } | undefined;
   FoodScan:
     | {
         mode?: 'lookup';

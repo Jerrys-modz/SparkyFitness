@@ -88,6 +88,10 @@ export interface UserPreferences {
   /** AI-Assisted Unit Conversions toggle (server default: true). Gates the AI
    *  estimate path inside the unit selector sheet for cross-category swaps. */
   ai_assisted_conversions?: boolean;
+  /** The AI service chat and the other AI features use; null for none. */
+  active_ai_service_id?: string | null;
+  /** A different service for photos and labels; null uses the active one. */
+  active_vision_ai_service_id?: string | null;
   /** NULL uses free platform dictation; an ID selects a server-side audio model. */
   active_voice_ai_service_id?: string | null;
   voice_input_enabled?: boolean;

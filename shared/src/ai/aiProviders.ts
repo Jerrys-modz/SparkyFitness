@@ -1,0 +1,178 @@
+/**
+ * AI provider (service type) facts shared by the server, web and mobile: which
+ * types exist, which need an API key or a custom URL, the model names each
+ * suggests, and the one-line text shown for a provider's error. Ids only; each
+ * app names the types.
+ */
+
+/** Every service type a person can pick, in the order the forms list them. */
+export const AI_SERVICE_TYPES = [
+  'openai',
+  'openai_compatible',
+  'anthropic',
+  'google',
+  'mistral',
+  'groq',
+  'ollama',
+  'openrouter',
+  'xai',
+  'perplexity',
+  'meta',
+  'opencode_go',
+  'custom',
+] as const;
+
+export type AiServiceType = (typeof AI_SERVICE_TYPES)[number];
+
+// Local / self-hosted server types (LM Studio, llama.cpp, Ollama) commonly run
+// without an API key, so the add/edit forms must not force one for these types.
+// Cloud providers always need a key. The server's dispatcher uses the same rule.
+export const requiresApiKey = (serviceType: string | undefined): boolean =>
+  serviceType !== 'ollama' &&
+  serviceType !== 'openai_compatible' &&
+  serviceType !== 'custom';
+
+/** Types that point at a server the person runs, so they need its URL. */
+export const requiresCustomUrl = (serviceType: string | undefined): boolean =>
+  serviceType === 'custom' ||
+  serviceType === 'ollama' ||
+  serviceType === 'openai_compatible';
+
+// The first entry in each list is the recommended default. OpenAI prioritizes
+// food/meal reasoning quality; cheaper models remain selectable. Keep the ordering,
+// since ServiceForm surfaces modelOptions[0] as the recommendation.
+export const getModelOptions = (serviceType: string): string[] => {
+  switch (serviceType) {
+    case 'openai':
+      // The gpt-5.x families accept only the default temperature; the server
+      // detects that and omits the parameter (ai/modelCapabilities.ts), so
+      // they are safe to offer here.
+      return [
+        'gpt-6-astra',
+        'gpt-6.1-sol',
+        'gpt-6-sol',
+        'gpt-4o-mini',
+        'gpt-5.6-luna',
+        'gpt-5.6-terra',
+        'gpt-5.6-sol',
+        'gpt-5.4-mini',
+        'gpt-5.4-nano',
+        'gpt-4.1-mini',
+        'gpt-4o',
+        'gpt-5.4',
+      ];
+    case 'anthropic':
+      return [
+        'claude-sonnet-5',
+        'claude-sonnet-5-5',
+        'claude-haiku-5-5',
+        'claude-sonnet-4-6',
+        'claude-haiku-4-5',
+        'claude-opus-5-5',
+        'claude-opus-5',
+        'claude-opus-4-8',
+      ];
+    case 'google':
+      return [
+        'gemini-2.5-flash',
+        'gemini-2.5-flash-lite',
+        'gemini-2.5-pro',
+        'gemini-3.5-flash',
+        'gemini-3.1-flash-lite',
+      ];
+    case 'mistral':
+      return [
+        'mistral-small-latest',
+        'mistral-medium-latest',
+        'mistral-large-latest',
+      ];
+    case 'groq':
+      return [
+        'llama-3.3-70b-versatile',
+        'llama-3.1-8b-instant',
+        'meta-llama/llama-4-scout-17b-16e-instruct',
+        'openai/gpt-oss-20b',
+        'openai/gpt-oss-120b',
+      ];
+    case 'openrouter':
+      return [
+        'google/gemini-2.5-flash',
+        'google/gemini-2.5-flash-lite',
+        'google/gemini-3.5-flash',
+        'anthropic/claude-haiku-4.5',
+        'anthropic/claude-sonnet-4.6',
+        'deepseek/deepseek-chat',
+        'perplexity/sonar',
+        'perplexity/sonar-pro',
+        'meta-llama/llama-3.1-8b-instruct:free',
+      ];
+    case 'xai':
+      // grok-4.3 is multimodal (handles vision + text), so it leads as the
+      // all-round recommendation. The fast/non-reasoning and build variants
+      // follow. grok-4 / grok-4-fast were retired (redirect to grok-4.3).
+      return [
+        'grok-4.3',
+        'grok-4.20-0309-non-reasoning',
+        'grok-4.20-0309-reasoning',
+        'grok-build-0.1',
+      ];
+    case 'perplexity':
+      return ['fast', 'low', 'medium', 'high', 'xhigh'];
+    case 'meta':
+      // Meta Superintelligence Labs' Muse Spark, served over an
+      // OpenAI-compatible Chat Completions API. One published model for now.
+      return ['muse-spark-1.1'];
+    // 'opencode_go' loads models from its API endpoint at runtime.
+    // 'openai_compatible' and 'custom' point at arbitrary user-hosted servers,
+    // so there is no model name we can suggest — OpenAI's names won't exist on
+    // most of them. Returning [] makes the form fall back to a model text input.
+    default:
+      return [];
+  }
+};
+
+// Whether a saved model must be edited in custom-model mode. OpenCode Go's
+// catalog is fetched at runtime, so its saved model cannot be checked against
+// a static list; ServiceForm keeps an unlisted saved model in its dropdown.
+export const isCustomModelName = (
+  serviceType: string,
+  modelName: string | null | undefined
+): boolean => {
+  if (!modelName || serviceType === 'opencode_go') return false;
+  return !getModelOptions(serviceType).includes(modelName);
+};
+
+const PROVIDER_DETAIL_MAX_CHARS = 300;
+const HTTP_STATUS_PREFIX = /^AI service returned status \d+:\s*/;
+
+const providerErrorMessage = (value: unknown): string | undefined => {
+  if (typeof value !== 'object' || value === null) return undefined;
+  const { message, error } = value as { message?: unknown; error?: unknown };
+  if (typeof message === 'string' && message.trim()) return message;
+  if (typeof error === 'string' && error.trim()) return error;
+  if (typeof error === 'object' && error !== null) {
+    const nested = (error as { message?: unknown }).message;
+    if (typeof nested === 'string' && nested.trim()) return nested;
+  }
+  return undefined;
+};
+
+// One line of plain text for a provider error: the HTTP status prefix is dropped,
+// the JSON `message` (or `error.message`) is used when there is one, and anything
+// else is shown as its text with HTML tags removed. Always truncated.
+export const providerDetailText = (detail: string): string => {
+  let text = detail.replace(HTTP_STATUS_PREFIX, '').trim();
+  try {
+    const message = providerErrorMessage(JSON.parse(text));
+    if (message) text = message;
+  } catch {
+    // Not JSON: the response text itself is shown.
+  }
+  text = text
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return text.length > PROVIDER_DETAIL_MAX_CHARS
+    ? `${text.slice(0, PROVIDER_DETAIL_MAX_CHARS).trimEnd()}…`
+    : text;
+};
