@@ -20,6 +20,17 @@
 - **Metadata Storage**: Stores structured data like food options, exercise suggestions within chat history
 - **Settings**: Direct access to AI service configuration
 
+### Choosing and adding AI services
+
+On the web, open **Settings → Developer & Integrations → AI Service Settings**. In the mobile app, open **Settings → AI**. Both show the same services, and a change in one shows up in the other.
+
+- **Used for chat and AI features** picks the service the chat, food photos and other AI features use. Only enabled services can be picked. If you have not picked one, the service your admin set up is used.
+- **Used for photos and labels** can send photos and label scans to a different service, for example one that is better with images. **Same as above** uses the main one.
+- **Add AI service** (shown when your admin lets people add their own) asks for a name, the service type, the API key, a server URL for self-hosted types (Ollama, OpenAI compatible, Custom) and a model. **Test connection** sends a tiny request first and says what went wrong, such as a bad key, a missing URL or a server that does not answer. Keys are stored encrypted and never shown again; when editing, leave the key blank to keep it.
+- Tap one of your services to edit or delete it, or use its switch to turn it on or off. Services from your admin are listed but can only be changed by the admin.
+
+Not in the mobile app yet: OpenCode Go's live model list (type the model name instead) and the chat history auto-clear setting.
+
 ### Voice input on web and mobile
 
 In **Ask Sparky** on the web, Android, or iOS, tap the microphone, dictate a message, then stop recording. Review or edit the recognized text and tap **Send**. Dictation does not automatically send messages or add food to your diary; the existing chat handles your request after you send it.

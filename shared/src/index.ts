@@ -351,6 +351,7 @@ export * from './nutrients/nutrientAlgorithms.ts';
 export * from './nutrients/nutrientCalculation.ts';
 export * from './utils/namedFoodPortions.ts';
 export * from './ai/modelFamilies.ts';
+export * from './ai/aiProviders.ts';
 export * from './schemas/api/FitnessFatigue.api.zod.ts';
 export * from './utils/fitnessFatigue.ts';
 export * from './utils/readiness.ts';

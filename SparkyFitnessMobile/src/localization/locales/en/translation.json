@@ -800,7 +800,8 @@
     "labResults": "Lab results",
     "labResultDetail": "Lab result",
     "labResultAdd": "Add lab result",
-    "labReportImport": "Import report"
+    "labReportImport": "Import report",
+    "aiServiceForm": "AI service"
   },
   "activityShare": {
     "title": "Share Activity",
@@ -7758,11 +7759,11 @@
       "loading": "Loading outside tools…"
     },
     "server": {
-      "title": "Server AI provider",
       "loading": "Checking…",
       "error": "Could not check the AI provider.",
       "none": "No AI provider is configured",
-      "description": "Used for label scans unless an on-device option below handles them. Providers are set up in the web app."
+      "inUseTitle": "In use now",
+      "inUseDescription": "The service your chat, photo logging and label scans use right now. Label scans can run on this phone instead, below."
     },
     "onDevice": {
       "title": "On-device (Apple Intelligence)",
@@ -11020,5 +11021,104 @@
       "other": "Saved change"
     },
     "libraryNote": "Only workouts and exercises are available offline. Everything else in the Library needs a connection."
+  },
+  "aiServices": {
+    "saveFailed": "Could not save the AI service.",
+    "deleteTitle": "Delete this AI service?",
+    "deleteDescription": "Its API key is deleted too. If it was the service in use, AI features use the one set by your admin, if any.",
+    "deleteFailed": "Could not delete the AI service.",
+    "test": {
+      "apiKeyMissing": "The API key is missing or not valid. Add a valid key and try again.",
+      "customUrlMissing": "This service type needs a URL.",
+      "upstreamError": "The AI service returned an error. Check the API key, model and URL.",
+      "timeout": "The AI service did not answer in time. Check the URL and that the server can be reached.",
+      "unsupported": "This service type is not supported.",
+      "unknown": "The connection test failed. Check the settings and try again.",
+      "running": "Testing…",
+      "button": "Test connection",
+      "ok": "Connected. The service answered.",
+      "requestFailed": "Could not run the test. Check your connection."
+    },
+    "model": {
+      "recommended": "{{model}} (recommended)",
+      "other": "Other model…",
+      "default": "Service default",
+      "placeholder": "Model name"
+    },
+    "problem": {
+      "name": "Give the service a name.",
+      "apiKey": "Enter the API key.",
+      "customUrl": "Enter the server URL.",
+      "model": "Enter the model name."
+    },
+    "fields": {
+      "name": "Name",
+      "namePlaceholder": "My AI service",
+      "type": "Service type",
+      "apiKey": "API key",
+      "apiKeyEditHint": "Leave blank to keep the saved key. A new key is stored encrypted.",
+      "apiKeyOptional": "Not needed for most self-hosted servers.",
+      "customUrl": "Server URL",
+      "model": "Model",
+      "reasoningEffort": "Reasoning effort",
+      "reasoningEffortHint": "More effort gives food and meal questions more thinking time, and can be slower and cost more.",
+      "toolProfile": "Chat tools",
+      "toolProfileHint": "Core keeps only the food, exercise and measurement logging tools, for local or slower models.",
+      "voice": "Offer for voice input",
+      "voiceHint": "Turn on only if the model accepts audio. It then appears in Voice settings.",
+      "systemPrompt": "Extra instructions",
+      "systemPromptHint": "Optional. Added to what Sparky is told.",
+      "enabled": "Enabled",
+      "enabledHint": "Only enabled services can be picked for chat and other AI features."
+    },
+    "toolProfile": {
+      "full": "Full (all tools)",
+      "core": "Core (faster, fewer tools)"
+    },
+    "ollama": {
+      "contextTitle": "Raise Ollama's context window",
+      "contextBody": "Ollama uses a 4096-token context by default and silently cuts off anything longer, which breaks tool calls. Set a larger context (for example 16384) on the Ollama server."
+    },
+    "editTitle": "Edit AI service",
+    "addTitle": "Add AI service",
+    "loadFailed": "Could not load your AI services.",
+    "notFound": "AI service not found.",
+    "updateFailed": "Could not change the AI service.",
+    "sharedName": "{{name}} (from your admin)",
+    "loading": "Loading AI services…",
+    "title": "AI services",
+    "noneEnabled": "No AI service is set up yet. Add one below to use chat, photo logging and label scans.",
+    "noneShared": "Your admin has not set up an AI service for this server yet.",
+    "activeLabel": "Used for chat and AI features",
+    "pickOne": "Pick a service",
+    "visionLabel": "Used for photos and labels",
+    "sameAsActive": "Same as above",
+    "enableNamed": "Enable {{name}}",
+    "add": "Add AI service",
+    "perUserOff": "Your admin manages the AI services on this server, so you cannot add your own.",
+    "sharedTitle": "From your admin",
+    "sharedOff": "{{details}} · turned off by your admin",
+    "types": {
+      "openai": "OpenAI",
+      "openaiCompatible": "OpenAI compatible",
+      "anthropic": "Anthropic",
+      "google": "Google Gemini",
+      "mistral": "Mistral AI",
+      "groq": "Groq",
+      "ollama": "Ollama",
+      "openrouter": "OpenRouter",
+      "xai": "xAI (Grok)",
+      "perplexity": "Perplexity AI",
+      "meta": "Meta",
+      "opencodeGo": "OpenCode Go",
+      "custom": "Custom"
+    },
+    "effort": {
+      "low": "Low",
+      "medium": "Medium (recommended)",
+      "high": "High",
+      "xhigh": "Extra high",
+      "max": "Maximum"
+    }
   }
 }

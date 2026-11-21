@@ -130,6 +130,7 @@ import {
   SafeShoeForm,
   SafePlateInventory,
   SafeAiSettings,
+  SafeAiServiceForm,
   SafeFoodSettings,
   SafeCustomNutrients,
   SafeCustomNutrientForm,
@@ -1538,6 +1539,11 @@ function AppContent() {
             name="AiSettings"
             component={SafeAiSettings}
             options={createStackScreenOptions(t('screens.aiSettings', { defaultValue: 'AI' }), { headerBackTitle: t('navigation.settings', { defaultValue: 'Settings' }) })}
+          />
+          <Stack.Screen
+            name="AiServiceForm"
+            component={SafeAiServiceForm}
+            options={createStackScreenOptions(t('screens.aiServiceForm', { defaultValue: 'AI service' }), { headerBackTitle: t('screens.aiSettings', { defaultValue: 'AI' }) })}
           />
           <Stack.Screen
             name="SymptomHistory"

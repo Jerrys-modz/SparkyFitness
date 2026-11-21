@@ -1,6 +1,6 @@
 import undici from 'undici';
 import { randomUUID } from 'node:crypto';
-import { isGpt6Model } from '@workspace/shared';
+import { isGpt6Model, requiresApiKey } from '@workspace/shared';
 import convert from 'heic-convert';
 import sharp from 'sharp';
 import { log } from '../config/logging.js';
@@ -208,16 +208,9 @@ function requiresCustomUrl(serviceType: string): boolean {
 }
 
 // Local / self-hosted server types (LM Studio, llama.cpp, Ollama) commonly run
-// without an API key, so a blank key must not hard-fail them. Cloud providers
-// always need one. This mirrors the chat path, which sends `api_key || 'no-key'`
-// for these same types instead of rejecting the request.
-export function requiresApiKey(serviceType: string): boolean {
-  return (
-    serviceType !== 'ollama' &&
-    serviceType !== 'openai_compatible' &&
-    serviceType !== 'custom'
-  );
-}
+// without an API key, so a blank key must not hard-fail them. The rule lives in
+// shared so the web and mobile forms agree with the dispatcher.
+export { requiresApiKey };
 
 // Canonicalize an image MIME type before it drives any downstream decision.
 // MIME types are case-insensitive and may carry stray whitespace (RFC 2045), so
