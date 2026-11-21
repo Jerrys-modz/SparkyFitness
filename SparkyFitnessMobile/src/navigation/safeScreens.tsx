@@ -109,6 +109,9 @@ import ChatSettingsScreen from '../screens/ChatSettingsScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
 import CycleSettingsScreen from '../screens/CycleSettingsScreen';
 import FeatureSettingsScreen from '../screens/FeatureSettingsScreen';
+import AdminSettingsScreen from '../screens/AdminSettingsScreen';
+import AdminUsersScreen from '../screens/AdminUsersScreen';
+import AdminUserDetailScreen from '../screens/AdminUserDetailScreen';
 import CycleOnboardingScreen from '../screens/CycleOnboardingScreen';
 import CycleHubScreen from '../screens/CycleHubScreen';
 import CycleLogModalScreen from '../screens/CycleLogModalScreen';
@@ -297,6 +300,9 @@ export const SafeFamilyCopyReview = withErrorBoundary(FamilyCopyReviewScreen, 'F
 
 export const SafeCycleSettings = withErrorBoundary(CycleSettingsScreen, 'CycleSettings', { canGoBack: true });
 export const SafeFeatureSettings = withErrorBoundary(FeatureSettingsScreen, 'FeatureSettings', { canGoBack: true });
+export const SafeAdminSettings = withErrorBoundary(AdminSettingsScreen, 'AdminSettings', { canGoBack: true });
+export const SafeAdminUsers = withErrorBoundary(AdminUsersScreen, 'AdminUsers', { canGoBack: true });
+export const SafeAdminUserDetail = withErrorBoundary(AdminUserDetailScreen, 'AdminUserDetail', { canGoBack: true });
 export const SafeCycleOnboarding = withErrorBoundary(CycleOnboardingScreen, 'CycleOnboarding', { canGoBack: true });
 export const SafeCycleHub = withErrorBoundary(CycleHubScreen, 'CycleHub', { canGoBack: true });
 export const SafeCycleLogModal = withErrorBoundary(CycleLogModalScreen, 'CycleLogModal', { canGoBack: true });
