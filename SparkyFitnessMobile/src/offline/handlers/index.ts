@@ -1,4 +1,5 @@
 import { registerFollowUpHandlers } from './followUps';
+import { registerRunHandlers } from './run';
 import { registerWorkoutSessionHandlers } from './workoutSession';
 
 let registered = false;
@@ -13,4 +14,5 @@ export function registerAllOutboxHandlers(): void {
   registered = true;
   registerWorkoutSessionHandlers();
   registerFollowUpHandlers();
+  registerRunHandlers();
 }

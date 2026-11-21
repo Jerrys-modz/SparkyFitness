@@ -83,6 +83,7 @@ import {
   finishRecording,
   COUNTDOWN_CHOICES,
   getHeartRateSamples,
+  peekAppleWorkoutZones,
   getRecordingPreferences,
   setHeartRateBandPreference,
   setPaceBandPreference,
@@ -136,6 +137,9 @@ import { toLocalDateString } from '../utils/dateUtils';
 import { useRecordingCaloriesPerHour } from '../hooks/useRecordingCaloriesPerHour';
 import { estimateRecordingKcal } from '../utils/recordingCalories';
 import { saveRecordedActivity } from '../services/gpsRecordingSave';
+import { queueAfterConnectionFailure } from '../offline/queueAfterFailure';
+import { queueRecordedRun } from '../offline/runHandOver';
+import { serverMayBeDown } from '../utils/serverErrors';
 import { useShoeMutations } from '../hooks/useShoes';
 import { promptToRetireShoe } from '../utils/retireShoePrompt';
 import { fireSelectionHaptic, fireSuccessHaptic } from '../services/haptics';
@@ -1126,24 +1130,133 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
   // as the finished card says, rather than sent for the server to reject.
   const testToSave = testOutcome ? testMeasurement : null;
 
+  /**
+   * After a run was put in the upload queue: tell the person, show the
+   * summary from what the phone measured and clear the recording.
+   */
+  const finishQueuedRun = useCallback(async () => {
+    if (!session) return;
+    const entryDate = toLocalDateString(new Date(session.startedAt));
+    Toast.show({
+      type: 'info',
+      text1: t('offline.runSavedTitle', {
+        defaultValue: 'Saved on this phone',
+      }),
+      text2: t('offline.runSavedMessage', {
+        defaultValue: 'It uploads when your server can be reached.',
+      }),
+    });
+    let summaryParams: RunSummaryParams | null = null;
+    try {
+      const heartRateSamples = await getHeartRateSamples().catch(() => []);
+      summaryParams = {
+        ...buildRunSummary({
+          activity: session.activity,
+          entryDate,
+          distanceUnit,
+          points,
+          lapMarks: session.laps,
+          avgHeartRate: averageHeartRate(heartRateSamples),
+          heartRateSamples,
+          program: null,
+          entryId: null,
+        }),
+        waitingToUpload: true,
+      };
+    } catch (error) {
+      addLog(
+        `[GPS Recording] Could not build the summary: ${error}`,
+        'WARNING'
+      );
+    }
+    await discardRecording().catch((error: unknown) =>
+      addLog(
+        `[GPS Recording] Could not clear the recording: ${error}`,
+        'WARNING'
+      )
+    );
+    if (summaryParams) {
+      navigation.replace('RunSummary', summaryParams);
+    } else {
+      navigation.goBack();
+    }
+  }, [distanceUnit, navigation, points, session, t]);
+
   const handleSave = useCallback(async () => {
     if (!session) return;
     setBusy(true);
     try {
       // Refused while the recording bar is discarding this recording.
       beginRecordingSave(session.id);
-      const saved = await saveRecordedActivity(
-        session,
-        points,
-        distanceUnit,
-        session.indoor
-          ? testToSave?.type === '5k' && indoorDistanceKm === null
-            ? FIVE_K_METERS / METERS_PER_KM
-            : indoorDistanceKm
-          : null,
-        session.indoor ? indoorEstimate : null,
-        session.indoor === true && indoorDistanceText === null
-      );
+      const savedIndoorDistanceKm = session.indoor
+        ? testToSave?.type === '5k' && indoorDistanceKm === null
+          ? FIVE_K_METERS / METERS_PER_KM
+          : indoorDistanceKm
+        : null;
+      const savedIndoorEstimate = session.indoor ? indoorEstimate : null;
+      const acceptedIndoorEstimate =
+        session.indoor === true && indoorDistanceText === null;
+      let saved: Awaited<ReturnType<typeof saveRecordedActivity>>;
+      try {
+        saved = await saveRecordedActivity(
+          session,
+          points,
+          distanceUnit,
+          savedIndoorDistanceKm,
+          savedIndoorEstimate,
+          acceptedIndoorEstimate
+        );
+      } catch (error) {
+        // The server could not be reached: keep the run in the upload queue
+        // and carry on, as the person's own Finish does for a workout. A
+        // recording made with an entry id of its own can be queued after any
+        // lost connection, a timeout included, because the server recognises
+        // the repeat; an older one never after a timeout, which may have
+        // created the entry already.
+        const queueRun = async () =>
+          (await queueRecordedRun({
+            session,
+            points,
+            distanceUnit,
+            indoorDistanceKm: savedIndoorDistanceKm,
+            indoorEstimate: savedIndoorEstimate,
+            acceptedIndoorEstimate,
+            heartRate: await getHeartRateSamples().catch(() => []),
+            appleZones: peekAppleWorkoutZones(session.id),
+            fitnessTest:
+              session.fitnessTest && testToSave
+                ? {
+                    test_type: testToSave.type,
+                    test_date: toLocalDateString(new Date(session.startedAt)),
+                    distance_meters: testToSave.distanceMeters,
+                    duration_seconds: testToSave.durationSeconds,
+                    split_distance_meters:
+                      testToSave.splitDistanceMeters ?? null,
+                    surface: session.indoor ? 'indoor' : 'outdoor',
+                    incline_percent: session.indoor
+                      ? (testToSave.inclinePercent ?? null)
+                      : null,
+                    incline_adjusted:
+                      session.indoor === true &&
+                      testToSave.inclinePercent != null &&
+                      testToSave.adjustForIncline !== false,
+                  }
+                : null,
+            programTick:
+              session.program && planCompleted(session)
+                ? {
+                    programId: session.program.id,
+                    index: session.program.index,
+                  }
+                : null,
+          })) != null;
+        const queued = session.entryClientId
+          ? serverMayBeDown(error) && (await queueRun())
+          : await queueAfterConnectionFailure(error, queueRun);
+        if (!queued) throw error;
+        await finishQueuedRun();
+        return;
+      }
       // A completed fitness test is filed against the saved activity. A
       // failure throws like any save failure: the recording is kept, and the
       // retry reuses the saved activity and replaces the test, never doubling it.
@@ -1277,6 +1390,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
     }
   }, [
     distanceUnit,
+    finishQueuedRun,
     indoorDistanceKm,
     indoorDistanceText,
     indoorEstimate,

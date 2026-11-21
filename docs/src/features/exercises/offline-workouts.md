@@ -32,6 +32,13 @@ If you try to start a workout offline before the phone has ever refreshed, the a
 
 - Log a workout after the fact (**Log past workout**, or the **Add workout** form) and edit a workout you already logged. The change is kept on your phone and uploads later, like any other offline workout.
 
+- Record a run, walk or ride with the phone's GPS, or an indoor session, from **Record activity**. When you save it and your server cannot be reached, the run is kept on your phone. The summary opens straight away from what the phone measured, and your personal records and the rest of the analysis appear once it uploads. A fitness test or training-program workout you finished is filed and ticked off after the run uploads. Heart rate from a paired watch is kept with it.
+- A walk or run you record on your Apple Watch alone is kept the same way, and uploads once the watch's data has reached your phone and your server can be reached. It shows in **Settings → Offline** as **Run on watch**, and **Upload now** sends it too.
+- See a run that is waiting in the **Diary** with the **Waiting to upload** mark. Its details (route, laps, records) open once it has uploaded. To remove it, swipe it away or long-press it. If it had already reached your server while its upload was still going on, it is deleted there too.
+- Apple's heart rate zones for a run arrive after the workout ends. They are kept with a run that is still waiting, or added to it once it has uploaded.
+
+Starting a run with no connection works, but the training program, saved routes and suggested paces need your server, so they are not offered until it is back.
+
 These need a connection: deleting past workouts, creating new exercises or saved workouts, online exercise search, suggested alternatives, reports, food logging and the AI assistant.
 
 When the app cannot reach your server, an **Offline** strip shows at the top of the screens that work from saved data. Tap it to check the connection again. Screens that need the server show a **Start a saved workout offline** button.
@@ -46,7 +53,7 @@ A workout logged offline shows **Waiting to upload** in the Diary. It uploads by
 
 You can also tap **Upload now** in **Settings → Offline**, which lists everything still waiting.
 
-Each workout is uploaded exactly once. If the connection drops while uploading, sending it again does not create a second copy.
+Each workout and each run is uploaded exactly once. If the connection drops while uploading, sending it again does not create a second copy.
 
 A workout waits as long as it needs to. Nothing waiting is ever deleted by the app. If a workout has waited a week, you get one reminder notification.
 

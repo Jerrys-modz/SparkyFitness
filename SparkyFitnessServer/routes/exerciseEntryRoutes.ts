@@ -293,6 +293,13 @@ router.get('/by-date', authenticate, async (req, res, next) => {
  *                 type: number
  *               weight:
  *                 type: number
+ *               id:
+ *                 type: string
+ *                 format: uuid
+ *                 description: >-
+ *                   Entry id minted by the client (a run saved offline). A
+ *                   repeated create with the same id returns the stored entry
+ *                   (200) instead of making another.
  *               workout_plan_assignment_id:
  *                 type: string
  *                 format: uuid
@@ -307,6 +314,14 @@ router.get('/by-date', authenticate, async (req, res, next) => {
  *                 type: string
  *                 description: JSON string of activity details.
  *     responses:
+ *       200:
+ *         description: >-
+ *           The request carried an `id` this user already created; the stored
+ *           entry is returned unchanged and nothing is created.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ExerciseEntry'
  *       201:
  *         description: The exercise entry was created successfully.
  *         content:
@@ -314,11 +329,13 @@ router.get('/by-date', authenticate, async (req, res, next) => {
  *             schema:
  *               $ref: '#/components/schemas/ExerciseEntry'
  *       400:
- *         description: Invalid request body or exercise ID.
+ *         description: Invalid request body, exercise ID or entry id.
  *       403:
  *         description: User does not have permission to create an exercise entry.
  *       404:
  *         description: Exercise not found.
+ *       409:
+ *         description: The id cannot be used for a new entry.
  *       500:
  *         description: Failed to create exercise entry.
  */
@@ -348,6 +365,7 @@ router.post(
         entryData = req.body;
       }
       const {
+        id: clientEntryId,
         exercise_id,
         exercise_name,
         duration_minutes,
@@ -391,6 +409,16 @@ router.post(
           .status(400)
           .json({ error: 'Exercise ID must be a valid UUID.' });
       }
+      // An id minted by the client (a run saved offline) makes the create safe
+      // to repeat; an invalid one is refused rather than ignored.
+      if (
+        clientEntryId !== undefined &&
+        clientEntryId !== null &&
+        clientEntryId !== '' &&
+        !uuidRegex.test(clientEntryId)
+      ) {
+        return res.status(400).json({ error: 'id must be a valid UUID.' });
+      }
       // Only the server's own upload sets the image: the stored path is later
       // deleted from disk, so it must never come from the request body.
       let imageUrl = null;
@@ -424,36 +452,38 @@ router.post(
         }
         caloriesApplied = applied;
       }
-      const newEntry = await exerciseService.createExerciseEntry(
-        targetUserId,
+      const { entry: newEntry, replayed } =
+        await exerciseService.createOrReplayExerciseEntry(
+          targetUserId,
 
-        req.originalUserId || req.userId,
-        {
-          exercise_id,
-          exercise_name,
-          duration_minutes,
-          calories_burned,
-          calories_applied: caloriesApplied,
-          entry_date,
-          entry_time,
-          notes,
-          sets,
-          reps,
-          weight,
-          workout_plan_assignment_id,
-          image_url: imageUrl,
-          distance,
-          avg_heart_rate,
-          activity_details,
-        },
-        // Manual diary adds should always create a new entry, even when the
-        // same exercise/date already has one (e.g. two workouts in a day).
-        // Skip the "same exercise + date" merge-into-existing check unless
-        // this entry is tied to a workout plan assignment, which has its own
-        // assignment+date dedup that must still apply.
-        { skipDuplicateCheck: !workout_plan_assignment_id }
-      );
-      res.status(201).json(newEntry);
+          req.originalUserId || req.userId,
+          {
+            ...(clientEntryId ? { id: clientEntryId } : {}),
+            exercise_id,
+            exercise_name,
+            duration_minutes,
+            calories_burned,
+            calories_applied: caloriesApplied,
+            entry_date,
+            entry_time,
+            notes,
+            sets,
+            reps,
+            weight,
+            workout_plan_assignment_id,
+            image_url: imageUrl,
+            distance,
+            avg_heart_rate,
+            activity_details,
+          },
+          // Manual diary adds should always create a new entry, even when the
+          // same exercise/date already has one (e.g. two workouts in a day).
+          // Skip the "same exercise + date" merge-into-existing check unless
+          // this entry is tied to a workout plan assignment, which has its own
+          // assignment+date dedup that must still apply.
+          { skipDuplicateCheck: !workout_plan_assignment_id }
+        );
+      res.status(replayed ? 200 : 201).json(newEntry);
     } catch (error) {
       // @ts-expect-error TS(2571): Object is of type 'unknown'.
       if (error.message.startsWith('Forbidden')) {

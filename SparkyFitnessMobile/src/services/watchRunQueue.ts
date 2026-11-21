@@ -31,6 +31,8 @@ import {
   measureWatchIndoorTest,
 } from '../utils/fitnessTest';
 import { saveFitnessTest } from './fitnessTestService';
+import { newUuid } from '../utils/ids';
+import { notifyOutboxChanged } from '../offline/events';
 
 /**
  * Walks and runs the watch sent that are not in the diary yet. A payload is
@@ -55,6 +57,13 @@ const RETRYABLE_CLIENT_STATUSES = new Set([401, 408, 429]);
 
 interface QueuedRun {
   payload: WatchRunPayload;
+  /**
+   * The diary entry's id, made when the run is stored and sent with every
+   * create, so a create whose answer was lost is recognised by the server
+   * instead of making a second entry. Absent on a run stored by an earlier
+   * build, which then creates it without one.
+   */
+  entryClientId?: string;
   /** Set once the entry exists, so a retry only repeats the later steps. */
   entryId?: string;
   /** Cadence and stride measured with the entry, kept for the summary on a retry. */
@@ -245,10 +254,77 @@ export function enqueueWatchRun(payload: WatchRunPayload): Promise<boolean> {
             ...correctWatchRunDistance(payload, getTreadmillCorrection()),
             ownerId,
           },
+          entryClientId: newUuid(),
         },
       ])
     );
+    // The offline Diary shows a run that is waiting.
+    notifyOutboxChanged();
     return true;
+  });
+}
+
+/** A run stored on the phone that has not been filed on the server yet. */
+export interface WaitingWatchRun {
+  payload: WatchRunPayload;
+  /** The id its diary entry has, or will have, on the server. */
+  entryId: string | null;
+  /** True once an attempt created the entry: it is on the server already. */
+  created: boolean;
+}
+
+/**
+ * The watch runs of the signed-in server configuration that are not filed
+ * yet, for the Diary to show. A run stored by an earlier build has no entry
+ * id of its own and is left out: nothing could tell it apart on the server.
+ */
+export async function readWaitingWatchRuns(): Promise<WaitingWatchRun[]> {
+  const [queue, activeOwnerId] = await serial(() =>
+    Promise.all([readQueue(), getActiveServerConfigId()])
+  );
+  if (!activeOwnerId) return [];
+  return queue
+    .filter((run) => run.payload.ownerId === activeOwnerId)
+    .map((run) => ({
+      payload: run.payload,
+      entryId: run.entryId ?? run.entryClientId ?? null,
+      created: run.entryId != null,
+    }))
+    .filter((run) => run.entryId != null);
+}
+
+/** What removing a waiting watch run came to. */
+export type WatchRunDiscard =
+  | { outcome: 'removed'; entryDate: string }
+  /** An attempt had created its entry on the server; the caller removes that. */
+  | { outcome: 'on_server'; entryDate: string }
+  | { outcome: 'none' };
+
+/**
+ * Drops a watch run that is still waiting, for the person who deletes it from
+ * the Diary. It is marked handled, so a copy the watch sends again is not
+ * filed. A run whose entry already reached the server is dropped from the
+ * queue too (its remaining steps are abandoned) and reported as `on_server`.
+ */
+export function discardWaitingWatchRun(
+  entryId: string
+): Promise<WatchRunDiscard> {
+  return serial(async () => {
+    const queue = await readQueue();
+    const run = queue.find(
+      (item) => item.entryId === entryId || item.entryClientId === entryId
+    );
+    if (!run) return { outcome: 'none' };
+    await AsyncStorage.setItem(
+      QUEUE_KEY,
+      JSON.stringify(queue.filter((item) => item !== run))
+    );
+    await markDone(run.payload.clientId);
+    notifyOutboxChanged();
+    return {
+      outcome: run.entryId ? 'on_server' : 'removed',
+      entryDate: toLocalDateString(new Date(run.payload.startedAt)),
+    };
   });
 }
 
@@ -514,7 +590,8 @@ async function drainOnce(
               form: measured,
             }))
           ),
-        item.form ?? null
+        item.form ?? null,
+        item.entryClientId
       );
       // The watch's steps may not have reached Apple Health yet, which leaves
       // the entry without cadence and stride; measure it again later. A jump
@@ -583,6 +660,7 @@ async function drainOnce(
         await markDone(clientId);
         await update(clientId, () => null);
       });
+      notifyOutboxChanged();
       filed.push(toLocalDateString(new Date(item.payload.startedAt)));
       // A listener failing (a toast, a navigation) never undoes a filed run.
       try {
