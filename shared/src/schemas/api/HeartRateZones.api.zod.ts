@@ -7,6 +7,8 @@ import {
   MIN_MAX_HR,
   MIN_RESTING_HR,
   customFloorsProblem,
+  defaultHeartRateZones,
+  type ResolvedHeartRateZones,
 } from '../../utils/heartRateZones.ts';
 
 export const hrZoneMethodSchema = z.enum(HR_ZONE_METHODS);
@@ -60,6 +62,31 @@ export const heartRateZonesResponseSchema = z.object({
 export type HeartRateZonesResponse = z.infer<
   typeof heartRateZonesResponseSchema
 >;
+
+/**
+ * The resolved zones from a zones response, in the shape charts and legends
+ * take. Before the response loads (or when it fails) this is the shared
+ * default, so a chart still draws zones.
+ */
+export function resolvedHeartRateZonesFromResponse(
+  response: HeartRateZonesResponse | null | undefined
+): ResolvedHeartRateZones {
+  if (!response) return defaultHeartRateZones();
+  const r = response.resolved;
+  return {
+    maxHr: r.max_hr,
+    maxHrSource: r.max_hr_source,
+    restingHr: r.resting_hr,
+    method: r.method,
+    effectiveMethod: r.effective_method,
+    floors: r.zones.map((z) => z.lower_bpm),
+    zones: r.zones.map((z) => ({
+      zone: z.zone,
+      lowerBpm: z.lower_bpm,
+      upperBpm: z.upper_bpm,
+    })),
+  };
+}
 
 /**
  * PUT body. Every field is optional; a field that is present replaces the

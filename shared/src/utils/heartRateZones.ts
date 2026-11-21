@@ -350,7 +350,7 @@ export interface HeartRateZoneBand extends HeartRateZone {
 
 /**
  * The five zones with their colors, for legends, range lists and line
- * gradients. Reports show this instead of working out their own bands.
+ * gradients ({@link zoneGradientStops}). Reports show this instead of working out their own bands.
  */
 export function heartRateZoneBands(
   zones: readonly HeartRateZone[]
@@ -414,6 +414,83 @@ export function heartRateDisplayBands(
     });
   });
   return result;
+}
+
+/** Anything with a floor and a color: a zone band or a four-tier band. */
+type ColorBand = Pick<HeartRateDisplayBand, 'lowerBpm' | 'color'>;
+
+/**
+ * Where the second band onward begin: the bpm values where a heart rate line
+ * changes color, and where charts draw their dotted zone lines.
+ */
+export function zoneEdges(bands: readonly ColorBand[]): number[] {
+  return bands.slice(1).map((band) => band.lowerBpm);
+}
+
+/**
+ * The dotted zone lines a heart rate chart draws: one at each band's floor
+ * from the second band up, in the color of the band that starts there.
+ */
+export function zoneEdgeLines(
+  bands: readonly ColorBand[]
+): { bpm: number; color: string }[] {
+  return bands.slice(1).map((band) => ({
+    bpm: band.lowerBpm,
+    color: band.color,
+  }));
+}
+
+/** One stop of a vertical line gradient; offset 0 is the top of the line. */
+export interface GradientStop {
+  offset: number;
+  color: string;
+}
+
+/**
+ * Stops for a vertical gradient that colors each height of a heart rate line
+ * by the person's band at that bpm, with hard edges at the zone floors (the
+ * line turns red as it crosses into the top zone, and so on). The gradient
+ * spans the line's own highest and lowest reading, so offsets are measured
+ * from that range. A flat line gets one solid color (a single stop pair).
+ * Readings below the first band draw in the first band's color. Web (SVG)
+ * and mobile (Skia) charts both draw from these stops.
+ */
+export function zoneGradientStops(
+  minBpm: number,
+  maxBpm: number,
+  bands: readonly ColorBand[]
+): GradientStop[] {
+  const edges = zoneEdges(bands);
+  const color = (index: number) =>
+    bands[index]?.color ?? HEART_RATE_ZONE_COLORS[0];
+  const indexOf = (bpm: number) => {
+    let index = 0;
+    edges.forEach((edge, i) => {
+      if (bpm >= edge) index = i + 1;
+    });
+    return index;
+  };
+  if (!(maxBpm > minBpm)) {
+    const solid = color(indexOf(maxBpm));
+    return [
+      { offset: 0, color: solid },
+      { offset: 1, color: solid },
+    ];
+  }
+  const span = maxBpm - minBpm;
+  const stops: GradientStop[] = [{ offset: 0, color: color(indexOf(maxBpm)) }];
+  // Walk down from the top: each edge inside the range is a hard edge
+  edges
+    .map((edge, i) => ({ edge, index: i + 1 }))
+    .reverse()
+    .forEach(({ edge, index }) => {
+      if (edge <= minBpm || edge > maxBpm) return;
+      const offset = (maxBpm - edge) / span;
+      stops.push({ offset, color: color(index) });
+      stops.push({ offset, color: color(index - 1) });
+    });
+  stops.push({ offset: 1, color: color(indexOf(minBpm)) });
+  return stops;
 }
 
 /** Zone 1-5 for a reading, or 0 when it is below zone 1. */

@@ -9,7 +9,8 @@ import {
   CHART_LABEL_FONT_SIZE,
   computeNiceYAxisScale,
 } from '../charts/chartFormatting';
-import LineSeriesMark from '../charts/LineSeriesMark';
+import HeartRateZoneLine from '../charts/HeartRateZoneLine';
+import { useHeartRateZoneBands } from '../../hooks/useHeartRateZoneBands';
 
 /** Keeps the Skia path light on long sessions sampled every second. */
 const MAX_POINTS = 600;
@@ -20,16 +21,18 @@ interface HeartRateChartProps {
   xAxisCaption: string;
 }
 
-/** Heart rate over the session, x in minutes from the first reading. */
+/**
+ * Heart rate over the session, x in minutes from the first reading, colored
+ * by the person's own zones with a dotted line where each zone starts.
+ */
 const HeartRateChart: React.FC<HeartRateChartProps> = ({
   data,
   xAxisCaption,
 }) => {
   const font = useChartFont(CHART_LABEL_FONT_SIZE);
-  const [lineColor, textMuted] = useCSSVariable([
-    '--color-heart-rate',
-    '--color-text-muted',
-  ]) as [string, string];
+  const textMuted = useCSSVariable('--color-text-muted') as string;
+  // The line takes each zone's color as it climbs through the person's zones
+  const bands = useHeartRateZoneBands();
 
   const points = useMemo(() => {
     const step = Math.ceil(data.length / MAX_POINTS);
@@ -73,10 +76,12 @@ const HeartRateChart: React.FC<HeartRateChartProps> = ({
             },
           ]}
         >
-          {({ points: chartPoints }) => (
-            <LineSeriesMark
+          {({ points: chartPoints, chartBounds, yScale }) => (
+            <HeartRateZoneLine
               points={chartPoints.bpm}
-              color={lineColor}
+              bands={bands}
+              chartBounds={chartBounds}
+              yScale={yScale}
               strokeWidth={2}
               curveType="linear"
             />

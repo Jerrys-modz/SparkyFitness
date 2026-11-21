@@ -2,13 +2,12 @@ import {
   HEART_RATE_TIER_COLORS,
   HEART_RATE_ZONE_COLORS,
   heartRateDisplayBands,
-  type HeartRateZone,
-} from '@workspace/shared';
-import {
+  zoneEdgeLines,
   zoneEdges,
   zoneGradientStops,
-  zoneStroke,
-} from '@/utils/heartRateZoneBands';
+  type HeartRateZone,
+} from '@workspace/shared';
+import { zoneStroke } from '@/utils/heartRateZoneBands';
 
 // Custom floors from a real person's settings
 const zones: HeartRateZone[] = [
@@ -22,6 +21,20 @@ const five = heartRateDisplayBands(zones, 5);
 const four = heartRateDisplayBands(zones, 4);
 
 describe('heartRateZoneBands', () => {
+  it('draws each zone line in the color of the zone that starts there', () => {
+    expect(zoneEdgeLines(five)).toEqual([
+      { bpm: 140, color: HEART_RATE_ZONE_COLORS[1] },
+      { bpm: 152, color: HEART_RATE_ZONE_COLORS[2] },
+      { bpm: 164, color: HEART_RATE_ZONE_COLORS[3] },
+      { bpm: 176, color: HEART_RATE_ZONE_COLORS[4] },
+    ]);
+    expect(zoneEdgeLines(four).map((line) => line.color)).toEqual([
+      HEART_RATE_TIER_COLORS[1],
+      HEART_RATE_TIER_COLORS[2],
+      HEART_RATE_TIER_COLORS[3],
+    ]);
+  });
+
   it('uses the second band onward as color edges', () => {
     expect(zoneEdges(five)).toEqual([140, 152, 164, 176]);
     expect(zoneEdges(four)).toEqual([152, 164, 176]);

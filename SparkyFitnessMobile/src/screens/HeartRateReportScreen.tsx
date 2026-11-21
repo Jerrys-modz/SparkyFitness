@@ -2,7 +2,7 @@ import React, { useMemo, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { View, Text } from 'react-native';
 import { CartesianChart } from 'victory-native';
-import { defaultHeartRateZones } from '@workspace/shared';
+import { resolvedHeartRateZonesFromResponse } from '@workspace/shared';
 
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { useHeartRateReport } from '../hooks/useHeartRateReport';
@@ -60,23 +60,10 @@ const HeartRateReportScreen: React.FC<HeartRateReportScreenProps> = ({
   // The person's own five zones (Settings > Heart Rate Zones), or the shared
   // defaults until they load
   const { zones } = useHeartRateZones();
-  const resolvedZones = useMemo(() => {
-    if (!zones) return defaultHeartRateZones();
-    const r = zones.resolved;
-    return {
-      maxHr: r.max_hr,
-      maxHrSource: r.max_hr_source,
-      restingHr: r.resting_hr,
-      method: r.method,
-      effectiveMethod: r.effective_method,
-      floors: r.zones.map((z) => z.lower_bpm),
-      zones: r.zones.map((z) => ({
-        zone: z.zone,
-        lowerBpm: z.lower_bpm,
-        upperBpm: z.upper_bpm,
-      })),
-    };
-  }, [zones]);
+  const resolvedZones = useMemo(
+    () => resolvedHeartRateZonesFromResponse(zones),
+    [zones]
+  );
 
   const { report, isLoading, isError } = useHeartRateReport({
     window: reportWindow,

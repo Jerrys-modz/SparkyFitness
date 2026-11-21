@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, Text, View } from 'react-native';
-import { CartesianChart, Line, Scatter } from 'victory-native';
+import { CartesianChart, Scatter } from 'victory-native';
 import { Rect } from '@shopify/react-native-skia';
 import { useCSSVariable } from 'uniwind';
 
@@ -14,6 +14,8 @@ import {
   computeNiceYAxisScale,
 } from '../charts/chartFormatting';
 import { useHeartRateDayTimeline } from '../../hooks/useHeartRateTimelines';
+import { useHeartRateZoneBands } from '../../hooks/useHeartRateZoneBands';
+import HeartRateZoneLine from '../charts/HeartRateZoneLine';
 import { usePreferences } from '../../hooks/usePreferences';
 import { addDays, getTodayDate } from '../../utils/dateUtils';
 import { formatHourLabel, formatTimeLabel } from '../../utils/entryTimeDisplay';
@@ -43,12 +45,11 @@ const HeartRateDayTimelineCard: React.FC<Props> = ({
   const font = useChartFont(CHART_LABEL_FONT_SIZE);
   const { preferences } = usePreferences();
   const timeFormat = preferences?.time_format;
-  const [lineColor, sleepColor, workoutColor, textMuted] = useCSSVariable([
-    '--color-heart-rate',
+  const [sleepColor, workoutColor, textMuted] = useCSSVariable([
     '--color-cat-violet',
     '--color-cat-orange',
     '--color-text-muted',
-  ]) as [string, string, string, string];
+  ]) as [string, string, string];
   const { timeline, workouts, isLoading, isError } = useHeartRateDayTimeline(
     day,
     t('reports.heartRateWorkoutFallback', { defaultValue: 'Workout' })
@@ -89,6 +90,14 @@ const HeartRateDayTimelineCard: React.FC<Props> = ({
   const workoutBands = useMemo(
     () => workouts.map((w) => ({ from: w.startMinutes, to: w.endMinutes })),
     [workouts]
+  );
+
+  // The line and lone readings take the color of the person's zone
+  const bands = useHeartRateZoneBands();
+  const bandIndexFor = useCallback(
+    (bpm: number) =>
+      bands.reduce((found, band, i) => (bpm >= band.lowerBpm ? i : found), 0),
+    [bands]
   );
 
   // Readings with no recorded neighbour form a one-point segment the line
@@ -234,7 +243,7 @@ const HeartRateDayTimelineCard: React.FC<Props> = ({
                   },
                 ]}
               >
-                {({ points, chartBounds }) => {
+                {({ points, chartBounds, yScale: toY }) => {
                   const width = chartBounds.right - chartBounds.left;
                   const x = (m: number) =>
                     chartBounds.left + (m / 1440) * width;
@@ -263,18 +272,29 @@ const HeartRateDayTimelineCard: React.FC<Props> = ({
                           opacity={0.2}
                         />
                       ))}
-                      <Line
+                      <HeartRateZoneLine
                         points={points.bpm}
-                        color={lineColor}
+                        bands={bands}
+                        chartBounds={chartBounds}
+                        yScale={toY}
+                        showZoneLines={false}
                         strokeWidth={1.8}
                         curveType="linear"
                       />
-                      <Scatter
-                        points={points.bpm.filter((_, i) => isolated[i])}
-                        color={lineColor}
-                        radius={2}
-                        shape="circle"
-                      />
+                      {bands.map((band, b) => (
+                        <Scatter
+                          key={band.index}
+                          points={points.bpm.filter(
+                            (p, i) =>
+                              isolated[i] &&
+                              typeof p.yValue === 'number' &&
+                              bandIndexFor(p.yValue) === b
+                          )}
+                          color={band.color}
+                          radius={2}
+                          shape="circle"
+                        />
+                      ))}
                     </>
                   );
                 }}
