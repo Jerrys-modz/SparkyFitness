@@ -1,6 +1,6 @@
 # AGENTS.md
 
-_Last updated: 2026-11-20_
+_Last updated: 2026-11-21_
 
 SparkyFitness Mobile is a React Native 0.86 + Expo SDK 57 app for syncing Apple Health / Health Connect data with the SparkyFitness backend, tracking nutrition, hydration, fasting, measurements, exercise, saved foods, meal templates, custom exercises, workout presets, iOS / Android widgets, the active workout HUD, and the Sparky AI chat.
 
@@ -325,6 +325,7 @@ npx expo prebuild --clean
 - During login before a config is saved, `authService` manages pending proxy headers via `setPendingProxyHeaders()` / `clearPendingProxyHeaders()`.
 - TLS client certificate (mTLS, #123): one certificate for the whole app, imported from a `.p12` in `ClientCertificateSection` (server form and onboarding, under Advanced options) and held by `modules/client-certificate`. It is presented only to the saved servers' hosts. Any new native code that calls the user's server must use it: see [widgets-and-native-config.md](agent-docs/widgets-and-native-config.md#tls-client-certificate-mtls).
 - Prefer `getApiErrorMessage` / API error helpers over ad hoc error parsing in UI.
+- Settings → Admin (admins only: server-wide switches, users, backups; the rest stays on the web): see [auth-networking-and-settings.md](agent-docs/auth-networking-and-settings.md#admin-server-administration).
 - Settings → Features (optional features, #3487; cycle's one switch, the app's own `feature_choices` with lab results, the hub's turned-off notice, and what hides while a feature is off): see [auth-networking-and-settings.md](agent-docs/auth-networking-and-settings.md#features-optional-features). Never read `cycle_settings.enabled` or `feature_choices` to show or hide something: ask `useMobileFeatures`.
 - Screens that need the server wrap their content area (below the header) in `ServerGate` (`components/ServerGate.tsx`) instead of their own "No server configured" block. `useServerConnection().status` is `loading`, `notConfigured`, `unreachable` or `connected`; the gate shows a spinner, "No server configured", or "Can't reach your server" with Try again, and owns the copy. Use `ServerStatusView` directly only where the screen needs its own layout around the message (Dashboard, Diary, Library hide their date header while offline). The connection check runs on first load and on screen focus, and the shared query client (`hooks/queryClient.ts`) re-runs it, at most every 10 s, when a query fails with a network error, timeout, 5xx or 429, so Refresh and Retry also reach the offline state.
 

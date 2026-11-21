@@ -38,6 +38,7 @@ import Constants from 'expo-constants';
 import { useDiscreetMode } from '../hooks/useDiscreetMode';
 import WatchConnectivity from '../../modules/watch-connectivity';
 import { useNfcSupport } from '../hooks/useNfcSupport';
+import { useIsAdmin } from '../hooks/useAdmin';
 
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -72,6 +73,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
     enabled: isConnected,
   });
   const { discreetMode } = useDiscreetMode();
+  const isAdmin = useIsAdmin(isConnected);
   const [isSharing, setIsSharing] = useState<boolean>(false);
   const [lastSyncedTime, setLastSyncedTime] = useState<string | null>(null);
 
@@ -441,6 +443,21 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
                 />
               )}
             </SettingsRowGroup>
+
+            {isAdmin && (
+              <SettingsRowGroup>
+                <SettingsRow
+                  icon="shield-checkmark"
+                  title={t('settings.rows.admin', { defaultValue: 'Admin' })}
+                  subtitle={t('settings.rows.adminSubtitle', {
+                    defaultValue: 'Server settings, users and backups',
+                  })}
+                  onPress={() => navigation.navigate('AdminSettings')}
+                  iconColor={catSlate}
+                  testID="settings-row-admin"
+                />
+              </SettingsRowGroup>
+            )}
 
             <SettingsRowGroup>
               <SettingsRow

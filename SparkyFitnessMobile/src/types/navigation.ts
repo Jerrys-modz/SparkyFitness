@@ -4,6 +4,7 @@ import type { RunSummaryParams } from '../utils/runSummary';
 import type { NavigatorScreenParams } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type {
+  AdminUser,
   ExerciseActivityQueryItem,
   TagAction,
   FitnessTestType,
@@ -117,6 +118,9 @@ export type RootStackParamList = {
   };
   CycleSettings: undefined;
   FeatureSettings: undefined;
+  AdminSettings: undefined;
+  AdminUsers: undefined;
+  AdminUserDetail: { user: AdminUser };
   CycleOnboarding: undefined;
   CycleHub: undefined;
   CycleLogModal: { date?: string } | undefined;
