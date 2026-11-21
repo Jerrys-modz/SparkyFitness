@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Text, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useTranslation } from 'react-i18next';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import { getWorkoutSplit } from '@workspace/shared';
 import { FooterSaveBar } from '../components/FormScreenChrome';
@@ -25,7 +24,6 @@ type Props = RootStackScreenProps<'WorkoutSplitImport'>;
 /** Asks for the plan's name and the medical disclaimer before adding a split. */
 const WorkoutSplitImportScreen: React.FC<Props> = ({ navigation, route }) => {
   const { t } = useTranslation();
-  const insets = useSafeAreaInsets();
   const usesNativeHeader = useNativeIOSHeadersActive();
   const split = getWorkoutSplit(route.params.splitId);
   const { importSplitAsync, isPending } = useImportWorkoutSplit();
@@ -46,10 +44,7 @@ const WorkoutSplitImportScreen: React.FC<Props> = ({ navigation, route }) => {
 
   if (!split) {
     return (
-      <View
-        className="flex-1 bg-background"
-        style={usesNativeHeader ? undefined : { paddingTop: insets.top }}
-      >
+      <View className="flex-1 bg-background">
         {header}
         <StatusView
           icon="alert-circle"
@@ -103,10 +98,7 @@ const WorkoutSplitImportScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   return (
-    <View
-      className="flex-1 bg-background"
-      style={usesNativeHeader ? undefined : { paddingTop: insets.top }}
-    >
+    <View className="flex-1 bg-background">
       {header}
       <KeyboardAwareScrollView
         className="flex-1"

@@ -181,10 +181,7 @@ const WidgetEditorScreen: React.FC<WidgetEditorScreenProps> = ({
     setDraft((current) => reconcileWidgetDraft({ ...current, ...changes }));
 
   return (
-    <View
-      className="flex-1 bg-background"
-      style={!usesNativeHeader ? { paddingTop: insets.top } : undefined}
-    >
+    <View className="flex-1 bg-background">
       {header}
       <KeyboardAwareScrollView
         contentContainerStyle={{
