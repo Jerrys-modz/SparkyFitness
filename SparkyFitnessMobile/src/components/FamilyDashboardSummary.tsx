@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View } from 'react-native';
 import { useCSSVariable } from 'uniwind';
 import { useTranslation } from 'react-i18next';
@@ -7,10 +7,15 @@ import ExerciseProgressCard from './ExerciseProgressCard';
 import HydrationGauge from './HydrationGauge';
 import MacroCard from './MacroCard';
 import { usePreferences } from '../hooks';
-import type { DailySummary } from '../types/dailySummary';
+import {
+  buildDailySummary,
+  rawFromDailySummaryResponse,
+} from '../services/dailySummaryService';
+import type { DailySummaryApiResponse } from '../services/api/dailySummaryApi';
 
 interface FamilyDashboardSummaryProps {
-  summary: DailySummary;
+  data: DailySummaryApiResponse;
+  date: string;
 }
 
 /**
@@ -18,9 +23,14 @@ interface FamilyDashboardSummaryProps {
  * Dashboard, minus every control that would write to their data.
  */
 const FamilyDashboardSummary: React.FC<FamilyDashboardSummaryProps> = ({
-  summary,
+  data,
+  date,
 }) => {
   const { t } = useTranslation();
+  const summary = useMemo(
+    () => buildDailySummary(date, rawFromDailySummaryResponse(data)),
+    [data, date]
+  );
   const { preferences } = usePreferences({ enabled: true });
   const [proteinColor, carbsColor, fatColor, fiberColor, overfillColor] =
     useCSSVariable([

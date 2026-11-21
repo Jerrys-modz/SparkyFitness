@@ -28,10 +28,15 @@ import CalendarSheet, {
   type CalendarSheetRef,
 } from '../components/CalendarSheet';
 import ActivityRingsCard from '../components/ActivityRingsCard';
+import ActionSheet, {
+  type ActionSheetItem,
+  type ActionSheetRef,
+} from '../components/ActionSheet';
 import CalorieRingCard from '../components/CalorieRingCard';
 import WeeklyCalorieBudgetCard from '../components/WeeklyCalorieBudgetCard';
 import CycleCard from '../components/CycleCard';
 import DateNavigator from '../components/DateNavigator';
+import FamilyDashboardView from '../components/FamilyDashboardView';
 import ExerciseProgressCard from '../components/ExerciseProgressCard';
 import FastingCard from '../components/FastingCard';
 import FastingGoalReconciler from '../components/FastingGoalReconciler';
@@ -72,6 +77,7 @@ import {
   useCustomNutrients,
   useDailySummary,
   useBloodAlcohol,
+  useFamilyUsers,
   useCaffeineKinetics,
   useHealthTrends,
   useMeasurements,
@@ -82,6 +88,7 @@ import {
   useWaterIntakeMutation,
   useWidgetSync,
 } from '../hooks';
+import { familyDiaryUserName } from '../utils/familyDiary';
 import { useCheckInPhotoDates } from '../hooks/useCheckInPhotos';
 import { useWidgetExtras } from '../hooks/useWidgetExtras';
 import { invalidateIntakeKinetics } from '../hooks/invalidateIntakeKinetics';
@@ -238,6 +245,55 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
   const dateFutureColor =
     (useCSSVariable('--color-date-future') as string) || '#0ea5e9';
 
+  const {
+    isConnected,
+    isLoading: isConnectionLoading,
+    status: connectionStatus,
+    refetch: recheckConnection,
+  } = useServerConnection();
+  const familySheetRef = useRef<ActionSheetRef>(null);
+  const [viewingFamilyUserId, setViewingFamilyUserId] = useState<string | null>(
+    null
+  );
+  const { data: familyUsers = [] } = useFamilyUsers({ enabled: isConnected });
+  const hasFamilyUsers = isConnected && familyUsers.length > 0;
+  // Derived from the live member list, so a member whose access was revoked
+  // drops out of the toggle without an effect.
+  const viewingFamilyUser =
+    familyUsers.find((user) => user.userId === viewingFamilyUserId) ?? null;
+  const unnamedMember = t('familyDiary.unnamedMember', {
+    defaultValue: 'Family member',
+  });
+  const familyToggleLabel = viewingFamilyUser
+    ? t('dashboard.showMyDashboard', { defaultValue: 'Show my dashboard' })
+    : t('dashboard.showFamilyDashboard', {
+        defaultValue: 'Show family dashboard',
+      });
+  const familySheetItems: ActionSheetItem[] = [
+    {
+      key: 'self',
+      label: t('dashboard.myDashboard', { defaultValue: 'My dashboard' }),
+      onPress: () => setViewingFamilyUserId(null),
+    },
+    ...familyUsers.map((user) => ({
+      key: user.userId,
+      label: familyDiaryUserName(user, unnamedMember),
+      icon: 'people' as const,
+      onPress: () => setViewingFamilyUserId(user.userId),
+    })),
+  ];
+  // One member: the button toggles straight between you and them, like the
+  // web. Several: it asks which profile to show.
+  const toggleFamilyDashboard = useCallback(() => {
+    if (viewingFamilyUserId) {
+      setViewingFamilyUserId(null);
+    } else if (familyUsers.length === 1) {
+      setViewingFamilyUserId(familyUsers[0].userId);
+    } else {
+      familySheetRef.current?.present();
+    }
+  }, [familyUsers, viewingFamilyUserId]);
+
   const syncNativeHeaderDatePicker = useCallback(() => {
     if (!usesNativeTabs) return;
     // Beside a vertical bar, wait for the first measurement: setting all three
@@ -286,9 +342,23 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
         dateLabel: `${formatDateLabel(selectedDate, t, dateLocale)} ▾`,
         t,
         locale: dateLocale,
+        leadingAction: hasFamilyUsers
+          ? {
+              sfSymbol: viewingFamilyUser
+                ? 'person.2.circle.fill'
+                : 'person.2.fill',
+              onPress: toggleFamilyDashboard,
+              accessibilityLabel: familyToggleLabel,
+              identifier: 'family-dashboard',
+            }
+          : undefined,
       }
     );
   }, [
+    familyToggleLabel,
+    hasFamilyUsers,
+    toggleFamilyDashboard,
+    viewingFamilyUser,
     dateFutureColor,
     dateLocale,
     datePastColor,
@@ -304,12 +374,6 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
     dateColumnCollapsed,
   ]);
 
-  const {
-    isConnected,
-    isLoading: isConnectionLoading,
-    status: connectionStatus,
-    refetch: recheckConnection,
-  } = useServerConnection();
   // With the server away the Dashboard shows what the phone holds: the day's
   // totals (the last copy plus what is waiting to upload) and the water card.
   const isOffline = !isConnectionLoading && connectionStatus === 'unreachable';
@@ -910,6 +974,16 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
           )}
           <ServerStatusView />
         </View>
+      );
+    }
+
+    if (viewingFamilyUser) {
+      return (
+        <FamilyDashboardView
+          familyUser={viewingFamilyUser}
+          date={selectedDate}
+          bottomPadding={80 + activeWorkoutBarPadding}
+        />
       );
     }
 
@@ -1649,6 +1723,13 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
         <MealReminderReconciler />
         <MacroAlertReconciler />
         {renderedContent}
+        <ActionSheet
+          ref={familySheetRef}
+          title={t('dashboard.chooseProfile', {
+            defaultValue: 'Choose dashboard',
+          })}
+          items={familySheetItems}
+        />
         <CalendarSheet
           ref={calendarRef}
           selectedDate={selectedDate}
@@ -1672,9 +1753,25 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
           onNextDay={goToNextDay}
           onToday={goToToday}
           onDatePress={openCalendar}
+          action={
+            hasFamilyUsers
+              ? {
+                  icon: 'people',
+                  accessibilityLabel: familyToggleLabel,
+                  onPress: toggleFamilyDashboard,
+                }
+              : undefined
+          }
         />
       ) : null}
       {renderedContent}
+      <ActionSheet
+        ref={familySheetRef}
+        title={t('dashboard.chooseProfile', {
+          defaultValue: 'Choose dashboard',
+        })}
+        items={familySheetItems}
+      />
       <CalendarSheet
         ref={calendarRef}
         selectedDate={selectedDate}

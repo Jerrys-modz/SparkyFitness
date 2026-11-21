@@ -107,7 +107,26 @@ const preferences: UserPreferences = {
 
 const emptySeries = { data: [], isLoading: false, isError: false };
 
+const mockFamilyUsers: {
+  userId: string;
+  displayName: string;
+  email: string | null;
+  canCopy: boolean;
+  accessEndDate: string | null;
+}[] = [];
+
+jest.mock('../../src/components/FamilyDashboardView', () => {
+  const { Text } = require('react-native');
+  return {
+    __esModule: true,
+    default: ({ familyUser }: { familyUser: { displayName: string } }) => (
+      <Text>{`Family dashboard: ${familyUser.displayName}`}</Text>
+    ),
+  };
+});
+
 jest.mock('../../src/hooks', () => ({
+  useFamilyUsers: jest.fn(() => ({ data: mockFamilyUsers })),
   useServerConnection: jest.fn(() => ({ isConnected: true, isLoading: false })),
   useDailySummary: jest.fn(() => ({
     summary,
@@ -217,6 +236,7 @@ const renderDashboard = () => {
 
 describe('DashboardScreen Health Trends spacing', () => {
   beforeEach(() => {
+    mockFamilyUsers.length = 0;
     __resetAppPreferencesStoreForTests();
     const store = useAppPreferencesStore.getState();
     // askSparky is the cheapest sibling card to render directly below Health
@@ -261,6 +281,30 @@ describe('DashboardScreen Health Trends spacing', () => {
     fireEvent.press(screen.getByTestId('dashboard-reports-link'));
 
     expect(mockNavigation.navigate).toHaveBeenCalledWith('Reports');
+  });
+
+  it('hides the family toggle when no one shares a dashboard', () => {
+    renderDashboard();
+
+    expect(screen.queryByLabelText('Show family dashboard')).toBeNull();
+  });
+
+  it('toggles the dashboard between you and your only family member', () => {
+    mockFamilyUsers.push({
+      userId: 'family-1',
+      displayName: 'Sam',
+      email: null,
+      canCopy: false,
+      accessEndDate: null,
+    });
+    renderDashboard();
+
+    fireEvent.press(screen.getByLabelText('Show family dashboard'));
+    expect(screen.getByText('Family dashboard: Sam')).toBeTruthy();
+
+    fireEvent.press(screen.getByLabelText('Show my dashboard'));
+    expect(screen.queryByText('Family dashboard: Sam')).toBeNull();
+    expect(screen.getByText('Health Trends')).toBeTruthy();
   });
 });
 
