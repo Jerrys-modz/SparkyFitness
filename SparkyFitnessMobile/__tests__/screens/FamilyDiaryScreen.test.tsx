@@ -164,8 +164,8 @@ jest.mock('../../src/components/FamilyDashboardSummary', () => {
   const { Text } = require('react-native');
   return {
     __esModule: true,
-    default: ({ summary }: { summary: { caloriesConsumed: number } }) => (
-      <Text>{`Dashboard ${Math.round(summary.caloriesConsumed)} kcal`}</Text>
+    default: ({ data }: { data: { foodEntries: unknown[] } }) => (
+      <Text>{`Dashboard ${data.foodEntries.length} entries`}</Text>
     ),
   };
 });
@@ -323,7 +323,7 @@ describe('FamilyDiaryScreen', () => {
       refetch: jest.fn(),
     } as ReturnType<typeof useFamilyDailySummary>);
 
-    expect(renderFamilyDiary().getByText(/^Dashboard \d+ kcal$/)).toBeTruthy();
+    expect(renderFamilyDiary().getByText('Dashboard 2 entries')).toBeTruthy();
   });
 
   test('uses an explicit date-specific empty state', () => {

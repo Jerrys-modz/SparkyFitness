@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -24,10 +24,6 @@ import {
   groupFamilyFoodEntries,
 } from '../utils/familyDiary';
 import { addDays, formatDate, getTodayDate } from '../utils/dateUtils';
-import {
-  buildDailySummary,
-  rawFromDailySummaryResponse,
-} from '../services/dailySummaryService';
 import { useEnergyUnit } from '../hooks/useEnergyUnit';
 import { energyUnitLabel, roundedEnergy } from '../utils/energyUnit';
 
@@ -76,13 +72,6 @@ const FamilyDiaryScreen: React.FC<FamilyDiaryScreenProps> = ({
   }, [error, isError, queryClient]);
 
   const groups = groupFamilyFoodEntries(data?.foodEntries ?? []);
-  const summary = useMemo(
-    () =>
-      data
-        ? buildDailySummary(selectedDate, rawFromDailySummaryResponse(data))
-        : null,
-    [data, selectedDate]
-  );
 
   const content = isLoading ? (
     <StatusView
@@ -121,7 +110,7 @@ const FamilyDiaryScreen: React.FC<FamilyDiaryScreenProps> = ({
         paddingBottom: insets.bottom + activeWorkoutBarPadding + 24,
       }}
     >
-      {summary ? <FamilyDashboardSummary summary={summary} /> : null}
+      {data ? <FamilyDashboardSummary data={data} date={selectedDate} /> : null}
       <Text className="mb-3 text-sm text-text-secondary">
         {t('familyDiary.diaryForDate', {
           date: formatDate(selectedDate, locale),
