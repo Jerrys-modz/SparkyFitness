@@ -40,7 +40,9 @@ describe('refreshHealthSyncCache', () => {
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['sleep'] });
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['sleepRange'] });
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['sleepScience'] });
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['sleepScience', 'need'] });
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: ['sleepScience', 'need'],
+    });
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: ['exerciseHistory'],
       refetchType: 'none',
