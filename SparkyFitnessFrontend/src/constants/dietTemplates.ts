@@ -1,4 +1,14 @@
 import i18n from 'i18next';
+import { getDietMacroSplit } from '@workspace/shared';
+
+const split = (id: string) => {
+  const { carbs, protein, fat } = getDietMacroSplit(id);
+  return {
+    carbsPercentage: carbs,
+    proteinPercentage: protein,
+    fatPercentage: fat,
+  };
+};
 export interface DietTemplate {
   id: string;
   name: string;
@@ -18,9 +28,7 @@ export const DIET_TEMPLATES: DietTemplate[] = [
         'Well-rounded nutrition for general health'
       );
     },
-    carbsPercentage: 45,
-    proteinPercentage: 20,
-    fatPercentage: 35,
+    ...split('balanced'),
   },
   {
     id: 'mediterranean',
@@ -31,9 +39,7 @@ export const DIET_TEMPLATES: DietTemplate[] = [
         'Heart-healthy with healthy fats'
       );
     },
-    carbsPercentage: 50,
-    proteinPercentage: 15,
-    fatPercentage: 35,
+    ...split('mediterranean'),
   },
   {
     id: 'dash',
@@ -44,9 +50,7 @@ export const DIET_TEMPLATES: DietTemplate[] = [
         'Dietary Approaches to Stop Hypertension'
       );
     },
-    carbsPercentage: 55,
-    proteinPercentage: 18,
-    fatPercentage: 27,
+    ...split('dash'),
   },
   {
     id: 'atkins',
@@ -57,9 +61,7 @@ export const DIET_TEMPLATES: DietTemplate[] = [
         'Very low carb, high fat'
       );
     },
-    carbsPercentage: 10,
-    proteinPercentage: 30,
-    fatPercentage: 60,
+    ...split('atkins'),
   },
   {
     id: 'low_fat',
@@ -70,9 +72,7 @@ export const DIET_TEMPLATES: DietTemplate[] = [
         'High carb, minimal fat'
       );
     },
-    carbsPercentage: 70,
-    proteinPercentage: 20,
-    fatPercentage: 10,
+    ...split('low_fat'),
   },
   {
     id: 'low_carb',
@@ -80,9 +80,7 @@ export const DIET_TEMPLATES: DietTemplate[] = [
     get description() {
       return i18n.t('dietTemplates.ketogenicStyleDiet', 'Ketogenic-style diet');
     },
-    carbsPercentage: 5,
-    proteinPercentage: 20,
-    fatPercentage: 75,
+    ...split('low_carb'),
   },
   {
     id: 'custom',
@@ -93,9 +91,7 @@ export const DIET_TEMPLATES: DietTemplate[] = [
         'Set your own percentages'
       );
     },
-    carbsPercentage: 40,
-    proteinPercentage: 30,
-    fatPercentage: 30,
+    ...split('custom'),
   },
 ];
 

@@ -1,13 +1,24 @@
+import { describe, expect, it } from 'vitest';
 import {
+  ACTIVITY_MULTIPLIERS,
+  FatBreakdownAlgorithm,
+  MineralCalculationAlgorithm,
+  SugarCalculationAlgorithm,
+  VitaminCalculationAlgorithm,
+  bodyFatFromOnboardingRange,
+  buildOnboardingGoalTargets,
   calculateBasePlan,
-  type CalculatorFormData,
-} from '@/utils/nutritionCalculations';
-import { ACTIVITY_MULTIPLIERS, calculateBmr } from '@workspace/shared';
+  calculateBmr,
+  getDietMacroSplit,
+  macroPercentagesOfCalories,
+  onboardingWaterGoalMl,
+  type OnboardingPlanInput,
+} from '@workspace/shared';
 
 const NO_CUSTOM = { carbs: 0, protein: 0, fat: 0 };
 
 // 35-year-old male, 84.5 kg, 180 cm, moderately active.
-const baseForm: CalculatorFormData = {
+const baseForm: OnboardingPlanInput = {
   sex: 'male',
   primaryGoal: 'maintain_weight',
   currentWeight: 84.5,
@@ -176,5 +187,92 @@ describe('calculateBasePlan goal handling', () => {
 
     expect(plan!.finalDailyCalories).toBe(expectedOnce);
     expect(plan!.finalDailyCalories).not.toBe(compounded);
+  });
+});
+
+describe('onboarding plan helpers', () => {
+  it('falls back to the balanced split for an unknown diet', () => {
+    expect(getDietMacroSplit('nope')).toEqual(getDietMacroSplit('balanced'));
+    expect(getDietMacroSplit('atkins')).toEqual({
+      carbs: 10,
+      protein: 30,
+      fat: 60,
+    });
+  });
+
+  it('uses the custom split only for the custom diet', () => {
+    const custom = { carbs: 10, protein: 50, fat: 40 };
+    const balanced = calculateBasePlan(baseForm, 'balanced', custom);
+    const own = calculateBasePlan(baseForm, 'custom', custom);
+    expect(own!.macros.protein).toBeGreaterThan(balanced!.macros.protein);
+  });
+
+  it('maps body-fat buckets to their midpoints', () => {
+    expect(bodyFatFromOnboardingRange('Low (<15%)')).toBe(12);
+    expect(bodyFatFromOnboardingRange('Very High (>35%)')).toBe(38);
+    expect(bodyFatFromOnboardingRange('')).toBeNull();
+    expect(bodyFatFromOnboardingRange(undefined)).toBeNull();
+  });
+
+  it('suggests 35 ml of water per kg', () => {
+    expect(onboardingWaterGoalMl(80)).toBe(2800);
+  });
+
+  it('builds goal targets with water and micronutrients', () => {
+    const targets = buildOnboardingGoalTargets(
+      baseForm,
+      'balanced',
+      NO_CUSTOM,
+      {
+        fatBreakdown: FatBreakdownAlgorithm.AHA_GUIDELINES,
+        minerals: MineralCalculationAlgorithm.RDA_STANDARD,
+        vitamins: VitaminCalculationAlgorithm.RDA_STANDARD,
+        sugar: SugarCalculationAlgorithm.WHO_GUIDELINES,
+      }
+    );
+    expect(targets).not.toBeNull();
+    expect(targets!.goals.calories).toBe(targets!.plan.finalDailyCalories);
+    expect(targets!.goals.water_goal_ml).toBe(onboardingWaterGoalMl(84.5));
+    expect(targets!.goals.sodium).toBeGreaterThan(0);
+  });
+
+  it('returns no targets without a sex', () => {
+    expect(
+      buildOnboardingGoalTargets(
+        { ...baseForm, sex: '' },
+        'balanced',
+        NO_CUSTOM,
+        {
+          fatBreakdown: FatBreakdownAlgorithm.AHA_GUIDELINES,
+          minerals: MineralCalculationAlgorithm.RDA_STANDARD,
+          vitamins: VitaminCalculationAlgorithm.RDA_STANDARD,
+          sugar: SugarCalculationAlgorithm.WHO_GUIDELINES,
+        }
+      )
+    ).toBeNull();
+  });
+
+  it('gives macro shares of the calories left after fibre', () => {
+    // 2000 kcal, 25 g fibre -> 1950 kcal for macros.
+    expect(
+      macroPercentagesOfCalories({
+        calories: 2000,
+        protein: 97.5, // 390 kcal = 20%
+        carbs: 219.375, // 877.5 kcal = 45%
+        fat: 75.83, // 682.5 kcal = 35%
+        dietary_fiber: 25,
+      })
+    ).toEqual({
+      protein_percentage: 20,
+      carbs_percentage: 45,
+      fat_percentage: 35,
+    });
+    expect(
+      macroPercentagesOfCalories({ calories: 0, protein: 1, carbs: 1, fat: 1 })
+    ).toEqual({
+      protein_percentage: 0,
+      carbs_percentage: 0,
+      fat_percentage: 0,
+    });
   });
 });

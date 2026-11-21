@@ -1,7 +1,7 @@
 import { Input } from '@/components/ui/input';
 import { ExpandedGoals } from '@/types/goals';
 import { OnboardingData } from '@/types/onboarding';
-import { BasePlan } from '@/utils/nutritionCalculations';
+import type { OnboardingBasePlan } from '@workspace/shared';
 import { useTranslation } from 'react-i18next';
 
 export interface PersonalPlanHeaderProps {
@@ -14,7 +14,7 @@ export interface PersonalPlanHeaderProps {
   editedPlan: ExpandedGoals | null;
   getEnergyUnitString: (unit: 'kcal' | 'kJ') => string;
   localEnergyUnit: 'kcal' | 'kJ';
-  plan: BasePlan | null;
+  plan: OnboardingBasePlan | null;
   setEditedPlan: React.Dispatch<React.SetStateAction<ExpandedGoals | null>>;
   setLocalEnergyUnit: React.Dispatch<React.SetStateAction<'kcal' | 'kJ'>>;
 }

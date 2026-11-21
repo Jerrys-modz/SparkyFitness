@@ -6,6 +6,7 @@ import {
 } from '../../offline/collections';
 import { withOfflineFallback } from '../../offline/withOfflineFallback';
 import { UserProfile } from '../../types/profile';
+import type { ServerConfig } from '../storage';
 
 /**
  * Fetches the user's profile.
@@ -45,5 +46,20 @@ export const saveTargetWeight = async (
     operation: 'save goal weight',
     method: 'PUT',
     body: { targetWeight: targetWeightKg },
+  });
+};
+
+/** Saves the profile fields goal setup asks for. */
+export const updateProfileBasics = async (
+  data: Partial<Pick<UserProfile, 'gender' | 'date_of_birth'>>,
+  serverConfig?: ServerConfig
+): Promise<void> => {
+  await apiFetch<unknown>({
+    endpoint: '/api/identity/profiles',
+    serviceName: 'Profile API',
+    operation: 'update profile',
+    method: 'PUT',
+    body: data,
+    serverConfig,
   });
 };

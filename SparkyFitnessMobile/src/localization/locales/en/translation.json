@@ -798,7 +798,8 @@
     "labResults": "Lab results",
     "labResultDetail": "Lab result",
     "labResultAdd": "Add lab result",
-    "labReportImport": "Import report"
+    "labReportImport": "Import report",
+    "goalSetup": "Goal Setup"
   },
   "activityShare": {
     "title": "Share Activity",
@@ -8600,7 +8601,8 @@
     },
     "cyclingNoteTodayWithUnit": "Calorie cycling is on, so the calories below are your base target and each day is higher or lower. Today it is {{calories}} {{unit}}.",
     "cyclingPausedWeeklyPlan": "Calorie cycling is paused today by an active weekly goal plan. The calories below set today’s plan target directly.",
-    "adjustedGoalFailed": "Could not load today’s adjusted goal target."
+    "adjustedGoalFailed": "Could not load today’s adjusted goal target.",
+    "startGoalSetup": "Work out my goals step by step"
   },
   "reports": {
     "title": "Reports",
@@ -10989,5 +10991,99 @@
       "other": "Saved change"
     },
     "libraryNote": "Only workouts and exercises are available offline. Everything else in the Library needs a connection."
+  },
+  "goalSetup": {
+    "stepTitle": "Step {{step}} of {{total}}",
+    "skip": "Skip",
+    "saved": "Your goals are set.",
+    "saveFailed": "Could not save your goals. Please try again.",
+    "units": {
+      "kg": "kg",
+      "lbs": "lbs",
+      "cm": "cm",
+      "ft": "ft",
+      "in": "in"
+    },
+    "sex": {
+      "title": "What is your sex?",
+      "description": "Used to estimate how much energy you burn.",
+      "male": "Male",
+      "female": "Female"
+    },
+    "goal": {
+      "title": "What is your main goal?",
+      "lose": "Lose weight",
+      "maintain": "Maintain weight",
+      "gain": "Gain weight"
+    },
+    "weight": {
+      "title": "What is your current weight?"
+    },
+    "height": {
+      "title": "How tall are you?",
+      "feetInches": "ft / in"
+    },
+    "birthDate": {
+      "title": "When were you born?",
+      "description": "Age changes how much energy you burn.",
+      "pick": "Pick a date"
+    },
+    "bodyFat": {
+      "title": "Estimate your body fat",
+      "description": "A rough guess is fine.",
+      "low": "Low (under 15%)",
+      "medium": "Medium (15-25%)",
+      "high": "High (25-35%)",
+      "veryHigh": "Very high (over 35%)"
+    },
+    "targetWeight": {
+      "title": "What is your goal weight?"
+    },
+    "meals": {
+      "title": "How many meals do you eat in a day?",
+      "option_one": "{{count}} meal a day",
+      "option_other": "{{count}} meals a day"
+    },
+    "activity": {
+      "title": "How often do you exercise?",
+      "notMuch": "Not much",
+      "notMuchDesc": "Little or no exercise.",
+      "light": "Light (1-2 days a week)",
+      "lightDesc": "Light exercise or sports.",
+      "moderate": "Moderate (3-5 days a week)",
+      "moderateDesc": "Moderate exercise or sports.",
+      "heavy": "Heavy (6-7 days a week)",
+      "heavyDesc": "Hard exercise or sports."
+    },
+    "burned": {
+      "title": "Add exercise calories to your budget?",
+      "description": "When you exercise, the calories you burn can be added to what you can eat that day."
+    },
+    "diet": {
+      "balanced": "Balanced",
+      "mediterranean": "Mediterranean",
+      "dash": "DASH",
+      "atkins": "Atkins",
+      "lowFat": "Low fat",
+      "lowCarb": "Low carb / keto"
+    },
+    "plan": {
+      "title": "Your plan",
+      "incomplete": "Some answers are missing. Go back and fill them in to see your plan.",
+      "suggested": "Suggested daily goals for your answers. You can change any of them later in Goals.",
+      "calories": "Daily calories",
+      "protein": "Protein",
+      "carbs": "Carbs",
+      "fat": "Fat",
+      "fiber": "Fiber",
+      "water": "Water",
+      "grams": "{{value}} g",
+      "millilitres": "{{value}} ml",
+      "dietTitle": "Eating style",
+      "split": "Carbs {{carbs}}% · Protein {{protein}}% · Fat {{fat}}%",
+      "disclaimerTitle": "Not medical advice",
+      "disclaimer": "These goals are estimates for information only. Talk to your doctor or a dietitian before making big changes to what you eat or how you exercise.",
+      "start": "Start my plan"
+    }
   }
 }
