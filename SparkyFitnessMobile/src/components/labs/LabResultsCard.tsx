@@ -66,12 +66,9 @@ const LabResultsCard: React.FC<{ navigation: LabResultsCardNavigation }> = ({
     >
       <View className="flex-row items-center justify-between mb-2">
         <View className="flex-row items-center">
-          <View className="flex-row items-center gap-2">
-            <Icon name="document-text" size={18} color={accentPrimary} />
-            <Text className="text-base font-bold text-text-primary">
-              {t('labs.card.title', { defaultValue: 'Lab results' })}
-            </Text>
-          </View>
+          <Text className="text-md font-bold text-text-secondary">
+            {t('labs.card.title', { defaultValue: 'Lab results' })}
+          </Text>
         </View>
         <Icon name="chevron-forward" size={14} color={accentPrimary} />
       </View>

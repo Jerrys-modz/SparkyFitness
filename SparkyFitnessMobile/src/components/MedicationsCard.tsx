@@ -68,12 +68,9 @@ const MedicationsCard: React.FC<MedicationsCardProps> = ({ navigation }) => {
     return (
       <View className="bg-surface rounded-xl p-4 mb-3 shadow-sm">
         <View className="flex-row items-center justify-between">
-          <View className="flex-row items-center gap-2">
-            <Icon name="medication" size={18} color={accentPrimary} />
-            <Text className="text-base font-bold text-text-primary">
-              {t('medications.card.title', { defaultValue: 'Medications' })}
-            </Text>
-          </View>
+          <Text className="font-bold text-text-secondary">
+            {t('medications.card.title', { defaultValue: 'Medications' })}
+          </Text>
           <ActivityIndicator size="small" color={accentPrimary} />
         </View>
       </View>
@@ -93,12 +90,9 @@ const MedicationsCard: React.FC<MedicationsCardProps> = ({ navigation }) => {
         })}
         className="flex-row items-center justify-between mb-2"
       >
-        <View className="flex-row items-center gap-2">
-          <Icon name="medication" size={18} color={accentPrimary} />
-          <Text className="text-base font-bold text-text-primary">
-            {t('medications.card.title', { defaultValue: 'Medications' })}
-          </Text>
-        </View>
+        <Text className="font-bold text-text-secondary">
+          {t('medications.card.title', { defaultValue: 'Medications' })}
+        </Text>
         <View className="flex-row items-center">
           <Text className="text-accent-primary font-medium">
             {t('medications.card.viewAll', { defaultValue: 'View all' })}

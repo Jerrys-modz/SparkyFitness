@@ -58,12 +58,9 @@ const TrainingLoadDashboardCard: React.FC<TrainingLoadDashboardCardProps> = ({
         testID="training-load-dashboard-card-error"
         className="bg-surface rounded-xl p-4 mb-3 shadow-sm"
       >
-        <View className="flex-row items-center gap-2">
-          <Icon name="chart-bar" size={18} color={accentPrimary} />
-          <Text className="text-base font-bold text-text-primary">
-            {t('trainingLoadCard.title', { defaultValue: 'Training Load' })}
-          </Text>
-        </View>
+        <Text className="font-bold text-text-secondary">
+          {t('trainingLoadCard.title', { defaultValue: 'Training Load' })}
+        </Text>
         <Text className="text-text-secondary text-sm mt-1">
           {t('trainingLoadCard.loadFailed', {
             defaultValue: 'Could not load your training load.',
@@ -112,12 +109,9 @@ const TrainingLoadDashboardCard: React.FC<TrainingLoadDashboardCardProps> = ({
       className="bg-surface rounded-xl p-4 mb-3 shadow-sm"
     >
       <View className="flex-row items-center justify-between mb-2">
-        <View className="flex-row items-center gap-2">
-          <Icon name="chart-bar" size={18} color={accentPrimary} />
-          <Text className="text-base font-bold text-text-primary">
-            {t('trainingLoadCard.title', { defaultValue: 'Training Load' })}
-          </Text>
-        </View>
+        <Text className="font-bold text-text-secondary">
+          {t('trainingLoadCard.title', { defaultValue: 'Training Load' })}
+        </Text>
         <View className="flex-row items-center">
           <Text className="text-accent-primary font-medium">
             {t('trainingLoadCard.details', { defaultValue: 'Details' })}

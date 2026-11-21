@@ -606,9 +606,6 @@ export const compareQueryKey = (p: CompareParams) =>
 export const compareSinceQueryKey = (p: CompareSinceParams) =>
   ['compare', 'since', p.a, p.b, p.habitStart, p.line] as const;
 
-/** Hours stood in on a day, read from Apple Health on the device. */
-export const standHoursQueryKey = (day: string) => ['standHours', day] as const;
-
 export const glucoseSamplesQueryKeyRoot = ['glucoseSamples'] as const;
 export const glucoseContextQueryKeyRoot = ['glucoseContext'] as const;
 

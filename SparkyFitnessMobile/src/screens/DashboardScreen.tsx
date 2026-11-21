@@ -27,7 +27,6 @@ import { useActiveWorkoutBarPadding } from '../components/ActiveWorkoutBar';
 import CalendarSheet, {
   type CalendarSheetRef,
 } from '../components/CalendarSheet';
-import ActivityRingsCard from '../components/ActivityRingsCard';
 import ActionSheet, {
   type ActionSheetItem,
   type ActionSheetRef,
@@ -44,13 +43,9 @@ import HydrationReminderReconciler from '../components/HydrationReminderReconcil
 import MealReminderReconciler from '../components/MealReminderReconciler';
 import MacroAlertReconciler from '../components/MacroAlertReconciler';
 import HealthTrendsPager from '../components/HealthTrendsPager';
-import HealthTrendTiles from '../components/HealthTrendTiles';
-import type { HealthTrendKey } from '../constants/healthTrends';
 import WeightPlateauCard from '../components/WeightPlateauCard';
 import HydrationGauge from '../components/HydrationGauge';
 import CaffeineCard from '../components/CaffeineCard';
-import { useStandHours } from '../hooks/useStandHours';
-import { useWorkoutHeartRateZones } from '../hooks/useWorkoutHeartRateZones';
 import BloodAlcoholCard from '../components/BloodAlcoholCard';
 import { useBackgroundWaterSync } from '../hooks/useBackgroundWaterSync';
 import Icon from '../components/Icon';
@@ -114,45 +109,7 @@ import {
   resolveHealthTrendOrder,
   selectVisibleHealthTrends,
 } from '../utils/healthTrendPreferences';
-
-import {
-  ACTIVE_POINTS_DAILY_GOAL,
-  activePointsFromZones,
-  buildActivityRings,
-  resolveActivityRingKeys,
-} from '../utils/activityRings';
-import {
-  selectTileTrends,
-  summarizeHealthTrend,
-} from '../utils/healthTrendTiles';
-import {
-  coveredPinnedKeys,
-  pickGlanceMetrics,
-  pinnedTrendKeys,
-  pinsActivePoints,
-  resolveGlanceCandidates,
-} from '../utils/pinnedMetrics';
-import GlanceStrip from '../components/GlanceStrip';
-import MealsDashboardCard from '../components/dashboard/MealsDashboardCard';
-import ReadinessDashboardCard from '../components/dashboard/ReadinessDashboardCard';
-import HeartRateDashboardCard from '../components/dashboard/HeartRateDashboardCard';
-import SleepDashboardCard from '../components/dashboard/SleepDashboardCard';
-import StepsDashboardCard from '../components/dashboard/StepsDashboardCard';
-import SummaryStatusLine from '../components/dashboard/SummaryStatusLine';
-import WorkoutsDashboardCard from '../components/dashboard/WorkoutsDashboardCard';
-import { useStartPlanAssignment } from '../hooks/useStartPlanAssignment';
-import { openExerciseSession } from '../utils/openExerciseSession';
 import { resolveDashboardCardOrder } from '../utils/dashboardCardPreferences';
-import type { DashboardCardKey } from '../constants/dashboardCards';
-import {
-  ASK_SPARKY_PROMPTS,
-  DASHBOARD_TABS,
-  DASHBOARD_TAB_LABELS,
-  cardShowsOnTab,
-  cardsForTab,
-  resolveDashboardTab,
-  resolveSummaryCards,
-} from '../constants/dashboardTabs';
 import { DASHBOARD_CARD_FEATURES } from '../constants/dashboardCards';
 import { useMobileFeatures } from '../hooks/useMobileFeatures';
 import type { RootStackParamList, TabParamList } from '../types/navigation';
@@ -164,11 +121,6 @@ import {
 import { getNetCarbsValue } from '../utils/nutrientUtils';
 import { weightFromKg } from '../utils/unitConversions';
 import { resolveWeightGoal } from '../utils/healthTrendGoals';
-
-const DEFAULT_TREND_RANGE: HealthTrendDateRange = '7d';
-
-/** What the Dashboard list renders: a card, or the Summary tab's status line. */
-type DashboardSlot = DashboardCardKey | 'summaryStatus';
 
 const RANGE_SEGMENTS = (
   t: (key: string, options: { defaultValue: string }) => string
@@ -195,9 +147,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
   const goToNextDay = useDiaryDateStore((s) => s.goToNextDay);
   const goToToday = useDiaryDateStore((s) => s.goToToday);
   const syncTodayRollover = useDiaryDateStore((s) => s.syncTodayRollover);
-  const [activeTrendKey, setActiveTrendKey] = useState<HealthTrendKey | null>(
-    null
-  );
+  const [trendsRange, setTrendsRange] = useState<HealthTrendDateRange>('7d');
   const scrollViewRef = useRef<ScrollView>(null);
   const calendarRef = useRef<CalendarSheetRef>(null);
 
@@ -460,123 +410,11 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
     [healthTrendOrder, hiddenHealthTrends]
   );
 
-  const healthTrendRanges = useAppPreferencesStore((s) => s.healthTrendRanges);
-  const setHealthTrendRange = useAppPreferencesStore(
-    (s) => s.setHealthTrendRange
-  );
-  const healthTrendsLayout = useAppPreferencesStore(
-    (s) => s.healthTrendsLayout
-  );
-  const healthTrendTiles = useAppPreferencesStore((s) => s.healthTrendTiles);
-  const tileTrends = useMemo(
-    () => selectTileTrends(visibleTrends, healthTrendTiles),
-    [visibleTrends, healthTrendTiles]
-  );
-  // With tabs on, a card only counts as shown while its tab is open, so a hidden tab's
-  // cards fetch nothing and the At a Glance strip only skips what is on screen with it.
-  const dashboardTabsEnabled = useAppPreferencesStore(
-    (s) => s.dashboardTabsEnabled
-  );
-  const savedDashboardTab = useAppPreferencesStore((s) => s.dashboardTab);
-  const setDashboardTab = useAppPreferencesStore((s) => s.setDashboardTab);
-  const dashboardTab = resolveDashboardTab(savedDashboardTab);
-  const dashboardTabCardOrders = useAppPreferencesStore(
-    (s) => s.dashboardTabCardOrders
-  );
-  const savedSummaryCards = useAppPreferencesStore(
-    (s) => s.dashboardSummaryCards
-  );
-  const summaryCards = useMemo(
-    () => resolveSummaryCards(savedSummaryCards),
-    [savedSummaryCards]
-  );
-  const isOnTab = useCallback(
-    (key: DashboardCardKey) =>
-      !dashboardTabsEnabled || cardShowsOnTab(key, dashboardTab, summaryCards),
-    [dashboardTabsEnabled, dashboardTab, summaryCards]
-  );
-  const tabSegments = useMemo(
-    () =>
-      DASHBOARD_TABS.map((tab) => ({
-        key: tab,
-        label: DASHBOARD_TAB_LABELS[tab](t),
-      })),
-    [t]
-  );
-
-  // The trends that need loading depend on the layout: tiles loads only the chosen ones.
-  const pinnedMetricsCardVisible = useAppPreferencesStore(
-    (s) => s.pinnedMetricsCardVisible
-  );
-  const glanceOnScreen = pinnedMetricsCardVisible && isOnTab('pinnedMetrics');
-  const savedPinnedMetrics = useAppPreferencesStore((s) => s.pinnedMetrics);
-  const pinnedAuto = useAppPreferencesStore((s) => s.pinnedAuto);
-  const activityRingsCompact = useAppPreferencesStore(
-    (s) => s.activityRingsCompact
-  );
-  const showReportsLink = useAppPreferencesStore(
-    (s) => s.healthTrendsShowReportsLink
-  );
-  const showRangeControl = useAppPreferencesStore(
-    (s) => s.healthTrendsShowRangeControl
-  );
-  // What the At a Glance strip may draw, before data and other cards narrow it down.
-  const pinnedMetrics = useMemo(
-    () =>
-      glanceOnScreen
-        ? resolveGlanceCandidates(pinnedAuto, savedPinnedMetrics)
-        : [],
-    [glanceOnScreen, pinnedAuto, savedPinnedMetrics]
-  );
-  // Trends the strip may show load even when the Health Trends card is not showing them.
-  const loadedTrends = useMemo(() => {
-    const base = healthTrendsLayout === 'tiles' ? tileTrends : visibleTrends;
-    return [...new Set([...base, ...pinnedTrendKeys(pinnedMetrics)])];
-  }, [healthTrendsLayout, tileTrends, visibleTrends, pinnedMetrics]);
-  const rangeOf = useCallback(
-    (key: HealthTrendKey): HealthTrendDateRange =>
-      healthTrendRanges[key] ?? DEFAULT_TREND_RANGE,
-    [healthTrendRanges]
-  );
-
-  // Each graph has its own window, but a fetch covers one window. One hook per window,
-  // each loading only the graphs set to it; a window nobody uses fetches nothing.
-  const trends7d = useHealthTrends({
-    range: '7d',
+  const { refetch: refetchTrends, ...trends } = useHealthTrends({
+    range: trendsRange,
     enabled: isConnected,
-    activeTrends: loadedTrends.filter((key) => rangeOf(key) === '7d'),
+    activeTrends: visibleTrends,
   });
-  const trends30d = useHealthTrends({
-    range: '30d',
-    enabled: isConnected,
-    activeTrends: loadedTrends.filter((key) => rangeOf(key) === '30d'),
-  });
-  const trends90d = useHealthTrends({
-    range: '90d',
-    enabled: isConnected,
-    activeTrends: loadedTrends.filter((key) => rangeOf(key) === '90d'),
-  });
-  const trendsByRange = {
-    '7d': trends7d,
-    '30d': trends30d,
-    '90d': trends90d,
-  } satisfies Record<HealthTrendDateRange, typeof trends7d>;
-  const trends = {
-    steps: trendsByRange[rangeOf('steps')].steps,
-    weight: trendsByRange[rangeOf('weight')].weight,
-    sleep: trendsByRange[rangeOf('sleep')].sleep,
-    hydration: trendsByRange[rangeOf('hydration')].hydration,
-    calories: trendsByRange[rangeOf('calories')].calories,
-    heartRate: trendsByRange[rangeOf('heartRate')].heartRate,
-    vo2max: trendsByRange[rangeOf('vo2max')].vo2max,
-  };
-  const refetchTrends = useCallback(async () => {
-    await Promise.all([
-      trends7d.refetch(),
-      trends30d.refetch(),
-      trends90d.refetch(),
-    ]);
-  }, [trends7d, trends30d, trends90d]);
 
   const { customNutrients, refetch: refetchCustomNutrients } =
     useCustomNutrients({ enabled: isConnected });
@@ -618,10 +456,6 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
     };
   }, [trends.weight, weightUnit]);
   const weightGoal = resolveWeightGoal(profile?.target_weight, weightUnit);
-  const distanceUnit: 'km' | 'miles' =
-    preferences?.default_distance_unit === 'miles' ? 'miles' : 'km';
-  const isToday = getDateRelationToToday(selectedDate) === 'today';
-  const startPlanAssignment = useStartPlanAssignment(navigation);
 
   // CSS variable macro colors are theme-aware (lower saturation than hardcoded hex)
   const [
@@ -668,10 +502,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
     nowMs: caffeineNowMs,
     isLoading: isCaffeineLoading,
     refetch: refetchCaffeine,
-  } = useCaffeineKinetics(
-    selectedDate,
-    caffeineCardVisible && isOnTab('caffeine')
-  );
+  } = useCaffeineKinetics(selectedDate, caffeineCardVisible);
   const bloodAlcoholCardVisible = useAppPreferencesStore(
     (s) => s.bloodAlcoholCardVisible
   );
@@ -679,10 +510,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
     estimate: bloodAlcoholEstimate,
     nowMs: bloodAlcoholNowMs,
     isLoading: isBloodAlcoholLoading,
-  } = useBloodAlcohol(
-    selectedDate,
-    bloodAlcoholCardVisible && isOnTab('bloodAlcohol')
-  );
+  } = useBloodAlcohol(selectedDate, bloodAlcoholCardVisible);
   const askSparkyVisible = useAppPreferencesStore((s) => s.askSparkyVisible);
   const medicationsCardVisible = useAppPreferencesStore(
     (s) => s.medicationsCardVisible
@@ -713,50 +541,6 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
     (s) => s.trainingLoadCardVisible
   );
 
-  const activityRingsCardVisible = useAppPreferencesStore(
-    (s) => s.activityRingsCardVisible
-  );
-  const ringsOnScreen = activityRingsCardVisible && isOnTab('activityRings');
-  const activityRingStyle = useAppPreferencesStore((s) => s.activityRingStyle);
-  const activityRingCustom = useAppPreferencesStore(
-    (s) => s.activityRingCustom
-  );
-  // Active points come from each workout's stored time in heart rate zones, one request
-  // per workout with a heart rate, so nothing is fetched unless the ring is on screen.
-  const showsActivePoints =
-    (ringsOnScreen &&
-      resolveActivityRingKeys(activityRingStyle, activityRingCustom).includes(
-        'points'
-      )) ||
-    pinsActivePoints(pinnedMetrics);
-  const showsStand =
-    (ringsOnScreen &&
-      resolveActivityRingKeys(activityRingStyle, activityRingCustom).includes(
-        'stand'
-      )) ||
-    pinnedMetrics.some((m) => m.kind === 'ring' && m.key === 'stand');
-  const standGoalHours = useAppPreferencesStore((s) => s.standGoalHours);
-  const standHours = useStandHours(selectedDate, showsStand);
-  const dayHeartRateZones = useWorkoutHeartRateZones(
-    showsActivePoints
-      ? (summary?.exerciseEntries ?? []).flatMap((session) =>
-          session.type === 'preset' ? session.exercises : [session]
-        )
-      : []
-  );
-  const workoutsCardVisible = useAppPreferencesStore(
-    (s) => s.workoutsCardVisible
-  );
-  const mealsCardVisible = useAppPreferencesStore((s) => s.mealsCardVisible);
-  const sleepCardVisible = useAppPreferencesStore((s) => s.sleepCardVisible);
-  const stepsCardVisible = useAppPreferencesStore((s) => s.stepsCardVisible);
-  const heartRateCardVisible = useAppPreferencesStore(
-    (s) => s.heartRateCardVisible
-  );
-  const readinessCardVisible = useAppPreferencesStore(
-    (s) => s.readinessCardVisible
-  );
-
   const { sessions: mindfulSessions, totalMindfulMinutes } =
     useMindfulnessDay(selectedDate);
   const {
@@ -771,63 +555,6 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
         isShownByFeature(DASHBOARD_CARD_FEATURES[cardKey], isFeatureOn)
       ),
     [dashboardCardOrder, isFeatureOn]
-  );
-  const shownCardKeys = useMemo(
-    () =>
-      dashboardTabsEnabled
-        ? cardsForTab(dashboardTab, {
-            sharedOrder: orderedDashboardCards,
-            tabOrders: dashboardTabCardOrders,
-            summaryCards,
-          })
-        : orderedDashboardCards,
-    [
-      dashboardTabsEnabled,
-      orderedDashboardCards,
-      dashboardTab,
-      dashboardTabCardOrders,
-      summaryCards,
-    ]
-  );
-  const cardVisible: Record<DashboardCardKey, boolean> = {
-    calorieRing: calorieRingCardVisible,
-    pinnedMetrics: pinnedMetricsCardVisible,
-    askSparky: askSparkyVisible,
-    macros: macrosCardVisible,
-    exercise: exerciseCardVisible,
-    activityRings: activityRingsCardVisible,
-    trainingLoad: trainingLoadCardVisible,
-    hydration: hydrationCardVisible,
-    caffeine: caffeineCardVisible,
-    fasting: fastingCardVisible,
-    cycle: cycleCardVisible,
-    medications: medicationsCardVisible,
-    symptoms: symptomsCardVisible,
-    mood: moodCardVisible,
-    progressPhotos: progressPhotosCardVisible,
-    healthTrends: healthTrendsCardVisible,
-    mindfulness: mindfulnessCardVisible,
-    oralCare: oralCareCardVisible,
-    labResults: labResultsCardVisible,
-    workouts: workoutsCardVisible,
-    meals: mealsCardVisible,
-    sleep: sleepCardVisible,
-    readiness: readinessCardVisible,
-    steps: stepsCardVisible,
-    heartRate: heartRateCardVisible,
-    bloodAlcohol: bloodAlcoholCardVisible,
-    weightProgress: weightProgressCardVisible,
-  };
-  // The Summary tab's status line sits right under Ask Sparky.
-  const shownSlots: DashboardSlot[] =
-    dashboardTabsEnabled && dashboardTab === 'summary'
-      ? shownCardKeys.flatMap((key): DashboardSlot[] =>
-          key === 'askSparky' ? [key, 'summaryStatus'] : [key]
-        )
-      : shownCardKeys;
-  // Ask Sparky alone is not a tab's content, so a tab with nothing else says so.
-  const tabHasVisibleCard = shownCardKeys.some(
-    (key) => key !== 'askSparky' && cardVisible[key]
   );
 
   useLayoutEffect(() => {
@@ -1032,88 +759,10 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
     }
 
     const { eaten, burned, remaining, goal, progress } = summary.calorieBalance;
-
-    // The same figures the Exercise card shows, so the cards agree.
-    const ringValues = {
-      move: {
-        current: summary.otherExerciseCalories,
-        goal: summary.exerciseCaloriesGoal,
-      },
-      exercise: {
-        current: summary.exerciseMinutes,
-        goal: summary.exerciseMinutesGoal,
-      },
-      stand: {
-        current: standHours ?? 0,
-        goal: standGoalHours,
-      },
-      steps: {
-        current: measurements?.steps ?? 0,
-        goal: summary.stepsGoal,
-      },
-      points: {
-        current: activePointsFromZones(dayHeartRateZones),
-        goal: ACTIVE_POINTS_DAILY_GOAL,
-      },
-    };
-    const goalValues = {
-      calories: {
-        current: summary.caloriesConsumed,
-        goal: summary.calorieGoal,
-      },
-      protein: {
-        current: summary.protein.consumed,
-        goal: summary.protein.goal,
-      },
-      carbs: { current: summary.carbs.consumed, goal: summary.carbs.goal },
-      fat: { current: summary.fat.consumed, goal: summary.fat.goal },
-      water: { current: summary.waterConsumed, goal: summary.waterGoal },
-    };
-    const pinnedTrendInput =
-      pinnedTrendKeys(pinnedMetrics).length > 0
-        ? {
-            steps: trends.steps.data,
-            weight: weightSeries.data,
-            sleep: trends.sleep.data,
-            hydration: trends.hydration.data,
-            calories: trends.calories.data,
-            heartRate: trends.heartRate.data,
-            vo2max: trends.vo2max.data,
-          }
-        : null;
-    const pinnedTrendSummaries = pinnedTrendInput
-      ? Object.fromEntries(
-          pinnedTrendKeys(pinnedMetrics).map((key) => [
-            key,
-            summarizeHealthTrend(key, pinnedTrendInput),
-          ])
-        )
-      : {};
-    // The strip drops metrics with no data and, in automatic mode, those another visible
-    // card already shows.
-    const glanceMetrics = pickGlanceMetrics({
-      auto: pinnedAuto,
-      candidates: pinnedMetrics,
-      covered: coveredPinnedKeys({
-        activityRings: ringsOnScreen
-          ? resolveActivityRingKeys(activityRingStyle, activityRingCustom)
-          : null,
-        exercise: exerciseCardVisible && isOnTab('exercise'),
-        calorieRing: calorieRingCardVisible && isOnTab('calorieRing'),
-        macros: macrosCardVisible && isOnTab('macros'),
-        hydration: hydrationCardVisible && isOnTab('hydration'),
-      }),
-      hasData: (metric) =>
-        metric.kind !== 'trend' ||
-        pinnedTrendSummaries[metric.key]?.headline != null,
-    });
     const showNetCarbs = preferences.show_net_carbs === true;
 
     return (
       <ScrollView
-        // A new list per tab, so a tab opens at the top. Scrolling to y = 0 instead
-        // lands under the iOS large-title header, whose resting offset is above 0.
-        key={dashboardTabsEnabled ? `tab-${dashboardTab}` : 'all-cards'}
         ref={scrollViewRef}
         className="flex-1 bg-background"
         style={{ flex: 1 }}
@@ -1142,41 +791,8 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
             to `selectedDate`. Visibility is a local app setting toggled from
             Dashboard Settings. */}
         <FastingGoalReconciler />
-        {dashboardTabsEnabled && (
-          <View className="mb-3">
-            <SegmentedControl
-              testID="dashboard-tabs"
-              tone="accent"
-              segments={tabSegments}
-              activeKey={dashboardTab}
-              onSelect={setDashboardTab}
-            />
-          </View>
-        )}
-        {dashboardTabsEnabled && !tabHasVisibleCard && (
-          <Pressable
-            testID="dashboard-tab-empty"
-            onPress={() => navigation.navigate('DashboardSettings')}
-            className="bg-surface rounded-xl p-4 mb-3 shadow-sm"
-          >
-            <Text className="text-text-secondary text-sm text-center">
-              {t('dashboard.tabEmpty', {
-                defaultValue:
-                  'All the cards on this tab are hidden. Tap to choose cards in Dashboard Settings.',
-              })}
-            </Text>
-          </Pressable>
-        )}
-        {shownSlots.map((cardKey) => {
+        {orderedDashboardCards.map((cardKey) => {
           switch (cardKey) {
-            case 'summaryStatus':
-              return (
-                <SummaryStatusLine
-                  key="summaryStatus"
-                  date={selectedDate}
-                  isToday={isToday}
-                />
-              );
             case 'calorieRing':
               return calorieRingCardVisible &&
                 (summary.foodEntries.length > 0 ||
@@ -1208,11 +824,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                 >
                   <Icon name="sparkles" size={18} color={accentColor} />
                   <Text className="text-text-muted text-base ml-3">
-                    {dashboardTabsEnabled
-                      ? ASK_SPARKY_PROMPTS[dashboardTab](t)
-                      : t('dashboard.askSparky', {
-                          defaultValue: 'Ask Sparky…',
-                        })}
+                    {t('dashboard.askSparky', { defaultValue: 'Ask Sparky…' })}
                   </Text>
                 </Pressable>
               ) : null;
@@ -1249,14 +861,11 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                       }
                       className="flex-row justify-between items-center mb-2 px-1"
                     >
-                      <View className="flex-row items-center gap-2">
-                        <Icon name="food" size={18} color={accentColor} />
-                        <Text className="text-base font-bold text-text-primary">
-                          {t('dashboard.nutrients', {
-                            defaultValue: 'Nutrients',
-                          })}
-                        </Text>
-                      </View>
+                      <Text className="text-md font-bold text-text-secondary">
+                        {t('dashboard.nutrients', {
+                          defaultValue: 'Nutrients',
+                        })}
+                      </Text>
                       <View className="flex-row items-center">
                         <Text className="text-xs font-semibold text-accent-primary mr-1">
                           {t('common.details', { defaultValue: 'Details' })}
@@ -1393,39 +1002,6 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                   }
                 />
               ) : null;
-            case 'pinnedMetrics':
-              return pinnedMetricsCardVisible ? (
-                <GlanceStrip
-                  key="pinnedMetrics"
-                  metrics={glanceMetrics}
-                  ringValues={ringValues}
-                  goalValues={goalValues}
-                  trendSummaries={pinnedTrendSummaries}
-                  rangeFor={rangeOf}
-                  weightUnit={weightUnit}
-                  waterUnit={waterDisplayUnit}
-                  onPressSettings={() =>
-                    navigation.navigate('PinnedMetricsSettings')
-                  }
-                />
-              ) : null;
-            case 'activityRings':
-              return activityRingsCardVisible ? (
-                <ActivityRingsCard
-                  key="activityRings"
-                  compact={activityRingsCompact}
-                  rings={buildActivityRings(
-                    resolveActivityRingKeys(
-                      activityRingStyle,
-                      activityRingCustom
-                    ),
-                    ringValues
-                  )}
-                  onPressSettings={() =>
-                    navigation.navigate('ActivityRingsSettings')
-                  }
-                />
-              ) : null;
             case 'hydration':
               return hydrationCardVisible
                 ? renderHydrationGauge(summary)
@@ -1495,81 +1071,51 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                   </Text>
                   {/* Beside the heading, not around it: the heading stays a direct
                       child of the card's wrapper, which carries the card margin. */}
-                  {showReportsLink && (
-                    <Pressable
-                      testID="dashboard-reports-link"
-                      accessibilityRole="button"
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      onPress={() => navigation.navigate('Reports')}
-                      className="flex-row items-center"
-                      style={{ position: 'absolute', right: 0, top: 6 }}
-                    >
-                      <Text className="text-accent-primary font-medium">
-                        {t('dashboard.reportsLink', {
-                          defaultValue: 'Reports',
-                        })}
-                      </Text>
-                      <Icon
-                        name="chevron-forward"
-                        size={14}
-                        color={accentColor}
-                        style={{ marginLeft: 2 }}
-                      />
-                    </Pressable>
-                  )}
-                  {healthTrendsLayout === 'tiles' ? (
-                    <HealthTrendTiles
-                      steps={trends.steps}
-                      weight={weightSeries}
-                      sleep={trends.sleep}
-                      hydration={trends.hydration}
-                      calories={trends.calories}
-                      heartRate={trends.heartRate}
-                      vo2max={trends.vo2max}
-                      range={DEFAULT_TREND_RANGE}
-                      ranges={healthTrendRanges}
-                      weightUnit={weightUnit}
-                      waterUnit={waterDisplayUnit}
-                      hydrationGoals={trends.hydration.hydrationGoals}
-                      weightGoal={weightGoal}
-                      calorieGoals={trends.calories.calorieGoals}
-                      tileTrends={tileTrends}
+                  <Pressable
+                    testID="dashboard-reports-link"
+                    accessibilityRole="button"
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    onPress={() => navigation.navigate('Reports')}
+                    className="flex-row items-center"
+                    style={{ position: 'absolute', right: 0, top: 6 }}
+                  >
+                    <Text className="text-accent-primary font-medium">
+                      {t('dashboard.reportsLink', {
+                        defaultValue: 'Reports',
+                      })}
+                    </Text>
+                    <Icon
+                      name="chevron-forward"
+                      size={14}
+                      color={accentColor}
+                      style={{ marginLeft: 2 }}
                     />
-                  ) : (
-                    <>
-                      {showRangeControl &&
-                        visibleTrends.length > 0 &&
-                        activeTrendKey && (
-                          <SegmentedControl
-                            segments={RANGE_SEGMENTS(t)}
-                            activeKey={rangeOf(activeTrendKey)}
-                            onSelect={(range) =>
-                              setHealthTrendRange(activeTrendKey, range)
-                            }
-                          />
-                        )}
-                      <HealthTrendsPager
-                        steps={trends.steps}
-                        weight={weightSeries}
-                        sleep={trends.sleep}
-                        hydration={trends.hydration}
-                        calories={trends.calories}
-                        heartRate={trends.heartRate}
-                        vo2max={trends.vo2max}
-                        range={DEFAULT_TREND_RANGE}
-                        ranges={healthTrendRanges}
-                        weightUnit={weightUnit}
-                        waterUnit={waterDisplayUnit}
-                        hydrationGoals={trends.hydration.hydrationGoals}
-                        weightGoal={weightGoal}
-                        calorieGoals={trends.calories.calorieGoals}
-                        visibleTrends={visibleTrends}
-                        activePage={chartPage}
-                        onPageSelected={setChartPage}
-                        onActiveTrendChange={setActiveTrendKey}
-                      />
-                    </>
+                  </Pressable>
+                  {visibleTrends.length > 0 && (
+                    <SegmentedControl
+                      segments={RANGE_SEGMENTS(t)}
+                      activeKey={trendsRange}
+                      onSelect={setTrendsRange}
+                    />
                   )}
+                  <HealthTrendsPager
+                    steps={trends.steps}
+                    weight={weightSeries}
+                    sleep={trends.sleep}
+                    hydration={trends.hydration}
+                    calories={trends.calories}
+                    heartRate={trends.heartRate}
+                    vo2max={trends.vo2max}
+                    range={trendsRange}
+                    weightUnit={weightUnit}
+                    waterUnit={waterDisplayUnit}
+                    hydrationGoals={trends.hydration.hydrationGoals}
+                    weightGoal={weightGoal}
+                    calorieGoals={trends.calories.calorieGoals}
+                    visibleTrends={visibleTrends}
+                    activePage={chartPage}
+                    onPageSelected={setChartPage}
+                  />
                   <WeightPlateauCard enabled={isConnected} />
                 </View>
               ) : null;
@@ -1596,89 +1142,6 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
             case 'labResults':
               return labResultsCardVisible ? (
                 <LabResultsCard key="labResults" navigation={navigation} />
-              ) : null;
-            case 'sleep':
-              return sleepCardVisible ? (
-                <SleepDashboardCard
-                  key="sleep"
-                  date={selectedDate}
-                  onOpenSleep={(entryId, day) =>
-                    navigation.navigate('SleepDetail', { entryId, day })
-                  }
-                />
-              ) : null;
-            case 'readiness':
-              return readinessCardVisible ? (
-                <ReadinessDashboardCard
-                  key="readiness"
-                  isToday={isToday}
-                  onOpenDetails={() =>
-                    navigation.navigate('ExerciseStatistics')
-                  }
-                />
-              ) : null;
-            case 'meals':
-              return mealsCardVisible ? (
-                <MealsDashboardCard
-                  key="meals"
-                  foodEntries={summary.foodEntries}
-                  goals={summary.goals}
-                  calorieGoal={summary.calorieGoal}
-                  onAddFood={(mealTypeId) =>
-                    navigation.navigate('FoodSearch', {
-                      date: selectedDate,
-                      mealTypeId,
-                    })
-                  }
-                  onOpenMeal={(group, label) =>
-                    navigation.navigate('MealTypeDetail', {
-                      date: selectedDate,
-                      mealTypeId: group.mealTypeId ?? undefined,
-                      mealType: group.name,
-                      mealLabel: label,
-                    })
-                  }
-                />
-              ) : null;
-            case 'workouts':
-              return workoutsCardVisible ? (
-                <WorkoutsDashboardCard
-                  key="workouts"
-                  date={selectedDate}
-                  isToday={isToday}
-                  sessions={summary.exerciseEntries}
-                  weightUnit={weightUnit}
-                  distanceUnit={distanceUnit}
-                  onOpenSession={(session) =>
-                    openExerciseSession(navigation, session, distanceUnit)
-                  }
-                  onStartPlanned={(plan, assignment) => {
-                    void startPlanAssignment(plan, assignment);
-                  }}
-                  onLog={() =>
-                    navigation.navigate('ActivityAdd', { date: selectedDate })
-                  }
-                  onRecord={() => navigation.navigate('RecordActivity')}
-                />
-              ) : null;
-            case 'steps':
-              return stepsCardVisible ? (
-                <StepsDashboardCard
-                  key="steps"
-                  date={selectedDate}
-                  steps={measurements?.steps ?? 0}
-                  goal={summary.stepsGoal}
-                  onOpenTrends={() => navigation.navigate('Reports')}
-                />
-              ) : null;
-            case 'heartRate':
-              return heartRateCardVisible ? (
-                <HeartRateDashboardCard
-                  key="heartRate"
-                  date={selectedDate}
-                  sessions={summary.exerciseEntries}
-                  onOpenReport={() => navigation.navigate('HeartRateReport')}
-                />
               ) : null;
             case 'oralCare':
               return oralCareCardVisible ? (

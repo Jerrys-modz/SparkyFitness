@@ -544,8 +544,6 @@ export type RootStackParamList = {
   AllergenSettings: undefined;
   DashboardSettings: undefined;
   HealthTrendsSettings: undefined;
-  ActivityRingsSettings: undefined;
-  PinnedMetricsSettings: undefined;
   WatchSettings: undefined;
   WatchComplications: undefined;
   WatchComplicationEdit: { complicationId?: string } | undefined;
