@@ -4334,6 +4334,8 @@
     "other": "Other"
   },
   "foodEntryAdd": {
+    "queued": "Saved on this phone",
+    "queuedMessage": "It uploads when your server can be reached.",
     "errors": {
       "equivalentsNotSaved": "Some equivalent units could not be saved",
       "invalidAmount": "Invalid amount",
@@ -6442,6 +6444,8 @@
   "waterIntake": {
     "updateFailed": "Error",
     "updateMessage": "Failed to update water intake. Please try again.",
+    "queued": "Saved on this phone",
+    "queuedMessage": "It uploads when your server can be reached.",
     "noPrimary": "No Primary Container",
     "noContainers": "No Water Containers",
     "multipleNoPrimary": "You have multiple water containers but none is marked as primary. Please set one as primary on the server.",
@@ -10929,7 +10933,7 @@
     "presetUpdateQueued": "Saved workout will be updated when you are back online",
     "presetUpdateSkipped": "Saved workout \"{{name}}\" was not updated because it was changed elsewhere",
     "presetUpdated": "Saved workout \"{{name}}\" updated",
-    "diaryNote": "Only workouts are available offline. Food and other entries need a connection.",
+    "diaryNote": "Food and workouts from the last week are available offline. Sleep and the other entries need a connection.",
     "diaryNothingSaved": "Nothing saved for this day",
     "finishedTitle": "Saved on this phone",
     "finishedMessage": "It uploads when your server can be reached.",
@@ -10986,6 +10990,8 @@
     },
     "kind": {
       "workout": "Workout",
+      "food": "Food entry",
+      "water": "Drink",
       "other": "Saved change"
     },
     "libraryNote": "Only workouts and exercises are available offline. Everything else in the Library needs a connection."
