@@ -2,10 +2,13 @@ import { useMemo } from 'react';
 import { useActivityDetailsQuery } from '@/hooks/Exercises/useExercises';
 import { useResolvedHeartRateZones } from '@/hooks/Settings/useHeartRateZones';
 import { useWorkoutHrZones } from '@/hooks/useGenericHealth';
-import { zoneEdges, zoneGradientStops } from '@/utils/heartRateZoneBands';
 import { extractWorkoutHeartRateSeries } from '@/utils/workoutTelemetryExtractor';
 import { displayBandLabel } from '@/utils/heartRateZoneLabels';
-import { computeTimeInZones } from '@workspace/shared';
+import {
+  computeTimeInZones,
+  zoneEdgeLines,
+  zoneGradientStops,
+} from '@workspace/shared';
 import { useTranslation } from 'react-i18next';
 
 interface WorkoutZoneBreakdownInput {
@@ -26,7 +29,7 @@ export const useWorkoutZoneBreakdown = ({
   // fallback from raw readings uses the zones as they are now.
   const resolvedZones = useResolvedHeartRateZones();
   const { bands } = resolvedZones;
-  const edges = useMemo(() => zoneEdges(bands), [bands]);
+  const edges = useMemo(() => zoneEdgeLines(bands), [bands]);
 
   const breakdown = useMemo(() => {
     const secondsByZone = [0, 0, 0, 0, 0];

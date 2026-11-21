@@ -12,7 +12,8 @@ import {
   formatTooltipDate,
   computeNiceYAxisScale,
 } from '../charts/chartFormatting';
-import LineSeriesMark from '../charts/LineSeriesMark';
+import HeartRateZoneLine from '../charts/HeartRateZoneLine';
+import { useHeartRateZoneBands } from '../../hooks/useHeartRateZoneBands';
 import ChartTouchOverlay, {
   ChartLayoutReporter,
   EMPTY_CHART_TOUCH_LAYOUT,
@@ -42,10 +43,9 @@ const HeartRateRangeCard: React.FC<Props> = ({
 }) => {
   const { t } = useTranslation();
   const font = useChartFont(CHART_LABEL_FONT_SIZE);
-  const [lineColor, textMuted] = useCSSVariable([
-    '--color-heart-rate',
-    '--color-text-muted',
-  ]) as [string, string];
+  const textMuted = useCSSVariable('--color-text-muted') as string;
+  // Each day's average takes the color of the person's zone
+  const bands = useHeartRateZoneBands();
   const { days, isLoading, isError } = useHeartRateDailyAverages(
     startDate,
     endDate
@@ -148,16 +148,19 @@ const HeartRateRangeCard: React.FC<Props> = ({
               },
             ]}
           >
-            {({ points, chartBounds }) => (
+            {({ points, chartBounds, yScale: toY }) => (
               <>
                 <ChartLayoutReporter
                   chartBounds={chartBounds}
                   points={points.avgBpm}
                   onChange={handleLayout}
                 />
-                <LineSeriesMark
+                <HeartRateZoneLine
                   points={points.avgBpm}
-                  color={lineColor}
+                  bands={bands}
+                  chartBounds={chartBounds}
+                  yScale={toY}
+                  showZoneLines={false}
                   strokeWidth={2.2}
                   curveType="cardinal"
                   connectMissingData

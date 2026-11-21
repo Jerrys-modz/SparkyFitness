@@ -6,10 +6,9 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  defaultHeartRateZones,
   heartRateDisplayBands,
+  resolvedHeartRateZonesFromResponse,
   type HeartRateZonesResponse,
-  type ResolvedHeartRateZones,
   type UpdateHeartRateZonesBody,
 } from '@workspace/shared';
 import { useMemo } from 'react';
@@ -61,21 +60,7 @@ export const useUpdateHeartRateZonesMutation = () => {
 export const useResolvedHeartRateZones = () => {
   const { data } = useHeartRateZones();
   return useMemo(() => {
-    const resolved: ResolvedHeartRateZones = data
-      ? {
-          maxHr: data.resolved.max_hr,
-          maxHrSource: data.resolved.max_hr_source,
-          restingHr: data.resolved.resting_hr,
-          method: data.resolved.method,
-          effectiveMethod: data.resolved.effective_method,
-          floors: data.resolved.zones.map((z) => z.lower_bpm),
-          zones: data.resolved.zones.map((z) => ({
-            zone: z.zone,
-            lowerBpm: z.lower_bpm,
-            upperBpm: z.upper_bpm,
-          })),
-        }
-      : defaultHeartRateZones();
+    const resolved = resolvedHeartRateZonesFromResponse(data);
     const displayZones = data?.settings.display_zones ?? 5;
     return {
       resolved,

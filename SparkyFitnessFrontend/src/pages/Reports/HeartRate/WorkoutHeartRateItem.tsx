@@ -241,12 +241,14 @@ const WorkoutHeartRateItem: React.FC<{
                     })
                   }
                 />
-                {edges.map((bpm) => (
+                {edges.map((edge) => (
                   <ReferenceLine
-                    key={bpm}
-                    y={bpm}
-                    stroke={chartTheme.refLineColor}
-                    strokeDasharray="4 4"
+                    key={edge.bpm}
+                    y={edge.bpm}
+                    stroke={edge.color}
+                    strokeDasharray="2 5"
+                    strokeWidth={1.5}
+                    strokeOpacity={0.8}
                   />
                 ))}
                 <Line

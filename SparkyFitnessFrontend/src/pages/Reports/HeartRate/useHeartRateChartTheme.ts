@@ -11,9 +11,6 @@ export const useHeartRateChartTheme = () => {
       gridColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)',
       tickColor: isDark ? 'rgba(255, 255, 255, 0.45)' : '#6b7280',
       axisLineColor: isDark ? 'rgba(255, 255, 255, 0.1)' : '#e5e7eb',
-      refLineColor: isDark
-        ? 'rgba(255, 255, 255, 0.15)'
-        : 'rgba(0, 0, 0, 0.12)',
       tooltipBg: isDark ? '#111827' : '#ffffff',
       tooltipBorder: isDark ? 'rgba(255, 255, 255, 0.15)' : '#e5e7eb',
       tooltipText: isDark ? '#ffffff' : '#111827',
