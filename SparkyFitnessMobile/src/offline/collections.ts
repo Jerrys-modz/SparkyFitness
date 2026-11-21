@@ -27,6 +27,10 @@ export const CACHE_COLLECTIONS = {
   profile: 'profile',
   /** The person's foods, keyed by food id, searched by "brand name". */
   food: 'food',
+  /** The person's meals (saved templates), keyed by meal id. */
+  meal: 'meal',
+  /** A food's barcode, keyed by the barcode: points at the food's id. */
+  foodBarcode: 'food_barcode',
   /** Every serving of a food, keyed by food id. */
   foodVariants: 'food_variants',
   /** The recent and most-used foods lists (one document). */

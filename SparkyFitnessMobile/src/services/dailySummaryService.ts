@@ -12,6 +12,7 @@ import {
 } from './api/dailySummaryApi';
 import {
   readWaitingForDay,
+  withoutDeleted,
   type WaitingForDay,
 } from '../offline/dailySummaryOverlay';
 import { resolveCollapsedFoodEntries } from '../utils/loggedMealCollapse';
@@ -19,6 +20,7 @@ import { calculateExerciseStats } from '../utils/workoutSession';
 import type { DailySummary } from '../types/dailySummary';
 import type { DailyGoals } from '../types/goals';
 import type { FoodEntry } from '../types/foodEntries';
+import { applyEntryChanges } from '../offline/foodEntryChanges';
 import type {
   ExerciseSessionResponse,
   CalorieBalance,
@@ -81,12 +83,34 @@ export function applyWaitingToRawData(
   raw: DailySummaryRawData,
   waiting: WaitingForDay
 ): DailySummaryRawData {
-  if (waiting.foodEntries.length === 0 && waiting.waterMl === 0) return raw;
-  const addedCalories = calculateCaloriesConsumed(waiting.foodEntries);
+  const { deletedFoodEntryIds, deletedMealIds, changedEntries } = waiting;
+  if (
+    waiting.foodEntries.length === 0 &&
+    waiting.waterMl === 0 &&
+    deletedFoodEntryIds.length === 0 &&
+    deletedMealIds.length === 0 &&
+    Object.keys(changedEntries).length === 0
+  ) {
+    return raw;
+  }
+  // An entry the server has whose removal waits to upload is already out of
+  // the day's list and its calories are back, as they will be once it is gone.
+  const notGone = withoutDeleted(
+    raw.foodEntries,
+    deletedFoodEntryIds,
+    deletedMealIds
+  );
+  const removed = raw.foodEntries.filter((entry) => !notGone.includes(entry));
+  // A change made on the phone shows at once, as it will read once uploaded.
+  const kept = applyEntryChanges(notGone, changedEntries);
+  const addedCalories =
+    calculateCaloriesConsumed(waiting.foodEntries) -
+    calculateCaloriesConsumed(removed) +
+    (calculateCaloriesConsumed(kept) - calculateCaloriesConsumed(notGone));
   const { calorieBalance, waterIntakeBreakdown } = raw;
   return {
     ...raw,
-    foodEntries: [...raw.foodEntries, ...waiting.foodEntries],
+    foodEntries: [...kept, ...waiting.foodEntries],
     calorieBalance: calorieBalance && {
       ...calorieBalance,
       eaten: calorieBalance.eaten + addedCalories,

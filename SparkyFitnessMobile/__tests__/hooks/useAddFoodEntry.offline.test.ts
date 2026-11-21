@@ -5,6 +5,7 @@ import {
   useAddFoodEntry,
 } from '../../src/hooks/useAddFoodEntry';
 import { createFoodEntry } from '../../src/services/api/foodEntriesApi';
+import { saveFood } from '../../src/services/api/foodsApi';
 import { ApiError } from '../../src/services/api/errors';
 import { TimeoutError } from '../../src/utils/concurrency';
 import { createTestQueryClient, createQueryWrapper } from './queryTestUtils';
@@ -24,6 +25,14 @@ jest.mock('../../src/offline/foodEntryHandOver', () => ({
   queueFoodEntry: (...args: unknown[]) => mockQueueFoodEntry(...args),
 }));
 
+const mockQueueFoodCreate = jest.fn();
+const mockFindWaitingFood = jest.fn();
+jest.mock('../../src/offline/foodCreateHandOver', () => ({
+  ...jest.requireActual('../../src/offline/foodCreateHandOver'),
+  queueFoodCreate: (...args: unknown[]) => mockQueueFoodCreate(...args),
+  findWaitingFood: (...args: unknown[]) => mockFindWaitingFood(...args),
+}));
+const mockSaveFood = saveFood as jest.MockedFunction<typeof saveFood>;
 const mockCreate = createFoodEntry as jest.MockedFunction<
   typeof createFoodEntry
 >;
@@ -141,5 +150,172 @@ describe('useAddFoodEntry while the server is unreachable', () => {
       )
     );
     expect(mockQueueFoodEntry).not.toHaveBeenCalled();
+  });
+});
+
+describe('useAddFoodEntry creating a food while the server is unreachable', () => {
+  const food = {
+    name: 'Homemade bread',
+    brand: null,
+    serving_size: 50,
+    serving_unit: 'g',
+    calories: 130,
+    protein: 4,
+    carbs: 25,
+    fat: 1,
+  };
+  const entry = {
+    meal_type_id: 'meal-1',
+    quantity: 2,
+    unit: 'g',
+    entry_date: '2026-11-21',
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockQueueFoodCreate.mockReset();
+  });
+
+  it('keeps the new food and its entry on the phone', async () => {
+    mockSaveFood.mockRejectedValue(new TypeError('Network request failed'));
+    mockQueueFoodCreate.mockResolvedValue(true);
+    const { result, onSuccess } = setup();
+
+    await act(async () => {
+      result.current.addEntry({
+        saveFoodPayload: food,
+        createEntryPayload: entry,
+      });
+    });
+
+    await waitFor(() => expect(onSuccess).toHaveBeenCalledTimes(1));
+    const sentKey = mockSaveFood.mock.calls[0][0].client_id;
+    expect(sentKey).toEqual(expect.any(String));
+    // The food keeps the key its first request carried.
+    expect(mockQueueFoodCreate).toHaveBeenCalledWith(
+      sentKey,
+      expect.any(String),
+      food,
+      entry
+    );
+    expect(isPendingEntry(onSuccess.mock.calls[0][0])).toBe(true);
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  it('does not queue after a timeout', async () => {
+    mockSaveFood.mockRejectedValue(new TimeoutError('Request', 1000));
+    const { result, onSuccess } = setup();
+
+    await act(async () => {
+      result.current.addEntry({
+        saveFoodPayload: food,
+        createEntryPayload: entry,
+      });
+    });
+
+    await waitFor(() =>
+      expect(Toast.show).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'error' })
+      )
+    );
+    expect(mockQueueFoodCreate).not.toHaveBeenCalled();
+    expect(onSuccess).not.toHaveBeenCalled();
+  });
+
+  it('does not queue a food that carries a picture', async () => {
+    mockSaveFood.mockRejectedValue(new TypeError('Network request failed'));
+    const { result } = setup();
+
+    await act(async () => {
+      result.current.addEntry({
+        saveFoodPayload: food,
+        saveFoodImages: { order: ['__new__0'], newUris: ['file:///a.jpg'] },
+        createEntryPayload: entry,
+      });
+    });
+
+    await waitFor(() =>
+      expect(Toast.show).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'error' })
+      )
+    );
+    expect(mockQueueFoodCreate).not.toHaveBeenCalled();
+  });
+});
+
+describe('useAddFoodEntry logging a food that is still waiting to upload', () => {
+  const KEY = '11111111-1111-4111-8111-111111111111';
+  const waitingFood = {
+    name: 'Homemade bread',
+    brand: null,
+    serving_size: 50,
+    serving_unit: 'g',
+    calories: 130,
+    protein: 4,
+    carbs: 25,
+    fat: 1,
+  };
+  const entry = {
+    meal_type_id: 'meal-1',
+    quantity: 2,
+    unit: 'g',
+    entry_date: '2026-11-21',
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockQueueFoodCreate.mockReset();
+    mockFindWaitingFood.mockReset();
+  });
+
+  it('keeps the entry with the food, under the food key, without asking the server', async () => {
+    mockFindWaitingFood.mockResolvedValue({
+      foodClientId: KEY,
+      food: waitingFood,
+    });
+    mockQueueFoodCreate.mockResolvedValue(true);
+    const { result, onSuccess } = setup();
+
+    await act(async () => {
+      result.current.addEntry({
+        createEntryPayload: {
+          ...entry,
+          food_id: `pendingfood-${KEY}`,
+          variant_id: `pendingvariant-${KEY}`,
+        },
+      });
+    });
+
+    await waitFor(() => expect(onSuccess).toHaveBeenCalledTimes(1));
+    expect(mockCreate).not.toHaveBeenCalled();
+    expect(mockQueueFoodCreate).toHaveBeenCalledWith(
+      KEY,
+      expect.any(String),
+      waitingFood,
+      expect.not.objectContaining({ food_id: expect.anything() })
+    );
+    expect(isPendingEntry(onSuccess.mock.calls[0][0])).toBe(true);
+  });
+
+  it('fails plainly once the food has uploaded under another id', async () => {
+    mockFindWaitingFood.mockResolvedValue(null);
+    const { result, onSuccess } = setup();
+
+    await act(async () => {
+      result.current.addEntry({
+        createEntryPayload: {
+          ...entry,
+          food_id: `pendingfood-${KEY}`,
+          variant_id: `pendingvariant-${KEY}`,
+        },
+      });
+    });
+
+    await waitFor(() =>
+      expect(Toast.show).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'error' })
+      )
+    );
+    expect(onSuccess).not.toHaveBeenCalled();
   });
 });

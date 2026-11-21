@@ -23,6 +23,12 @@ import {
   fetchFoodVariants,
 } from '../../src/services/api/foodsApi';
 import { fetchMealTypes } from '../../src/services/api/mealTypesApi';
+import { lookupBarcodeV2 } from '../../src/services/api/externalFoodSearchApi';
+import {
+  fetchMeal,
+  fetchMeals,
+  searchMeals,
+} from '../../src/services/api/mealsApi';
 import type { FoodItem } from '../../src/types/foods';
 import { createTestDb } from '../helpers/offlineTestDb';
 
@@ -107,6 +113,12 @@ describe('the food library on the phone', () => {
       if (endpoint === '/api/foods') {
         return { recentFoods: own.slice(0, 2), topFoods: [] };
       }
+      if (endpoint === '/api/meals') {
+        return [
+          { id: 'meal-1', name: 'Porridge', foods: [] },
+          { id: 'meal-2', name: 'Stew', foods: [] },
+        ];
+      }
       if (endpoint === '/api/water-containers') {
         return [
           { id: 4, name: 'Glass', volume: 500, servings_per_container: 2 },
@@ -161,6 +173,10 @@ describe('the food library on the phone', () => {
       (await listCacheRows(db, 's1', CACHE_COLLECTIONS.mealTypes))[0].key
     ).toBe(SINGLE_DOCUMENT_KEY);
     expect(variantCalls).toHaveLength(3);
+    // The saved meals are kept too, by name, for logging a meal offline.
+    expect(
+      (await listCacheRows(db, 's1', CACHE_COLLECTIONS.meal)).map((r) => r.key)
+    ).toEqual(['meal-1', 'meal-2']);
     // The water containers are kept too, for the drinks logged offline.
     expect(
       (await listCacheRows(db, 's1', CACHE_COLLECTIONS.waterContainers))[0].key
@@ -233,7 +249,10 @@ describe('the food library on the phone', () => {
 
   describe('through the API clients with the server away', () => {
     beforeEach(async () => {
-      serve([food('a', 'Apple'), food('b', 'Bread')]);
+      serve([
+        { ...food('a', 'Apple'), barcode: ' 5000000000017 ' } as FoodItem,
+        food('b', 'Bread'),
+      ]);
       await refreshFoodLibrary(db, 's1');
       mockApiFetch.mockRejectedValue(new TypeError('Network request failed'));
     });
@@ -248,6 +267,32 @@ describe('the food library on the phone', () => {
       await expect(
         fetchFoodsPage({ searchTerm: '', sortBy: 'calories:desc' })
       ).rejects.toBeInstanceOf(TypeError);
+    });
+
+    it('answers a barcode scan from the foods kept, with their servings', async () => {
+      const result = await lookupBarcodeV2('5000000000017');
+
+      expect(result.source).toBe('local');
+      expect(result.food).toMatchObject({
+        id: 'a',
+        name: 'Apple',
+        barcode: '5000000000017',
+      });
+      expect(result.food?.variants).toHaveLength(1);
+    });
+
+    it('does not answer a barcode the phone does not know', async () => {
+      await expect(lookupBarcodeV2('0000000000000')).rejects.toBeInstanceOf(
+        TypeError
+      );
+    });
+
+    it('finds a saved meal by name and opens one by id', async () => {
+      expect((await searchMeals('stew')).map((meal) => meal.id)).toEqual([
+        'meal-2',
+      ]);
+      expect((await fetchMeal('meal-1')).name).toBe('Porridge');
+      expect(await fetchMeals()).toHaveLength(2);
     });
 
     it('answers servings and meal types', async () => {

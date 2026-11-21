@@ -31,6 +31,13 @@ import {
   pendingEntryId,
   queueFoodEntry,
 } from '../offline/foodEntryHandOver';
+import {
+  findWaitingFood,
+  isPendingFoodId,
+  isQueueableFoodCreate,
+  pendingFoodClientId,
+  queueFoodCreate,
+} from '../offline/foodCreateHandOver';
 import { newUuid } from '../utils/ids';
 
 /** True for an entry that is waiting on the phone, not yet on the server. */
@@ -76,6 +83,29 @@ async function createOrQueueFoodEntry(
   payload: CreateFoodEntryPayload
 ): Promise<FoodEntry> {
   const clientId = newUuid();
+  // A food that is itself still waiting to upload has no id on the server
+  // yet: the entry goes up with the food, which the server answers with the
+  // food it already made when the key is repeated.
+  if (payload.food_id && isPendingFoodId(payload.food_id)) {
+    const waiting = await findWaitingFood(pendingFoodClientId(payload.food_id));
+    if (!waiting) throw new Error('The new food has been uploaded; try again');
+    const { food_id: _foodId, variant_id: _variantId, ...entry } = payload;
+    if (
+      !(await queueFoodCreate(
+        waiting.foodClientId,
+        clientId,
+        waiting.food,
+        entry
+      ))
+    ) {
+      throw new Error('Could not keep the entry on the phone');
+    }
+    return pendingEntryFrom(clientId, {
+      ...payload,
+      food_name: waiting.food.name,
+      calories: waiting.food.calories,
+    });
+  }
   try {
     return await createFoodEntry({ ...payload, client_id: clientId });
   } catch (error) {
@@ -189,10 +219,58 @@ export function useAddFoodEntry(options?: UseAddFoodEntryOptions) {
   const mutation = useMutation({
     mutationFn: async (input: AddFoodEntryInput) => {
       if (input.saveFoodPayload) {
-        const saved =
-          input.savedFood ??
-          (await saveFood(input.saveFoodPayload, input.saveFoodImages));
-        if (!input.savedFood) options?.onFoodSaved?.(saved);
+        const saveFoodPayload = input.saveFoodPayload;
+        // A plain new food can be kept on the phone and uploaded later with
+        // its entry. Both carry replay keys from the first request on.
+        const foodClientId = newUuid();
+        const entryClientId = newUuid();
+        const queueable =
+          !input.savedFood &&
+          isQueueableFoodCreate({
+            food: saveFoodPayload,
+            hasImages: Boolean(input.saveFoodImages),
+            hasExtraServings: Boolean(
+              input.saveThenCreateVariantPayload ||
+              (input.externalVariants && input.externalVariants.length > 0)
+            ),
+          });
+        let saved: FoodItem;
+        if (input.savedFood) {
+          saved = input.savedFood;
+        } else {
+          try {
+            saved = await saveFood(
+              queueable
+                ? { ...saveFoodPayload, client_id: foodClientId }
+                : saveFoodPayload,
+              input.saveFoodImages
+            );
+          } catch (error) {
+            const entry = input.createEntryPayload;
+            const queued =
+              queueable &&
+              (await queueAfterConnectionFailure(error, () =>
+                queueFoodCreate(
+                  foodClientId,
+                  entryClientId,
+                  saveFoodPayload,
+                  entry
+                )
+              ));
+            if (queued) {
+              return pendingEntryFrom(entryClientId, {
+                ...entry,
+                food_name: saveFoodPayload.name,
+                brand_name: saveFoodPayload.brand ?? undefined,
+                serving_size: saveFoodPayload.serving_size,
+                serving_unit: saveFoodPayload.serving_unit,
+                calories: saveFoodPayload.calories,
+              });
+            }
+            throw error;
+          }
+          options?.onFoodSaved?.(saved);
+        }
 
         let variantId = saved.default_variant?.id;
         let unit = input.createEntryPayload.unit;

@@ -136,7 +136,7 @@ describe('SwipeableFoodRow', () => {
   describe('read only (the Diary read from the phone while offline)', () => {
     const nutrition = { calories: 120, protein: 15, carbs: 8, fat: 2 };
 
-    it('shows the entry but opens nothing when pressed', () => {
+    it('still opens the entry from the phone, so it can be edited offline', () => {
       const screen = renderRow(
         <SwipeableFoodRow
           entry={createEntry()}
@@ -148,29 +148,77 @@ describe('SwipeableFoodRow', () => {
 
       fireEvent.press(screen.getByText('Greek Yogurt'));
 
-      expect(screen.getByText('Greek Yogurt')).toBeTruthy();
-      expect(mockNavigate).not.toHaveBeenCalled();
+      expect(mockNavigate).toHaveBeenCalledWith('FoodEntryView', {
+        entry: expect.objectContaining({ id: 'entry-1' }),
+      });
     });
 
-    it('has no adjust button and no long-press menu', () => {
+    it('opens the amount sheet for an entry waiting to upload, and the menu offers adjust and delete', () => {
       const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation();
       const onAdjustServing = jest.fn();
       const screen = renderRow(
         <SwipeableFoodRow
-          entry={createEntry()}
+          entry={createEntry({ id: 'pending-abc' })}
           nutrition={nutrition}
           onAdjustServing={onAdjustServing}
           readOnly
         />
       );
 
-      // The calories are plain text, not the adjust button.
-      fireEvent.press(screen.getByText(/120 kcal/));
+      fireEvent.press(screen.getByText('Greek Yogurt'));
+      expect(onAdjustServing).toHaveBeenCalledTimes(1);
+      expect(mockNavigate).not.toHaveBeenCalled();
+
+      fireEvent(screen.getByText('Greek Yogurt'), 'longPress');
+      const buttons = alertSpy.mock.calls[0][2] as { text: string }[];
+      expect(buttons.map((button) => button.text)).toEqual([
+        'Adjust serving',
+        'Delete',
+        'Cancel',
+      ]);
+    });
+
+    it('deletes a component of a logged meal through the meal, which is kept on the phone', () => {
+      const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation();
+      const screen = renderRow(
+        <SwipeableFoodRow
+          entry={createEntry({ food_entry_meal_id: 'fem-1' })}
+          nutrition={nutrition}
+          readOnly
+        />
+      );
+
       fireEvent(screen.getByText('Greek Yogurt'), 'longPress');
 
-      expect(onAdjustServing).not.toHaveBeenCalled();
-      expect(alertSpy).not.toHaveBeenCalled();
-      expect(screen.queryByLabelText('Delete food')).toBeNull();
+      const buttons = alertSpy.mock.calls[0][2] as { text: string }[];
+      expect(buttons.map((button) => button.text)).toEqual([
+        'Delete',
+        'Cancel',
+      ]);
+    });
+
+    it('treats an entry waiting to upload the same way, even with the server up', () => {
+      const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation();
+      const onAdjustServing = jest.fn();
+      const screen = renderRow(
+        <SwipeableFoodRow
+          entry={createEntry({ id: 'pending-abc' })}
+          nutrition={nutrition}
+          onAdjustServing={onAdjustServing}
+        />
+      );
+
+      fireEvent.press(screen.getByText('Greek Yogurt'));
+      expect(mockNavigate).not.toHaveBeenCalled();
+      expect(onAdjustServing).toHaveBeenCalledTimes(1);
+
+      fireEvent(screen.getByText('Greek Yogurt'), 'longPress');
+      const buttons = alertSpy.mock.calls[0][2] as { text: string }[];
+      expect(buttons.map((button) => button.text)).toEqual([
+        'Adjust serving',
+        'Delete',
+        'Cancel',
+      ]);
     });
   });
 });

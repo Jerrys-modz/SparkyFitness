@@ -104,6 +104,9 @@ describe('the diary day kept on the phone', () => {
       deleted: [],
       savedFood: null,
       waitingFood: [],
+      deletedFood: [],
+      updatedFood: {},
+      deletedFoodMeals: [],
     });
   });
 
@@ -157,6 +160,9 @@ describe('the diary day kept on the phone', () => {
       deleted: [],
       savedFood: null,
       waitingFood: [],
+      deletedFood: [],
+      updatedFood: {},
+      deletedFoodMeals: [],
     });
 
     // A later change that cleared it makes the saved copy readable again.
