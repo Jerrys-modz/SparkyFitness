@@ -1,3 +1,4 @@
+import { shouldOfferGoalSetup } from '../hooks/useGoalSetup';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -180,9 +181,15 @@ export default function OnboardingScreen({ navigation }: Props) {
     navigation.replace('Tabs', { screen: 'Settings' });
   };
 
-  const finishWithConnection = () => {
+  const finishWithConnection = async () => {
     void markCurrentVersionSeen();
     queryClient.invalidateQueries({ queryKey: serverConnectionQueryKey });
+    // A new account (one that never finished or skipped goal setup on the web
+    // or here) is offered the goal setup wizard; everyone else goes straight in.
+    if (await shouldOfferGoalSetup()) {
+      navigation.replace('GoalSetup', { fromSignIn: true });
+      return;
+    }
     navigation.replace('Tabs', { screen: 'Dashboard' });
   };
 

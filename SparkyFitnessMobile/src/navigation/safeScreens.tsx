@@ -122,6 +122,7 @@ import OnboardingScreen from '../screens/OnboardingScreen';
 import CycleSettingsScreen from '../screens/CycleSettingsScreen';
 import FeatureSettingsScreen from '../screens/FeatureSettingsScreen';
 import CycleOnboardingScreen from '../screens/CycleOnboardingScreen';
+import GoalSetupScreen from '../screens/GoalSetupScreen';
 import CycleHubScreen from '../screens/CycleHubScreen';
 import CycleLogModalScreen from '../screens/CycleLogModalScreen';
 import PregnancySetupScreen from '../screens/PregnancySetupScreen';
@@ -322,6 +323,7 @@ export const SafeFamilyCopyReview = withErrorBoundary(FamilyCopyReviewScreen, 'F
 export const SafeCycleSettings = withErrorBoundary(CycleSettingsScreen, 'CycleSettings', { canGoBack: true });
 export const SafeFeatureSettings = withErrorBoundary(FeatureSettingsScreen, 'FeatureSettings', { canGoBack: true });
 export const SafeCycleOnboarding = withErrorBoundary(CycleOnboardingScreen, 'CycleOnboarding', { canGoBack: true });
+export const SafeGoalSetup = withErrorBoundary(GoalSetupScreen, 'GoalSetup', { canGoBack: true });
 export const SafeCycleHub = withErrorBoundary(CycleHubScreen, 'CycleHub', { canGoBack: true });
 export const SafeCycleLogModal = withErrorBoundary(CycleLogModalScreen, 'CycleLogModal', { canGoBack: true });
 export const SafePregnancySetup = withErrorBoundary(PregnancySetupScreen, 'PregnancySetup', { canGoBack: true });

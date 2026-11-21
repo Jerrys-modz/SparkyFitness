@@ -1,4 +1,5 @@
 import { apiFetch } from './apiClient';
+import type { ServerConfig } from '../storage';
 import { ApiError } from './errors';
 import { getTodayDate } from '../../utils/dateUtils';
 
@@ -338,12 +339,15 @@ export const upsertCheckIn = async (params: {
   boneMassKg?: number | null;
   bodyWaterPercentage?: number | null;
   bmr?: number | null;
+  /** The account to send it to; the active one when omitted. */
+  serverConfig?: ServerConfig;
 }): Promise<CheckInMeasurement> => {
   return apiFetch<CheckInMeasurement>({
     endpoint: '/api/measurements/check-in',
     serviceName: 'Measurements API',
     operation: 'upsert check-in',
     method: 'POST',
+    serverConfig: params.serverConfig,
     body: {
       entry_date: params.entryDate,
       weight: params.weight,

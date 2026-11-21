@@ -205,6 +205,7 @@ export * from './challenges/periods.ts';
 export * from './challenges/scoring.ts';
 export * from './challenges/client.ts';
 export * from './utils/calorieRuleDefaults.ts';
+export * from './utils/onboardingPlan.ts';
 export * from './utils/calorieCycling.ts';
 export * from './utils/weeklyCalorieBudget.ts';
 export * from './utils/exerciseCalorieLink.ts';

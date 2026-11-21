@@ -5,6 +5,7 @@ import {
 } from '../../offline/collections';
 import { withOfflineFallback } from '../../offline/withOfflineFallback';
 import { apiFetch } from './apiClient';
+import type { ServerConfig } from '../storage';
 import { UserPreferences } from '../../types/preferences';
 import { isValidTimeZone } from '@workspace/shared';
 import { addLog } from '../LogService';
@@ -119,7 +120,8 @@ export const fetchMoveRingActiveCaloriesSetting = async (): Promise<boolean> =>
  * to defaults on INSERT.
  */
 export const updatePreferences = async (
-  data: Partial<UserPreferences>
+  data: Partial<UserPreferences>,
+  serverConfig?: ServerConfig
 ): Promise<UserPreferences> => {
   return apiFetch<UserPreferences>({
     endpoint: '/api/user-preferences',
@@ -127,6 +129,7 @@ export const updatePreferences = async (
     operation: 'update preferences',
     method: 'PUT',
     body: data,
+    serverConfig,
   });
 };
 

@@ -51,11 +51,6 @@ import type {
 } from '../services/api/nutrientGoalPreferencesApi';
 import { NUTRIENT_META, getNutrientLabel } from '../constants/nutrients';
 import {
-  AddedSugarAlgorithm,
-  FatBreakdownAlgorithm,
-  MineralCalculationAlgorithm,
-  SugarCalculationAlgorithm,
-  VitaminCalculationAlgorithm,
   calculateAge,
   calculateSingleNutrientAutoValue,
   calorieCyclingPattern,
@@ -74,6 +69,7 @@ import {
   type UserNutrientData,
   normalizeEnergyUnit,
 } from '@workspace/shared';
+import { nutrientAlgorithmsFromPreferences } from '../utils/nutrientAlgorithms';
 import type { DailyGoals, GoalPreset } from '../types/goals';
 import {
   DIRECTION_COLORS,
@@ -288,12 +284,6 @@ const pickPresetValues = (goals: DailyGoals): DailyGoals =>
 
 const ACTIVITY_LEVELS = ['not_much', 'light', 'moderate', 'heavy'] as const;
 
-const enumValue = <T extends string>(
-  values: Record<string, T>,
-  raw: string | undefined,
-  fallback: T
-): T => (Object.values(values).includes(raw as T) ? (raw as T) : fallback);
-
 interface DirectionDraft {
   goalType: NutrientGoalType;
   min: string;
@@ -333,6 +323,8 @@ interface GoalsFormProps {
   onEditPreset: (presetId?: string) => void;
   onEditPlan: (planId?: string) => void;
   onEditPhase: (phaseId?: string) => void;
+  /** Opens the goal setup wizard; daily goals only. */
+  onStartGoalSetup?: () => void;
 }
 
 const GoalsForm: React.FC<GoalsFormProps> = ({
@@ -346,6 +338,7 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
   onEditPreset,
   onEditPlan,
   onEditPhase,
+  onStartGoalSetup,
 }) => {
   const [presetName, setPresetName] = useState(preset?.preset_name ?? '');
   const { t } = useTranslation();
@@ -425,29 +418,7 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
   const [customDrafts, setCustomDrafts] = useState(initialCustomDrafts);
 
   const algorithms: AlgorithmBundle = useMemo(
-    () => ({
-      fatBreakdown: enumValue(
-        FatBreakdownAlgorithm,
-        preferences?.fat_breakdown_algorithm,
-        FatBreakdownAlgorithm.AHA_GUIDELINES
-      ),
-      minerals: enumValue(
-        MineralCalculationAlgorithm,
-        preferences?.mineral_calculation_algorithm,
-        MineralCalculationAlgorithm.RDA_STANDARD
-      ),
-      vitamins: enumValue(
-        VitaminCalculationAlgorithm,
-        preferences?.vitamin_calculation_algorithm,
-        VitaminCalculationAlgorithm.RDA_STANDARD
-      ),
-      sugar: enumValue(
-        SugarCalculationAlgorithm,
-        preferences?.sugar_calculation_algorithm,
-        SugarCalculationAlgorithm.WHO_GUIDELINES
-      ),
-      addedSugar: AddedSugarAlgorithm.WHO_MAXIMUM,
-    }),
+    () => nutrientAlgorithmsFromPreferences(preferences),
     [preferences]
   );
 
@@ -1171,12 +1142,25 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
           </Text>
         </View>
       ) : (
-        <Text className="text-sm text-text-secondary">
-          {t('goals.description', {
-            defaultValue:
-              'Daily targets that apply from today onward. Past days keep their goals.',
-          })}
-        </Text>
+        <View className="gap-3">
+          <Text className="text-sm text-text-secondary">
+            {t('goals.description', {
+              defaultValue:
+                'Daily targets that apply from today onward. Past days keep their goals.',
+            })}
+          </Text>
+          {onStartGoalSetup && (
+            <Button
+              variant="outline"
+              onPress={onStartGoalSetup}
+              testID="goals-start-goal-setup"
+            >
+              {t('goals.startGoalSetup', {
+                defaultValue: 'Work out my goals step by step',
+              })}
+            </Button>
+          )}
+        </View>
       )}
       {isAdaptive && (
         <Text className="text-sm text-text-secondary">
@@ -1461,6 +1445,9 @@ const GoalsScreen: React.FC<GoalsScreenProps> = ({ navigation, route }) => {
       onEditPreset={editPreset}
       onEditPlan={editPlan}
       onEditPhase={editPhase}
+      onStartGoalSetup={
+        isPresetMode ? undefined : () => navigation.replace('GoalSetup')
+      }
     />
   );
 };

@@ -1,7 +1,7 @@
 # AGENTS.md
 _Last updated: 2026-11-18_
 
-_Last updated: 2026-11-20_
+_Last updated: 2026-11-21_
 
 SparkyFitness Mobile is a React Native 0.86 + Expo SDK 57 app for syncing Apple Health / Health Connect data with the SparkyFitness backend, tracking nutrition, hydration, fasting, measurements, exercise, saved foods, meal templates, custom exercises, workout presets, iOS / Android widgets, the active workout HUD, and the Sparky AI chat.
 
@@ -351,7 +351,8 @@ npx expo prebuild --clean
 ## Auth, Networking, And Settings
 
 - Server configs support `apiKey` and `session` auth. URLs/IDs are in AsyncStorage; API keys, session tokens, and proxy headers are in SecureStore.
-- `OnboardingScreen` handles first-run setup, session sign-in, API keys, MFA, theme, external food source defaults, and finish-without-connection.
+- `OnboardingScreen` handles first-run setup, session sign-in, API keys, MFA, theme, external food source defaults, and finish-without-connection. After a connection it asks `shouldOfferGoalSetup` (`hooks/useGoalSetup.ts`, `GET /api/onboarding/status`, 5 s cap, any failure or an older server reads as no) and replaces itself with `GoalSetup` (`{ fromSignIn: true }`) only for an account that has neither finished nor skipped goal setup; existing installs are never sent there at startup.
+- `GoalSetupScreen` (route `GoalSetup`) is the mobile goal setup wizard, also opened from Goals (which it replaces, and replaces back with a fresh Goals on leaving). Steps and payload builders are in `utils/goalSetup.ts`; the plan maths is shared with the web (`shared/src/utils/onboardingPlan.ts`). `useSaveGoalSetup` writes to the account pinned when the screen opened (`goalSetupAccount`): preferences (goal mode maintain/manual), today's goals cascading over the current row, then best-effort profile and check-in, then `POST /api/onboarding`; Skip posts `/api/onboarding/skip`. Strings are `goalSetup.*` (the `onboarding.*` namespace belongs to the sign-in screen). `utils/nutrientAlgorithms.ts` resolves the nutrient algorithms from preferences for it and `GoalsScreen`.
 - `ServerSettingsScreen` handles server list management, active server switching, connection tests, web dashboard launch, and `ServerConfigModal`.
 - `useAuth`, `ReauthModal`, `ServerConfigModal`, `authService.ts`, and `MfaForm` coordinate auth recovery, MFA, session expiry, and API-key fallback.
 - A server switch stores the new active server before `useAuth` clears the cache, and `apiFetch` without a `serverConfig` reads the active server only when the request goes out. So a write that belongs to the account on screen and can wait (queued behind another in a mutation `scope`, or an `await` in `onMutate`) takes `serverOnScreen(queryClient)` (`hooks/serverOnScreen.ts`, the `useServerConfigs` cache) when it is made and passes it as `serverConfig`; with none known it saves nothing and says so. Feature choices, the cycle settings writes and the cycle setup's other writes (#3665) do this, and recipe imports read the account the same way; the scoped preference writes (calorie settings, water preferences, glucose unit) do not yet.

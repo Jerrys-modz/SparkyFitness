@@ -191,6 +191,7 @@ import {
   SafeCycleSettings,
   SafeFeatureSettings,
   SafeCycleOnboarding,
+  SafeGoalSetup,
   SafeCycleHub,
   SafeCycleLogModal,
   SafePregnancySetup,
@@ -1504,6 +1505,14 @@ function AppContent() {
               presentation: 'modal',
               headerBackButtonDisplayMode: 'minimal',
               ...(Platform.OS === 'android' ? androidModalAnimation : {}),
+            })}
+          />
+          <Stack.Screen
+            name="GoalSetup"
+            component={SafeGoalSetup}
+            options={createStackScreenOptions(t('screens.goalSetup', { defaultValue: 'Goal Setup' }), {
+              gestureEnabled: false,
+              headerBackButtonDisplayMode: 'minimal',
             })}
           />
           <Stack.Screen

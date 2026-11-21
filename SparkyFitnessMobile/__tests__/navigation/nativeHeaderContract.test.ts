@@ -69,6 +69,8 @@ const NATIVE_TABS_ROUTE_EXCLUSIONS = {
   FeatureSettings: 'Root-stack settings route presented above the tab host.',
   CycleOnboarding:
     'First-run cycle setup wizard route presented above the tab host.',
+  GoalSetup:
+    'Goal setup wizard, opened after first sign-in or from Goals, presented above the tab host.',
   CycleHub:
     'Root-stack main cycle and wellness dashboard presented above the tab host.',
   PregnancySetup:

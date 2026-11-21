@@ -1,17 +1,15 @@
 import { DEFAULT_GOALS } from '@/constants/goals';
-import { calculateAllAdvancedNutrients } from '@workspace/shared';
 import { ExpandedGoals } from '@/types/goals';
 import {
+  buildOnboardingGoalTargets,
   FatBreakdownAlgorithm,
   MineralCalculationAlgorithm,
   VitaminCalculationAlgorithm,
   SugarCalculationAlgorithm,
-  AddedSugarAlgorithm,
+  type CalorieSafetyFloorMode,
 } from '@workspace/shared';
-import { calculateBasePlan } from './nutritionCalculations';
 import { EnergyUnit } from '@/contexts/PreferencesContext';
 import { OnboardingData } from '@/types/onboarding';
-import type { CalorieSafetyFloorMode } from '@workspace/shared';
 
 export const createInitialPlan = (
   formData: OnboardingData,
@@ -32,59 +30,27 @@ export const createInitialPlan = (
     calorieSafetyFloorValue: number;
   }
 ): ExpandedGoals | null => {
-  // 1. Basis Plan berechnen
   // formData is already in Metric (kg/cm) from UnitInput
-  const plan = calculateBasePlan(
+  const targets = buildOnboardingGoalTargets(
     formData,
     localSelectedDiet,
     customPercentages,
+    {
+      fatBreakdown: localFatBreakdownAlgorithm,
+      minerals: localMineralAlgorithm,
+      vitamins: localVitaminAlgorithm,
+      sugar: localSugarAlgorithm,
+    },
     safetyFloor
   );
-
-  if (!plan) return null;
-
-  // 2. Erweitere Daten berechnen
-  const weightKg = Number(formData.currentWeight) || 0;
-
-  const waterGoalMl = Math.round(weightKg * 35);
-  const age =
-    new Date().getFullYear() - new Date(formData.birthDate).getFullYear();
-
-  if (!formData.sex || !formData.activityLevel) {
-    return null;
-  }
-
-  const userData = {
-    age,
-    sex: formData.sex as 'male' | 'female',
-    weightKg,
-    calories: plan.finalDailyCalories,
-    totalFatGrams: plan.macros.fat,
-    activityLevel: formData.activityLevel || undefined,
-  };
-
-  const advancedNutrients = calculateAllAdvancedNutrients(userData, {
-    fatBreakdown: localFatBreakdownAlgorithm,
-    minerals: localMineralAlgorithm,
-    vitamins: localVitaminAlgorithm,
-    sugar: localSugarAlgorithm,
-    // Onboarding doesn't collect an Added Sugars preference (no custom
-    // nutrient exists yet at this point) — calculateAllAdvancedNutrients
-    // never reads this field, it's only required for AlgorithmBundle's shape.
-    addedSugar: AddedSugarAlgorithm.WHO_IDEAL,
-  });
+  if (!targets) return null;
 
   return {
     ...DEFAULT_GOALS,
+    ...targets.goals,
     calories: Math.round(
-      convertEnergy(plan.finalDailyCalories, 'kcal', localEnergyUnit)
+      convertEnergy(targets.goals.calories, 'kcal', localEnergyUnit)
     ),
-    protein: plan.macros.protein,
-    carbs: plan.macros.carbs,
-    fat: plan.macros.fat,
-    dietary_fiber: plan.macros.fiber,
-    water_goal_ml: waterGoalMl,
-    ...advancedNutrients,
     protein_percentage: null,
     carbs_percentage: null,
     fat_percentage: null,
