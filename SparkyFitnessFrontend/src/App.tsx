@@ -32,7 +32,9 @@ import {
   useOutletContext,
 } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@/hooks/useAuth';
+import { useInviteAcrossSignIn } from '@/hooks/Challenges/useInviteAcrossSignIn';
 import OidcCallback from '@/components/OidcCallback';
+import { FeatureRoute } from '@/components/FeatureRoute';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import {
   useCurrentVersionQuery,
@@ -64,6 +66,12 @@ const FoodDatabaseManager = lazyWithChunkRecovery(
 );
 const Reports = lazyWithChunkRecovery(() => import('./pages/Reports/Reports'));
 const Labs = lazyWithChunkRecovery(() => import('./pages/Labs/Labs'));
+const Challenges = lazyWithChunkRecovery(
+  () => import('./pages/Challenges/Challenges')
+);
+const ChallengeJoinLink = lazyWithChunkRecovery(
+  () => import('./pages/Challenges/ChallengeJoinLink')
+);
 const Symptoms = lazyWithChunkRecovery(
   () => import('./pages/Symptoms/Symptoms')
 );
@@ -127,6 +135,8 @@ const StravaCallback = lazyWithChunkRecovery(
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const { t } = useTranslation();
   const { user, loading } = useAuth();
+  // A signed-out invite link resumes its join after sign-in.
+  useInviteAcrossSignIn(!!user, loading);
 
   if (loading) {
     return (
@@ -474,7 +484,27 @@ const router = createBrowserRouter([
           },
           {
             path: 'labs',
-            Component: Labs,
+            element: (
+              <FeatureRoute feature="labResults">
+                <Labs />
+              </FeatureRoute>
+            ),
+            ErrorBoundary: RouteErrorBoundary,
+          },
+          {
+            path: 'challenges',
+            Component: Challenges,
+            ErrorBoundary: RouteErrorBoundary,
+          },
+          {
+            // An invite link; the code is in the fragment.
+            path: 'challenges/join',
+            Component: ChallengeJoinLink,
+            ErrorBoundary: RouteErrorBoundary,
+          },
+          {
+            path: 'challenges/:challengeId',
+            Component: Challenges,
             ErrorBoundary: RouteErrorBoundary,
           },
           {

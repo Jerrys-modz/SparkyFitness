@@ -61,7 +61,6 @@ import {
 } from '@/utils/reportUtil';
 import { CustomCategoryReport } from './CustomCategoryReport';
 import { AppetiteTrendCard } from './AppetiteTrendCard';
-import { useWebFeatureEnabled } from '@/hooks/Settings/useFeatureChoices';
 import { ChartErrorBoundary } from '../Errors/ChartErrorFallback';
 import { CustomCategoriesResponse, parseBodyFatGoal } from '@workspace/shared';
 import { useDailyGoalsRange } from '@/hooks/Goals/useGoals';
@@ -189,7 +188,7 @@ const Reports = () => {
   } = reportsData || {};
   // The reproductive Health categories leave the charts and tables while
   // cycle is turned off (Settings > Features); their data is kept.
-  const { hiddenCustomCategories } = useWebFeatures();
+  const { hiddenCustomCategories, isEnabled: isFeatureOn } = useWebFeatures();
   const customCategories = useMemo(
     () => withoutHiddenCategories(allCustomCategories, hiddenCustomCategories),
     [allCustomCategories, hiddenCustomCategories]
@@ -203,7 +202,7 @@ const Reports = () => {
       ? 'all'
       : selectedTable;
 
-  const appetiteEnabled = useWebFeatureEnabled('appetite');
+  const appetiteEnabled = isFeatureOn('appetite');
 
   const { data: goalData } = useDailyGoalsRange(startDate, endDate, true, true);
 

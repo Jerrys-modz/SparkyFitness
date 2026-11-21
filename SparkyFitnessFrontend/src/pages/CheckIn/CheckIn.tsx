@@ -31,7 +31,7 @@ import { useTranslation } from 'react-i18next';
 import { MindfulnessSection } from './MindfulnessSection';
 import { OralCareSection } from './OralCareSection';
 import AppetiteCheckIn from './AppetiteCheckIn';
-import { useWebFeatureEnabled } from '@/hooks/Settings/useFeatureChoices';
+import { useWebFeatures } from '@/hooks/Settings/useWebFeatures';
 import { isAppetiteCategoryName } from '@workspace/shared';
 
 const CheckIn = () => {
@@ -91,7 +91,7 @@ const CheckIn = () => {
 
   const [searchParams, setSearchParams] = useSearchParams();
   const { t } = useTranslation();
-  const appetiteEnabled = useWebFeatureEnabled('appetite');
+  const appetiteEnabled = useWebFeatures().isEnabled('appetite');
   // While the hunger & fullness card shows, its categories are logged there
   // and not again as plain custom measurements in the form below.
   const formCustomCategories = appetiteEnabled

@@ -1,24 +1,31 @@
-import { apiCall } from '@/api/api';
 import type {
   FeatureChoicesResponse,
   UpdateFeatureChoicesBody,
 } from '@workspace/shared';
+import { apiCall, HttpApiError } from '@/api/api';
 
-/** The person's explicit optional-feature choices (#3487). */
-export const getFeatureChoices = async (): Promise<FeatureChoicesResponse> =>
-  apiCall('/user-preferences/features', {
-    method: 'GET',
-    // A delegate whose grant does not cover settings gets a 403; the feature
-    // then stays hidden without a toast on every page.
-    suppressErrorToast: true,
-  });
+const FEATURES_PATH = '/user-preferences/features';
 
-/** Saves optional-feature choices for the platforms named in the body. */
-export const updateFeatureChoices = async (
+/**
+ * The person's explicit feature choices, per platform (#3487), or null from a
+ * server older than the route (it answers 404 and stores none). A failure is
+ * shown in place (Settings → Features offers Retry), so no toast.
+ */
+export const getFeatureChoices =
+  async (): Promise<FeatureChoicesResponse | null> => {
+    try {
+      return await apiCall(FEATURES_PATH, {
+        method: 'GET',
+        suppressErrorToast: true,
+      });
+    } catch (error) {
+      if (error instanceof HttpApiError && error.status === 404) return null;
+      throw error;
+    }
+  };
+
+/** Merges a change into the person's choices; answers all of them. */
+export const updateFeatureChoices = (
   body: UpdateFeatureChoicesBody
 ): Promise<FeatureChoicesResponse> =>
-  apiCall('/user-preferences/features', {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
+  apiCall(FEATURES_PATH, { method: 'PATCH', body });

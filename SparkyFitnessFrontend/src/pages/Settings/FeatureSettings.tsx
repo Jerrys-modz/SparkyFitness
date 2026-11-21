@@ -1,11 +1,12 @@
 import type { ReactElement } from 'react';
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
-import { ToggleRight, type LucideIcon } from 'lucide-react';
+import { Utensils, ToggleRight, type LucideIcon } from 'lucide-react';
 import {
   FEATURE_GROUPS,
   FEATURE_KEYS,
   OPTIONAL_FEATURES,
+  type ChoiceFeatureKey,
   type FeatureGroup,
   type FeatureKey,
 } from '@workspace/shared';
@@ -14,12 +15,17 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useActiveUser } from '@/contexts/ActiveUserContext';
+import { useSetWebFeatureChoice } from '@/hooks/Settings/useFeatureChoices';
 import {
-  useSetWebFeatureEnabled,
-  useWebFeatureEnabled,
-} from '@/hooks/Settings/useFeatureChoices';
-import { useCycleSwitch } from '@/hooks/Settings/useWebFeatures';
-import { cycleTabIcon, cycleTabLabel } from '@/constants/webTabs';
+  useCycleSwitch,
+  useWebFeatures,
+} from '@/hooks/Settings/useWebFeatures';
+import {
+  choiceFeatureLabel,
+  cycleTabIcon,
+  cycleTabLabel,
+  webTabIcon,
+} from '@/constants/webTabs';
 import { CycleSetupPrompt } from './CycleSetupPrompt';
 
 function FeatureIcon({ icon: Icon }: { icon: LucideIcon }) {
@@ -104,32 +110,101 @@ function CycleFeatureRow() {
   );
 }
 
+/**
+ * A feature with one choice per platform (`feature_choices`): this switch
+ * changes the website only. It can be used once the choices have loaded;
+ * until then, and on a server older than Features, it shows the default, so
+ * nothing looks off that is not.
+ */
+function ChoiceFeatureRow({
+  feature,
+  icon,
+  label,
+  description,
+}: {
+  feature: ChoiceFeatureKey;
+  icon: LucideIcon;
+  label: string;
+  description: string;
+}) {
+  const { t } = useTranslation();
+  const { isEnabled } = useWebFeatures();
+  const choice = useSetWebFeatureChoice();
+  const switchId = `feature-${feature}`;
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-4">
+        <div className="space-y-0.5">
+          <Label htmlFor={switchId} className="flex items-center gap-2">
+            <FeatureIcon icon={icon} />
+            {label}
+          </Label>
+          <p className="text-sm text-muted-foreground">{description}</p>
+          <p className="text-xs text-muted-foreground">
+            {t(
+              'settings.features.webOnly',
+              'Only this website. The mobile app has its own switch.'
+            )}
+          </p>
+          {choice.state === 'serverTooOld' && (
+            <p className="text-xs text-muted-foreground">
+              {t(
+                'settings.features.serverTooOld',
+                'Update your SparkyFitness server to change this.'
+              )}
+            </p>
+          )}
+        </div>
+        <Switch
+          id={switchId}
+          checked={isEnabled(feature)}
+          disabled={choice.state !== 'ready' || choice.isPending}
+          onCheckedChange={(on) => choice.setFeatureOn(feature, on)}
+        />
+      </div>
+      {choice.state === 'loadFailed' && (
+        <div className="flex flex-col items-start gap-2">
+          <p className="text-sm text-destructive">
+            {t('settings.features.loadError', 'Could not load this setting.')}
+          </p>
+          <Button variant="outline" size="sm" onClick={choice.reload}>
+            {t('common.retry', 'Retry')}
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** Hunger, fullness and cravings check-in, stored in `feature_choices`. */
 function AppetiteFeatureRow() {
   const { t } = useTranslation();
-  const on = useWebFeatureEnabled('appetite');
-  const { mutate, isPending } = useSetWebFeatureEnabled('appetite');
-
   return (
-    <div className="flex items-center justify-between gap-4">
-      <div className="space-y-0.5">
-        <Label htmlFor="feature-appetite">
-          {t('settings.features.appetite.title', 'Hunger and cravings')}
-        </Label>
-        <p className="text-sm text-muted-foreground">
-          {t(
-            'settings.features.appetite.description',
-            'Log hunger, fullness and cravings in the check-in, and see them in reports.'
-          )}
-        </p>
-      </div>
-      <Switch
-        id="feature-appetite"
-        checked={on}
-        disabled={isPending}
-        onCheckedChange={(next) => mutate(next)}
-      />
-    </div>
+    <ChoiceFeatureRow
+      feature="appetite"
+      icon={Utensils}
+      label={choiceFeatureLabel(t, 'appetite')}
+      description={t(
+        'settings.features.appetite.description',
+        'Log hunger, fullness and cravings in the check-in, and see them in reports.'
+      )}
+    />
+  );
+}
+
+function LabResultsFeatureRow() {
+  const { t } = useTranslation();
+  return (
+    <ChoiceFeatureRow
+      feature="labResults"
+      icon={webTabIcon('labs')}
+      label={choiceFeatureLabel(t, 'labResults')}
+      description={t(
+        'settings.features.labResults.description',
+        'Record blood tests and follow each marker over time.'
+      )}
+    />
   );
 }
 
@@ -140,6 +215,8 @@ function FeatureRow({ feature }: { feature: FeatureKey }): ReactElement {
       return <CycleFeatureRow />;
     case 'appetite':
       return <AppetiteFeatureRow />;
+    case 'labResults':
+      return <LabResultsFeatureRow />;
   }
 }
 

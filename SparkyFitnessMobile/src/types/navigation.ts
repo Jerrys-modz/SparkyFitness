@@ -545,6 +545,7 @@ export type RootStackParamList = {
   Widgets: undefined;
   WidgetEditor: { layoutId?: string } | undefined;
   DiarySettings: undefined;
+  OfflineSettings: undefined;
   CustomCategories: undefined;
   CustomCategoryEdit: { categoryId?: string } | undefined;
   WorkoutSettings: undefined;

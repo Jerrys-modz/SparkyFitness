@@ -1,48 +1,79 @@
-import { preferencesKeys } from '@/api/keys/settings';
+import { useCallback } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { ChoiceFeatureKey } from '@workspace/shared';
+import { featureChoicesKeys } from '@/api/keys/settings';
 import {
   getFeatureChoices,
   updateFeatureChoices,
 } from '@/api/Settings/featureChoices';
-import { useActiveUser } from '@/contexts/ActiveUserContext';
-import { useAuth } from '@/hooks/useAuth';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { isFeatureEnabled, type FeatureKey } from '@workspace/shared';
+import { startedOn } from '@/utils/queryOwner';
 
 /**
- * Whether an optional feature shows on the website (#3487). Answers false
- * until the choices have loaded, and when they cannot be read: showing the
- * default instead would bring back a feature the person turned off.
- *
- * Only for features stored in `feature_choices`; cycle's gates still read
- * `cycle_settings.enabled`.
+ * The person's explicit feature choices (#3487), both platforms; this
+ * website reads `web`. While they load or after a failed load, `data` is
+ * undefined, and from a server older than Features it is null: either way
+ * every feature is at its default, so nothing disappears because of a network
+ * error or an old server. Someone acting for the person reads the person's
+ * own (the server answers 403 when their grant does not cover settings, and
+ * the defaults apply).
  */
-export const useWebFeatureEnabled = (key: FeatureKey): boolean => {
-  const { user } = useAuth();
-  const { activeUserId } = useActiveUser();
-  const { data } = useQuery({
-    queryKey: preferencesKeys.featureChoices(activeUserId ?? user?.id),
+export function useFeatureChoicesQuery() {
+  return useQuery({
+    queryKey: featureChoicesKeys.all,
     queryFn: getFeatureChoices,
-    enabled: !!user,
-    staleTime: 5 * 60 * 1000,
   });
-  if (!data) return false;
-  return isFeatureEnabled(key, 'web', {
-    choices: data.feature_choices,
-    cycleEnabled: undefined,
-  });
-};
+}
 
-/** Turns a feature stored in `feature_choices` on or off for the website. */
-export const useSetWebFeatureEnabled = (key: FeatureKey) => {
-  const { user } = useAuth();
-  const { activeUserId } = useActiveUser();
+/** Whether a choice switch can be used: only once the choices have loaded,
+ * since a guess could undo one made elsewhere, and not on a server older than
+ * Features, which cannot store one (Retry would never help there). */
+export type FeatureChoiceState =
+  'ready' | 'loading' | 'loadFailed' | 'serverTooOld';
+
+/**
+ * Turns one feature on or off on this website. Saves run one at a time, so a
+ * quick off and on lands in order; each cancels a read already on its way
+ * (it answers with the choices from before), and an answer that arrives after
+ * another account took over is dropped.
+ */
+export function useSetWebFeatureChoice() {
   const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (enabled: boolean) =>
-      updateFeatureChoices({ web: { [key]: enabled } }),
-    onSuccess: () =>
-      queryClient.invalidateQueries({
-        queryKey: preferencesKeys.featureChoices(activeUserId ?? user?.id),
-      }),
+  const query = useFeatureChoicesQuery();
+  const { mutate, isPending } = useMutation({
+    scope: { id: 'feature-choices' },
+    mutationFn: ({ feature, on }: { feature: ChoiceFeatureKey; on: boolean }) =>
+      updateFeatureChoices({ web: { [feature]: on } }),
+    onMutate: async () => {
+      const started = startedOn(queryClient, featureChoicesKeys.all);
+      await queryClient.cancelQueries({ queryKey: featureChoicesKeys.all });
+      return started;
+    },
+    onSuccess: (data, _change, started) => {
+      if (started.isCurrent()) {
+        queryClient.setQueryData(featureChoicesKeys.all, data);
+      }
+    },
   });
-};
+
+  const state: FeatureChoiceState =
+    query.data === null
+      ? 'serverTooOld'
+      : query.data !== undefined
+        ? 'ready'
+        : query.isError
+          ? 'loadFailed'
+          : 'loading';
+  const setFeatureOn = useCallback(
+    (feature: ChoiceFeatureKey, on: boolean) => {
+      if (state !== 'ready') return;
+      mutate({ feature, on });
+    },
+    [state, mutate]
+  );
+  const { refetch } = query;
+  const reload = useCallback(() => {
+    void refetch();
+  }, [refetch]);
+
+  return { state, isPending, setFeatureOn, reload };
+}

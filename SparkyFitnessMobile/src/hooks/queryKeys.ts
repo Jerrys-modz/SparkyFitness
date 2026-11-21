@@ -5,6 +5,13 @@ import type {
 
 export const serverConnectionQueryKey = ['serverConnection'] as const;
 
+/** What the phone holds for offline use (its own file, not a server read). */
+export const offlineStatusQueryKey = ['offlineStatus'] as const;
+export const keptExercisesQueryKey = ['keptExercises'] as const;
+export const offlineDiaryDayQueryKeyRoot = ['offlineDiaryDay'] as const;
+export const offlineDiaryDayQueryKey = (date: string) =>
+  [...offlineDiaryDayQueryKeyRoot, date] as const;
+
 export const serverConfigsQueryKey = ['serverConfigs'] as const;
 
 export const dailySummaryQueryKey = (date: string) =>
@@ -463,6 +470,9 @@ export const heartRateSamplesQueryKeyRoot = ['heartRateSamples'] as const;
 export const heartRateSamplesQueryKey = (startDate: string, endDate: string) =>
   [...heartRateSamplesQueryKeyRoot, startDate, endDate] as const;
 
+// --- Optional features (#3487) ---
+export const featureChoicesQueryKey = ['featureChoices'] as const;
+
 // --- Cycle & Pregnancy ---
 export const cycleSettingsQueryKey = ['cycleSettings'] as const;
 export const cycleLogQueryKey = (date: string) => ['cycleLog', date] as const;
@@ -596,9 +606,6 @@ export const chatMcpServersQueryKey = ['chatMcpServers'] as const;
 export const appetiteTrendQueryKeyRoot = ['appetiteTrend'] as const;
 export const appetiteTrendQueryKey = (startDate: string, endDate: string) =>
   [...appetiteTrendQueryKeyRoot, startDate, endDate] as const;
-
-/** The person's optional-feature choices (#3487), both platforms. */
-export const featureChoicesQueryKey = ['featureChoices'] as const;
 
 /** The setup wizard's weight, the weight progress start before any weigh-in. */
 export const onboardingStartWeightQueryKey = ['onboardingStartWeight'] as const;

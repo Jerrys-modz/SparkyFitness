@@ -28,10 +28,11 @@ function keys(count: number, value: boolean | null = true) {
 }
 
 describe('optional features registry', () => {
-  it('lists cycle, stored in cycle_settings, and appetite', () => {
-    expect(FEATURE_KEYS).toEqual(['cycle', 'appetite']);
+  it('lists cycle, stored in cycle_settings, appetite and lab results, chosen per app', () => {
+    expect(FEATURE_KEYS).toEqual(['cycle', 'appetite', 'labResults']);
     expect(featureStorage('cycle')).toBe('cycleSettings');
     expect(featureStorage('appetite')).toBe('choices');
+    expect(featureStorage('labResults')).toBe('choices');
   });
 
   it('shows the appetite check-in until it is turned off', () => {
@@ -52,7 +53,8 @@ describe('optional features registry', () => {
 
   it('recognises only its own keys', () => {
     expect(isFeatureKey('cycle')).toBe(true);
-    expect(isFeatureKey('labResults')).toBe(false);
+    expect(isFeatureKey('labResults')).toBe(true);
+    expect(isFeatureKey('notAFeature')).toBe(false);
     // Inherited object members are not features.
     expect(isFeatureKey('toString')).toBe(false);
     expect(isFeatureKey('__proto__')).toBe(false);
@@ -102,6 +104,45 @@ describe('cycle on and off', () => {
         cycleEnabled: null,
       })
     ).toBe(false);
+  });
+});
+
+describe('lab results on and off', () => {
+  it.each(FEATURE_PLATFORMS)('is on by default (%s)', (platform) => {
+    for (const choices of [undefined, null, {}, { web: {}, mobile: {} }]) {
+      expect(
+        isFeatureEnabled('labResults', platform, {
+          choices,
+          cycleEnabled: undefined,
+        })
+      ).toBe(true);
+      expect(
+        isFeatureExplicitlyOff('labResults', platform, {
+          choices,
+          cycleEnabled: undefined,
+        })
+      ).toBe(false);
+    }
+  });
+
+  it('is turned off in one app only', () => {
+    const sources = {
+      choices: { mobile: { labResults: false } },
+      cycleEnabled: undefined,
+    };
+    expect(isFeatureEnabled('labResults', 'mobile', sources)).toBe(false);
+    expect(isFeatureExplicitlyOff('labResults', 'mobile', sources)).toBe(true);
+    expect(isFeatureEnabled('labResults', 'web', sources)).toBe(true);
+    expect(isFeatureEnabledAnywhere('labResults', sources)).toBe(true);
+  });
+
+  it('never reads lab results from cycle_settings', () => {
+    expect(
+      isFeatureEnabled('labResults', 'web', {
+        choices: undefined,
+        cycleEnabled: false,
+      })
+    ).toBe(true);
   });
 });
 

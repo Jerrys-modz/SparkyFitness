@@ -45,3 +45,7 @@ export const preferencesKeys = {
   featureChoices: (userId: string | null | undefined) =>
     [...preferencesKeys.all, 'feature-choices', userId ?? null] as const,
 };
+
+export const featureChoicesKeys = {
+  all: ['featureChoices'] as const,
+};

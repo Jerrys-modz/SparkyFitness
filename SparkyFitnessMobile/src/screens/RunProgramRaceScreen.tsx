@@ -38,7 +38,6 @@ import {
   useRunProgram,
 } from '../services/runProgramService';
 import { addLog } from '../services/LogService';
-import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import { formatLocalizedNumber, getAppLocale } from '../localization';
 import type { RootStackScreenProps } from '../types/navigation';
 import { toLocalDateString } from '../utils/dateUtils';
@@ -85,7 +84,6 @@ const Chip: React.FC<{
 const RunProgramRaceScreen: React.FC<Props> = ({ navigation, route }) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const usesNativeHeader = useNativeIOSHeadersActive();
   const { enabled, status } = useRunProgram();
   const [now] = useState(() => Date.now());
   const today = toLocalDateString(new Date(now));
@@ -327,10 +325,7 @@ const RunProgramRaceScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   return (
-    <View
-      className="flex-1 bg-background"
-      style={usesNativeHeader ? undefined : { paddingTop: insets.top }}
-    >
+    <View className="flex-1 bg-background">
       {header}
       <ScrollView
         className="flex-1 bg-background"

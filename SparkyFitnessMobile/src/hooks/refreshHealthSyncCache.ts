@@ -8,6 +8,7 @@ import {
   skinTemperatureQueryKeyRoot,
   sleepDayQueryKeyRoot,
   sleepScienceQueryKeyRoot,
+  sleepNeedQueryKey,
   sleepRangeQueryKeyRoot,
   vo2MaxRangeQueryKeyRoot,
   heartRateRangeQueryKeyRoot,
@@ -40,6 +41,8 @@ export function refreshHealthSyncCache(queryClient: QueryClient) {
   // restart (reload) refetches /api/sleep.
   void queryClient.invalidateQueries({ queryKey: sleepDayQueryKeyRoot });
   void queryClient.invalidateQueries({ queryKey: sleepRangeQueryKeyRoot });
+  // Sleep need reads the same sleep plus the workouts synced alongside it.
+  void queryClient.invalidateQueries({ queryKey: sleepNeedQueryKey });
   // Sleeping wrist temperature is written with the night's sleep.
   void queryClient.invalidateQueries({
     queryKey: skinTemperatureQueryKeyRoot,
