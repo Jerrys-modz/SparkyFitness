@@ -64,6 +64,7 @@ import {
   SafeRouteDraw,
   SafeRouteGenerate,
   SafeRunProgramRace,
+  SafeRunProgramBrowse,
   SafeFitnessTest,
   SafeFitnessTestResult,
   SafeRunProgramWorkout,
@@ -688,6 +689,11 @@ function AppContent() {
             name="RunPrograms"
             component={SafeRunPrograms}
             options={createStackScreenOptions(t('screens.runPrograms', { defaultValue: 'Training programs' }), { headerBackTitle: t('navigation.library', { defaultValue: 'Library' }) })}
+          />
+          <Stack.Screen
+            name="RunProgramBrowse"
+            component={SafeRunProgramBrowse}
+            options={createStackScreenOptions(t('screens.runProgramBrowse', { defaultValue: 'All programs' }), { headerBackTitle: t('screens.runPrograms', { defaultValue: 'Training programs' }) })}
           />
           <Stack.Screen
             name="RunProgramRace"
