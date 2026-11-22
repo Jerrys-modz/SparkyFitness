@@ -6,7 +6,14 @@ import React, {
   useState,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import { View, Text, ScrollView, TextInput, Pressable } from 'react-native';
+import {
+  View,
+  Text,
+  ScrollView,
+  TextInput,
+  Pressable,
+  Platform,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCSSVariable } from 'uniwind';
 import Toast from 'react-native-toast-message';
@@ -34,6 +41,7 @@ import {
   type FuelingSession,
 } from '../services/fuelingReminders';
 import { addLog } from '../services/LogService';
+import { saveWatchFuelingPreference } from '../services/watchFuelingPreference';
 import { formatLocalizedNumber } from '../localization';
 import type { FoodItem } from '../types/foods';
 import type { FuelingFoodRef } from '../utils/fuelingLog';
@@ -309,6 +317,14 @@ const FuelingPlanScreen: React.FC<FuelingPlanScreenProps> = () => {
             : null,
       });
       if (result.status === 'scheduled') {
+        // The Apple Watch offers these as the starting point for a run begun on
+        // the wrist, so a run without the phone gets the same reminders.
+        void saveWatchFuelingPreference({
+          carbIntervalMin: plan.intervalMin ?? 25,
+          portionGrams: plan.portionGrams,
+          drinkIntervalMin: drinkPlan.intervalMin,
+          mlPerDrink: drinkPlan.mlPerDrink,
+        });
         Toast.show({
           type: 'success',
           text1: t('fuelingPlan.started', {
@@ -354,6 +370,25 @@ const FuelingPlanScreen: React.FC<FuelingPlanScreenProps> = () => {
     startKey,
     t,
   ]);
+
+  // Gives the Apple Watch this plan to offer on its own start screen, without
+  // scheduling phone reminders (a run recorded with the phone along would
+  // otherwise be reminded twice).
+  const handleSaveForWatch = useCallback(async () => {
+    await saveWatchFuelingPreference({
+      carbIntervalMin: plan.intervalMin ?? 25,
+      portionGrams: plan.portionGrams,
+      drinkIntervalMin: drinkPlan.intervalMin,
+      mlPerDrink: drinkPlan.mlPerDrink,
+    });
+    Toast.show({
+      type: 'success',
+      text1: t('fuelingPlan.watch.saved', {
+        defaultValue:
+          'Saved. Turn on fuel reminders when you start a run on your watch.',
+      }),
+    });
+  }, [drinkPlan, plan, t]);
 
   const handleStop = useCallback(async () => {
     if (busy) return;
@@ -729,6 +764,33 @@ const FuelingPlanScreen: React.FC<FuelingPlanScreenProps> = () => {
               : t('fuelingPlan.start', { defaultValue: 'Set reminders' })}
           </Text>
         </Pressable>
+
+        {Platform.OS === 'ios' ? (
+          <View className="mt-3">
+            <Pressable
+              testID="fueling-save-watch"
+              accessibilityRole="button"
+              onPress={handleSaveForWatch}
+              disabled={!canStart}
+              className="py-3 rounded-xl items-center border border-border-subtle"
+              style={({ pressed }) => ({
+                opacity: !canStart ? 0.4 : pressed ? 0.7 : 1,
+              })}
+            >
+              <Text className="text-text-primary font-semibold">
+                {t('fuelingPlan.watch.save', {
+                  defaultValue: 'Use on Apple Watch',
+                })}
+              </Text>
+            </Pressable>
+            <Text className="text-text-secondary text-xs mt-1">
+              {t('fuelingPlan.watch.hint', {
+                defaultValue:
+                  'Your watch offers this plan when you start a run on it, even without your phone. Reminders on the watch are separate from the ones on this phone.',
+              })}
+            </Text>
+          </View>
+        ) : null}
 
         <FuelFoodSheet ref={foodSheetRef} onSelect={handleFoodSelected} />
 

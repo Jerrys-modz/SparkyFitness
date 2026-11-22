@@ -246,3 +246,17 @@
 "watch.fasting.startPreset" = "Start %@";
 "watch.steps.waiting" = "Waiting for your iPhone";
 "watch.steps.ofGoal" = "of %@";
+"watch.run.fuelReminders" = "Fuel reminders";
+"watch.run.drinkReminders" = "Drink reminders";
+"watch.run.fuel.takeGrams" = "Take %lld g";
+"watch.run.fuel.drinkMl" = "Drink %lld ml";
+"watch.run.fuel.takeAndDrink" = "Take %lld g + drink";
+"watch.run.fuel.fuelGrams" = "Fuel %lld g";
+"watch.cardio.summary.fuel" = "Fuel %lld min";
+"watch.cardio.summary.drink" = "Drink %lld min";
+"watch.cardio.every" = "Every";
+"watch.cardio.portion" = "Portion";
+"watch.cardio.amount" = "Each drink";
+"watch.unit.min" = "min";
+"watch.unit.g" = "g";
+"watch.unit.ml" = "ml";

@@ -150,6 +150,20 @@ final class WatchRunCues: NSObject, AVSpeechSynthesizerDelegate {
     }
 
     static let halfwayText = "Halfway there. Keep it up."
+
+    /// The fuel and drink reminders.
+    static func fuelText(grams: Int) -> String { "Time to fuel. Take \(grams) grams of carbs." }
+    static func drinkText(ml: Int) -> String { "Time to drink. About \(ml) milliliters." }
+
+    /// What to say when a fuel and a drink reminder come due, either or both.
+    static func fuelingText(grams: Int?, ml: Int?) -> String {
+        switch (grams, ml) {
+        case let (grams?, ml?): return "Time to fuel. Take \(grams) grams of carbs, and have about \(ml) milliliters to drink."
+        case let (grams?, nil): return fuelText(grams: grams)
+        case let (nil, ml?): return drinkText(ml: ml)
+        case (nil, nil): return ""
+        }
+    }
     static let lastMinuteText = "One minute left. Finish strong."
 
     /// The periodic update: the time, and outdoors the distance and average

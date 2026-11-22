@@ -184,6 +184,53 @@ struct CardioPlanStep: View {
     }
 }
 
+/// The next fuel or drink reminder under the clock, with its countdown; while
+/// one is due it turns orange and a tap puts it away. A tinted strip like the
+/// plan step, so it reads as part of the timing.
+struct CardioFuelStrip: View {
+    let systemImage: String
+    /// "Fuel 25 g", "Take 25 g", "Drink 150 ml".
+    let label: String
+    /// What is left until it, already worded ("12:30"); nil while one is due.
+    let remaining: String?
+    let isDue: Bool
+    let onDismiss: () -> Void
+
+    private var tint: Color { isDue ? .orange : .green }
+
+    private var content: some View {
+        HStack(spacing: 6) {
+            Image(systemName: systemImage)
+                .font(.system(size: WatchStyle.s(12), weight: .bold))
+            Text(label)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+            Spacer(minLength: 4)
+            if let remaining {
+                Text(remaining)
+                    .monospacedDigit()
+            }
+        }
+        .font(.system(size: WatchStyle.s(14), weight: .bold))
+        .foregroundStyle(tint)
+        .padding(.horizontal, WatchStyle.s(8))
+        .padding(.vertical, WatchStyle.s(3))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(tint.opacity(0.18), in: RoundedRectangle(cornerRadius: WatchStyle.s(10), style: .continuous))
+        .accessibilityElement(children: .combine)
+    }
+
+    @ViewBuilder
+    var body: some View {
+        if isDue {
+            Button(action: onDismiss) { content }
+                .buttonStyle(.plain)
+        } else {
+            content
+        }
+    }
+}
+
 /// Three bars, lit by how good the GPS fix is: green when good, yellow when
 /// fair, red when weak, grey with none.
 struct GpsSignalBars: View {

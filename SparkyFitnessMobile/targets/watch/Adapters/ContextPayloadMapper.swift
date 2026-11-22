@@ -101,6 +101,7 @@ enum ContextPayloadMapper {
                 min: (payload["runHeartRateMinBpm"] as? NSNumber)?.doubleValue,
                 max: (payload["runHeartRateMaxBpm"] as? NSNumber)?.doubleValue
             ) ?? previous.runHeartRateBand,
+            runFueling: runFueling(from: payload) ?? previous.runFueling,
             runPlans: runPlans(from: payload) ?? previous.runPlans,
             indoorDistanceScale: indoorDistanceScale(from: payload) ?? previous.indoorDistanceScale
         )
@@ -166,6 +167,20 @@ enum ContextPayloadMapper {
         let walk = (raw["walk"] as? NSNumber)?.doubleValue ?? 1
         let run = (raw["run"] as? NSNumber)?.doubleValue ?? 1
         return IndoorDistanceScale(walk: walk, run: run)
+    }
+
+    /// The reminders the phone last planned: the two intervals and the two
+    /// amounts. Nil when the phone has sent none, so the watch keeps its last.
+    static func runFueling(from payload: [String: Any]) -> WatchFuelingPlan? {
+        let carbInterval = (payload["runFuelIntervalMin"] as? NSNumber)?.intValue
+        let drinkInterval = (payload["runDrinkIntervalMin"] as? NSNumber)?.intValue
+        guard carbInterval != nil || drinkInterval != nil else { return nil }
+        return WatchFuelingPlan(
+            carbIntervalMin: carbInterval,
+            portionGrams: (payload["runFuelPortionGrams"] as? NSNumber)?.intValue ?? WatchFuelingPlan.defaultPortionGrams,
+            drinkIntervalMin: drinkInterval,
+            mlPerDrink: (payload["runDrinkMl"] as? NSNumber)?.intValue ?? WatchFuelingPlan.defaultMlPerDrink
+        ).clamped
     }
 
     static func runPlans(from payload: [String: Any]) -> [WatchRunPlan]? {

@@ -61,6 +61,16 @@ If you have a race, the plan can build up to your race-day amount gradually. Tak
 
 Switch on **Drink reminders** in the mobile app to get a separate reminder to drink during the run. The default is 150 ml every 20 minutes (450 ml an hour); change both to suit you. How much you need depends on how much you sweat and on the weather, so these numbers are a starting point and not a target to replace everything you lose. A plan above 800 ml an hour is flagged, because drinking more than you lose can be harmful. The web shows the same drink plan and adds it to the printed schedule; it has no reminders.
 
+## Apple Watch
+
+Runs recorded on an Apple Watch can give fuel and drink reminders on their own, so they keep coming with your phone left at home.
+
+- **Plan on the phone first (optional).** On **Library > Fueling plan**, tap **Use on Apple Watch**. The watch will offer that plan's timing and amounts when you start a run on it. Without this, it offers 25 g every 25 minutes and 150 ml every 20 minutes.
+- **Turn it on for the run.** On the watch, open **Workout > Cardio > Alerts** and switch on **Fuel reminders** and/or **Drink reminders**. Change how often and how much with the plus and minus buttons or the Digital Crown. Like the pace and heart rate alerts, they are off until you turn them on and only last for that run.
+- **During the run.** A strip under the clock counts down to the next reminder. When one is due the watch taps your wrist, the strip turns orange and says what to take (and says it aloud if **Voice cues** is on). Tap the strip to put it away. Pausing pauses the countdown. The gear button lets you switch the reminders on or off mid-run.
+- **One or the other.** Use the watch's reminders or the phone's for a run, not both: the phone's reminders also show on your watch while the phone is locked, so you would be reminded twice.
+- Reminders on the watch do not log anything to your diary yet, and Wear OS watches are not covered.
+
 ## Sources
 
 - Thomas, Erdman and Burke (2016). Position of the Academy of Nutrition and Dietetics, Dietitians of Canada, and the American College of Sports Medicine: Nutrition and Athletic Performance. [Sports Science Exchange summary](https://www.gssiweb.org/docs/default-source/sse-docs/sse_231_005.pdf).
