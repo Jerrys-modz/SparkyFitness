@@ -70,6 +70,7 @@ import {
   SafeRouteDraw,
   SafeRouteGenerate,
   SafeRunProgramRace,
+  SafeRunProgramBrowse,
   SafeFitnessTest,
   SafeFitnessTestResult,
   SafeRunProgramWorkout,
@@ -743,6 +744,11 @@ function AppContent() {
             name="WorkoutProgramImport"
             component={SafeWorkoutProgramImport}
             options={createStackScreenOptions(t('workoutPrograms.import.screenTitle', { defaultValue: 'Add workouts' }), { headerBackTitle: t('screens.workoutSplits', { defaultValue: 'Workout programs' }) })}
+          />
+          <Stack.Screen
+            name="RunProgramBrowse"
+            component={SafeRunProgramBrowse}
+            options={createStackScreenOptions(t('screens.runProgramBrowse', { defaultValue: 'All programs' }), { headerBackTitle: t('screens.runPrograms', { defaultValue: 'Training programs' }) })}
           />
           <Stack.Screen
             name="RunProgramRace"

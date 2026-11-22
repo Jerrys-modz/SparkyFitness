@@ -47,6 +47,8 @@ const RunProgramToolsCard: React.FC<{
   status: ProgramStatus;
   programId: string;
   onOpenCalendar: () => void;
+  /** Opens every built-in program, week by week, without changing the current one. */
+  onBrowse: () => void;
   /** Absent for a plan the person wrote, which is already editable. */
   onCustomize?: () => void;
   onOpenPaces: () => void;
@@ -58,6 +60,7 @@ const RunProgramToolsCard: React.FC<{
   status,
   programId,
   onOpenCalendar,
+  onBrowse,
   onCustomize,
   onOpenPaces,
   onChooseProgram,
@@ -81,6 +84,19 @@ const RunProgramToolsCard: React.FC<{
         {t('runPrograms.tools.title', { defaultValue: 'Tools & plan actions' })}
       </Text>
       <ProgramActionList>
+        <ToolRow
+          icon="list"
+          iconColor={textSecondary}
+          label={t('runPrograms.browse.open', {
+            defaultValue: 'Browse all programs',
+          })}
+          hint={t('runPrograms.browse.openHint', {
+            defaultValue:
+              'Look at any program week by week. Your plan stays as it is.',
+          })}
+          onPress={onBrowse}
+          testID="browse-programs"
+        />
         <ToolRow
           icon="calendar"
           iconColor={accent}

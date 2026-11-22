@@ -949,7 +949,8 @@
     "admin": "Admin",
     "adminUsers": "Users",
     "adminUser": "User",
-    "aiServiceForm": "AI service"
+    "aiServiceForm": "AI service",
+    "runProgramBrowse": "All programs"
   },
   "activityShare": {
     "title": "Share Activity",
@@ -10459,6 +10460,17 @@
       "changeHint": "Pick another built-in program",
       "pickHint": "Jump ahead or go back in the program",
       "skip": "Skip current workout"
+    },
+    "browse": {
+      "open": "Browse all programs",
+      "openHint": "Look at any program week by week. Your plan stays as it is.",
+      "intro": "Look through any program, week by week. Nothing here changes the plan you are following.",
+      "current": "Current program",
+      "showWeeks": "Show every week",
+      "hideWeeks": "Hide the weeks",
+      "week": "Week {{week}}",
+      "workoutRun": "Run {{number}} · {{total}} min, {{effort}} min of effort",
+      "workoutWalk": "Walk {{number}} · {{total}} min, {{effort}} min brisk"
     }
   },
   "speechVoice": {

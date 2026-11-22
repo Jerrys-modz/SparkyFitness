@@ -10573,7 +10573,8 @@
       "back": "Exercises",
       "intro": "Follow a plan that builds up week by week. Pick a program to see what it involves, then start it when you are ready.",
       "ownOnly": "Training programs are personal. Switch back to your own account to see yours.",
-      "title": "Training programs"
+      "title": "Training programs",
+      "browseIntro": "Browsing a program below never changes the one you are following."
     },
     "picker": {
       "current": "Current program",
@@ -10585,7 +10586,12 @@
       "start": "Start program",
       "weeksRuns": "{{weeks}} weeks, {{runs}} workouts a week",
       "runsPerWeekOption_one": "{{count}} run a week",
-      "runsPerWeekOption_other": "{{count}} runs a week"
+      "runsPerWeekOption_other": "{{count}} runs a week",
+      "showWeeks": "Show every week",
+      "hideWeeks": "Hide the weeks",
+      "week": "Week {{week}}",
+      "workoutRun": "Run {{number}} · {{total}} min, {{effort}} min of effort",
+      "workoutWalk": "Walk {{number}} · {{total}} min, {{effort}} min brisk"
     },
     "programs": {
       "advancedMarathon": {

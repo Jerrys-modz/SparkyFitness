@@ -922,6 +922,46 @@ export function programOutline(program: RunProgram): ProgramOutline {
   };
 }
 
+/** One workout as the program preview lists it. */
+export interface ProgramPreviewWorkout {
+  /** Index into `program.workouts`. */
+  index: number;
+  workout: ProgramWorkout;
+  /** The whole workout, warm-up and cool-down included. */
+  totalMinutes: number;
+  /** The minutes the program card quotes (a walk counts brisk time only). */
+  effortMinutes: number;
+}
+
+/** One week of a program preview. */
+export interface ProgramPreviewWeek {
+  /** 0-based week. */
+  week: number;
+  workouts: ProgramPreviewWorkout[];
+}
+
+/**
+ * A program's workouts grouped week by week, for browsing a program without
+ * starting it. Pure: reads nothing about the person's own place in a program.
+ */
+export function programWeeks(program: RunProgram): ProgramPreviewWeek[] {
+  const weeks: ProgramPreviewWeek[] = [];
+  program.workouts.forEach((workout, index) => {
+    let week = weeks.find((w) => w.week === workout.week);
+    if (!week) {
+      week = { week: workout.week, workouts: [] };
+      weeks.push(week);
+    }
+    week.workouts.push({
+      index,
+      workout,
+      totalMinutes: planMinutes(workout.plan),
+      effortMinutes: quotedMinutes(program, workout.plan),
+    });
+  });
+  return weeks.sort((a, b) => a.week - b.week);
+}
+
 /** A stored program as the server holds it: the person's own workouts. */
 export interface StoredRunProgram {
   program_id: string;

@@ -18,6 +18,8 @@ import {
   programStructure,
 } from '@/utils/runPrograms';
 
+import TrainingProgramWeeks from './TrainingProgramWeeks';
+
 /** What the 2-day and 4-day choices mean, depending on which versions exist. */
 function versionHint(t: TFunction, counts: readonly number[]): string {
   const hasTwo = counts.includes(2);
@@ -155,6 +157,7 @@ const TrainingProgramPicker = ({
                       )}
                 </p>
               ) : null}
+              {full ? <TrainingProgramWeeks program={full} /> : null}
               <Button
                 variant="outline"
                 disabled={busy || isCurrent}
