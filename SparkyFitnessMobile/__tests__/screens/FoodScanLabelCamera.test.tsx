@@ -66,6 +66,7 @@ const navigation = {
   dispatch: jest.fn(),
   goBack: jest.fn(),
   isFocused: jest.fn(() => true),
+  setOptions: jest.fn(),
 };
 const photo: CameraCapturedPicture = {
   uri: 'file:///camera-label.jpg',
@@ -135,6 +136,21 @@ describe('in-app nutrition label camera', () => {
     jest.mocked(scanNutritionLabel).mockResolvedValue(labelResult);
   });
   afterEach(() => jest.restoreAllMocks());
+
+  it('turns off swipe-to-close while the label is being cropped', async () => {
+    const screen = renderScreen();
+    expect(navigation.setOptions).toHaveBeenLastCalledWith({
+      gestureEnabled: true,
+    });
+    await takePhoto(screen);
+    expect(navigation.setOptions).toHaveBeenLastCalledWith({
+      gestureEnabled: false,
+    });
+    fireEvent.press(screen.getByLabelText('Retake photo'));
+    expect(navigation.setOptions).toHaveBeenLastCalledWith({
+      gestureEnabled: true,
+    });
+  });
 
   it('captures the existing preview and reviews the photo without opening a second camera', async () => {
     const screen = renderScreen();

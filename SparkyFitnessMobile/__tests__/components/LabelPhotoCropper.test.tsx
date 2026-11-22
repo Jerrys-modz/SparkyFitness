@@ -249,4 +249,54 @@ describe('nutrition label crop review', () => {
       )
     ).toBeTruthy();
   });
+
+  it('draws a new box when dragging across a full-frame photo', () => {
+    const create = jest.spyOn(PanResponder, 'create');
+    const screen = render(
+      <EditableCrop crop={{ x: 0, y: 0, width: 1, height: 1 }} />
+    );
+    layoutCropper(screen);
+    const frame = screen.getByTestId('label-crop-image-frame');
+    // Nothing to move when the selection is the whole photo.
+    expect(within(frame).queryByLabelText('Move label crop')).toBeNull();
+    const image = frame.props.style as { width: number; height: number };
+    const surface = screen.getByTestId('label-crop-draw-surface');
+    const index = create.mock.results.findIndex(
+      (result) =>
+        result.type === 'return' &&
+        (result.value as ReturnType<typeof PanResponder.create>).panHandlers
+          .onResponderGrant === surface.props.onResponderGrant
+    );
+    const pan = create.mock.calls[index]![0];
+    expect(
+      pan.onStartShouldSetPanResponder?.({} as GestureResponderEvent, gesture())
+    ).toBe(false);
+    expect(
+      pan.onMoveShouldSetPanResponder?.(
+        {} as GestureResponderEvent,
+        gesture(2, 2)
+      )
+    ).toBe(false);
+    // Finger went down at 20% / 30% and has moved 40% / 50% when the drag is granted.
+    const dx = image.width * 0.4;
+    const dy = image.height * 0.5;
+    const event = {
+      nativeEvent: {
+        locationX: image.width * 0.2 + dx,
+        locationY: image.height * 0.3 + dy,
+      },
+    } as GestureResponderEvent;
+    act(() => pan.onPanResponderGrant?.(event, gesture(dx, dy)));
+    expectCrop(screen, { x: 0.2, y: 0.3, width: 0.4, height: 0.5 });
+    act(() =>
+      pan.onPanResponderMove?.(
+        event,
+        gesture(image.width * 0.6, image.height * 0.6)
+      )
+    );
+    expectCrop(screen, { x: 0.2, y: 0.3, width: 0.6, height: 0.6 });
+    // Side handles appear once the box has room for them.
+    expect(screen.getByLabelText('Top crop edge')).toBeTruthy();
+    expect(screen.getByLabelText('Right crop edge')).toBeTruthy();
+  });
 });

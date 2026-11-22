@@ -1,6 +1,7 @@
 import React, {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -222,6 +223,13 @@ const FoodScanScreen: React.FC<FoodScanScreenProps> = ({
     setLookupError(null);
     restartCamera();
   };
+
+  // The modal's swipe-down dismiss would close the scanner mid-crop, since
+  // framing the label is a drag on the photo. Turn it off while reviewing.
+  const reviewingLabel = capturedPhoto !== null || labelProcessing;
+  useLayoutEffect(() => {
+    navigation.setOptions({ gestureEnabled: !reviewingLabel });
+  }, [navigation, reviewingLabel]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
@@ -1131,9 +1139,9 @@ const FoodScanScreen: React.FC<FoodScanScreenProps> = ({
               }}
             >
               <Text className="text-white text-sm text-center px-6">
-                {t('foodScan.label.cropHelp', {
+                {t('foodScan.label.cropHelpDraw', {
                   defaultValue:
-                    'Drag the corners to frame the nutrition label.',
+                    'Drag across the nutrition label to frame it, then fine-tune the edges.',
                 })}
               </Text>
               <LabelPhotoCropper
