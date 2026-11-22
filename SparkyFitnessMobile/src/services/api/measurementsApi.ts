@@ -1,6 +1,6 @@
 import { apiFetch } from './apiClient';
 import type { ServerConfig } from '../storage';
-import { putCacheRows } from '../../offline/cacheStore';
+import { getCacheRow, putCacheRows } from '../../offline/cacheStore';
 import {
   CACHE_COLLECTIONS,
   SINGLE_DOCUMENT_KEY,
@@ -541,10 +541,26 @@ export const deleteCustomMeasurement = async (id: string): Promise<void> => {
 export const fetchWaterIntakeLog = async (
   date: string
 ): Promise<WaterIntakeLogEntry[]> => {
-  return apiFetch<WaterIntakeLogEntry[]>({
-    endpoint: `/api/v2/measurements/water-intake/${encodeURIComponent(date)}/log`,
-    serviceName: 'Measurements API',
-    operation: 'fetch water intake log',
+  return withOfflineFallback<WaterIntakeLogEntry[]>({
+    fetch: () =>
+      apiFetch<WaterIntakeLogEntry[]>({
+        endpoint: `/api/v2/measurements/water-intake/${encodeURIComponent(date)}/log`,
+        serviceName: 'Measurements API',
+        operation: 'fetch water intake log',
+      }),
+    store: (db, serverConfigId, log) =>
+      putCacheRows(db, serverConfigId, CACHE_COLLECTIONS.waterLog, [
+        { key: date, payload: log },
+      ]),
+    read: async (db, serverConfigId) => {
+      const row = await getCacheRow(
+        db,
+        serverConfigId,
+        CACHE_COLLECTIONS.waterLog,
+        date
+      );
+      return row ? (row.payload as WaterIntakeLogEntry[]) : null;
+    },
   });
 };
 

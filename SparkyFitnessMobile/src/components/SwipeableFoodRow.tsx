@@ -26,21 +26,12 @@ interface SwipeableFoodRowProps {
   entry: FoodEntry;
   nutrition: EntryNutrition;
   onAdjustServing?: (entry: FoodEntry) => void;
-  /**
-   * Shows the entry from the phone, with only what works without the server:
-   * no serving adjustment and no detail screen, but it can still be deleted
-   * (the delete is kept and sent later, or takes a waiting entry out of the
-   * queue). Used for the Diary read from the phone while the server is
-   * unreachable. An entry still waiting to upload is always shown this way.
-   */
-  readOnly?: boolean;
 }
 
 const SwipeableFoodRow: React.FC<SwipeableFoodRowProps> = ({
   entry,
   nutrition,
   onAdjustServing,
-  readOnly: readOnlyProp = false,
 }) => {
   const { t } = useTranslation();
   const { preferences } = usePreferences();
@@ -115,10 +106,9 @@ const SwipeableFoodRow: React.FC<SwipeableFoodRowProps> = ({
     t('foodRow.unknownFood', { defaultValue: 'Unknown food' });
   const timeLabel = formatTimeLabel(entry.entry_time, preferences?.time_format);
 
-  // A waiting entry has no server copy to open, and a logged meal's
-  // components are edited through the meal, which needs the server.
-  const detailAvailable =
-    !isPendingEntryId(entry.id) && !(readOnlyProp && isMealComponent);
+  // A waiting entry has no server copy to open. A logged meal's components
+  // open the meal, which the phone keeps for the last week.
+  const detailAvailable = !isPendingEntryId(entry.id);
 
   const handlePress = () => {
     if (!detailAvailable) {

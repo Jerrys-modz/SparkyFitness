@@ -13,6 +13,8 @@ export const CACHE_COLLECTIONS = {
   diaryDay: 'diary_day',
   /** The server's whole summary of a day, keyed by YYYY-MM-DD. */
   dailySummary: 'daily_summary',
+  /** A day's itemized drinks (the water log), keyed by YYYY-MM-DD. */
+  waterLog: 'water_log',
   /** The person's water containers (one document). */
   waterContainers: 'water_containers',
   /** A day's food entries as the diary last loaded them, keyed by YYYY-MM-DD. */
@@ -35,6 +37,8 @@ export const CACHE_COLLECTIONS = {
   foodVariants: 'food_variants',
   /** The recent and most-used foods lists (one document). */
   foodRecents: 'food_recents',
+  /** A logged meal with its components, keyed by its id. */
+  loggedMeal: 'logged_meal',
   /** The person's meal types (one document). */
   mealTypes: 'meal_types',
   /** Markers the offline pack writes about itself. */
@@ -46,6 +50,13 @@ export const SINGLE_DOCUMENT_KEY = 'current';
 
 /** Marker written when a full offline pack refresh has finished. */
 export const PACK_COMPLETED_KEY = 'completed';
+
+/**
+ * Marker written when the food, meals and day totals of the pack have all
+ * refreshed. Kept apart from the workout marker so a food refresh that failed
+ * is tried again on the next trigger, not after the workout pack's six hours.
+ */
+export const FOOD_PACK_COMPLETED_KEY = 'food_completed';
 
 /**
  * Last-time values are scoped by the saved workout they were done in, so the
