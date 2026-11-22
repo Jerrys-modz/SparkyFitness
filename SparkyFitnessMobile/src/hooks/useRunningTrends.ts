@@ -7,10 +7,9 @@ import {
   runningEfforts,
   startOfWeek,
   toWeekStart,
-  type ExerciseActivityQueryItem,
 } from '@workspace/shared';
 import {
-  fetchCardioSessionsPage,
+  fetchCardioSessionsWindow,
   fetchPersonalRecords,
 } from '../services/api/exerciseStatsApi';
 import { runningRecordsQueryKey, runningTrendsQueryKey } from './queryKeys';
@@ -19,29 +18,6 @@ import { getTodayDate } from '../utils/dateUtils';
 
 /** Weeks of running shown on the trends card. */
 export const RUNNING_TRENDS_WEEKS = 12;
-const PAGE_SIZE = 100;
-/** A safety stop; 12 weeks of workouts is a few pages at most. */
-const MAX_PAGES = 10;
-
-async function fetchWindow(
-  startDate: string,
-  endDate: string
-): Promise<ExerciseActivityQueryItem[]> {
-  const items: ExerciseActivityQueryItem[] = [];
-  for (let page = 1; page <= MAX_PAGES; page++) {
-    const result = await fetchCardioSessionsPage({
-      startDate,
-      endDate,
-      page,
-      pageSize: PAGE_SIZE,
-      unitSystem: 'metric',
-    });
-    items.push(...result.items);
-    if (page >= result.totalPages) break;
-  }
-  return items;
-}
-
 /**
  * Weekly mileage, longest run, efficiency and race-time estimates. Weeks begin
  * on the account's first day of the week. The keys sit in the `cardioSessions`
@@ -59,7 +35,7 @@ export function useRunningTrends(enabled = true) {
 
   const sessions = useQuery({
     queryKey: runningTrendsQueryKey(startDate, today),
-    queryFn: () => fetchWindow(startDate, today),
+    queryFn: () => fetchCardioSessionsWindow(startDate, today),
     enabled,
   });
   const records = useQuery({

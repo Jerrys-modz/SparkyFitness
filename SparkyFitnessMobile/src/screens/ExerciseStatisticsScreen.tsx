@@ -15,6 +15,7 @@ import { useExerciseDashboard } from '../hooks/useExerciseDashboard';
 import { useTrainingConsistency } from '../hooks/useTrainingConsistency';
 import { useCardioSessions } from '../hooks/useCardioSessions';
 import { useRunningTrends } from '../hooks/useRunningTrends';
+import { usePaceByZone } from '../hooks/usePaceByZone';
 import { usePaceZones } from '../hooks/usePaceZones';
 import { usePreferences } from '../hooks/usePreferences';
 import { useProfile } from '../hooks/useProfile';
@@ -30,6 +31,7 @@ import CollapsibleSection from '../components/CollapsibleSection';
 import RunningFormCard from '../components/exerciseStats/RunningFormCard';
 import CardioSessionList from '../components/exerciseStats/CardioSessionList';
 import RunningTrendsCard from '../components/exerciseStats/RunningTrendsCard';
+import PaceByZoneCard from '../components/exerciseStats/PaceByZoneCard';
 import TrainingConsistencyCard from '../components/exerciseStats/TrainingConsistencyCard';
 import PaceZonesCard from '../components/exerciseStats/PaceZonesCard';
 import TrainingLoadCard from '../components/exerciseStats/TrainingLoadCard';
@@ -151,6 +153,7 @@ const ExerciseStatisticsScreen: React.FC<ExerciseStatisticsScreenProps> = ({
   const sportLoad = useTrainingCalendar(sportRange.start, sportRange.end);
   const cardio = useCardioSessions(range, view === 'cardio', customRange);
   const running = useRunningTrends(view === 'cardio');
+  const paceByZone = usePaceByZone(view === 'cardio');
   const paceZones = usePaceZones(view === 'cardio');
   const formTrend = useMemo(
     () => runFormTrend(cardio.sessions),
@@ -264,6 +267,12 @@ const ExerciseStatisticsScreen: React.FC<ExerciseStatisticsScreenProps> = ({
           <RunningTrendsCard
             trends={running.trends}
             raceTimes={running.raceTimes}
+            distanceUnit={cardio.distanceUnit}
+          />
+        ) : null}
+        {paceByZone.zones?.some((z) => z.months.some((m) => m.runs > 0)) ? (
+          <PaceByZoneCard
+            zones={paceByZone.zones}
             distanceUnit={cardio.distanceUnit}
           />
         ) : null}
