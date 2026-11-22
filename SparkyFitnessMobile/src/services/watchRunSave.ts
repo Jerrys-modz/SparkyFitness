@@ -6,6 +6,7 @@ import {
   createExerciseEntry,
 } from './api/exerciseApi';
 import { resolveRecordingExercise } from './gpsRecordingSave';
+import { noteWatchRunEntry } from './healthkit/watchRunEntries';
 import { addLog } from './LogService';
 import { measureWatchRunForm, type WatchRunForm } from './stepDistance';
 import { buildActivitySetsPayload } from '../utils/workoutSession';
@@ -131,6 +132,8 @@ export async function saveWatchRun(
       }),
     });
     entryId = created.id;
+    // The watch saved this workout to Apple Health itself: write-back leaves it out.
+    await noteWatchRunEntry(entryId);
     await onEntryCreated(entryId, form);
   }
 
