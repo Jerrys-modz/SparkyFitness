@@ -22,6 +22,7 @@ import { addLog } from '../../src/services/LogService';
 import { initMoodCheckinNotificationResponses } from '../../src/services/moodCheckinNotificationHandler';
 import { initFuelingNotificationResponses } from '../../src/services/fuelingNotificationHandler';
 import { initSymptomNotificationActions } from '../../src/services/symptomNotificationHandler';
+import { initChallengeNotificationResponses } from '../../src/services/challengeNotificationHandler';
 import { initMedicationNotificationActions } from '../../src/services/medicationNotificationHandler';
 
 jest.mock('expo-splash-screen', () => ({
@@ -82,6 +83,10 @@ jest.mock('../../src/services/weighInNotificationHandler', () => ({
 
 jest.mock('../../src/services/symptomNotificationHandler', () => ({
   initSymptomNotificationActions: jest.fn(() => jest.fn()),
+}));
+
+jest.mock('../../src/services/challengeNotificationHandler', () => ({
+  initChallengeNotificationResponses: jest.fn(() => jest.fn()),
 }));
 
 jest.mock('../../src/services/workoutLiveActivity', () => ({
@@ -250,6 +255,18 @@ describe('useAppStartup', () => {
   it('stops the symptom nudge action listener on unmount', async () => {
     const stop = jest.fn();
     (initSymptomNotificationActions as jest.Mock).mockReturnValue(stop);
+    const { unmount } = renderHook(() =>
+      useAppStartup({ shouldYieldObserverSync })
+    );
+    await waitFor(() => expect(initNotifications).toHaveBeenCalled());
+    expect(stop).not.toHaveBeenCalled();
+    unmount();
+    expect(stop).toHaveBeenCalledTimes(1);
+  });
+
+  it('stops the challenge notification tap listener on unmount', async () => {
+    const stop = jest.fn();
+    (initChallengeNotificationResponses as jest.Mock).mockReturnValue(stop);
     const { unmount } = renderHook(() =>
       useAppStartup({ shouldYieldObserverSync })
     );

@@ -12,6 +12,7 @@ import {
 import { MEAL_REMINDER_KIND } from '../utils/mealReminders';
 import { MACRO_ALERT_KIND, type MacroAlert } from '../utils/macroAlerts';
 import { WEIGH_IN_REMINDER_KIND } from '../utils/weighInReminder';
+import { CHALLENGE_WEEK_LEADER_KIND } from '../utils/challenges';
 import i18n from '../localization/i18n';
 import { fireSuccessHaptic } from './haptics';
 import {
@@ -39,6 +40,7 @@ const MINDFULNESS_CHANNEL_ID = 'mindfulness';
 export const MEDICATION_REMINDER_CHANNEL_ID = 'medication-reminders';
 export const MEAL_REMINDER_CHANNEL_ID = 'meal-reminders';
 export const MACRO_ALERT_CHANNEL_ID = 'macro-alerts';
+export const CHALLENGES_CHANNEL_ID = 'challenges';
 const EXACT_ALARM_PROMPT_KEY = '@SparkyFitness/exactAlarmPromptShown';
 
 export function notificationCopy(
@@ -290,6 +292,14 @@ export async function ensureWeighInChannel(): Promise<void> {
   });
 }
 
+export async function ensureChallengesChannel(): Promise<void> {
+  if (Platform.OS !== 'android') return;
+  await Notifications.setNotificationChannelAsync(CHALLENGES_CHANNEL_ID, {
+    name: notificationCopy('notifications.channels.challenges', 'Challenges'),
+    importance: Notifications.AndroidImportance.DEFAULT,
+  });
+}
+
 async function ensureMindfulnessChannel(): Promise<void> {
   if (Platform.OS !== 'android') return;
   await Notifications.setNotificationChannelAsync(MINDFULNESS_CHANNEL_ID, {
@@ -389,7 +399,8 @@ export async function initNotifications(): Promise<void> {
         const isMoodCheckin =
           kind === MOOD_CHECKIN_KIND ||
           kind === ORAL_CARE_REMINDER_KIND ||
-          kind === WEIGH_IN_REMINDER_KIND;
+          kind === WEIGH_IN_REMINDER_KIND ||
+          kind === CHALLENGE_WEEK_LEADER_KIND;
         // iOS also runs this while the app is frontmost-but-inactive (screen
         // locking, app switcher), where the chime never plays — so there the
         // ping carries the cue itself instead of being hidden as a duplicate.

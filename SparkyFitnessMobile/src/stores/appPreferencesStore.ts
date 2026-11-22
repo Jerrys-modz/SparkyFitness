@@ -149,6 +149,7 @@ export const PREFERENCE_DEFAULTS = {
   labResultsCardVisible: true,
   // Off until chosen: weight figures on the first screen are not for everyone.
   weightProgressCardVisible: false,
+  challengesCardVisible: true,
   trainingLoadCardVisible: true,
   dashboardCardOrder: [...DASHBOARD_CARD_KEYS] as DashboardCardKey[],
   medicationRemindersEnabled: true,
@@ -171,6 +172,7 @@ export const PREFERENCE_DEFAULTS = {
   weighInRemindersEnabled: false,
   weighInReminderTime: DEFAULT_WEIGH_IN_REMINDER_TIME as string,
   weighInReminderWeekdays: [...ALL_WEEKDAYS] as number[],
+  challengeWeekNotificationsEnabled: true,
   liquidGlassTabBarEnabled: false,
   activeWorkoutMetricColumn: 'rpe' as ActiveWorkoutMetricColumn,
   diarySummaryVisible: false,
@@ -265,6 +267,7 @@ export type AppPreferencesData = {
   oralCareCardVisible: boolean;
   labResultsCardVisible: boolean;
   weightProgressCardVisible: boolean;
+  challengesCardVisible: boolean;
   trainingLoadCardVisible: boolean;
   dashboardCardOrder: DashboardCardKey[];
   medicationRemindersEnabled: boolean;
@@ -289,6 +292,7 @@ export type AppPreferencesData = {
   weighInReminderTime: string;
   /** Day-of-week indices (0 = Sunday), sorted; never empty. */
   weighInReminderWeekdays: number[];
+  challengeWeekNotificationsEnabled: boolean;
   liquidGlassTabBarEnabled: boolean;
   activeWorkoutMetricColumn: ActiveWorkoutMetricColumn;
   diarySummaryVisible: boolean;
@@ -461,6 +465,7 @@ export interface AppPreferencesState extends AppPreferencesData {
   setOralCareCardVisible: (value: boolean) => void;
   setLabResultsCardVisible: (value: boolean) => void;
   setWeightProgressCardVisible: (value: boolean) => void;
+  setChallengesCardVisible: (value: boolean) => void;
   setTrainingLoadCardVisible: (value: boolean) => void;
   setDashboardCardOrder: (order: DashboardCardKey[]) => void;
   setMedicationRemindersEnabled: (value: boolean) => void;
@@ -485,6 +490,7 @@ export interface AppPreferencesState extends AppPreferencesData {
   setWeighInReminderTime: (time: string) => void;
   /** An empty selection is ignored, so at least one day stays chosen. */
   setWeighInReminderWeekdays: (days: number[]) => void;
+  setChallengeWeekNotificationsEnabled: (enabled: boolean) => void;
   setLiquidGlassTabBarEnabled: (value: boolean) => void;
   setActiveWorkoutMetricColumn: (value: ActiveWorkoutMetricColumn) => void;
   setDiarySummaryVisible: (value: boolean) => void;
@@ -658,6 +664,8 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         set({ labResultsCardVisible: value }),
       setWeightProgressCardVisible: (value) =>
         set({ weightProgressCardVisible: value }),
+      setChallengesCardVisible: (value) =>
+        set({ challengesCardVisible: value }),
       setTrainingLoadCardVisible: (value) =>
         set({ trainingLoadCardVisible: value }),
       setDashboardCardOrder: (order) => set({ dashboardCardOrder: order }),
@@ -699,6 +707,8 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         const normalized = normalizeWeighInReminderWeekdays(days);
         if (normalized.length > 0) set({ weighInReminderWeekdays: normalized });
       },
+      setChallengeWeekNotificationsEnabled: (enabled) =>
+        set({ challengeWeekNotificationsEnabled: enabled }),
       setLiquidGlassTabBarEnabled: (value) =>
         set({ liquidGlassTabBarEnabled: value }),
       setActiveWorkoutMetricColumn: (value) =>
@@ -925,6 +935,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         oralCareCardVisible: state.oralCareCardVisible,
         labResultsCardVisible: state.labResultsCardVisible,
         weightProgressCardVisible: state.weightProgressCardVisible,
+        challengesCardVisible: state.challengesCardVisible,
         trainingLoadCardVisible: state.trainingLoadCardVisible,
         dashboardCardOrder: state.dashboardCardOrder,
         medicationRemindersEnabled: state.medicationRemindersEnabled,
@@ -947,6 +958,8 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         weighInRemindersEnabled: state.weighInRemindersEnabled,
         weighInReminderTime: state.weighInReminderTime,
         weighInReminderWeekdays: state.weighInReminderWeekdays,
+        challengeWeekNotificationsEnabled:
+          state.challengeWeekNotificationsEnabled,
         liquidGlassTabBarEnabled: state.liquidGlassTabBarEnabled,
         // Older persisted blobs without these keys backfill via the default
         // shallow merge — no version bump needed.

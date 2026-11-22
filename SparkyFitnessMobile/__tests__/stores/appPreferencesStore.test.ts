@@ -312,6 +312,7 @@ describe('appPreferencesStore', () => {
         'oralCare',
         'labResults',
         'weightProgress',
+        'challenges',
       ]);
     });
 

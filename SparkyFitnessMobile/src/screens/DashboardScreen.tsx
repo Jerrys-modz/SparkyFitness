@@ -58,6 +58,8 @@ import LabResultsCard from '../components/labs/LabResultsCard';
 import WeightProgressCard from '../components/reports/WeightProgressCard';
 import OralCareCard from '../components/oralCare/OralCareCard';
 import { oralCareQueryKeyRoot } from '../hooks/useOralCare';
+import ChallengesCard from '../components/challenges/ChallengesCard';
+import { challengesQueryKeyRoot } from '../hooks/useChallenges';
 import ProgressPhotosCard from '../components/ProgressPhotosCard';
 import TrainingLoadDashboardCard from '../components/TrainingLoadDashboardCard';
 import SegmentedControl, { type Segment } from '../components/SegmentedControl';
@@ -537,6 +539,9 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
   const oralCareCardVisible = useAppPreferencesStore(
     (s) => s.oralCareCardVisible
   );
+  const challengesCardVisible = useAppPreferencesStore(
+    (s) => s.challengesCardVisible
+  );
   const trainingLoadCardVisible = useAppPreferencesStore(
     (s) => s.trainingLoadCardVisible
   );
@@ -589,6 +594,10 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
       queryClient.invalidateQueries({ queryKey: labMarkersQueryKey }),
       queryClient.invalidateQueries({ queryKey: labLatestQueryKey }),
       queryClient.invalidateQueries({ queryKey: oralCareQueryKeyRoot }),
+      // ChallengesCard owns its queries.
+      challengesCardVisible
+        ? queryClient.invalidateQueries({ queryKey: challengesQueryKeyRoot })
+        : Promise.resolve(),
       // TrainingLoadDashboardCard owns its query, and a pull is not a focus.
       trainingLoadCardVisible
         ? queryClient.invalidateQueries({ queryKey: trainingLoadRootQueryKey })
@@ -604,6 +613,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
     refetchNutrientPrefs,
     refetchCaffeine,
     trainingLoadCardVisible,
+    challengesCardVisible,
     queryClient,
   ]);
 
@@ -1150,6 +1160,10 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                   navigation={navigation}
                   selectedDate={selectedDate}
                 />
+              ) : null;
+            case 'challenges':
+              return challengesCardVisible ? (
+                <ChallengesCard key="challenges" navigation={navigation} />
               ) : null;
             case 'mindfulness':
               return mindfulnessCardVisible ? (

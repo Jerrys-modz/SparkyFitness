@@ -21,6 +21,7 @@ export const DASHBOARD_CARD_KEYS = [
   'oralCare',
   'labResults',
   'weightProgress',
+  'challenges',
 ] as const;
 
 export type DashboardCardKey = (typeof DASHBOARD_CARD_KEYS)[number];
@@ -82,6 +83,8 @@ export const DASHBOARD_CARD_TITLES: Record<
     t('dashboardSettings.labResults', { defaultValue: 'Lab Results' }),
   weightProgress: (t) =>
     t('dashboardSettings.weightProgress', { defaultValue: 'Weight Progress' }),
+  challenges: (t) =>
+    t('dashboardSettings.challenges', { defaultValue: 'Challenges' }),
 };
 
 export const DASHBOARD_CARD_SUBTITLES: Record<
@@ -167,5 +170,9 @@ export const DASHBOARD_CARD_SUBTITLES: Record<
     t('dashboardSettings.weightProgressSubtitle', {
       defaultValue:
         'Show change from your starting weight, progress to goal and milestones',
+    }),
+  challenges: (t) =>
+    t('dashboardSettings.challengesSubtitle', {
+      defaultValue: 'Show your place in the challenges you are in',
     }),
 };
