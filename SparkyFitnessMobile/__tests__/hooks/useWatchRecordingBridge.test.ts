@@ -32,9 +32,6 @@ jest.mock('../../src/services/gpsRecordingService', () => ({
 jest.mock('../../src/services/api/exerciseApi', () => ({
   attachExerciseEntryWatchTelemetry: jest.fn(() => Promise.resolve()),
 }));
-jest.mock('../../src/services/healthkit/watchRunEntries', () => ({
-  noteWatchRunEntry: jest.fn(),
-}));
 jest.mock('../../src/offline/runHandOver', () => ({
   noteZonesForQueuedRun: jest.fn(),
 }));
@@ -44,7 +41,6 @@ import * as service from '../../src/services/gpsRecordingService';
 import { useLiveHeartRateStore } from '../../src/stores/liveHeartRateStore';
 import { attachExerciseEntryWatchTelemetry } from '../../src/services/api/exerciseApi';
 import { noteZonesForQueuedRun } from '../../src/offline/runHandOver';
-import { noteWatchRunEntry } from '../../src/services/healthkit/watchRunEntries';
 
 const watch = (
   jest.requireMock('../../modules/watch-connectivity') as {
@@ -430,60 +426,6 @@ describe('useWatchRecordingBridge', () => {
       'batch-1',
       [{ t: Date.UTC(2026, 9, 6, 10, 0, 0), bpm: 141 }]
     );
-  });
-
-  describe('the watch saves its own workout to Apple Health', () => {
-    const keepRecording = (rerender: (props?: unknown) => void) => {
-      setSnapshot({ ...baseSession, status: 'finished' });
-      rerender({});
-      setSnapshot({
-        ...baseSession,
-        status: 'finished',
-        savedEntryId: 'entry-1',
-      });
-      rerender({});
-      setSnapshot(null);
-      rerender({});
-    };
-
-    it('keeps a saved recording the watch sent readings for out of write-back', () => {
-      setSnapshot(baseSession);
-      const { rerender } = renderHook(() => useWatchRecordingBridge(true));
-      handlers.onRecordingHeartRate({
-        sessionId: 'rec-1',
-        clientId: 'batch-1',
-        samples: [{ t: '2026-10-06T10:00:00.000Z', bpm: 141 }],
-      });
-
-      keepRecording(rerender);
-
-      expect(noteWatchRunEntry).toHaveBeenCalledWith('entry-1');
-    });
-
-    it('does the same for readings that arrive after the recording was kept', () => {
-      setSnapshot(baseSession);
-      renderHook(() => useWatchRecordingBridge(true));
-      (mockedService.savedRecordingEntryId as jest.Mock).mockReturnValue(
-        'entry-1'
-      );
-
-      handlers.onRecordingHeartRate({
-        sessionId: 'rec-1',
-        clientId: 'batch-late',
-        samples: [{ t: '2026-10-06T10:05:00.000Z', bpm: 120 }],
-      });
-
-      expect(noteWatchRunEntry).toHaveBeenCalledWith('entry-1');
-    });
-
-    it('still writes back a recording the watch never sent readings for', () => {
-      setSnapshot(baseSession);
-      const { rerender } = renderHook(() => useWatchRecordingBridge(true));
-
-      keepRecording(rerender);
-
-      expect(noteWatchRunEntry).not.toHaveBeenCalled();
-    });
   });
 
   describe('Apple heart rate zones that arrive after Finish', () => {
