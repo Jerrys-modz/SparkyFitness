@@ -11,15 +11,40 @@ import type {
   UpsertRunProgramBody,
 } from '@workspace/shared';
 import { apiFetch } from './apiClient';
+import { getCacheRow, putCacheRows } from '../../offline/cacheStore';
+import {
+  CACHE_COLLECTIONS,
+  SINGLE_DOCUMENT_KEY,
+} from '../../offline/collections';
+import { withOfflineFallback } from '../../offline/withOfflineFallback';
 
 const SERVICE = 'Run Program API';
 
 /** The person's run program and place in it, or `{ program: null }`. */
-export const fetchRunProgram = (): Promise<GetRunProgramResponse> =>
+export const fetchRunProgramFromServer = (): Promise<GetRunProgramResponse> =>
   apiFetch<GetRunProgramResponse>({
     endpoint: '/api/v2/run-program',
     serviceName: SERVICE,
     operation: 'fetch run program',
+  });
+
+/** Answers from the phone's copy when the server cannot be reached. */
+export const fetchRunProgram = (): Promise<GetRunProgramResponse> =>
+  withOfflineFallback<GetRunProgramResponse>({
+    fetch: fetchRunProgramFromServer,
+    store: (db, serverConfigId, value) =>
+      putCacheRows(db, serverConfigId, CACHE_COLLECTIONS.runProgram, [
+        { key: SINGLE_DOCUMENT_KEY, payload: value },
+      ]),
+    read: async (db, serverConfigId) => {
+      const row = await getCacheRow(
+        db,
+        serverConfigId,
+        CACHE_COLLECTIONS.runProgram,
+        SINGLE_DOCUMENT_KEY
+      );
+      return row ? (row.payload as GetRunProgramResponse) : null;
+    },
   });
 
 /** Starts the program, switches it on or off, or moves within it. */
@@ -82,12 +107,31 @@ export const realignRunProgram = (
   });
 
 /** The person's own programs, newest first. */
-export const fetchCustomRunPrograms =
+export const fetchCustomRunProgramsFromServer =
   (): Promise<ListCustomRunProgramsResponse> =>
     apiFetch<ListCustomRunProgramsResponse>({
       endpoint: '/api/v2/run-program/custom',
       serviceName: SERVICE,
       operation: 'fetch custom run programs',
+    });
+
+export const fetchCustomRunPrograms =
+  (): Promise<ListCustomRunProgramsResponse> =>
+    withOfflineFallback<ListCustomRunProgramsResponse>({
+      fetch: fetchCustomRunProgramsFromServer,
+      store: (db, serverConfigId, value) =>
+        putCacheRows(db, serverConfigId, CACHE_COLLECTIONS.customRunPrograms, [
+          { key: SINGLE_DOCUMENT_KEY, payload: value },
+        ]),
+      read: async (db, serverConfigId) => {
+        const row = await getCacheRow(
+          db,
+          serverConfigId,
+          CACHE_COLLECTIONS.customRunPrograms,
+          SINGLE_DOCUMENT_KEY
+        );
+        return row ? (row.payload as ListCustomRunProgramsResponse) : null;
+      },
     });
 
 export const createCustomRunProgram = (

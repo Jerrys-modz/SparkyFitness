@@ -362,7 +362,7 @@ const OfflineSettingsScreen: React.FC<OfflineSettingsScreenProps> = () => {
         <Text className="text-sm text-text-secondary mb-4">
           {t('offline.intro', {
             defaultValue:
-              'Workouts, food, meals, new foods and drinks can be logged without a connection. They are kept on this phone and uploaded when your server can be reached.',
+              'Workouts, recorded runs and rides, food, meals, new foods and drinks can be logged without a connection. They are kept on this phone and uploaded when your server can be reached.',
           })}
         </Text>
 

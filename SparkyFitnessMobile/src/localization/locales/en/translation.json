@@ -12571,7 +12571,7 @@
     "presetUpdateQueued": "Saved workout will be updated when you are back online",
     "presetUpdateSkipped": "Saved workout \"{{name}}\" was not updated because it was changed elsewhere",
     "presetUpdated": "Saved workout \"{{name}}\" updated",
-    "diaryNote": "Food and workouts from the last week are available offline. Sleep and the other entries need a connection.",
+    "diaryNote": "Food, workouts and runs from the last week are available offline. Sleep and the other entries need a connection.",
     "diaryNothingSaved": "Nothing saved for this day",
     "finishedTitle": "Saved on this phone",
     "finishedMessage": "It uploads when your server can be reached.",
@@ -12592,7 +12592,7 @@
     "notReadyMessage": "Connect to your server once so this phone can save what a workout needs.",
     "banner": "Offline: showing data saved on this phone",
     "bannerHint": "Checks the connection again",
-    "intro": "Workouts, food, meals, new foods and drinks can be logged without a connection. They are kept on this phone and uploaded when your server can be reached.",
+    "intro": "Workouts, recorded runs and rides, food, meals, new foods and drinks can be logged without a connection. They are kept on this phone and uploaded when your server can be reached.",
     "waitingHeading": "Waiting to upload",
     "nothingWaiting": "Nothing is waiting",
     "nothingWaitingSubtitle": "Everything on this phone has been uploaded.",
@@ -12644,7 +12644,7 @@
       "food": "Food entry",
       "water": "Drink"
     },
-    "libraryNote": "Workouts, exercises, foods and meals saved on this phone are available offline. Everything else in the Library needs a connection.",
+    "libraryNote": "Workouts, exercises, foods, meals, training programs and the training calendar saved on this phone are available offline. Programs and plans can be changed once you are connected. Everything else in the Library needs a connection.",
     "ownerless": {
       "title": "No account recorded",
       "message": "This upload was saved before the phone knew which account it belonged to, so it will not be sent. You can discard it.",

@@ -227,6 +227,12 @@ const LibraryScreen: React.FC<LibraryScreenProps> = ({ navigation }) => {
           onOpenFoods={() =>
             runNavigationAction(() => navigation.navigate('FoodsLibrary'))
           }
+          onOpenTrainingCalendar={() =>
+            runNavigationAction(() => navigation.navigate('TrainingCalendar'))
+          }
+          onOpenTrainingPrograms={() =>
+            runNavigationAction(() => navigation.navigate('RunPrograms'))
+          }
           onOpenMeals={() =>
             runNavigationAction(() => navigation.navigate('MealsLibrary'))
           }

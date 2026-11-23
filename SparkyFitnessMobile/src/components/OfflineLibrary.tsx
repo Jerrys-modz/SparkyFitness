@@ -10,7 +10,8 @@ import { useNativeIOSTabsActive } from '../services/nativeTabBarPreference';
 /**
  * The Library tab while the server cannot be reached (#1983). Only what the
  * phone has saved is offered: the workout presets, the exercise library and
- * the foods and meals kept on it.
+ * the foods and meals kept on it, and the training programs and calendar
+ * (to read; changing them needs the server).
  * Everything else in the Library needs the server, so one line says so
  * instead of a screen of disabled rows.
  */
@@ -19,7 +20,16 @@ const OfflineLibrary: React.FC<{
   onOpenExercises: () => void;
   onOpenFoods: () => void;
   onOpenMeals: () => void;
-}> = ({ onOpenWorkoutPresets, onOpenExercises, onOpenFoods, onOpenMeals }) => {
+  onOpenTrainingPrograms: () => void;
+  onOpenTrainingCalendar: () => void;
+}> = ({
+  onOpenWorkoutPresets,
+  onOpenExercises,
+  onOpenFoods,
+  onOpenMeals,
+  onOpenTrainingPrograms,
+  onOpenTrainingCalendar,
+}) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const usesNativeTabs = useNativeIOSTabsActive();
@@ -48,6 +58,20 @@ const OfflineLibrary: React.FC<{
       label: t('screens.library.meals', { defaultValue: 'Meals' }),
       onPress: onOpenMeals,
     },
+    {
+      key: 'trainingCalendar',
+      label: t('screens.library.trainingCalendar', {
+        defaultValue: 'Training calendar',
+      }),
+      onPress: onOpenTrainingCalendar,
+    },
+    {
+      key: 'runPrograms',
+      label: t('screens.library.runPrograms', {
+        defaultValue: 'Training programs',
+      }),
+      onPress: onOpenTrainingPrograms,
+    },
   ];
 
   // One scroll view holds the banner too, so under iOS native tabs the large
@@ -68,7 +92,7 @@ const OfflineLibrary: React.FC<{
         <Text className="text-text-secondary text-sm mb-4">
           {t('offline.libraryNote', {
             defaultValue:
-              'Workouts, exercises, foods and meals saved on this phone are available offline. Everything else in the Library needs a connection.',
+              'Workouts, exercises, foods, meals, training programs and the training calendar saved on this phone are available offline. Programs and plans can be changed once you are connected. Everything else in the Library needs a connection.',
           })}
         </Text>
         <View className="bg-surface rounded-xl shadow-sm overflow-hidden">

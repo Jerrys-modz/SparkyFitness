@@ -211,7 +211,9 @@ describe('OfflineSettingsScreen', () => {
     });
     // The intro no longer speaks of workouts alone.
     expect(
-      getByText(/Workouts, food, meals, new foods and drinks/)
+      getByText(
+        /Workouts, recorded runs and rides, food, meals, new foods and drinks/
+      )
     ).toBeTruthy();
   });
 

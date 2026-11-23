@@ -33,6 +33,7 @@ import { accountGeneration } from './accountGeneration';
 import { refreshRecentDailySummaries } from './dailySummaryCache';
 import { refreshRecentDiaryDays, refreshRecentFoodDays } from './diaryDay';
 import { refreshFoodLibrary } from './foodLibrary';
+import { refreshTrainingPlans } from './trainingPlans';
 import { notifyOutboxChanged } from './events';
 import { IDENTITY_COLLECTION, IDENTITY_KEY } from './syncEngine';
 import type { OfflineDb } from './types';
@@ -406,6 +407,31 @@ async function refreshSteps(
   } catch (error) {
     foodPackDone = false;
     addLog(`[Offline] Foods not refreshed: ${error}`, 'WARNING');
+  }
+  // The training programs and calendar are read-only copies for the Library;
+  // a failure leaves what the phone already had and never fails the pack.
+  try {
+    const preferencesRow = await getCacheRow(
+      db,
+      serverConfigId,
+      CACHE_COLLECTIONS.preferences,
+      SINGLE_DOCUMENT_KEY
+    );
+    const firstDay = (preferencesRow?.payload as UserPreferences | undefined)
+      ?.first_day_of_week;
+    await refreshTrainingPlans(
+      db,
+      serverConfigId,
+      typeof firstDay === 'number' && firstDay >= 0 && firstDay <= 6
+        ? firstDay
+        : 0,
+      startedUnder
+    );
+  } catch (error) {
+    addLog(
+      `[Offline] Training programs and calendar not refreshed: ${error}`,
+      'WARNING'
+    );
   }
   if (await abandonedAfterSwitch()) return false;
   if (foodPackDone) {

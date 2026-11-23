@@ -703,7 +703,7 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
         >
           {t('offline.diaryNote', {
             defaultValue:
-              'Food and workouts from the last week are available offline. Sleep and the other entries need a connection.',
+              'Food, workouts and runs from the last week are available offline. Sleep and the other entries need a connection.',
           })}
         </Text>
         {summary ? (
