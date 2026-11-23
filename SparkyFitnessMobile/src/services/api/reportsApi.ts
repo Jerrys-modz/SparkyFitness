@@ -7,6 +7,9 @@ import type {
   TrainingLoad,
 } from '@workspace/shared';
 import { apiFetch } from './apiClient';
+import { getCacheRow, putCacheRows } from '../../offline/cacheStore';
+import { CACHE_COLLECTIONS } from '../../offline/collections';
+import { withOfflineFallback } from '../../offline/withOfflineFallback';
 
 export interface NutritionTrendPoint {
   date: string;
@@ -85,7 +88,10 @@ export const fetchRunEstimates = (): Promise<RunningEstimatesResponse> =>
     operation: 'fetch running estimates',
   });
 
-export const fetchTrainingCalendar = (
+export const trainingCalendarCacheKey = (start: string, end: string) =>
+  `${start}_${end}`;
+
+export const fetchTrainingCalendarFromServer = (
   start: string,
   end: string
 ): Promise<TrainingCalendarResponse> =>
@@ -95,4 +101,26 @@ export const fetchTrainingCalendar = (
     )}&end=${encodeURIComponent(end)}`,
     serviceName: 'Reports API',
     operation: 'fetch training calendar',
+  });
+
+/** Answers from the phone's copy of that range when the server is away. */
+export const fetchTrainingCalendar = (
+  start: string,
+  end: string
+): Promise<TrainingCalendarResponse> =>
+  withOfflineFallback<TrainingCalendarResponse>({
+    fetch: () => fetchTrainingCalendarFromServer(start, end),
+    store: (db, serverConfigId, value) =>
+      putCacheRows(db, serverConfigId, CACHE_COLLECTIONS.trainingCalendar, [
+        { key: trainingCalendarCacheKey(start, end), payload: value },
+      ]),
+    read: async (db, serverConfigId) => {
+      const row = await getCacheRow(
+        db,
+        serverConfigId,
+        CACHE_COLLECTIONS.trainingCalendar,
+        trainingCalendarCacheKey(start, end)
+      );
+      return row ? (row.payload as TrainingCalendarResponse) : null;
+    },
   });

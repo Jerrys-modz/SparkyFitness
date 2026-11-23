@@ -572,5 +572,19 @@ describe('LibraryScreen', () => {
       fireEvent.press(screen.getByTestId('offline-library-meals'));
       expect(navigation.navigate).toHaveBeenCalledWith('MealsLibrary');
     });
+
+    it('opens the training calendar', () => {
+      const screen = renderScreen();
+
+      fireEvent.press(screen.getByTestId('offline-library-trainingCalendar'));
+      expect(navigation.navigate).toHaveBeenCalledWith('TrainingCalendar');
+    });
+
+    it('opens the training programs', () => {
+      const screen = renderScreen();
+
+      fireEvent.press(screen.getByTestId('offline-library-runPrograms'));
+      expect(navigation.navigate).toHaveBeenCalledWith('RunPrograms');
+    });
   });
 });

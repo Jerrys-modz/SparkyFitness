@@ -41,6 +41,12 @@ export const CACHE_COLLECTIONS = {
   loggedMeal: 'logged_meal',
   /** The person's meal types (one document). */
   mealTypes: 'meal_types',
+  /** The person's run program and place in it (one document). */
+  runProgram: 'run_program',
+  /** The person's own training programs (one document). */
+  customRunPrograms: 'custom_run_programs',
+  /** The training calendar for a range, keyed `<start>_<end>`. */
+  trainingCalendar: 'training_calendar',
   /** Markers the offline pack writes about itself. */
   pack: 'pack',
 } as const;
