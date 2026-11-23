@@ -1,8 +1,4 @@
 import { apiFetch } from './apiClient';
-import { CACHE_COLLECTIONS } from '../../offline/collections';
-import { putCacheRows } from '../../offline/cacheStore';
-import { readSavedLoggedMeal } from '../../offline/loggedMeals';
-import { withOfflineFallback } from '../../offline/withOfflineFallback';
 import type {
   FoodPhotoLogRequest,
   FoodPhotoLogResponse,
@@ -60,18 +56,10 @@ export const updateFoodEntryMeal = async (
 export const getFoodEntryMealWithComponents = async (
   id: string
 ): Promise<FoodEntryMeal> => {
-  return withOfflineFallback<FoodEntryMeal>({
-    fetch: () =>
-      apiFetch<FoodEntryMeal>({
-        endpoint: `/api/food-entry-meals/${id}`,
-        serviceName: 'FoodEntryMeals API',
-        operation: 'fetch food entry meal',
-      }),
-    store: (db, serverConfigId, meal) =>
-      putCacheRows(db, serverConfigId, CACHE_COLLECTIONS.loggedMeal, [
-        { key: id, name: meal.name, payload: meal },
-      ]),
-    read: (db, serverConfigId) => readSavedLoggedMeal(db, serverConfigId, id),
+  return apiFetch<FoodEntryMeal>({
+    endpoint: `/api/food-entry-meals/${id}`,
+    serviceName: 'FoodEntryMeals API',
+    operation: 'fetch food entry meal',
   });
 };
 

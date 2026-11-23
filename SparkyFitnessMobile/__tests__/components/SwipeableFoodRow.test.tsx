@@ -133,7 +133,7 @@ describe('SwipeableFoodRow', () => {
     alertSpy.mockRestore();
   });
 
-  describe('the Diary read from the phone while offline', () => {
+  describe('read only (the Diary read from the phone while offline)', () => {
     const nutrition = { calories: 120, protein: 15, carbs: 8, fat: 2 };
 
     it('still opens the entry from the phone, so it can be edited offline', () => {
@@ -142,6 +142,7 @@ describe('SwipeableFoodRow', () => {
           entry={createEntry()}
           nutrition={nutrition}
           onAdjustServing={jest.fn()}
+          readOnly
         />
       );
 
@@ -160,6 +161,7 @@ describe('SwipeableFoodRow', () => {
           entry={createEntry({ id: 'pending-abc' })}
           nutrition={nutrition}
           onAdjustServing={onAdjustServing}
+          readOnly
         />
       );
 
@@ -182,6 +184,7 @@ describe('SwipeableFoodRow', () => {
         <SwipeableFoodRow
           entry={createEntry({ food_entry_meal_id: 'fem-1' })}
           nutrition={nutrition}
+          readOnly
         />
       );
 

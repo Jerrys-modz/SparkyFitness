@@ -3,7 +3,6 @@ import { registerFoodEntryDeleteHandlers } from './foodEntryDelete';
 import { registerFoodEntryUpdateHandlers } from './foodEntryUpdate';
 import { registerFoodEntryHandlers } from './foodEntry';
 import { registerFoodEntryMealDeleteHandlers } from './foodEntryMealDelete';
-import { registerFoodEntryMealUpdateHandlers } from './foodEntryMealUpdate';
 import { registerFoodEntryMealHandlers } from './foodEntryMeal';
 import { registerFollowUpHandlers } from './followUps';
 import { registerRunHandlers } from './run';
@@ -29,6 +28,5 @@ export function registerAllOutboxHandlers(): void {
   registerFoodEntryMealHandlers();
   registerFoodEntryDeleteHandlers();
   registerFoodEntryMealDeleteHandlers();
-  registerFoodEntryMealUpdateHandlers();
   registerFoodEntryUpdateHandlers();
 }

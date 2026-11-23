@@ -23,7 +23,6 @@ import {
 } from './cacheStore';
 import {
   CACHE_COLLECTIONS,
-  FOOD_PACK_COMPLETED_KEY,
   PACK_COMPLETED_KEY,
   SINGLE_DOCUMENT_KEY,
   exerciseStatsCacheKey,
@@ -45,15 +44,8 @@ export const PACK_MAX_AGE_MS = 6 * 60 * 60 * 1000;
 const PRESET_PAGE_SIZE = 50;
 /** The exercise search route's largest page. */
 const EXERCISE_PAGE_SIZE = 100;
-/**
- * How many exercise and preset pairs one stats request asks for. The route
- * takes up to 100, but it reads each pair's history, so a big diary makes a
- * request that size slower than the default 30 s timeout; small requests
- * each finish well inside it.
- */
-const STATS_BATCH_SIZE = 20;
-/** A stats request that reads a long history gets more time than usual. */
-const STATS_TIMEOUT_MS = 90_000;
+/** The stats batch route's largest request. */
+const STATS_BATCH_SIZE = 100;
 /** A runaway guard; no library is this many pages. */
 const MAX_PAGES = 500;
 
@@ -145,7 +137,6 @@ async function refreshStats(
         body: { items: items.slice(start, start + STATS_BATCH_SIZE) },
         serviceName: SERVICE,
         operation: 'fetch last-time values',
-        timeoutMs: STATS_TIMEOUT_MS,
       });
     } catch (error) {
       // A server from before this route: last-time values are then kept only
@@ -217,19 +208,13 @@ async function refreshOnce(force: boolean): Promise<boolean> {
   }
 }
 
-/**
- * What a workout needs to start with no connection: identity, preferences,
- * plates, saved workouts, the exercise library, last-time values and the
- * plans, then the completed marker. 'switched' when the account changed under
- * it, 'skipped' when the pack is recent enough, 'done' otherwise.
- */
-async function refreshWorkoutPack(
+async function refreshSteps(
   db: OfflineDb,
   serverConfigId: string,
   force: boolean,
   abandonedAfterSwitch: () => Promise<boolean>,
   startedUnder: number
-): Promise<'done' | 'skipped' | 'switched'> {
+): Promise<boolean> {
   if (!force) {
     const marker = await getCacheRow(
       db,
@@ -237,9 +222,7 @@ async function refreshWorkoutPack(
       CACHE_COLLECTIONS.pack,
       PACK_COMPLETED_KEY
     );
-    if (marker && Date.now() - marker.fetchedAt < PACK_MAX_AGE_MS) {
-      return 'skipped';
-    }
+    if (marker && Date.now() - marker.fetchedAt < PACK_MAX_AGE_MS) return false;
   }
 
   const identity = await apiFetch<IdentityResponse>({
@@ -247,7 +230,7 @@ async function refreshWorkoutPack(
     serviceName: SERVICE,
     operation: 'fetch signed-in user',
   });
-  if (await abandonedAfterSwitch()) return 'switched';
+  if (await abandonedAfterSwitch()) return false;
   if (identity.authenticatedUserId) {
     await putCacheRows(db, serverConfigId, IDENTITY_COLLECTION, [
       { key: IDENTITY_KEY, payload: { id: identity.authenticatedUserId } },
@@ -259,7 +242,7 @@ async function refreshWorkoutPack(
     serviceName: SERVICE,
     operation: 'fetch preferences',
   });
-  if (await abandonedAfterSwitch()) return 'switched';
+  if (await abandonedAfterSwitch()) return false;
   await putCacheRows(db, serverConfigId, CACHE_COLLECTIONS.preferences, [
     { key: SINGLE_DOCUMENT_KEY, payload: preferences },
   ]);
@@ -269,13 +252,13 @@ async function refreshWorkoutPack(
     serviceName: SERVICE,
     operation: 'fetch plate inventory',
   });
-  if (await abandonedAfterSwitch()) return 'switched';
+  if (await abandonedAfterSwitch()) return false;
   await putCacheRows(db, serverConfigId, CACHE_COLLECTIONS.plateInventory, [
     { key: SINGLE_DOCUMENT_KEY, payload: plates },
   ]);
 
   const presets = await fetchAllPresets();
-  if (await abandonedAfterSwitch()) return 'switched';
+  if (await abandonedAfterSwitch()) return false;
   await replaceCacheCollection(
     db,
     serverConfigId,
@@ -288,7 +271,7 @@ async function refreshWorkoutPack(
   );
 
   const exercises = await fetchAllExercises();
-  if (await abandonedAfterSwitch()) return 'switched';
+  if (await abandonedAfterSwitch()) return false;
   await replaceCacheCollection(
     db,
     serverConfigId,
@@ -300,92 +283,24 @@ async function refreshWorkoutPack(
     }))
   );
 
-  // Last-time values and the plan days are extras: a workout starts without
-  // them, so a failure here (a slow history read, a dropped connection) keeps
-  // what the phone had and never keeps the rest of the refresh from finishing.
-  try {
-    await refreshStats(db, serverConfigId, presets);
-  } catch (error) {
-    if (await abandonedAfterSwitch()) return 'switched';
-    addLog(`[Offline] Last-time values not refreshed: ${error}`, 'WARNING');
-  }
-  try {
-    await refreshPlanDays(db, serverConfigId);
-  } catch (error) {
-    if (await abandonedAfterSwitch()) return 'switched';
-    addLog(`[Offline] Plans not refreshed: ${error}`, 'WARNING');
-  }
+  await refreshStats(db, serverConfigId, presets);
+  await refreshPlanDays(db, serverConfigId);
 
-  if (await abandonedAfterSwitch()) return 'switched';
+  if (await abandonedAfterSwitch()) return false;
   await putCacheRows(db, serverConfigId, CACHE_COLLECTIONS.pack, [
     { key: PACK_COMPLETED_KEY, payload: { completedAt: Date.now() } },
   ]);
-  return 'done';
-}
 
-/** True when the food part of the pack has not refreshed in full lately. */
-async function foodPackDue(
-  db: OfflineDb,
-  serverConfigId: string
-): Promise<boolean> {
-  const marker = await getCacheRow(
-    db,
-    serverConfigId,
-    CACHE_COLLECTIONS.pack,
-    FOOD_PACK_COMPLETED_KEY
-  );
-  return !marker || Date.now() - marker.fetchedAt >= PACK_MAX_AGE_MS;
-}
-
-async function refreshSteps(
-  db: OfflineDb,
-  serverConfigId: string,
-  force: boolean,
-  abandonedAfterSwitch: () => Promise<boolean>,
-  startedUnder: number
-): Promise<boolean> {
-  let workoutPackDone = false;
-  let workoutPackSkipped = false;
+  // After the marker: what a workout needs is ready, and a failure here only
+  // leaves the Diary with the days it already had.
   try {
-    const outcome = await refreshWorkoutPack(
-      db,
-      serverConfigId,
-      force,
-      abandonedAfterSwitch,
-      startedUnder
-    );
-    if (outcome === 'switched') return false;
-    workoutPackSkipped = outcome === 'skipped';
-    workoutPackDone = outcome === 'done';
+    await refreshRecentDiaryDays(db, serverConfigId, undefined, startedUnder);
   } catch (error) {
-    if (await abandonedAfterSwitch()) return false;
-    addLog(`[Offline] Workout data not refreshed: ${error}`, 'WARNING');
+    addLog(`[Offline] Last week's workouts not refreshed: ${error}`, 'WARNING');
   }
-
-  // A recent workout pack is not repeated, but the food part has its own
-  // marker: one that failed last time is tried again now.
-  if (workoutPackSkipped && !(await foodPackDue(db, serverConfigId))) {
-    return false;
-  }
-
-  // Each part below stands on its own: a failure in one (the workout data, a
-  // day of workouts, the food) never keeps the others from refreshing, and
-  // leaves what that part already had.
-  if (!workoutPackSkipped) {
-    try {
-      await refreshRecentDiaryDays(db, serverConfigId, undefined, startedUnder);
-    } catch (error) {
-      addLog(
-        `[Offline] Last week's workouts not refreshed: ${error}`,
-        'WARNING'
-      );
-    }
-  }
-  let foodPackDone = true;
   try {
     await refreshRecentFoodDays(db, serverConfigId, undefined, startedUnder);
   } catch (error) {
-    foodPackDone = false;
     addLog(`[Offline] Last week's food not refreshed: ${error}`, 'WARNING');
   }
   try {
@@ -396,27 +311,17 @@ async function refreshSteps(
       startedUnder
     );
   } catch (error) {
-    foodPackDone = false;
     addLog(`[Offline] Last week's totals not refreshed: ${error}`, 'WARNING');
   }
-  // The foods are for logging food, and a failure here leaves the library the
-  // phone already had.
+  // Also after the marker: the foods are for logging food, and a failure here
+  // leaves the library the phone already had.
   try {
     await refreshFoodLibrary(db, serverConfigId, startedUnder);
   } catch (error) {
-    foodPackDone = false;
     addLog(`[Offline] Foods not refreshed: ${error}`, 'WARNING');
   }
   if (await abandonedAfterSwitch()) return false;
-  if (foodPackDone) {
-    await putCacheRows(db, serverConfigId, CACHE_COLLECTIONS.pack, [
-      { key: FOOD_PACK_COMPLETED_KEY, payload: { completedAt: Date.now() } },
-    ]);
-  }
-  // True when what this run was asked to refresh completed: the workout data,
-  // or, when that was recent enough to skip, the food. A food refresh that
-  // failed after a good workout refresh is tried again on the next trigger.
-  return workoutPackSkipped ? foodPackDone : workoutPackDone;
+  return true;
 }
 
 let running: Promise<boolean> | null = null;

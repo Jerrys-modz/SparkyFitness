@@ -24,11 +24,8 @@ jest.mock('../../src/services/api/measurementsApi', () => ({
 }));
 
 const mockQueueWaterDrink = jest.fn();
-const mockRemoveLatestDrink = jest.fn();
 jest.mock('../../src/offline/waterHandOver', () => ({
   queueWaterDrink: (...args: unknown[]) => mockQueueWaterDrink(...args),
-  removeLatestDrinkOffline: (...args: unknown[]) =>
-    mockRemoveLatestDrink(...args),
 }));
 
 jest.mock('../../src/services/LogService', () => ({
@@ -84,7 +81,6 @@ describe('useWaterIntakeMutation', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockQueueWaterDrink.mockReset();
-    mockRemoveLatestDrink.mockReset();
     queryClient = createTestQueryClient();
   });
 
@@ -351,11 +347,10 @@ describe('useWaterIntakeMutation', () => {
       expect(mockQueueWaterDrink).not.toHaveBeenCalled();
     });
 
-    test('taking a drink off is kept on the phone when the server was not reached', async () => {
+    test('taking a drink off is never queued', async () => {
       mockChangeWaterIntake.mockRejectedValue(
         new TypeError('Network request failed')
       );
-      mockRemoveLatestDrink.mockResolvedValue('queued');
 
       const { result } = renderHook(
         () => useWaterIntakeMutation({ date: testDate }),
@@ -369,31 +364,10 @@ describe('useWaterIntakeMutation', () => {
 
       await waitFor(() =>
         expect(Toast.show).toHaveBeenCalledWith(
-          expect.objectContaining({ type: 'info' })
+          expect.objectContaining({ type: 'error' })
         )
       );
-      expect(mockRemoveLatestDrink).toHaveBeenCalledWith(testDate);
       expect(mockQueueWaterDrink).not.toHaveBeenCalled();
-    });
-
-    test('taking off a drink that was still waiting needs no toast', async () => {
-      mockChangeWaterIntake.mockRejectedValue(
-        new TypeError('Network request failed')
-      );
-      mockRemoveLatestDrink.mockResolvedValue('cancelled');
-
-      const { result } = renderHook(
-        () => useWaterIntakeMutation({ date: testDate }),
-        { wrapper: createQueryWrapper(queryClient) }
-      );
-      await waitFor(() => expect(result.current.isReady).toBe(true));
-
-      await act(async () => {
-        result.current.decrement();
-      });
-
-      await waitFor(() => expect(mockRemoveLatestDrink).toHaveBeenCalled());
-      expect(Toast.show).not.toHaveBeenCalled();
     });
 
     test('decrement calls changeWaterIntake with -1', async () => {

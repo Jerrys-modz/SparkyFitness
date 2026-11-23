@@ -5283,8 +5283,7 @@
       "permission": "You don't have permission to edit this entry.",
       "saveFailed": "Failed to save changes",
       "deleteFailed": "Failed to delete",
-      "uploadingNow": "It is uploading right now. Try again in a moment.",
-      "alreadyUploaded": "It has just uploaded. Try again once the Diary has refreshed."
+      "uploadingNow": "It is uploading right now. Try again in a moment."
     },
     "deleteConfirm": "Are you sure you want to delete this food entry?",
     "entryNotes": "Note for this entry"
@@ -12588,7 +12587,7 @@
     "notReadyMessage": "Connect to your server once so this phone can save what a workout needs.",
     "banner": "Offline: showing data saved on this phone",
     "bannerHint": "Checks the connection again",
-    "intro": "Workouts, food, meals, new foods and drinks can be logged without a connection. They are kept on this phone and uploaded when your server can be reached.",
+    "intro": "Workouts can be started and logged without a connection. They are kept on this phone and uploaded when your server can be reached.",
     "waitingHeading": "Waiting to upload",
     "nothingWaiting": "Nothing is waiting",
     "nothingWaitingSubtitle": "Everything on this phone has been uploaded.",
@@ -12602,7 +12601,7 @@
     "storageValue": "{{size}} MB",
     "refreshRow": "Refresh now",
     "refreshing": "Refreshing…",
-    "neverRefreshed": "Not downloaded yet. Connect to your server once to prepare offline use.",
+    "neverRefreshed": "Not downloaded yet. Connect to your server once to prepare offline workouts.",
     "lastRefreshed": "Last refreshed {{when}}",
     "refreshDone": "Saved data is up to date",
     "refreshFailed": "Could not refresh",
@@ -12610,7 +12609,7 @@
     "clearRow": "Clear offline data",
     "clearRowSubtitle": "Uploads still waiting are kept",
     "clearTitle": "Clear offline data?",
-    "clearMessage": "Saved workouts, exercises, foods, meals and other data kept for offline use are removed from this phone and downloaded again next time. Anything still waiting to upload is kept.",
+    "clearMessage": "Saved workouts, exercises and other data kept for offline use are removed from this phone and downloaded again next time. Anything still waiting to upload is kept.",
     "clearConfirm": "Clear",
     "status": {
       "pending": "Waiting to upload",
@@ -12640,18 +12639,7 @@
       "food": "Food entry",
       "water": "Drink"
     },
-    "libraryNote": "Workouts, exercises, foods and meals saved on this phone are available offline. Everything else in the Library needs a connection.",
-    "foodHeading": "Food and water kept offline",
-    "foodIntro": "Your recent and most used foods, your own foods (up to 2,000), saved meals, your meal types and water containers are kept, along with the Diary and totals of the last week. They refresh whenever you are connected.",
-    "foodsKeptTitle": "Foods",
-    "foodsKeptValue_one": "{{count}} food",
-    "foodsKeptValue_other": "{{count}} foods",
-    "mealsKeptTitle": "Saved meals",
-    "mealsKeptValue_one": "{{count}} meal",
-    "mealsKeptValue_other": "{{count}} meals",
-    "diaryDaysKeptTitle": "Diary days",
-    "diaryDaysKeptValue_one": "{{count}} day of food",
-    "diaryDaysKeptValue_other": "{{count}} days of food"
+    "libraryNote": "Only workouts and exercises are available offline. Everything else in the Library needs a connection."
   },
   "goalSetup": {
     "stepTitle": "Step {{step}} of {{total}}",

@@ -491,9 +491,7 @@ describe('EditLoggedMealScreen', () => {
     pressAction(screen, navigation, 'Save');
 
     expect(mockUpdateMeal).toHaveBeenCalledWith(
-      expect.objectContaining({ notes: 'reheated at work' }),
-      // The meal as one Diary entry while the save waits on the phone.
-      expect.objectContaining({ entry_date: expect.any(String) })
+      expect.objectContaining({ notes: 'reheated at work' })
     );
   });
 
@@ -538,9 +536,7 @@ describe('EditLoggedMealScreen', () => {
                 serving_size: 100,
               }),
             ]),
-          }),
-          // The meal as one Diary entry while the save waits on the phone.
-          expect.objectContaining({ entry_date: expect.any(String) })
+          })
         );
         const saved = mockUpdateMeal.mock.calls[0][0];
         expect(saved.name).toBe(edit === 'name' ? 'Lunch' : baseMeal.name);
@@ -595,9 +591,7 @@ describe('EditLoggedMealScreen', () => {
           expect.objectContaining({ quantity: 100 }),
           expect.objectContaining({ food_id: 'food-2', quantity: 0 }),
         ],
-      }),
-      // The meal as one Diary entry while the save waits on the phone.
-      expect.objectContaining({ entry_date: expect.any(String) })
+      })
     );
   });
 

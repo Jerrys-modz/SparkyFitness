@@ -9,17 +9,14 @@ import { useNativeIOSTabsActive } from '../services/nativeTabBarPreference';
 
 /**
  * The Library tab while the server cannot be reached (#1983). Only what the
- * phone has saved is offered: the workout presets, the exercise library and
- * the foods and meals kept on it.
+ * phone has saved is offered: the workout presets and the exercise library.
  * Everything else in the Library needs the server, so one line says so
  * instead of a screen of disabled rows.
  */
 const OfflineLibrary: React.FC<{
   onOpenWorkoutPresets: () => void;
   onOpenExercises: () => void;
-  onOpenFoods: () => void;
-  onOpenMeals: () => void;
-}> = ({ onOpenWorkoutPresets, onOpenExercises, onOpenFoods, onOpenMeals }) => {
+}> = ({ onOpenWorkoutPresets, onOpenExercises }) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const usesNativeTabs = useNativeIOSTabsActive();
@@ -37,16 +34,6 @@ const OfflineLibrary: React.FC<{
       key: 'exercises',
       label: t('screens.library.exercises', { defaultValue: 'Exercises' }),
       onPress: onOpenExercises,
-    },
-    {
-      key: 'foods',
-      label: t('screens.library.foods', { defaultValue: 'Foods' }),
-      onPress: onOpenFoods,
-    },
-    {
-      key: 'meals',
-      label: t('screens.library.meals', { defaultValue: 'Meals' }),
-      onPress: onOpenMeals,
     },
   ];
 
@@ -68,7 +55,7 @@ const OfflineLibrary: React.FC<{
         <Text className="text-text-secondary text-sm mb-4">
           {t('offline.libraryNote', {
             defaultValue:
-              'Workouts, exercises, foods and meals saved on this phone are available offline. Everything else in the Library needs a connection.',
+              'Only workouts and exercises are available offline. Everything else in the Library needs a connection.',
           })}
         </Text>
         <View className="bg-surface rounded-xl shadow-sm overflow-hidden">

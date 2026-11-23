@@ -21,7 +21,6 @@ import { getCacheRow, putCacheRows } from './cacheStore';
 import { CACHE_COLLECTIONS } from './collections';
 import { getOfflineDb } from './db';
 import { notifyDiaryDaySaved } from './events';
-import { refreshLoggedMeals } from './loggedMeals';
 import { listUnconfirmedOutbox } from './outbox';
 import {
   RUN_DELETE,
@@ -144,13 +143,6 @@ export async function refreshRecentFoodDays(
     [serverConfigId, CACHE_COLLECTIONS.diaryFoodDay, first]
   );
   notifyDiaryDaySaved();
-  // The logged meals of those days, with their components, to edit offline.
-  await refreshLoggedMeals(
-    db,
-    serverConfigId,
-    Array.isArray(entries) ? entries : [],
-    startedUnder
-  );
 }
 
 /** How many days back (today included) the phone keeps workouts for. */
@@ -366,16 +358,12 @@ export async function readOfflineDiaryDay(
     .map((row) => row.entityId);
   // Changes to entries the server has: in place, moved off this day, or
   // moved onto it from another one.
-  const deletedMeals = rows
-    .filter((row) => row.kind === FOOD_ENTRY_MEAL_DELETE)
-    .map((row) => row.entityId);
   const changes = await readFoodEntryChanges(
     db,
     serverConfigId,
     date,
     mine,
-    deletedFood,
-    deletedMeals
+    deletedFood
   );
   return {
     saved,
@@ -384,7 +372,9 @@ export async function readOfflineDiaryDay(
     savedFood: savedFoodRow ? (savedFoodRow.payload as FoodEntry[]) : null,
     waitingFood: [...waitingFood, ...changes.movedIn],
     deletedFood: [...deletedFood, ...changes.movedOut],
-    deletedFoodMeals: [...deletedMeals, ...changes.replacedMeals],
+    deletedFoodMeals: rows
+      .filter((row) => row.kind === FOOD_ENTRY_MEAL_DELETE)
+      .map((row) => row.entityId),
     updatedFood: changes.inPlace,
   };
 }

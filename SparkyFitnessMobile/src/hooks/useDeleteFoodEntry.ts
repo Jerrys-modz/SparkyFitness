@@ -18,12 +18,6 @@ import { invalidateFoodCache } from './invalidateFoodCache';
 /** The waiting entry is being sent this moment, so it cannot be cancelled. */
 class UploadingNowError extends Error {}
 
-/**
- * The waiting entry has uploaded since the Diary last loaded: it is on the
- * server under another id now, so nothing was cancelled.
- */
-class AlreadyUploadedError extends Error {}
-
 interface UseDeleteFoodEntryOptions {
   entryId: string;
   entryDate: string;
@@ -45,7 +39,6 @@ export function useDeleteFoodEntry({
       if (isPendingEntryId(entryId)) {
         const result = await cancelWaitingEntry(pendingEntryClientId(entryId));
         if (result === 'uploading') throw new UploadingNowError();
-        if (result === 'gone') throw new AlreadyUploadedError();
         return;
       }
       try {
@@ -66,11 +59,6 @@ export function useDeleteFoodEntry({
       onSuccess?.();
     },
     onError: (error) => {
-      // The Diary still shows a row that has uploaded: reload it, so the entry
-      // appears under its real id and can be deleted.
-      if (error instanceof AlreadyUploadedError) {
-        invalidateFoodCache(queryClient, normalizedDate);
-      }
       Toast.show({
         type: 'error',
         text1: i18n.t('foodEntryView.errors.deleteFailed', {
@@ -82,14 +70,7 @@ export function useDeleteFoodEntry({
                 defaultValue:
                   'It is uploading right now. Try again in a moment.',
               })
-            : error instanceof AlreadyUploadedError
-              ? i18n.t('foodEntryView.errors.alreadyUploaded', {
-                  defaultValue:
-                    'It has just uploaded. Try again once the Diary has refreshed.',
-                })
-              : i18n.t('common.tryAgain', {
-                  defaultValue: 'Please try again.',
-                }),
+            : i18n.t('common.tryAgain', { defaultValue: 'Please try again.' }),
       });
     },
   });
