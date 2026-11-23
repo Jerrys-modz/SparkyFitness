@@ -144,6 +144,7 @@ const FuelingPlanScreen: React.FC<FuelingPlanScreenProps> = () => {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void refreshSession();
   }, [refreshSession]);
 

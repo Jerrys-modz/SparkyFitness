@@ -9,6 +9,7 @@ import {
   Pressable,
   LayoutAnimation,
   Keyboard,
+  type TextInputInstance,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -87,6 +88,8 @@ const checkReachability = async (url: string): Promise<boolean> => {
 
 type Props = RootStackScreenProps<'Onboarding'>;
 
+const newConfigId = () => Date.now().toString();
+
 export default function OnboardingScreen({ navigation }: Props) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
@@ -129,16 +132,18 @@ export default function OnboardingScreen({ navigation }: Props) {
   const [isServerUrlFocused, setIsServerUrlFocused] = useState(false);
   const [isApiKeyFocused, setIsApiKeyFocused] = useState(false);
   const scrollViewRef = useRef<KeyboardAwareScrollViewRef>(null);
-  const serverUrlInputRef = useRef<TextInput>(null);
-  const apiKeyInputRef = useRef<TextInput>(null);
+  const serverUrlInputRef = useRef<TextInputInstance>(null);
+  const apiKeyInputRef = useRef<TextInputInstance>(null);
 
   // Page changes unmount the focused input without firing onBlur, which would
   // leave a stale focus flag suppressing the URL echo and keeping the focused
   // border highlight.
-  useEffect(() => {
+  const [focusResetPage, setFocusResetPage] = useState(page);
+  if (focusResetPage !== page) {
+    setFocusResetPage(page);
     setIsServerUrlFocused(false);
     setIsApiKeyFocused(false);
-  }, [page]);
+  }
 
   // On small screens the error banner can push the primary action below the
   // fold; scroll the bottom of the form back into view once the banner has
@@ -273,7 +278,7 @@ export default function OnboardingScreen({ navigation }: Props) {
 
   // --- Page 2: Auth handlers ---
 
-  const getConfigId = () => Date.now().toString();
+  const getConfigId = newConfigId;
 
   const saveConfig = async (
     url: string,

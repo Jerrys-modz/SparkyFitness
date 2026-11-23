@@ -6,6 +6,7 @@ import {
   Text,
   View,
   type LayoutChangeEvent,
+  type ScrollViewInstance,
 } from 'react-native';
 import { useCSSVariable } from 'uniwind';
 import type { ExerciseEntryResponse } from '@workspace/shared';
@@ -86,7 +87,7 @@ function ActiveWorkoutFocusChips({
     '--color-text-secondary',
     '--color-border-strong',
   ]) as [string, string, string];
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
   const viewportWidthRef = useRef(0);
 
   const groups = useMemo(

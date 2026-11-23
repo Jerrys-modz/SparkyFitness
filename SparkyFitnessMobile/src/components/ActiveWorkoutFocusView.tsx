@@ -1,6 +1,7 @@
 import React, {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -14,6 +15,7 @@ import {
   type LayoutChangeEvent,
   type StyleProp,
   type ViewStyle,
+  type ViewInstance,
 } from 'react-native';
 import {
   KeyboardAwareScrollView,
@@ -363,9 +365,9 @@ const FocusExercisePage = React.memo(function FocusExercisePage({
   // exercise becomes started, on landing on a started one, and whenever the
   // current set moves on. Measured against the page, which starts at the top
   // of the scroll content.
-  const pageRef = useRef<View>(null);
-  const scrollTargetRef = useRef<View>(null);
-  const scrollHeaderRef = useRef<View>(null);
+  const pageRef = useRef<ViewInstance>(null);
+  const scrollTargetRef = useRef<ViewInstance>(null);
+  const scrollHeaderRef = useRef<ViewInstance>(null);
   // Where the title and thumbnail block ends, from its own layout.
   const titleBottomRef = useRef(0);
   const scrollTargets = useMemo(
@@ -741,6 +743,34 @@ const FocusExercisePage = React.memo(function FocusExercisePage({
 });
 
 /**
+ * Pan rather than a paging list: the page is one tall, keyboard-aware
+ * column inside the screen's vertical scroll, and a nested horizontal list
+ * would mount neighbouring pages and fight that scroll. The offsets keep
+ * vertical scrolling and the steppers working.
+ */
+function SwipeDetector({
+  onSwipe,
+  children,
+}: {
+  onSwipe: (delta: -1 | 1) => void;
+  children: React.ReactNode;
+}) {
+  const swipe = useMemo(
+    () =>
+      Gesture.Pan()
+        .activeOffsetX([-20, 20])
+        .failOffsetY([-12, 12])
+        .runOnJS(true)
+        .onEnd((e) => {
+          const delta = swipePageDelta(e.translationX, e.velocityX);
+          if (delta !== 0) onSwipe(delta);
+        }),
+    [onSwipe]
+  );
+  return <GestureDetector gesture={swipe}>{children}</GestureDetector>;
+}
+
+/**
  * The active workout's one-exercise view: a numbered pager, the selected
  * exercise's media / title / context / set editor, and Prev / Next. A
  * horizontal swipe turns the page. The view follows the active set to its
@@ -817,10 +847,10 @@ function ActiveWorkoutFocusView({
       // Each exercise opens at its photo, not where the last one was scrolled.
       scrollRef.current?.scrollTo({ y: 0, animated: false });
       if (reducedMotion) return;
-      slide.value = direction * SLIDE_OFFSET;
-      fade.value = 0;
-      slide.value = withTiming(0, { duration: SLIDE_MS });
-      fade.value = withTiming(1, { duration: SLIDE_MS });
+      slide.set(direction * SLIDE_OFFSET);
+      fade.set(0);
+      slide.set(withTiming(0, { duration: SLIDE_MS }));
+      fade.set(withTiming(1, { duration: SLIDE_MS }));
     },
     [reducedMotion, slide, fade, scrollRef, onDismissKeyboard]
   );
@@ -901,19 +931,6 @@ function ActiveWorkoutFocusView({
   // column inside the screen's vertical scroll, and a nested horizontal list
   // would mount neighbouring pages and fight that scroll. The offsets keep
   // vertical scrolling and the steppers working.
-  const swipe = useMemo(
-    () =>
-      Gesture.Pan()
-        .activeOffsetX([-20, 20])
-        .failOffsetY([-12, 12])
-        .runOnJS(true)
-        .onEnd((e) => {
-          const delta = swipePageDelta(e.translationX, e.velocityX);
-          if (delta !== 0) goBy(delta);
-        }),
-    [goBy]
-  );
-
   // Ramp rounding for store-side resolution follows the unit the rows render in.
   const setStoreWeightUnit = useActiveWorkoutStore((s) => s.setWeightUnit);
   useEffect(() => {
@@ -923,8 +940,11 @@ function ActiveWorkoutFocusView({
   // The visible part of the scroll view: its height less what the footer
   // covers (the content's bottom padding), so a set can be scrolled above it.
   const viewportRef = useRef<ScrollViewport>({ height: 0, bottomInset: 0 });
-  viewportRef.current.bottomInset =
+  const scrollBottomInset =
     Number(StyleSheet.flatten(scrollContentStyle)?.paddingBottom) || 0;
+  useLayoutEffect(() => {
+    viewportRef.current.bottomInset = scrollBottomInset;
+  }, [scrollBottomInset]);
   const handleScrollLayout = useCallback((e: LayoutChangeEvent) => {
     viewportRef.current.height = e.nativeEvent.layout.height;
   }, []);
@@ -962,7 +982,7 @@ function ActiveWorkoutFocusView({
             historyScopeSettled={historyScopeSettled}
           />
         ))}
-        <GestureDetector gesture={swipe}>
+        <SwipeDetector onSwipe={goBy}>
           <Animated.View style={pageStyle}>
             <FocusExercisePage
               key={exercise.id}
@@ -985,7 +1005,7 @@ function ActiveWorkoutFocusView({
               {...setEditorProps}
             />
           </Animated.View>
-        </GestureDetector>
+        </SwipeDetector>
         {children}
       </KeyboardAwareScrollView>
     </>

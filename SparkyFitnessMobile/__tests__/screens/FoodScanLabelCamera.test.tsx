@@ -67,6 +67,7 @@ const navigation = {
   goBack: jest.fn(),
   isFocused: jest.fn(() => true),
   setOptions: jest.fn(),
+  addListener: jest.fn(() => jest.fn()),
 };
 const photo: CameraCapturedPicture = {
   uri: 'file:///camera-label.jpg',

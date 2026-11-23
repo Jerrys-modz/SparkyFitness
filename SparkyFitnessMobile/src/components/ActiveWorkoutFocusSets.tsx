@@ -7,7 +7,14 @@ import React, {
   useState,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Platform, Pressable, Text, View, type TextInput } from 'react-native';
+import {
+  Platform,
+  Pressable,
+  Text,
+  View,
+  type TextInputInstance,
+  type ViewInstance,
+} from 'react-native';
 import { useCSSVariable } from 'uniwind';
 import { FocusScrollTargetContext } from './focusScrollTarget';
 import {
@@ -422,9 +429,9 @@ const FocusSetRow = React.memo(function FocusSetRow({
   // The screen's sticky accessory bar (Next, Log, Next Set, plate calculator)
   // acts on the focused row through this handle, as with the list's rows. The
   // handle reads the latest closures through a ref so it registers once.
-  const weightInputRef = useRef<TextInput>(null);
-  const repsInputRef = useRef<TextInput>(null);
-  const effortInputRef = useRef<TextInput>(null);
+  const weightInputRef = useRef<TextInputInstance>(null);
+  const repsInputRef = useRef<TextInputInstance>(null);
+  const effortInputRef = useRef<TextInputInstance>(null);
   const inputRefFor = useCallback(
     (field: SetInputField) =>
       field === 'reps'
@@ -495,7 +502,7 @@ const FocusSetRow = React.memo(function FocusSetRow({
       ? 'numbers-and-punctuation'
       : 'numeric';
   // Tap the set number to change this set's type; the menu anchors to it.
-  const setNumberRef = useRef<View>(null);
+  const setNumberRef = useRef<ViewInstance>(null);
   const openSetTypeMenu = () => {
     if (!onPressSetType) return;
     measureAnchoredMenuTrigger(setNumberRef.current, (anchor) =>
@@ -1011,7 +1018,7 @@ function ActiveWorkoutFocusSets({
         return t('workout.metricRpe', { defaultValue: 'RPE' });
     }
   })();
-  const metricAnchorRef = useRef<View>(null);
+  const metricAnchorRef = useRef<ViewInstance>(null);
   const openMetricMenu = () =>
     measureAnchoredMenuTrigger(metricAnchorRef.current, (anchor) =>
       onPressMetricHeader(anchor, clampedToRpe)

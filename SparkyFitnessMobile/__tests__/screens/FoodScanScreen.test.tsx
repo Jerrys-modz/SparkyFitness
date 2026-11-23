@@ -66,6 +66,7 @@ describe('FoodScanScreen', () => {
     dispatch: jest.fn(),
     isFocused: jest.fn(() => true),
     setOptions: jest.fn(),
+    addListener: jest.fn(() => jest.fn()),
   } as any;
 
   const mockRoute = {
@@ -425,6 +426,27 @@ describe('FoodScanScreen', () => {
     expect(
       screen.getByText("Couldn't look up this barcode. Please try again.")
     ).toBeTruthy();
+  });
+
+  it('says what is possible when an unknown barcode is scanned with no connection', async () => {
+    mockLookupBarcodeV2.mockRejectedValue(
+      new TypeError('Network request failed')
+    );
+    const screen = renderScreen();
+
+    fireEvent(screen.getByTestId('camera-view'), 'onBarcodeScanned', {
+      data: '012345678905',
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          "No connection. This barcode isn't in the foods saved on your phone."
+        )
+      ).toBeTruthy();
+    });
+    // The flow stays recoverable.
+    expect(screen.getByText('Add Food Manually')).toBeTruthy();
   });
 
   it('does not retrigger haptics while a scan lookup is locked', async () => {

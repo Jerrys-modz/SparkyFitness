@@ -217,7 +217,7 @@ const WidgetsScreen: React.FC<WidgetsScreenProps> = ({ navigation }) => {
                 })}
               </Text>
             </View>
-          ) : null
+          ) : undefined
         }
         ListFooterComponent={
           <View className="mt-2">

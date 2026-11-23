@@ -122,7 +122,9 @@ const FuelFoodSheet = forwardRef<FuelFoodSheetRef, FuelFoodSheetProps>(
               </Text>
             }
             ListFooterComponent={
-              isFetchingNextPage ? <ActivityIndicator className="my-3" /> : null
+              isFetchingNextPage ? (
+                <ActivityIndicator className="my-3" />
+              ) : undefined
             }
             renderItem={({ item }: { item: FoodItem }) => (
               <TouchableOpacity
