@@ -45,9 +45,7 @@ const FoodsLibraryScreen: React.FC<FoodsLibraryScreenProps> = ({
   );
   const [refreshing, setRefreshing] = useState(false);
 
-  const { isConnected, status } = useServerConnection();
-  // The foods kept on the phone are read while the server is away.
-  const canRead = isConnected || status === 'unreachable';
+  const { isConnected } = useServerConnection();
   const { profile } = useProfile();
   const {
     foods,
@@ -59,7 +57,7 @@ const FoodsLibraryScreen: React.FC<FoodsLibraryScreenProps> = ({
     isFetchingNextPage,
     loadMore,
     refetch,
-  } = useFoodsLibrary(searchText, { enabled: canRead });
+  } = useFoodsLibrary(searchText, { enabled: isConnected });
   const filteredFoods = useMemo(
     () => filterByOwnership(foods, ownershipFilter, profile?.id),
     [foods, ownershipFilter, profile?.id]
@@ -237,7 +235,7 @@ const FoodsLibraryScreen: React.FC<FoodsLibraryScreenProps> = ({
   return (
     <View className="flex-1 bg-background">
       {header}
-      {canRead ? (
+      {isConnected ? (
         <LibrarySearchBar
           value={searchText}
           onChangeText={setSearchText}
@@ -247,7 +245,7 @@ const FoodsLibraryScreen: React.FC<FoodsLibraryScreenProps> = ({
           isSearching={isSearching}
         />
       ) : null}
-      <ServerGate offlineCapable>{renderContent()}</ServerGate>
+      <ServerGate>{renderContent()}</ServerGate>
     </View>
   );
 };

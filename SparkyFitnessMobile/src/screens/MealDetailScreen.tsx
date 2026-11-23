@@ -84,14 +84,12 @@ const MealDetailScreen: React.FC<MealDetailScreenProps> = ({
     number | null
   >(null);
 
-  const { isConnected, status } = useServerConnection();
-  // The meal kept on the phone is read while the server is away.
-  const canRead = isConnected || status === 'unreachable';
+  const { isConnected } = useServerConnection();
   const { profile } = useProfile();
   const { preferences } = usePreferences({ enabled: isConnected });
   const showNetCarbs = preferences?.show_net_carbs === true;
   const { meal, isLoading, isError, refetch } = useMeal(mealId, {
-    enabled: canRead,
+    enabled: isConnected,
     initialMeal,
   });
 
@@ -653,13 +651,13 @@ const MealDetailScreen: React.FC<MealDetailScreenProps> = ({
   // attaches the large-title collapse to a scroll view it finds at the top of
   // the screen, so wrapping it in another View breaks the inset + collapse.
   if (usesNativeHeader) {
-    return <ServerGate offlineCapable>{renderContent()}</ServerGate>;
+    return <ServerGate>{renderContent()}</ServerGate>;
   }
 
   return (
     <View className="flex-1 bg-background">
       {header}
-      <ServerGate offlineCapable>{renderContent()}</ServerGate>
+      <ServerGate>{renderContent()}</ServerGate>
     </View>
   );
 };
