@@ -224,6 +224,12 @@ const LibraryScreen: React.FC<LibraryScreenProps> = ({ navigation }) => {
           onOpenExercises={() =>
             runNavigationAction(() => navigation.navigate('ExercisesLibrary'))
           }
+          onOpenFoods={() =>
+            runNavigationAction(() => navigation.navigate('FoodsLibrary'))
+          }
+          onOpenMeals={() =>
+            runNavigationAction(() => navigation.navigate('MealsLibrary'))
+          }
         />
       </View>
     );
@@ -479,6 +485,25 @@ const LibraryScreen: React.FC<LibraryScreenProps> = ({ navigation }) => {
                     defaultValue:
                       'Run and walk plans from Beginner 5K to marathon',
                   })}
+            </Text>
+          </View>
+          <Icon name="chevron-forward" size={20} color="#999" />
+        </Pressable>
+        <Pressable
+          className="px-4 py-4 flex-row items-center justify-between border-b border-border-subtle"
+          onPress={() => navigation.navigate('Challenges')}
+          style={({ pressed }) => (pressed ? { opacity: 0.7 } : null)}
+        >
+          <View className="flex-1 mr-3">
+            <Text className="text-base font-semibold text-text-primary">
+              {t('screens.library.challenges', {
+                defaultValue: 'Challenges',
+              })}
+            </Text>
+            <Text className="text-sm text-text-secondary mt-0.5">
+              {t('screens.library.challengesSubtitle', {
+                defaultValue: 'Group leaderboards with friends and family',
+              })}
             </Text>
           </View>
           <Icon name="chevron-forward" size={20} color="#999" />
