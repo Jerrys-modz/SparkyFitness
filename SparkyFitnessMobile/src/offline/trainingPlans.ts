@@ -6,6 +6,10 @@ import {
   fetchTrainingCalendarFromServer,
   trainingCalendarCacheKey,
 } from '../services/api/reportsApi';
+import { fetchRunGoalsFromServer } from '../services/api/runGoalsApi';
+import { fetchFitnessTestsFromServer } from '../services/api/fitnessTestApi';
+import { fetchRoutesFromServer } from '../services/api/routeApi';
+import { fetchShoesFromServer } from '../services/api/shoesApi';
 import { monthRange } from '../utils/trainingCalendar';
 import { getTodayDate } from '../utils/dateUtils';
 import { accountGeneration } from './accountGeneration';
@@ -64,6 +68,44 @@ export async function refreshTrainingPlans(
   } catch (error) {
     errors.push(error);
   }
+
+  // The rest of the running screens: goals, fitness tests, saved routes (the
+  // list; a route opened while online is kept on its own) and shoes.
+  const keepDocument = async (
+    collection: string,
+    key: string,
+    fetchIt: () => Promise<unknown>
+  ) => {
+    try {
+      const payload = await fetchIt();
+      if (stillSameAccount()) {
+        await putCacheRows(db, serverConfigId, collection, [{ key, payload }]);
+      }
+    } catch (error) {
+      errors.push(error);
+    }
+  };
+  await keepDocument(
+    CACHE_COLLECTIONS.runGoals,
+    SINGLE_DOCUMENT_KEY,
+    fetchRunGoalsFromServer
+  );
+  await keepDocument(
+    CACHE_COLLECTIONS.fitnessTests,
+    SINGLE_DOCUMENT_KEY,
+    fetchFitnessTestsFromServer
+  );
+  await keepDocument(
+    CACHE_COLLECTIONS.routes,
+    SINGLE_DOCUMENT_KEY,
+    fetchRoutesFromServer
+  );
+  await keepDocument(CACHE_COLLECTIONS.shoes, 'all', () =>
+    fetchShoesFromServer()
+  );
+  await keepDocument(CACHE_COLLECTIONS.shoes, 'active', () =>
+    fetchShoesFromServer('active')
+  );
 
   const thisMonth = getTodayDate().slice(0, 7);
   for (let offset = -MONTHS_BEFORE; offset <= MONTHS_AFTER; offset += 1) {

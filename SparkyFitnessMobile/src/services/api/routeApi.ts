@@ -9,23 +9,40 @@ import type {
   UpdateRouteBody,
 } from '@workspace/shared';
 import { apiFetch } from './apiClient';
+import { cachedRead } from '../../offline/cachedRead';
+import {
+  CACHE_COLLECTIONS,
+  SINGLE_DOCUMENT_KEY,
+} from '../../offline/collections';
 
 const SERVICE = 'Routes API';
 
 /** The person's saved routes, newest first, without their points. */
-export const fetchRoutes = (): Promise<{ routes: RouteSummary[] }> =>
+export const fetchRoutesFromServer = (): Promise<{
+  routes: RouteSummary[];
+}> =>
   apiFetch<{ routes: RouteSummary[] }>({
     endpoint: '/api/v2/routes',
     serviceName: SERVICE,
     operation: 'fetch routes',
   });
 
+export const fetchRoutes = (): Promise<{ routes: RouteSummary[] }> =>
+  cachedRead(
+    CACHE_COLLECTIONS.routes,
+    SINGLE_DOCUMENT_KEY,
+    fetchRoutesFromServer
+  );
+
+/** A route opened while online is kept, so it opens again offline. */
 export const fetchRoute = (id: string): Promise<{ route: Route }> =>
-  apiFetch<{ route: Route }>({
-    endpoint: `/api/v2/routes/${id}`,
-    serviceName: SERVICE,
-    operation: 'fetch route',
-  });
+  cachedRead(CACHE_COLLECTIONS.routes, `route:${id}`, () =>
+    apiFetch<{ route: Route }>({
+      endpoint: `/api/v2/routes/${id}`,
+      serviceName: SERVICE,
+      operation: 'fetch route',
+    })
+  );
 
 export const createRoute = (
   body: Pick<CreateRouteBody, 'name' | 'points'> & Partial<CreateRouteBody>

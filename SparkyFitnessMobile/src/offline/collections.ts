@@ -47,6 +47,14 @@ export const CACHE_COLLECTIONS = {
   customRunPrograms: 'custom_run_programs',
   /** The training calendar for a range, keyed `<start>_<end>`. */
   trainingCalendar: 'training_calendar',
+  /** The person's running goals (one document). */
+  runGoals: 'run_goals',
+  /** Fitness tests, newest first (one document). */
+  fitnessTests: 'fitness_tests',
+  /** Saved routes: the list under the single key, each route under its id. */
+  routes: 'routes',
+  /** Running shoes, keyed by the status asked for (`all` for none). */
+  shoes: 'shoes',
   /** Markers the offline pack writes about itself. */
   pack: 'pack',
 } as const;

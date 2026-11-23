@@ -28,7 +28,7 @@ If you try to start a workout offline before the phone has ever refreshed, the a
 - Discard a workout.
 - Delete a saved workout from its detail screen. It disappears from your diary at once and is removed from the server when it can be reached.
 - See your workouts of the last 7 days in the **Diary**, and open them. Your food and workouts of the last 7 days are kept on the phone too. Sleep and the other diary entries need a connection, and the diary says so. Older days are not kept on the phone.
-- Open your **Training programs** and **Training calendar** from the **Library** tab. They show what your phone last saved (the program and your place in it, your own programs, and the calendar for last, this and next month). Starting, changing or ticking off a program, and planning on the calendar, need your server.
+- Open your **Training programs** and **Training calendar** from the **Library** tab. They show what your phone last saved (the program and your place in it, your own programs, and the calendar for last, this and next month, plus your running goals, fitness tests, saved routes and shoes). Starting, changing or ticking off a program, and planning on the calendar, need your server.
 - Browse your saved workouts, your exercise library, your foods and your saved meals in the **Library** tab. Everything else in the Library (plans, reports) needs a connection, and the tab says so.
 
 - Log a workout after the fact (**Log past workout**, or the **Add workout** form) and edit a workout you already logged. The change is kept on your phone and uploads later, like any other offline workout.
