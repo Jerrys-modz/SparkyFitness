@@ -108,16 +108,16 @@ describe('POST /exercise-entries record_timezone', () => {
       .send({ ...body, record_timezone: 'America/Los_Angeles' })
       .expect(201);
 
-    const [, , entry] = vi.mocked(exerciseService.createOrReplayExerciseEntry)
-      .mock.calls[0];
+    const [, , entry] = vi.mocked(exerciseService.createExerciseEntry).mock
+      .calls[0];
     expect(entry).toMatchObject({ record_timezone: 'America/Los_Angeles' });
   });
 
   it('leaves the zone empty when none is sent', async () => {
     await request(app).post('/exercise-entries').send(body).expect(201);
 
-    const [, , entry] = vi.mocked(exerciseService.createOrReplayExerciseEntry)
-      .mock.calls[0];
+    const [, , entry] = vi.mocked(exerciseService.createExerciseEntry).mock
+      .calls[0];
     expect(entry).toMatchObject({ record_timezone: null });
   });
 
@@ -126,6 +126,6 @@ describe('POST /exercise-entries record_timezone', () => {
       .post('/exercise-entries')
       .send({ ...body, record_timezone: 'Mars/Olympus' })
       .expect(400);
-    expect(exerciseService.createOrReplayExerciseEntry).not.toHaveBeenCalled();
+    expect(exerciseService.createExerciseEntry).not.toHaveBeenCalled();
   });
 });
