@@ -33,7 +33,7 @@ import {
   INDOOR_ENTRY_NAMES,
 } from '../utils/recordingEntry';
 import { buildActivitySetsPayload } from '../utils/workoutSession';
-import { getDeviceTimezone, toLocalDateString } from '../utils/dateUtils';
+import { toLocalDateString } from '../utils/dateUtils';
 import {
   computeLaps,
   computeSplits,
@@ -263,8 +263,6 @@ export async function saveRecordedActivity(
       duration_minutes: Math.round((durationSeconds / 60) * 100) / 100,
       entry_date: entryDate,
       entry_time: `${pad(started.getHours())}:${pad(started.getMinutes())}`,
-      // The time above is read on this phone, which may not be in the profile's zone.
-      record_timezone: getDeviceTimezone(),
       distance: distanceKm,
       ...(form && {
         avg_cadence: form.avgCadence,
