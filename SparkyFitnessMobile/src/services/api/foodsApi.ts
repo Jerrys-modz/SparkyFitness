@@ -10,7 +10,7 @@ import {
   foodSearchName,
   readSavedFood,
   readSavedFoodsPage,
-  readSavedFoodUsage,
+  readSavedSingle,
   readSavedVariants,
 } from '../../offline/foodLibrary';
 import { withOfflineFallback } from '../../offline/withOfflineFallback';
@@ -53,7 +53,12 @@ export const fetchFoods = async (): Promise<FoodsResponse> => {
       putCacheRows(db, serverConfigId, CACHE_COLLECTIONS.foodRecents, [
         { key: SINGLE_DOCUMENT_KEY, payload: usage },
       ]),
-    read: (db, serverConfigId) => readSavedFoodUsage(db, serverConfigId),
+    read: (db, serverConfigId) =>
+      readSavedSingle<FoodsResponse>(
+        db,
+        serverConfigId,
+        CACHE_COLLECTIONS.foodRecents
+      ),
   });
 };
 
@@ -229,8 +234,6 @@ export interface SaveFoodPayload {
   images?: string[];
   image_url?: string | null;
   image_source_url?: string | null;
-  /** Replay key from the offline queue; a repeat returns the food it made. */
-  client_id?: string;
 }
 
 /**

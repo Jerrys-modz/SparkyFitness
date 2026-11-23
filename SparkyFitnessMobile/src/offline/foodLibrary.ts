@@ -5,11 +5,6 @@ import type {
   FoodVariantDetail,
   FoodSearchResponse,
 } from '../types/foods';
-import type {
-  BarcodeLookupResult,
-  NormalizedFoodVariant,
-} from '../services/api/externalFoodSearchApi';
-import type { Meal } from '../types/meals';
 import type { MealType } from '../types/mealTypes';
 import type { WaterContainer } from '../types/measurements';
 import { accountGeneration } from './accountGeneration';
@@ -22,11 +17,6 @@ import {
   type CacheWrite,
 } from './cacheStore';
 import { CACHE_COLLECTIONS, SINGLE_DOCUMENT_KEY } from './collections';
-import {
-  isPendingFoodId,
-  listWaitingFoods,
-  pendingFoodClientId,
-} from './foodCreateHandOver';
 import type { OfflineDb } from './types';
 
 const SERVICE = 'Offline pack';
@@ -41,22 +31,10 @@ const FOODS_PAGE_SIZE = 100;
 /** Foods whose other servings are kept too: the first this many. */
 export const FOOD_VARIANTS_KEPT = 100;
 const VARIANT_BATCH = 5;
-/** The most meals read back at once; a person's saved meals are far fewer. */
-const MEALS_READ_MAX = 1000;
 
 /** What the search matches, the way the server does: "brand name". */
 export function foodSearchName(food: Pick<FoodItem, 'name' | 'brand'>): string {
   return `${food.brand ?? ''} ${food.name}`.trim();
-}
-
-/** The barcodes of the foods kept, each pointing at its food. */
-export function barcodeCacheRows(foods: readonly FoodItem[]): CacheWrite[] {
-  const rows: CacheWrite[] = [];
-  for (const food of foods) {
-    const barcode = food.barcode?.trim();
-    if (barcode) rows.push({ key: barcode, payload: { foodId: food.id } });
-  }
-  return rows;
 }
 
 export function foodCacheRows(foods: readonly FoodItem[]): CacheWrite[] {
@@ -175,11 +153,6 @@ export async function refreshFoodLibrary(
     serviceName: SERVICE,
     operation: 'fetch water containers',
   });
-  const meals = await apiFetch<Meal[]>({
-    endpoint: '/api/meals',
-    serviceName: SERVICE,
-    operation: 'fetch meals',
-  });
   const own = await fetchOwnFoods(startedUnder, FOOD_LIBRARY_MAX);
   if (own == null || accountGeneration() !== startedUnder) return;
 
@@ -190,28 +163,12 @@ export async function refreshFoodLibrary(
     CACHE_COLLECTIONS.food,
     foodCacheRows(foods)
   );
-  await replaceCacheCollection(
-    db,
-    serverConfigId,
-    CACHE_COLLECTIONS.foodBarcode,
-    barcodeCacheRows(foods)
-  );
   await putCacheRows(db, serverConfigId, CACHE_COLLECTIONS.foodRecents, [
     { key: SINGLE_DOCUMENT_KEY, payload: usage },
   ]);
   await putCacheRows(db, serverConfigId, CACHE_COLLECTIONS.mealTypes, [
     { key: SINGLE_DOCUMENT_KEY, payload: mealTypes },
   ]);
-  await replaceCacheCollection(
-    db,
-    serverConfigId,
-    CACHE_COLLECTIONS.meal,
-    (Array.isArray(meals) ? meals : []).map((meal) => ({
-      key: meal.id,
-      name: meal.name,
-      payload: meal,
-    }))
-  );
   await putCacheRows(db, serverConfigId, CACHE_COLLECTIONS.waterContainers, [
     { key: SINGLE_DOCUMENT_KEY, payload: containers },
   ]);
@@ -244,20 +201,12 @@ export async function readSavedFoodsPage(
         pageSize,
         offset
       );
-  // New foods made on the phone and not yet uploaded are listed first.
-  const waiting = (await listWaitingFoods(db, serverConfigId)).filter(
-    ({ item }) =>
-      !term || foodSearchName(item).toLowerCase().includes(term.toLowerCase())
-  );
   // Nothing kept at all is "not available offline"; a search that matches
   // nothing among the kept foods is a real (empty) answer.
-  if (total === 0 && !term && waiting.length === 0) return null;
+  if (total === 0 && !term) return null;
   return {
-    foods: [
-      ...(offset === 0 ? waiting.map(({ item }) => item) : []),
-      ...rows.map((row) => row.payload as FoodItem),
-    ],
-    totalCount: total + waiting.length,
+    foods: rows.map((row) => row.payload as FoodItem),
+    totalCount: total,
   };
 }
 
@@ -266,11 +215,6 @@ export async function readSavedFood(
   serverConfigId: string,
   foodId: string
 ): Promise<FoodItem | null> {
-  if (isPendingFoodId(foodId)) {
-    const key = pendingFoodClientId(foodId);
-    const waiting = await listWaitingFoods(db, serverConfigId);
-    return waiting.find((item) => item.foodClientId === key)?.item ?? null;
-  }
   const row = await getCacheRow(
     db,
     serverConfigId,
@@ -290,14 +234,12 @@ export async function readSavedVariants(
   serverConfigId: string,
   foodId: string
 ): Promise<FoodVariantDetail[] | null> {
-  const kept = isPendingFoodId(foodId)
-    ? null
-    : await getCacheRow(
-        db,
-        serverConfigId,
-        CACHE_COLLECTIONS.foodVariants,
-        foodId
-      );
+  const kept = await getCacheRow(
+    db,
+    serverConfigId,
+    CACHE_COLLECTIONS.foodVariants,
+    foodId
+  );
   if (kept) return kept.payload as FoodVariantDetail[];
   const food = await readSavedFood(db, serverConfigId, foodId);
   if (!food?.default_variant?.id) return null;
@@ -308,30 +250,6 @@ export async function readSavedVariants(
       food_id: food.id,
     } as FoodVariantDetail,
   ];
-}
-
-/**
- * The recent and most used foods kept on the phone, with the new foods
- * waiting to upload at the top of the recent ones.
- */
-export async function readSavedFoodUsage(
-  db: OfflineDb,
-  serverConfigId: string
-): Promise<FoodsResponse | null> {
-  const kept = await readSavedSingle<FoodsResponse>(
-    db,
-    serverConfigId,
-    CACHE_COLLECTIONS.foodRecents
-  );
-  const waiting = await listWaitingFoods(db, serverConfigId);
-  if (waiting.length === 0) return kept;
-  return {
-    recentFoods: [
-      ...waiting.map(({ item }) => item),
-      ...(kept?.recentFoods ?? []),
-    ],
-    topFoods: kept?.topFoods ?? [],
-  };
 }
 
 export async function readSavedSingle<T>(
@@ -346,86 +264,4 @@ export async function readSavedSingle<T>(
     SINGLE_DOCUMENT_KEY
   );
   return row ? (row.payload as T) : null;
-}
-
-/** Every meal kept on the phone, by name; null when none were ever kept. */
-export async function readSavedMeals(
-  db: OfflineDb,
-  serverConfigId: string,
-  searchTerm = ''
-): Promise<Meal[] | null> {
-  const term = searchTerm.trim();
-  const { rows, total } = term
-    ? await searchCacheRowsPage(
-        db,
-        serverConfigId,
-        CACHE_COLLECTIONS.meal,
-        term,
-        MEALS_READ_MAX,
-        0
-      )
-    : await listCacheRowsPage(
-        db,
-        serverConfigId,
-        CACHE_COLLECTIONS.meal,
-        MEALS_READ_MAX,
-        0
-      );
-  if (total === 0 && !term) return null;
-  return rows.map((row) => row.payload as Meal);
-}
-
-export async function readSavedMeal(
-  db: OfflineDb,
-  serverConfigId: string,
-  mealId: string
-): Promise<Meal | null> {
-  const row = await getCacheRow(
-    db,
-    serverConfigId,
-    CACHE_COLLECTIONS.meal,
-    mealId
-  );
-  return row ? (row.payload as Meal) : null;
-}
-
-/**
- * The food kept for a scanned barcode, shaped like a lookup the server
- * answered from the person's own foods; null when no kept food has it. Only
- * the person's kept foods are known here, never a provider's.
- */
-export async function readSavedBarcodeResult(
-  db: OfflineDb,
-  serverConfigId: string,
-  barcode: string
-): Promise<BarcodeLookupResult | null> {
-  const row = await getCacheRow(
-    db,
-    serverConfigId,
-    CACHE_COLLECTIONS.foodBarcode,
-    barcode.trim()
-  );
-  const foodId = (row?.payload as { foodId?: string } | undefined)?.foodId;
-  if (!foodId) return null;
-  const food = await readSavedFood(db, serverConfigId, foodId);
-  if (!food?.default_variant) return null;
-  const variants = (await readSavedVariants(db, serverConfigId, foodId)) ?? [
-    food.default_variant,
-  ];
-  return {
-    source: 'local',
-    food: {
-      id: food.id,
-      name: food.name,
-      brand: food.brand,
-      barcode: barcode.trim(),
-      is_custom: food.is_custom,
-      provider_external_id: food.provider_external_id,
-      provider_type: food.provider_type ?? undefined,
-      provider_verified: food.provider_verified,
-      images: food.images ?? undefined,
-      default_variant: food.default_variant as NormalizedFoodVariant,
-      variants: variants as NormalizedFoodVariant[],
-    },
-  };
 }

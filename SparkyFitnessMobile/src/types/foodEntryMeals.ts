@@ -97,11 +97,6 @@ export interface FoodEntryMealCreateData {
   unit: string;
   entry_total_servings?: number | null;
   foods?: MealFoodPayload[];
-  /**
-   * Replay key (uuid). The server answers a repeat of the same key with the
-   * meal it already stored and logs nothing.
-   */
-  client_id?: string;
 }
 
 export interface FoodEntryMealUpdateData {

@@ -53,11 +53,6 @@ const ServingAdjustSheet = forwardRef<
       invalidateCache();
       bottomSheetRef.current?.dismiss();
     },
-    // Kept on the phone: the day is re-read with the new amount on it.
-    onKeptOnPhone: () => {
-      invalidateCache();
-      bottomSheetRef.current?.dismiss();
-    },
   });
 
   useImperativeHandle(ref, () => ({

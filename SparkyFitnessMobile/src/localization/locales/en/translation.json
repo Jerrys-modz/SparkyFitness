@@ -3367,7 +3367,6 @@
       "loadPhoto": "Failed to load photo.",
       "restartApp": "Unable to open gallery. Please restart the app.",
       "lookupBarcode": "Couldn't look up this barcode. Please try again.",
-      "offlineBarcode": "No connection. This barcode isn't in the foods saved on your phone.",
       "timeout": "Request timed out. Check your server connection.",
       "retryOnDevice": "This iPhone could not read the label."
     },
@@ -5282,8 +5281,7 @@
     "errors": {
       "permission": "You don't have permission to edit this entry.",
       "saveFailed": "Failed to save changes",
-      "deleteFailed": "Failed to delete",
-      "uploadingNow": "It is uploading right now. Try again in a moment."
+      "deleteFailed": "Failed to delete"
     },
     "deleteConfirm": "Are you sure you want to delete this food entry?",
     "entryNotes": "Note for this entry"
@@ -6436,14 +6434,10 @@
     "customConfirm": "Show this range"
   },
   "foodEntryMeal": {
-    "queued": "Saved on this phone",
-    "queuedMessage": "It uploads when your server can be reached.",
     "failed": "Failed to add meal"
   },
   "foodSave": {
-    "failed": "Failed to save food",
-    "queued": "Saved on this phone",
-    "queuedMessage": "It uploads when your server can be reached."
+    "failed": "Failed to save food"
   },
   "favorites": {
     "updateFailed": "Failed to update favorites"
