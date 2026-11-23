@@ -29,9 +29,7 @@ import {
 } from './collections';
 import { getOfflineDb } from './db';
 import { accountGeneration } from './accountGeneration';
-import { refreshRecentDailySummaries } from './dailySummaryCache';
-import { refreshRecentDiaryDays, refreshRecentFoodDays } from './diaryDay';
-import { refreshFoodLibrary } from './foodLibrary';
+import { refreshRecentDiaryDays } from './diaryDay';
 import { notifyOutboxChanged } from './events';
 import { IDENTITY_COLLECTION, IDENTITY_KEY } from './syncEngine';
 import type { OfflineDb } from './types';
@@ -297,28 +295,6 @@ async function refreshSteps(
     await refreshRecentDiaryDays(db, serverConfigId, undefined, startedUnder);
   } catch (error) {
     addLog(`[Offline] Last week's workouts not refreshed: ${error}`, 'WARNING');
-  }
-  try {
-    await refreshRecentFoodDays(db, serverConfigId, undefined, startedUnder);
-  } catch (error) {
-    addLog(`[Offline] Last week's food not refreshed: ${error}`, 'WARNING');
-  }
-  try {
-    await refreshRecentDailySummaries(
-      db,
-      serverConfigId,
-      undefined,
-      startedUnder
-    );
-  } catch (error) {
-    addLog(`[Offline] Last week's totals not refreshed: ${error}`, 'WARNING');
-  }
-  // Also after the marker: the foods are for logging food, and a failure here
-  // leaves the library the phone already had.
-  try {
-    await refreshFoodLibrary(db, serverConfigId, startedUnder);
-  } catch (error) {
-    addLog(`[Offline] Foods not refreshed: ${error}`, 'WARNING');
   }
   if (await abandonedAfterSwitch()) return false;
   return true;

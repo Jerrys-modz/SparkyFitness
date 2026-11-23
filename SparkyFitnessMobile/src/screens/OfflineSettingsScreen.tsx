@@ -90,12 +90,6 @@ function kindLabel(row: OutboxRow, t: TFunction): string {
   if (row.kind.startsWith('run.')) {
     return t('offline.kind.runFollowUp', { defaultValue: 'Run details' });
   }
-  if (row.kind.startsWith('food_entry')) {
-    return t('offline.kind.food', { defaultValue: 'Food entry' });
-  }
-  if (row.kind.startsWith('water')) {
-    return t('offline.kind.water', { defaultValue: 'Drink' });
-  }
   return t('offline.kind.other', { defaultValue: 'Saved change' });
 }
 

@@ -11,12 +11,6 @@ export const CACHE_COLLECTIONS = {
   planDay: 'plan_day',
   /** A day's workouts as the diary last loaded them, keyed by YYYY-MM-DD. */
   diaryDay: 'diary_day',
-  /** The server's whole summary of a day, keyed by YYYY-MM-DD. */
-  dailySummary: 'daily_summary',
-  /** The person's water containers (one document). */
-  waterContainers: 'water_containers',
-  /** A day's food entries as the diary last loaded them, keyed by YYYY-MM-DD. */
-  diaryFoodDay: 'diary_food_day',
   /** Recent and most-used exercises, keyed by the requested count. */
   suggestedExercises: 'suggested_exercises',
   /** Best / last / recent sets, keyed by `exerciseStatsCacheKey`. */
@@ -25,14 +19,6 @@ export const CACHE_COLLECTIONS = {
   preferences: 'preferences',
   plateInventory: 'plate_inventory',
   profile: 'profile',
-  /** The person's foods, keyed by food id, searched by "brand name". */
-  food: 'food',
-  /** Every serving of a food, keyed by food id. */
-  foodVariants: 'food_variants',
-  /** The recent and most-used foods lists (one document). */
-  foodRecents: 'food_recents',
-  /** The person's meal types (one document). */
-  mealTypes: 'meal_types',
   /** Markers the offline pack writes about itself. */
   pack: 'pack',
 } as const;

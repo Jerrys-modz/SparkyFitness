@@ -100,9 +100,7 @@ describe('Linked Water Container Increment/Decrement (#2115)', () => {
         'manual',
         null,
         'entry-1',
-        1,
-        undefined,
-        null
+        1
       );
     });
 
@@ -129,9 +127,7 @@ describe('Linked Water Container Increment/Decrement (#2115)', () => {
         'manual',
         null,
         'entry-1',
-        1,
-        undefined,
-        null
+        1
       );
     });
 
@@ -156,9 +152,7 @@ describe('Linked Water Container Increment/Decrement (#2115)', () => {
         'manual',
         null,
         'entry-1',
-        0.5,
-        undefined,
-        null
+        0.5
       );
     });
 
@@ -195,9 +189,7 @@ describe('Linked Water Container Increment/Decrement (#2115)', () => {
         'manual',
         null,
         'entry-1',
-        1,
-        undefined,
-        null
+        1
       );
     });
 
@@ -229,9 +221,7 @@ describe('Linked Water Container Increment/Decrement (#2115)', () => {
         'manual',
         null,
         'entry-1',
-        1,
-        undefined,
-        null
+        1
       );
     });
 
@@ -471,9 +461,7 @@ describe('Linked Water Container Increment/Decrement (#2115)', () => {
           'manual',
           null,
           'created-food-entry-99',
-          0.9,
-          undefined,
-          null
+          0.9
         );
 
         expect(res).toEqual({

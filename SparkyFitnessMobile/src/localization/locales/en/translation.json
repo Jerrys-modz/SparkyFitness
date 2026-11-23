@@ -4728,9 +4728,7 @@
       "result": "= {{raw}} {{unit}} raw · {{energy}}",
       "incomplete": "Enter the weights to calculate the raw amount.",
       "enterEaten": "Enter the cooked weight you ate."
-    },
-    "queued": "Saved on this phone",
-    "queuedMessage": "It uploads when your server can be reached."
+    }
   },
   "foodEntryMultiAdd": {
     "title": "Review",
@@ -6857,9 +6855,7 @@
     "configure": "Please configure a water container on the server to track hydration.",
     "multipleNoPrimaryMobile": "You have multiple water containers but none is marked as primary. Tap to choose one.",
     "configureMobile": "Add a water container to start tracking hydration.",
-    "defaultContainer": "Default",
-    "queued": "Saved on this phone",
-    "queuedMessage": "It uploads when your server can be reached."
+    "defaultContainer": "Default"
   },
   "actionTags": {
     "waiting": {
@@ -12560,7 +12556,7 @@
     "presetUpdateQueued": "Saved workout will be updated when you are back online",
     "presetUpdateSkipped": "Saved workout \"{{name}}\" was not updated because it was changed elsewhere",
     "presetUpdated": "Saved workout \"{{name}}\" updated",
-    "diaryNote": "Food and workouts from the last week are available offline. Sleep and the other entries need a connection.",
+    "diaryNote": "Only workouts are available offline. Food and other entries need a connection.",
     "diaryNothingSaved": "Nothing saved for this day",
     "finishedTitle": "Saved on this phone",
     "finishedMessage": "It uploads when your server can be reached.",
@@ -12629,9 +12625,7 @@
       "run": "Run",
       "watchRun": "Run on watch",
       "runFollowUp": "Run details",
-      "other": "Saved change",
-      "food": "Food entry",
-      "water": "Drink"
+      "other": "Saved change"
     },
     "libraryNote": "Only workouts and exercises are available offline. Everything else in the Library needs a connection."
   },

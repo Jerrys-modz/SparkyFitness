@@ -1,19 +1,6 @@
 import { apiFetch } from './apiClient';
 import { postPayloadWithImages } from './imageUploadClient';
 import type { ImageUploadArgs } from '../../utils/pickerImages';
-import { putCacheRows } from '../../offline/cacheStore';
-import {
-  CACHE_COLLECTIONS,
-  SINGLE_DOCUMENT_KEY,
-} from '../../offline/collections';
-import {
-  foodSearchName,
-  readSavedFood,
-  readSavedFoodsPage,
-  readSavedSingle,
-  readSavedVariants,
-} from '../../offline/foodLibrary';
-import { withOfflineFallback } from '../../offline/withOfflineFallback';
 import {
   FoodItem,
   FoodsResponse,
@@ -24,41 +11,20 @@ import {
 
 /** Fetches one saved food by id. */
 export const fetchFood = async (foodId: string): Promise<FoodItem> =>
-  withOfflineFallback<FoodItem>({
-    fetch: () =>
-      apiFetch<FoodItem>({
-        endpoint: `/api/foods/${encodeURIComponent(foodId)}`,
-        serviceName: 'Foods API',
-        operation: 'fetch food',
-      }),
-    store: (db, serverConfigId, food) =>
-      putCacheRows(db, serverConfigId, CACHE_COLLECTIONS.food, [
-        { key: food.id, name: foodSearchName(food), payload: food },
-      ]),
-    read: (db, serverConfigId) => readSavedFood(db, serverConfigId, foodId),
+  apiFetch<FoodItem>({
+    endpoint: `/api/foods/${encodeURIComponent(foodId)}`,
+    serviceName: 'Foods API',
+    operation: 'fetch food',
   });
 
 /**
  * Fetches the list of recent and top foods.
  */
 export const fetchFoods = async (): Promise<FoodsResponse> => {
-  return withOfflineFallback<FoodsResponse>({
-    fetch: () =>
-      apiFetch<FoodsResponse>({
-        endpoint: '/api/foods',
-        serviceName: 'Foods API',
-        operation: 'fetch foods',
-      }),
-    store: (db, serverConfigId, usage) =>
-      putCacheRows(db, serverConfigId, CACHE_COLLECTIONS.foodRecents, [
-        { key: SINGLE_DOCUMENT_KEY, payload: usage },
-      ]),
-    read: (db, serverConfigId) =>
-      readSavedSingle<FoodsResponse>(
-        db,
-        serverConfigId,
-        CACHE_COLLECTIONS.foodRecents
-      ),
+  return apiFetch<FoodsResponse>({
+    endpoint: '/api/foods',
+    serviceName: 'Foods API',
+    operation: 'fetch foods',
   });
 };
 
@@ -82,19 +48,10 @@ export const fetchFoodsPage = async ({
     sortBy,
   });
 
-  const response = await withOfflineFallback<FoodSearchResponse>({
-    fetch: () =>
-      apiFetch<FoodSearchResponse>({
-        endpoint: `/api/foods/foods-paginated?${params.toString()}`,
-        serviceName: 'Foods API',
-        operation: 'fetch foods page',
-      }),
-    // Only the plain by-name list is answered from the phone: another sort
-    // would come back in the wrong order, and the phone keeps no filters.
-    read: async (db, serverConfigId) =>
-      sortBy === 'name:asc'
-        ? readSavedFoodsPage(db, serverConfigId, searchTerm, page, itemsPerPage)
-        : null,
+  const response = await apiFetch<FoodSearchResponse>({
+    endpoint: `/api/foods/foods-paginated?${params.toString()}`,
+    serviceName: 'Foods API',
+    operation: 'fetch foods page',
   });
 
   return {
@@ -132,18 +89,10 @@ export const searchFoods = async (
 export const fetchFoodVariants = async (
   foodId: string
 ): Promise<FoodVariantDetail[]> => {
-  return withOfflineFallback<FoodVariantDetail[]>({
-    fetch: () =>
-      apiFetch<FoodVariantDetail[]>({
-        endpoint: `/api/foods/food-variants?food_id=${foodId}`,
-        serviceName: 'Foods API',
-        operation: 'fetch food variants',
-      }),
-    store: (db, serverConfigId, variants) =>
-      putCacheRows(db, serverConfigId, CACHE_COLLECTIONS.foodVariants, [
-        { key: foodId, payload: variants },
-      ]),
-    read: (db, serverConfigId) => readSavedVariants(db, serverConfigId, foodId),
+  return apiFetch<FoodVariantDetail[]>({
+    endpoint: `/api/foods/food-variants?food_id=${foodId}`,
+    serviceName: 'Foods API',
+    operation: 'fetch food variants',
   });
 };
 

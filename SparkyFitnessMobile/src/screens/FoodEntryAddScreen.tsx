@@ -298,13 +298,9 @@ const FoodEntryAddScreen: React.FC<FoodEntryAddScreenProps> = ({
   const calendarRef = useRef<CalendarSheetRef>(null);
   const timeSheetRef = useRef<TimeSheetRef>(null);
   const { mealTypes, defaultMealTypeId } = useMealTypes();
-  const { isConnected, status: connectionStatus } = useServerConnection();
+  const { isConnected } = useServerConnection();
   const energyUnit = useEnergyUnit();
-  // The preferences are kept on the phone, so they are read with the server
-  // away too; a food from the saved library can still be logged then.
-  const { preferences } = usePreferences({
-    enabled: isConnected || connectionStatus === 'unreachable',
-  });
+  const { preferences } = usePreferences({ enabled: isConnected });
   const showNetCarbs = preferences?.show_net_carbs === true;
   const [selectedMealId, setSelectedMealId] = useState<string | undefined>(
     route.params?.mealTypeId

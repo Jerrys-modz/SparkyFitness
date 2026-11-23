@@ -136,11 +136,7 @@ const FoodSearchScreen: React.FC<FoodSearchScreenProps> = ({
   const { defaultColor: headerActionColor } = useHeaderActionColors();
   const usesNativeHeader = useNativeIOSHeadersActive();
 
-  const { isConnected, status: connectionStatus } = useServerConnection();
-  // The foods, their servings and the recent lists are kept on the phone, so
-  // they are read while the server is unreachable too (the API clients answer
-  // from the saved copy). Everything else on this screen needs the server.
-  const canReadSavedFoods = isConnected || connectionStatus === 'unreachable';
+  const { isConnected } = useServerConnection();
   const { profile } = useProfile();
   const ownershipFilter = useAppPreferencesStore(
     (s) => s.foodSearchOwnershipFilter
@@ -154,9 +150,9 @@ const FoodSearchScreen: React.FC<FoodSearchScreenProps> = ({
   // sections entirely, matching web.
   const onlineAllowedByOwnership =
     ownershipFilter === 'all' || ownershipFilter === 'public';
-  const { preferences } = usePreferences({ enabled: canReadSavedFoods });
+  const { preferences } = usePreferences({ enabled: isConnected });
   const { recentFoods, topFoods, isLoading, isError, refetch } = useFoods({
-    enabled: canReadSavedFoods,
+    enabled: isConnected,
   });
   const { favoriteFoods, favoriteMeals } = useFavorites({
     enabled: isConnected,
@@ -300,7 +296,7 @@ const FoodSearchScreen: React.FC<FoodSearchScreenProps> = ({
   const { searchResults, isSearching, isSearchActive } = useFoodSearch(
     searchText,
     {
-      enabled: canReadSavedFoods,
+      enabled: isConnected,
     }
   );
 
