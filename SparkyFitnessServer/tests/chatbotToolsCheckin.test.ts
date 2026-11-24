@@ -10,6 +10,7 @@ import moodRepository, {
 import fastingRepository from '../models/fastingRepository.js';
 import sleepRepository from '../models/sleepRepository.js';
 import * as oralCareService from '../services/oralCareService.js';
+import * as bloodPressureService from '../services/bloodPressureService.js';
 import { toolOpts } from './helpers/toolExecutionOptions.js';
 import { CustomCategoryExistsError } from '../utils/errors.js';
 
@@ -91,6 +92,10 @@ vi.mock('../models/sleepRepository', () => ({
 vi.mock('../services/oralCareService', () => ({
   MAX_HISTORY_DAYS: 366,
   getHistory: vi.fn(),
+}));
+vi.mock('../services/bloodPressureService', () => ({
+  logBloodPressure: vi.fn(),
+  getBloodPressureRange: vi.fn(),
 }));
 vi.mock('../config/logging', () => ({
   log: vi.fn(),
@@ -2160,5 +2165,115 @@ describe('get_oral_care_summary', () => {
     expect(vi.mocked(oralCareService.getHistory).mock.calls[0]![2]).toBe(
       '2025-11-08'
     );
+  });
+});
+
+describe('blood pressure actions', () => {
+  const view = {
+    id: 'v1',
+    timestamp: '2026-11-20T13:05:00.000Z',
+    date: '2026-11-20',
+    hour: 13,
+    systolic: 122,
+    diastolic: 79,
+    pulse: 64,
+    arm: 'left',
+    bodyPosition: 'sitting',
+    note: null,
+    source: 'manual',
+    category: 'stage1',
+  } as const;
+
+  it('logs a reading at the given time and reports its category', async () => {
+    vi.mocked(bloodPressureService.logBloodPressure).mockResolvedValue({
+      status: 'ok',
+      reading: view,
+    });
+    const result = await tools.sparky_manage_checkin.execute!(
+      {
+        action: 'log_blood_pressure',
+        systolic_mmhg: 122,
+        diastolic_mmhg: 79,
+        pulse_bpm: 64,
+        arm: 'left',
+        taken_at: '2026-11-20T13:05:00.000Z',
+      },
+      opts
+    );
+    expect(bloodPressureService.logBloodPressure).toHaveBeenCalledWith(
+      'user-1',
+      'user-1',
+      expect.any(String),
+      new Date('2026-11-20T13:05:00.000Z'),
+      expect.objectContaining({
+        systolic_mmhg: 122,
+        diastolic_mmhg: 79,
+        pulse_bpm: 64,
+        arm: 'left',
+      })
+    );
+    expect(String(result)).toContain('122/79 mmHg');
+    expect(String(result)).toContain('stage1');
+  });
+
+  it('infers the action from the values alone', async () => {
+    vi.mocked(bloodPressureService.logBloodPressure).mockResolvedValue({
+      status: 'ok',
+      reading: view,
+    });
+    await tools.sparky_manage_checkin.execute!(
+      { systolic_mmhg: 122, diastolic_mmhg: 79 },
+      opts
+    );
+    expect(bloodPressureService.logBloodPressure).toHaveBeenCalled();
+  });
+
+  it('refuses a reading whose systolic is not above diastolic', async () => {
+    vi.mocked(bloodPressureService.logBloodPressure).mockClear();
+    const result = await tools.sparky_manage_checkin.execute!(
+      { action: 'log_blood_pressure', systolic_mmhg: 80, diastolic_mmhg: 90 },
+      opts
+    );
+    expect(String(result)).toContain('Systolic must be higher');
+    expect(bloodPressureService.logBloodPressure).not.toHaveBeenCalled();
+  });
+
+  it('says so when a reading already exists at that instant', async () => {
+    vi.mocked(bloodPressureService.logBloodPressure).mockResolvedValue({
+      status: 'duplicate',
+    });
+    const result = await tools.sparky_manage_checkin.execute!(
+      { action: 'log_blood_pressure', systolic_mmhg: 120, diastolic_mmhg: 80 },
+      opts
+    );
+    expect(String(result)).toContain('already exists at this exact time');
+  });
+
+  it('summarises the last 30 days with averages and the disclaimer', async () => {
+    vi.mocked(bloodPressureService.getBloodPressureRange).mockResolvedValue({
+      readings: [view],
+      summary: {
+        overall: { systolic: 122, diastolic: 79, count: 1 },
+        morning: null,
+        evening: null,
+        highest: { systolic: 122, diastolic: 79 },
+        lowest: { systolic: 122, diastolic: 79 },
+      },
+      home: null,
+    });
+    const result = await tools.sparky_manage_checkin.execute!(
+      { action: 'get_blood_pressure_summary', end_date: '2026-11-24' },
+      opts
+    );
+    expect(bloodPressureService.getBloodPressureRange).toHaveBeenCalledWith(
+      'user-1',
+      'user-1',
+      '2026-10-26',
+      '2026-11-24',
+      expect.any(String)
+    );
+    expect(String(result)).toContain('"reading_count":1');
+    expect(String(result)).toContain('not a diagnosis');
+    expect(String(result)).toContain('"home_average":null');
   });
 });

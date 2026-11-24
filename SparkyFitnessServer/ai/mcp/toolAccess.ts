@@ -87,6 +87,7 @@ export const MCP_TOOL_READ_ACCESS: Readonly<Record<string, ToolReadAccess>> = {
     'get_biometrics_history',
     'get_custom_metrics_history',
     'get_oral_care_summary',
+    'get_blood_pressure_summary',
   ],
   sparky_manage_progress_photos: ['list_photo_dates', 'list_photos'],
   // recalculate_baseline stores a new baseline, so it stays out.

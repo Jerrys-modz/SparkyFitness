@@ -259,6 +259,32 @@ const getOralCareSummarySchema = z
   })
   .strict();
 
+const logBloodPressureSchema = z
+  .object({
+    action: z.literal('log_blood_pressure'),
+    systolic_mmhg: z.coerce.number().min(30).max(300),
+    diastolic_mmhg: z.coerce.number().min(10).max(200),
+    pulse_bpm: z.coerce.number().min(20).max(300).optional(),
+    arm: z.enum(['left', 'right']).optional(),
+    body_position: z
+      .enum(['sitting', 'standing', 'lying', 'reclining'])
+      .optional(),
+    notes: z.string().trim().max(500).optional(),
+    taken_at: z.string().datetime({ offset: true }).optional(),
+    entry_date: dateSchema.optional(),
+  })
+  .strict();
+
+const getBloodPressureSummarySchema = z
+  .object({
+    action: z.literal('get_blood_pressure_summary'),
+    start_date: dateSchema
+      .optional()
+      .describe('First day (defaults to 29 days before end_date)'),
+    end_date: dateSchema.optional().describe('Last day (defaults to today)'),
+  })
+  .strict();
+
 export const manageCheckinSchema = z.discriminatedUnion('action', [
   logBiometricsSchema,
   logCustomMetricSchema,
@@ -272,6 +298,8 @@ export const manageCheckinSchema = z.discriminatedUnion('action', [
   getBiometricsHistorySchema,
   getCustomMetricsHistorySchema,
   getOralCareSummarySchema,
+  logBloodPressureSchema,
+  getBloodPressureSummarySchema,
 ]);
 
 export type ManageCheckinInput = z.infer<typeof manageCheckinSchema>;
@@ -294,6 +322,8 @@ export const manageCheckinInput = z.object({
       'get_biometrics_history',
       'get_custom_metrics_history',
       'get_oral_care_summary',
+      'log_blood_pressure',
+      'get_blood_pressure_summary',
     ])
     .optional()
     .describe('Action to perform; see tool description for per-action fields.'),
@@ -379,6 +409,39 @@ export const manageCheckinInput = z.object({
     .optional()
     .describe(
       'Optional mood tags for log_mood (e.g. ["anxious", "tired", "sad"])'
+    ),
+  // blood pressure
+  systolic_mmhg: z.coerce
+    .number()
+    .min(30)
+    .max(300)
+    .optional()
+    .describe('Systolic blood pressure in mmHg (log_blood_pressure)'),
+  diastolic_mmhg: z.coerce
+    .number()
+    .min(10)
+    .max(200)
+    .optional()
+    .describe('Diastolic blood pressure in mmHg (log_blood_pressure)'),
+  pulse_bpm: z.coerce
+    .number()
+    .min(20)
+    .max(300)
+    .optional()
+    .describe('Pulse in bpm taken with the reading (log_blood_pressure)'),
+  arm: z
+    .enum(['left', 'right'])
+    .optional()
+    .describe('Arm the reading was taken on (log_blood_pressure)'),
+  body_position: z
+    .enum(['sitting', 'standing', 'lying', 'reclining'])
+    .optional()
+    .describe('Body position during the reading (log_blood_pressure)'),
+  taken_at: z
+    .string()
+    .optional()
+    .describe(
+      'When the reading was taken (ISO 8601 with offset); defaults to now, or noon of entry_date'
     ),
   // fasting
   start_time: z
