@@ -37,6 +37,7 @@ vi.mock('../models/waterContainerRepository.js', () => ({
 vi.mock('../models/genericHealthRepository.js', () => ({
   upsertDailyHealthMetrics: vi.fn(),
   bulkUpsertVitals: vi.fn(),
+  findNearbyBloodPressureTimestamp: vi.fn(),
 }));
 vi.mock('../models/moodRepository.js', () => ({
   default: {
@@ -1644,6 +1645,34 @@ describe('blood pressure readings', () => {
     expect(
       measurementRepository.bulkUpsertCustomMeasurements
     ).toHaveBeenCalled();
+    expect(genericHealthRepository.bulkUpsertVitals).not.toHaveBeenCalled();
+  });
+
+  it('does not write readings whose timestamp cannot be read, so they never merge at midnight', async () => {
+    const midnight = '2026-11-20T00:00:00.000Z';
+    await handler.handleBatch!(
+      [
+        prepared(
+          {
+            type: 'blood_pressure_systolic',
+            value: 122,
+            source: 'HealthKit',
+            timestamp: 'garbage',
+          },
+          midnight
+        ),
+        prepared(
+          {
+            type: 'blood_pressure_diastolic',
+            value: 79,
+            source: 'HealthKit',
+            timestamp: 'garbage',
+          },
+          midnight
+        ),
+      ],
+      ctx
+    );
     expect(genericHealthRepository.bulkUpsertVitals).not.toHaveBeenCalled();
   });
 

@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ScrollView,
   Text,
@@ -11,8 +11,10 @@ import { useCSSVariable } from 'uniwind';
 import Toast from 'react-native-toast-message';
 import {
   bloodPressureBodyPositionSchema,
-  instantForDay,
+  instantHourMinute,
   instantToDay,
+  isBloodPressureInFuture,
+  localDateTimeToUtc,
   type BloodPressureArm,
   type BloodPressureBodyPosition,
 } from '@workspace/shared';
@@ -20,8 +22,12 @@ import CalendarSheet, {
   type CalendarSheetRef,
 } from '../components/CalendarSheet';
 import { FooterSaveBar } from '../components/FormScreenChrome';
+import TimeSheet, { type TimeSheetRef } from '../components/TimeSheet';
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import { useScreenHeader } from '../hooks/useScreenHeader';
+import { useMobileFeatures } from '../hooks/useMobileFeatures';
+import { usePreferences } from '../hooks/usePreferences';
+import { formatTimeLabel } from '../utils/entryTimeDisplay';
 import {
   useCreateBloodPressure,
   useUpdateBloodPressure,
@@ -56,12 +62,26 @@ const BloodPressureAddScreen: React.FC<Props> = ({ navigation, route }) => {
   const [textMuted] = useCSSVariable(['--color-text-muted']) as [string];
   const dateLocale = i18n.language.startsWith('pl') ? 'pl-PL' : 'en-US';
   const calendarRef = useRef<CalendarSheetRef>(null);
+  const timeSheetRef = useRef<TimeSheetRef>(null);
+  const { preferences } = usePreferences();
+  const { isEnabled } = useMobileFeatures();
+  const featureOn = isEnabled('bloodPressure');
+  // A screen reached after the feature was turned off (an old navigation
+  // state or link) closes instead of letting readings be added.
+  useEffect(() => {
+    if (!featureOn) navigation.goBack();
+  }, [featureOn, navigation]);
   const create = useCreateBloodPressure();
   const update = useUpdateBloodPressure();
 
   const editing = route.params?.reading ?? null;
   const timezone = getDeviceTimezone();
   const originalDate = editing ? instantToDay(editing.at, timezone) : null;
+  const clock = (at: number | Date): string => {
+    const { hour, minute } = instantHourMinute(at, timezone);
+    return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+  };
+  const originalTime = editing ? clock(editing.at) : null;
 
   const [systolicText, setSystolicText] = useState(
     editing ? String(editing.systolic) : ''
@@ -82,6 +102,8 @@ const BloodPressureAddScreen: React.FC<Props> = ({ navigation, route }) => {
   );
   const [note, setNote] = useState(editing?.note ?? '');
   const [date, setDate] = useState(originalDate ?? getTodayDate());
+  // The time of the reading: now for a new one, its own time when editing.
+  const [time, setTime] = useState(originalTime ?? clock(new Date()));
 
   const systolic = parseWhole(systolicText);
   const diastolic = parseWhole(diastolicText);
@@ -97,8 +119,11 @@ const BloodPressureAddScreen: React.FC<Props> = ({ navigation, route }) => {
     diastolic <= 200 &&
     systolic > diastolic;
   const dateValid = getDateRelationToToday(date) !== 'future';
+  const takenAt = localDateTimeToUtc(`${date}T${time}`, timezone);
+  const timeValid = !isBloodPressureInFuture(takenAt);
   const saving = create.isPending || update.isPending;
-  const canSave = valuesValid && pulseValid && dateValid && !saving;
+  const canSave =
+    valuesValid && pulseValid && dateValid && timeValid && !saving;
 
   const handleSave = async () => {
     if (!canSave || systolic === null || diastolic === null) return;
@@ -116,18 +141,16 @@ const BloodPressureAddScreen: React.FC<Props> = ({ navigation, route }) => {
           id: editing.id,
           body: {
             ...body,
-            // Keep the original time unless the day changed.
-            ...(date !== originalDate
-              ? {
-                  timestamp: instantForDay(date, timezone).toISOString(),
-                }
+            // Only a changed day or time moves the reading.
+            ...(date !== originalDate || time !== originalTime
+              ? { timestamp: takenAt.toISOString() }
               : {}),
           },
         });
       } else {
         await create.mutateAsync({
           ...body,
-          timestamp: instantForDay(date, timezone).toISOString(),
+          timestamp: takenAt.toISOString(),
         });
       }
       navigation.goBack();
@@ -326,6 +349,31 @@ const BloodPressureAddScreen: React.FC<Props> = ({ navigation, route }) => {
           )}
         </View>
 
+        <View className="gap-1.5">
+          <Text className="text-text-secondary text-sm font-medium">
+            {t('bloodPressure.time', { defaultValue: 'Time' })}
+          </Text>
+          <TouchableOpacity
+            onPress={() => timeSheetRef.current?.present()}
+            className="flex-row items-center px-3 py-2.5 rounded-lg border border-border-subtle bg-raised min-h-11"
+            accessibilityRole="button"
+            accessibilityLabel={t('bloodPressure.time', {
+              defaultValue: 'Time',
+            })}
+          >
+            <Text className="text-base text-text-primary">
+              {formatTimeLabel(time, preferences?.time_format) ?? time}
+            </Text>
+          </TouchableOpacity>
+          {!timeValid && (
+            <Text className="text-xs text-text-danger-subtle">
+              {t('bloodPressure.timeFuture', {
+                defaultValue: 'The time cannot be in the future.',
+              })}
+            </Text>
+          )}
+        </View>
+
         <TextInput
           value={note}
           onChangeText={setNote}
@@ -342,6 +390,7 @@ const BloodPressureAddScreen: React.FC<Props> = ({ navigation, route }) => {
       {!usesNativeHeader && (
         <FooterSaveBar onPress={handleSave} busy={saving} disabled={!canSave} />
       )}
+      <TimeSheet ref={timeSheetRef} value={time} onSelectTime={setTime} />
       <CalendarSheet
         ref={calendarRef}
         selectedDate={date}

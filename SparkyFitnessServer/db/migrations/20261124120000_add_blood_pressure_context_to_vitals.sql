@@ -54,8 +54,10 @@ SELECT
     s.entry_timestamp,
     s.reading,
     d.reading,
+    -- A row with no source of its own (older apps) was stored as 'manual'; it is
+    -- device data, so it is not filed as a reading the person logged by hand.
     CASE
-        WHEN lower(regexp_replace(btrim(s.source), '[\s-]+', '_', 'g')) = 'healthconnect'
+        WHEN lower(regexp_replace(btrim(s.source), '[\s-]+', '_', 'g')) IN ('healthconnect', 'manual', '')
             THEN 'health_connect'
         ELSE lower(regexp_replace(btrim(s.source), '[\s-]+', '_', 'g'))
     END

@@ -14,6 +14,7 @@ import {
   healthMetricSamplesWriteBodySchema,
   bloodPressureCreateSchema,
   bloodPressureUpdateSchema,
+  isBloodPressureInFuture,
   addDays,
   compareDays,
   instantToDay,
@@ -358,6 +359,12 @@ const postBloodPressureHandler: RequestHandler = async (req, res, next) => {
     const actorUserId = req.originalUserId || req.userId;
     const tz = await loadUserTimezone(userId);
     const at = body.timestamp ?? new Date().toISOString();
+    if (isBloodPressureInFuture(at)) {
+      res
+        .status(400)
+        .json({ error: 'The reading time cannot be in the future' });
+      return;
+    }
 
     const result = await genericHealthRepo.createManualBloodPressure(
       userId,
@@ -410,11 +417,12 @@ const putBloodPressureHandler: RequestHandler = async (req, res, next) => {
     const tz = await loadUserTimezone(userId);
 
     if (
-      body.systolic_mmhg !== undefined &&
-      body.diastolic_mmhg !== undefined &&
-      body.systolic_mmhg <= body.diastolic_mmhg
+      body.timestamp !== undefined &&
+      isBloodPressureInFuture(body.timestamp)
     ) {
-      res.status(400).json({ error: 'Systolic must be higher than diastolic' });
+      res
+        .status(400)
+        .json({ error: 'The reading time cannot be in the future' });
       return;
     }
 
@@ -437,6 +445,10 @@ const putBloodPressureHandler: RequestHandler = async (req, res, next) => {
         note: body.note,
       }
     );
+    if (result.status === 'invalid') {
+      res.status(400).json({ error: result.reason });
+      return;
+    }
     if (result.status === 'not_found') {
       res.status(404).json({ error: 'Reading not found' });
       return;

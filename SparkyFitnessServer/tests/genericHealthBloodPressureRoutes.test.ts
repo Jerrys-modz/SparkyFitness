@@ -48,7 +48,7 @@ describe('POST /vitals/blood-pressure', () => {
       entry: { id: 'v1' } as never,
     });
     const res = await request(app).post(URL).send({
-      timestamp: '2026-11-25T03:30:00.000Z',
+      timestamp: '2026-11-20T03:30:00.000Z',
       systolic_mmhg: 122,
       diastolic_mmhg: 79,
       pulse_bpm: 64,
@@ -60,7 +60,7 @@ describe('POST /vitals/blood-pressure', () => {
       'user-1',
       'user-1',
       expect.objectContaining({
-        entry_date: '2026-11-24',
+        entry_date: '2026-11-19',
         systolic_mmhg: 122,
         diastolic_mmhg: 79,
         arm: 'left',
@@ -82,6 +82,20 @@ describe('POST /vitals/blood-pressure', () => {
       .post(URL)
       .send({ systolic_mmhg: 120, diastolic_mmhg: 80 });
     expect(res.status).toBe(409);
+  });
+});
+
+describe('POST future readings', () => {
+  it('refuses a reading stamped in the future', async () => {
+    const res = await request(app)
+      .post(URL)
+      .send({
+        timestamp: new Date(Date.now() + 3_600_000).toISOString(),
+        systolic_mmhg: 120,
+        diastolic_mmhg: 80,
+      });
+    expect(res.status).toBe(400);
+    expect(create).not.toHaveBeenCalled();
   });
 });
 
@@ -109,10 +123,20 @@ describe('PUT /vitals/blood-pressure/:id', () => {
     ).toBe(404);
   });
 
-  it('rejects systolic not above diastolic when both are sent', async () => {
+  it('answers 400 when the change would leave systolic not above diastolic', async () => {
+    update.mockResolvedValueOnce({
+      status: 'invalid',
+      reason: 'Systolic must be higher than diastolic',
+    });
+    const res = await request(app).put(`${URL}/v1`).send({ systolic_mmhg: 70 });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain('Systolic must be higher');
+  });
+
+  it('refuses a new time in the future', async () => {
     const res = await request(app)
       .put(`${URL}/v1`)
-      .send({ systolic_mmhg: 80, diastolic_mmhg: 90 });
+      .send({ timestamp: new Date(Date.now() + 3_600_000).toISOString() });
     expect(res.status).toBe(400);
     expect(update).not.toHaveBeenCalled();
   });

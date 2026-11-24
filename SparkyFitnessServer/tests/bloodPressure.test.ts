@@ -6,6 +6,7 @@ import {
   homeBloodPressureAverage,
   bloodPressureCreateSchema,
   bloodPressureUpdateSchema,
+  isBloodPressureInFuture,
   type TimedBloodPressureReading,
 } from '@workspace/shared';
 
@@ -112,5 +113,18 @@ describe('request schemas', () => {
     expect(bloodPressureUpdateSchema.safeParse({ note: null }).success).toBe(
       true
     );
+  });
+});
+
+describe('isBloodPressureInFuture', () => {
+  const now = new Date('2026-11-24T12:00:00Z');
+  it('allows now, the past and a few minutes of clock skew', () => {
+    expect(isBloodPressureInFuture('2026-11-24T12:00:00Z', now)).toBe(false);
+    expect(isBloodPressureInFuture('2026-11-20T08:00:00Z', now)).toBe(false);
+    expect(isBloodPressureInFuture('2026-11-24T12:03:00Z', now)).toBe(false);
+  });
+  it('refuses a later time and ignores one that does not parse', () => {
+    expect(isBloodPressureInFuture('2026-11-24T13:00:00Z', now)).toBe(true);
+    expect(isBloodPressureInFuture('garbage', now)).toBe(false);
   });
 });

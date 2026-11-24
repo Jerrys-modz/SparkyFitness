@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -20,6 +20,7 @@ import Button from '../components/ui/Button';
 import BloodPressureChart from '../components/bloodPressure/BloodPressureChart';
 import { useRefetchOnFocus } from '../hooks/useRefetchOnFocus';
 import { useScreenHeader } from '../hooks/useScreenHeader';
+import { useMobileFeatures } from '../hooks/useMobileFeatures';
 import {
   useBloodPressureRange,
   useDeleteBloodPressure,
@@ -49,6 +50,12 @@ const BloodPressureScreen: React.FC<Props> = ({ navigation }) => {
     today
   );
   const deleteReading = useDeleteBloodPressure();
+  const { isEnabled } = useMobileFeatures();
+  const featureOn = isEnabled('bloodPressure');
+  // Reached after the feature was turned off (an old navigation state): close.
+  useEffect(() => {
+    if (!featureOn) navigation.goBack();
+  }, [featureOn, navigation]);
   useRefetchOnFocus(() => void refetch(), true);
 
   const summary = useMemo(() => summarizeBloodPressure(readings), [readings]);

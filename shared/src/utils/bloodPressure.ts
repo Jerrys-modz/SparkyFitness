@@ -157,3 +157,18 @@ export function homeBloodPressureAverage(
       average.diastolic >= HOME_BLOOD_PRESSURE_THRESHOLD.diastolic,
   };
 }
+
+/** A little slack so a phone clock that runs ahead does not refuse a reading taken just now. */
+export const BLOOD_PRESSURE_FUTURE_TOLERANCE_MS = 5 * 60 * 1000;
+
+/** True when a reading is stamped later than now (beyond the clock-skew slack). */
+export function isBloodPressureInFuture(
+  at: Date | string | number,
+  now: Date = new Date()
+): boolean {
+  const time = new Date(at).getTime();
+  return (
+    Number.isFinite(time) &&
+    time > now.getTime() + BLOOD_PRESSURE_FUTURE_TOLERANCE_MS
+  );
+}

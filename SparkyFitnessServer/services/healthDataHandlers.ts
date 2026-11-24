@@ -2784,7 +2784,9 @@ const bloodPressureHandleBatch: HandleBatchFn = async (entries, ctx) => {
   entries.forEach(({ entry, parsedDate, entryTimestamp }, i) => {
     if (outcomes[i]?.status !== 'success') return;
     const part = BLOOD_PRESSURE_PART[String(entry?.type)];
-    if (!part || !entry.timestamp) return;
+    // A reading needs a real instant of its own; a missing or unreadable one
+    // falls back to the start of the day, which would merge separate readings.
+    if (!part || !Number.isFinite(Date.parse(String(entry.timestamp)))) return;
     const value = Number(entry.value);
     if (!Number.isFinite(value)) return;
     readings.push({
