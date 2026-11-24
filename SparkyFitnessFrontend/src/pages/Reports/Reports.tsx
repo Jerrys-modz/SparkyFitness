@@ -36,7 +36,6 @@ import SleepReport from '@/pages/Reports/SleepReport';
 import BodyBatteryCard from '@/pages/Reports/BodyBatteryCard';
 import { WeightPlateauCard } from '@/pages/Reports/WeightPlateauCard';
 import RespirationCard from '@/pages/Reports/RespirationCard';
-import GlucoseCard from '@/pages/Reports/GlucoseCard';
 import HeartRateAnalyticsCard from '@/pages/Reports/HeartRateAnalyticsCard';
 
 import StressChart from '@/pages/Reports/StressChart';
@@ -59,7 +58,6 @@ import {
   exportExerciseEntries,
   exportFoodDiary,
 } from '@/utils/reportUtil';
-import { CustomCategoryReport } from './CustomCategoryReport';
 import { AppetiteTrendCard } from './AppetiteTrendCard';
 import { ChartErrorBoundary } from '../Errors/ChartErrorFallback';
 import { CustomCategoriesResponse, parseBodyFatGoal } from '@workspace/shared';
@@ -216,6 +214,10 @@ const Reports = () => {
       ? Number(profile.target_weight)
       : null,
     targetBodyFatPercent: parseBodyFatGoal(profile?.target_body_fat_percentage),
+    startDate,
+    endDate,
+    customCategories,
+    customMeasurementsData,
   });
 
   const targetWeightKg = profile?.target_weight
@@ -325,9 +327,6 @@ const Reports = () => {
               <WeightPlateauCard />
             </ChartErrorBoundary>
             <ChartErrorBoundary>
-              <GlucoseCard startDate={startDate} endDate={endDate} />
-            </ChartErrorBoundary>
-            <ChartErrorBoundary>
               <WidgetGrid
                 pageKey="reports-measurements"
                 widgets={measurementWidgets}
@@ -357,12 +356,6 @@ const Reports = () => {
                 />
               </ChartErrorBoundary>
             )}
-            <ChartErrorBoundary>
-              <CustomCategoryReport
-                customCategories={customCategories}
-                customMeasurementsData={customMeasurementsData}
-              />
-            </ChartErrorBoundary>
           </div>
         );
       case 'heart-rate':

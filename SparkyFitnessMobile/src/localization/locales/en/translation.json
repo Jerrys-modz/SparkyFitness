@@ -3116,6 +3116,7 @@
     "caloriesUnit": "Cal"
   },
   "foodSummary": {
+    "fromTime": "from {{time}}",
     "tapToAddFood": "Tap to add food",
     "caloriesShort": "kcal",
     "nutritionBreakdown": "{{label}} nutrition breakdown"

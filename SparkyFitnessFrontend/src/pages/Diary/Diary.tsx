@@ -502,6 +502,7 @@ const Diary = () => {
         key: mealWidgetKey(mealTypeObj.id),
         title: mealTypeObj.name,
         icon: UtensilsCrossed,
+        seamless: true,
         render: () => (
           <MealCard
             meal={{
@@ -512,6 +513,7 @@ const Diary = () => {
                 effectiveGoals
               ),
               selectedDate: selectedDate,
+              defaultTime: mealTypeObj.default_time ?? null,
             }}
             totals={getMealTotals(
               mealTypeObj.name,
