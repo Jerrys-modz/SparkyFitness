@@ -20,6 +20,8 @@ import MealsLibraryScreen from '../screens/MealsLibraryScreen';
 import MealPlansScreen from '../screens/MealPlansScreen';
 import RunProgramsScreen from '../screens/RunProgramsScreen';
 import LabReportImportScreen from '../screens/LabReportImportScreen';
+import BloodPressureAddScreen from '../screens/BloodPressureAddScreen';
+import BloodPressureScreen from '../screens/BloodPressureScreen';
 import LabResultAddScreen from '../screens/LabResultAddScreen';
 import LabResultDetailScreen from '../screens/LabResultDetailScreen';
 import LabResultsScreen from '../screens/LabResultsScreen';
@@ -182,6 +184,8 @@ export const SafeMealsLibrary = withErrorBoundary(MealsLibraryScreen, 'MealsLibr
 export const SafeMealPlans = withErrorBoundary(MealPlansScreen, 'MealPlans', { canGoBack: true });
 export const SafeWatchRunLive = withErrorBoundary(WatchRunLiveScreen, 'WatchRunLive', { canGoBack: true });
 export const SafeLabReportImport = withErrorBoundary(LabReportImportScreen, 'LabReportImport', { canGoBack: true });
+export const SafeBloodPressure = withErrorBoundary(BloodPressureScreen, 'BloodPressure', { canGoBack: true });
+export const SafeBloodPressureAdd = withErrorBoundary(BloodPressureAddScreen, 'BloodPressureAdd', { canGoBack: true });
 export const SafeLabResults = withErrorBoundary(LabResultsScreen, 'LabResults', { canGoBack: true });
 export const SafeChallenges = withErrorBoundary(ChallengesScreen, 'Challenges', { canGoBack: true });
 export const SafeChallengeDetail = withErrorBoundary(ChallengeDetailScreen, 'ChallengeDetail', { canGoBack: true });

@@ -637,3 +637,9 @@ export const onboardingStartWeightQueryKey = ['onboardingStartWeight'] as const;
 /** Today's estimated daily expenditure, for the weight progress fat estimate. */
 export const adaptiveTdeeQueryKey = (date: string) =>
   ['adaptiveTdee', date] as const;
+/** Every blood pressure range read; a write refreshes the whole family. */
+export const bloodPressureRootQueryKey = ['bloodPressure'] as const;
+export const bloodPressureRangeQueryKey = (
+  startDate: string,
+  endDate: string
+) => [...bloodPressureRootQueryKey, 'range', startDate, endDate] as const;

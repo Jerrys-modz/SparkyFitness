@@ -241,6 +241,23 @@ function MedicationsFeatureRows() {
   );
 }
 
+/** Blood pressure readings and their trend. */
+function BloodPressureFeatureRows() {
+  const { t } = useTranslation();
+  return (
+    <ChoiceFeatureRows
+      feature="bloodPressure"
+      icon="blood-pressure"
+      title={t('featureSettings.bloodPressure.title', {
+        defaultValue: 'Blood pressure',
+      })}
+      description={t('featureSettings.bloodPressure.description', {
+        defaultValue: 'Log blood pressure readings and follow the trend.',
+      })}
+    />
+  );
+}
+
 /** The hunger, fullness and cravings check-in and its report. */
 function AppetiteFeatureRows() {
   const { t } = useTranslation();
@@ -271,6 +288,8 @@ function FeatureRows({ feature }: { feature: FeatureKey }): ReactElement {
       return <MedicationsFeatureRows />;
     case 'labResults':
       return <LabResultsFeatureRows />;
+    case 'bloodPressure':
+      return <BloodPressureFeatureRows />;
   }
 }
 

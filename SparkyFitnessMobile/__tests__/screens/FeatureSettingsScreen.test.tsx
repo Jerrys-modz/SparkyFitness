@@ -149,11 +149,13 @@ describe('FeatureSettingsScreen', () => {
     const toggle = screen.getByLabelText('Lab results');
     expect(toggle.props.value).toBe(true);
     expect(toggle.props.disabled).toBe(false);
+    // Lab results and blood pressure each carry the note.
     expect(
       featureRow('labResults').getByText(
         /Only this app\. The website has its own switch\./
       )
     ).toBeTruthy();
+    expect(screen.getByLabelText('Blood pressure').props.value).toBe(true);
   });
 
   it('turns lab results off in this app', () => {
