@@ -37,7 +37,12 @@ interface ModuleTabDefinition {
 const MODULE_TABS: readonly ModuleTabDefinition[] = [
   { id: 'checkin', path: '/checkin', inPlusMenu: true },
   { id: 'cycle', path: '/cycle', inPlusMenu: true, feature: 'cycle' },
-  { id: 'medications', path: '/medications', inPlusMenu: true },
+  {
+    id: 'medications',
+    path: '/medications',
+    inPlusMenu: true,
+    feature: 'medications',
+  },
   { id: 'labs', path: '/labs', inPlusMenu: true, feature: 'labResults' },
   { id: 'reports', path: '/reports', inPlusMenu: false },
   { id: 'foods', path: '/foods', inPlusMenu: true },
@@ -92,6 +97,8 @@ export function choiceFeatureLabel(
   switch (feature) {
     case 'appetite':
       return t('settings.features.appetite.title', 'Hunger and cravings');
+    case 'medications':
+      return webTabLabel(t, 'medications');
     case 'labResults':
       return webTabLabel(t, 'labs');
   }

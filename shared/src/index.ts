@@ -324,6 +324,7 @@ export * from './utils/dropSetCalculator.ts';
 export * from './utils/weightRamp.ts';
 export * from './utils/runningTrends.ts';
 export * from './utils/paceByZone.ts';
+export * from './utils/exerciseTrends.ts';
 export * from './utils/raceTimePredictions.ts';
 export * from './utils/bestEfforts.ts';
 export * from './utils/weightTrend.ts';
@@ -418,6 +419,7 @@ export {
 } from './utils/measurementTimeline.ts';
 export {
   GLUCOSE_CONTEXT_KINDS,
+  GLUCOSE_CONTEXT_KIND_FEATURES,
   loadGlucoseContext,
   glucoseContextForDay,
   type GlucoseContextKind,

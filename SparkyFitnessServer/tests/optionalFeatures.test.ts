@@ -28,10 +28,11 @@ function keys(count: number, value: boolean | null = true) {
 }
 
 describe('optional features registry', () => {
-  it('lists cycle, stored in cycle_settings, appetite and lab results, chosen per app', () => {
-    expect(FEATURE_KEYS).toEqual(['cycle', 'appetite', 'labResults']);
+  it('lists cycle, stored in cycle_settings, appetite, medications and lab results, chosen per app', () => {
+    expect(FEATURE_KEYS).toEqual(['cycle', 'appetite', 'medications', 'labResults']);
     expect(featureStorage('cycle')).toBe('cycleSettings');
     expect(featureStorage('appetite')).toBe('choices');
+    expect(featureStorage('medications')).toBe('choices');
     expect(featureStorage('labResults')).toBe('choices');
   });
 
@@ -54,6 +55,7 @@ describe('optional features registry', () => {
   it('recognises only its own keys', () => {
     expect(isFeatureKey('cycle')).toBe(true);
     expect(isFeatureKey('labResults')).toBe(true);
+    expect(isFeatureKey('medications')).toBe(true);
     expect(isFeatureKey('notAFeature')).toBe(false);
     // Inherited object members are not features.
     expect(isFeatureKey('toString')).toBe(false);
@@ -67,6 +69,15 @@ describe('optional features registry', () => {
       'ovulation_test',
       'cervical_mucus',
       'intermenstrual_bleeding',
+    ]);
+  });
+
+  it('names the GLP-1 check-in categories for medications', () => {
+    expect(FEATURE_CUSTOM_CATEGORIES.medications).toEqual([
+      'GLP Hunger',
+      'GLP Food Noise',
+      'GLP Fullness',
+      'GLP Energy',
     ]);
   });
 });
@@ -146,6 +157,48 @@ describe('lab results on and off', () => {
   });
 });
 
+describe('medications on and off', () => {
+  it.each(FEATURE_PLATFORMS)('is on by default (%s)', (platform) => {
+    for (const choices of [undefined, null, {}, { web: {}, mobile: {} }]) {
+      expect(
+        isFeatureEnabled('medications', platform, {
+          choices,
+          cycleEnabled: undefined,
+        })
+      ).toBe(true);
+      expect(
+        isFeatureExplicitlyOff('medications', platform, {
+          choices,
+          cycleEnabled: undefined,
+        })
+      ).toBe(false);
+    }
+  });
+
+  it('is turned off in one app only', () => {
+    const sources = {
+      choices: { web: { medications: false } },
+      cycleEnabled: undefined,
+    };
+    expect(isFeatureEnabled('medications', 'web', sources)).toBe(false);
+    expect(isFeatureExplicitlyOff('medications', 'web', sources)).toBe(true);
+    expect(isFeatureEnabled('medications', 'mobile', sources)).toBe(true);
+    expect(isFeatureEnabledAnywhere('medications', sources)).toBe(true);
+  });
+
+  it('is off everywhere only when both apps turned it off', () => {
+    expect(
+      isFeatureEnabledAnywhere('medications', {
+        choices: {
+          web: { medications: false },
+          mobile: { medications: false },
+        },
+        cycleEnabled: undefined,
+      })
+    ).toBe(false);
+  });
+});
+
 describe('filterByFeature', () => {
   const items: { id: string; feature?: FeatureKey }[] = [
     { id: 'diary' },
@@ -183,6 +236,37 @@ describe('hiddenFeatureCustomCategories', () => {
       }
     }
   );
+
+  it('hides the GLP-1 check-in categories only where medications is turned off on purpose', () => {
+    const sources = {
+      choices: { mobile: { medications: false }, web: { medications: true } },
+      cycleEnabled: true,
+    };
+    expect(hiddenFeatureCustomCategories('mobile', sources)).toEqual(
+      new Set(FEATURE_CUSTOM_CATEGORIES.medications)
+    );
+    expect(hiddenFeatureCustomCategories('web', sources).size).toBe(0);
+    expect(
+      hiddenFeatureCustomCategories('web', {
+        choices: {},
+        cycleEnabled: undefined,
+      }).size
+    ).toBe(0);
+  });
+
+  it('hides the categories of both features when both are turned off', () => {
+    expect(
+      hiddenFeatureCustomCategories('web', {
+        choices: { web: { medications: false } },
+        cycleEnabled: false,
+      })
+    ).toEqual(
+      new Set([
+        ...(FEATURE_CUSTOM_CATEGORIES.cycle ?? []),
+        ...(FEATURE_CUSTOM_CATEGORIES.medications ?? []),
+      ])
+    );
+  });
 });
 
 describe('withoutHiddenCategories', () => {

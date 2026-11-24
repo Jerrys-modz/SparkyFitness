@@ -35,6 +35,7 @@ export const DASHBOARD_CARD_FEATURES: Partial<
   Record<DashboardCardKey, FeatureKey>
 > = {
   cycle: 'cycle',
+  medications: 'medications',
   labResults: 'labResults',
 };
 

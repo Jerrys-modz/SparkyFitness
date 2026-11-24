@@ -3287,7 +3287,11 @@
       "description": "Record blood tests and follow each marker over time."
     },
     "someOff": "Some features are turned off",
-    "manage": "Manage"
+    "manage": "Manage",
+    "medications": {
+      "title": "Medications",
+      "description": "Medications, supplements and GLP-1 tracking. While it is off, reminders stop and come back when you turn it on; supplement nutrients still count in your totals."
+    }
   },
   "measurements": {
     "fields": {
@@ -4389,7 +4393,21 @@
     "makePrivate": "Make private",
     "shareWithPublic": "Share with public",
     "deleteSheetTitle": "Delete exercise",
-    "caloriesPerHourWithUnit": "{{unit}} / hour"
+    "caloriesPerHourWithUnit": "{{unit}} / hour",
+    "progress": {
+      "title": "Progress",
+      "weeks": "Weeks",
+      "months": "Months",
+      "years": "Years",
+      "estimated1RM": "Est. 1RM",
+      "heaviest": "Heaviest weight",
+      "volume": "Volume",
+      "volumeUnit": "{{unit}} × reps",
+      "weekOf": "Week of {{date}}",
+      "loadFailed": "Could not load progress",
+      "empty": "Nothing logged in this period",
+      "footnote": "Best per period. Dots mark new highs."
+    }
   },
   "mealTypeSettings": {
     "reorder": "Reorder {{name}}",

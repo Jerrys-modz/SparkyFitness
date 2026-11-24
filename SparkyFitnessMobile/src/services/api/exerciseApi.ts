@@ -32,6 +32,7 @@ import type {
   ExerciseLoadConvention,
   ExerciseModality,
   ExerciseStatsResponse,
+  ExerciseProgressResponse,
   CreatePresetSessionRequest,
   UpdatePresetSessionRequest,
   PresetSessionResponse,
@@ -112,6 +113,24 @@ export const fetchExerciseStats = async (
       );
       return row ? (row.payload as ExerciseStatsResponse) : null;
     },
+  });
+};
+
+/**
+ * Every entry of one exercise between two calendar days, with its sets and
+ * the day's body weight, oldest first. The web's Exercise Progress charts read
+ * the same route.
+ */
+export const fetchExerciseProgress = (
+  exerciseId: string,
+  startDate: string,
+  endDate: string
+): Promise<ExerciseProgressResponse[]> => {
+  const params = new URLSearchParams({ startDate, endDate });
+  return apiFetch<ExerciseProgressResponse[]>({
+    endpoint: `/api/exercise-entries/progress/${encodeURIComponent(exerciseId)}?${params.toString()}`,
+    serviceName: 'Exercise API',
+    operation: 'fetch exercise progress',
   });
 };
 

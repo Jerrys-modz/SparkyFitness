@@ -2,6 +2,7 @@ import { vi, beforeEach, describe, expect, it } from 'vitest';
 import { todayInZone } from '@workspace/shared';
 import { buildCoachTools } from '../ai/tools/coachTools.js';
 import coachRepository from '../models/coachRepository.js';
+import reportRepository from '../models/reportRepository.js';
 import { getResolvedExerciseCaloriesTotal } from '../services/exerciseCalorieRangeService.js';
 import { toolOpts } from './helpers/toolExecutionOptions.js';
 
@@ -21,6 +22,11 @@ vi.mock('../models/coachRepository', () => ({
     get30DayWeightSeries: vi.fn(),
     getDailyCorrelationRows: vi.fn(),
     getFrequentHighProteinFoods: vi.fn(),
+  },
+}));
+vi.mock('../models/reportRepository', () => ({
+  default: {
+    getDailyNutritionTotalsRange: vi.fn(),
   },
 }));
 vi.mock('../models/symptomRepository', () => ({
@@ -56,18 +62,35 @@ beforeEach(() => {
     return Number(agg.total_calories_burned) || 0;
   });
   vi.clearAllMocks();
+  vi.mocked(reportRepository.getDailyNutritionTotalsRange).mockResolvedValue(
+    []
+  );
   tools = buildCoachTools('user-1', 'UTC');
 });
 
 describe('sparky_get_health_summary', () => {
   it('renders nutrition, fitness, vitals, and hydration as JSON', async () => {
     vi.mocked(coachRepository.getNutritionAggregates).mockResolvedValue({
-      total_calories: '12450.5',
-      avg_protein: '98.7654',
-      avg_carbs: '210.1234',
-      avg_fat: '65.4321',
       entry_count: 21,
     });
+    // Two logged days. The averages are per day, not per entry: 21 entries
+    // would give a protein "average" of about 9 g.
+    vi.mocked(reportRepository.getDailyNutritionTotalsRange).mockResolvedValue([
+      {
+        entry_date: '2026-06-01',
+        calories: 1000.4,
+        protein: 90,
+        carbs: 200,
+        fat: 60,
+      },
+      {
+        entry_date: '2026-06-03',
+        calories: 1500,
+        protein: 107.53,
+        carbs: 220.25,
+        fat: 70.87,
+      },
+    ]);
     vi.mocked(coachRepository.getExerciseAggregates).mockResolvedValue({
       total_calories_burned: '3200',
       workout_count: 5,
@@ -91,10 +114,12 @@ describe('sparky_get_health_summary', () => {
           {
             period: { start_date: '2026-06-01', end_date: '2026-06-07' },
             nutrition: {
-              total_calories: 12450.5,
-              avg_protein: 98.8,
-              avg_carbs: 210.1,
-              avg_fat: 65.4,
+              total_calories: 2500,
+              days_logged: 2,
+              avg_daily_calories: 1250,
+              avg_daily_protein: 98.8,
+              avg_daily_carbs: 210.1,
+              avg_daily_fat: 65.4,
               entry_count: 21,
             },
             fitness: {
@@ -120,6 +145,11 @@ describe('sparky_get_health_summary', () => {
       '2026-06-01',
       '2026-06-07'
     );
+    expect(reportRepository.getDailyNutritionTotalsRange).toHaveBeenCalledWith(
+      'user-1',
+      '2026-06-01',
+      '2026-06-07'
+    );
     expect(coachRepository.getWaterIntakeTotal).toHaveBeenCalledWith(
       'user-1',
       '2026-06-01',
@@ -129,10 +159,6 @@ describe('sparky_get_health_summary', () => {
 
   it('renders a pg local-midnight Date weight date as a calendar-day string', async () => {
     vi.mocked(coachRepository.getNutritionAggregates).mockResolvedValue({
-      total_calories: '0',
-      avg_protein: '0',
-      avg_carbs: '0',
-      avg_fat: '0',
       entry_count: 0,
     });
     vi.mocked(coachRepository.getExerciseAggregates).mockResolvedValue({
@@ -159,9 +185,11 @@ describe('sparky_get_health_summary', () => {
             period: { start_date: '2026-06-10', end_date: '2026-06-10' },
             nutrition: {
               total_calories: 0,
-              avg_protein: 0,
-              avg_carbs: 0,
-              avg_fat: 0,
+              days_logged: 0,
+              avg_daily_calories: 0,
+              avg_daily_protein: 0,
+              avg_daily_carbs: 0,
+              avg_daily_fat: 0,
               entry_count: 0,
             },
             fitness: {
@@ -186,10 +214,6 @@ describe('sparky_get_health_summary', () => {
 
   it('defaults end_date to start_date and renders a null latest weight', async () => {
     vi.mocked(coachRepository.getNutritionAggregates).mockResolvedValue({
-      total_calories: '0',
-      avg_protein: '0',
-      avg_carbs: '0',
-      avg_fat: '0',
       entry_count: 0,
     });
     vi.mocked(coachRepository.getExerciseAggregates).mockResolvedValue({
@@ -213,9 +237,11 @@ describe('sparky_get_health_summary', () => {
             period: { start_date: '2026-06-10', end_date: '2026-06-10' },
             nutrition: {
               total_calories: 0,
-              avg_protein: 0,
-              avg_carbs: 0,
-              avg_fat: 0,
+              days_logged: 0,
+              avg_daily_calories: 0,
+              avg_daily_protein: 0,
+              avg_daily_carbs: 0,
+              avg_daily_fat: 0,
               entry_count: 0,
             },
             fitness: {

@@ -514,7 +514,11 @@ const router = createBrowserRouter([
           },
           {
             path: 'medications',
-            Component: Medications,
+            element: (
+              <FeatureRoute feature="medications">
+                <Medications />
+              </FeatureRoute>
+            ),
             ErrorBoundary: RouteErrorBoundary,
           },
           {

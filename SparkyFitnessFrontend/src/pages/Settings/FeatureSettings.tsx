@@ -193,6 +193,21 @@ function AppetiteFeatureRow() {
   );
 }
 
+function MedicationsFeatureRow() {
+  const { t } = useTranslation();
+  return (
+    <ChoiceFeatureRow
+      feature="medications"
+      icon={webTabIcon('medications')}
+      label={choiceFeatureLabel(t, 'medications')}
+      description={t(
+        'settings.features.medications.description',
+        'Medications, supplements and GLP-1 tracking. Supplement nutrients still count in your totals.'
+      )}
+    />
+  );
+}
+
 function LabResultsFeatureRow() {
   const { t } = useTranslation();
   return (
@@ -215,6 +230,8 @@ function FeatureRow({ feature }: { feature: FeatureKey }): ReactElement {
       return <CycleFeatureRow />;
     case 'appetite':
       return <AppetiteFeatureRow />;
+    case 'medications':
+      return <MedicationsFeatureRow />;
     case 'labResults':
       return <LabResultsFeatureRow />;
   }
