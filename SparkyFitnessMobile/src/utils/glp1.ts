@@ -1,13 +1,5 @@
-import {
-  GLP1_CHECKIN_CATEGORY_NAMES,
-  GLP1_DRUG_PROFILES,
-  INJECTION_SITES,
-} from '@workspace/shared';
-import type {
-  Glp1CheckInMetricKey,
-  InjectionSite,
-  MedicationPen,
-} from '@workspace/shared';
+import { GLP1_DRUG_PROFILES, INJECTION_SITES } from '@workspace/shared';
+import type { InjectionSite, MedicationPen } from '@workspace/shared';
 
 /** The selectable sites in the user's rotation order; `unknown` is not drawable. */
 export function resolveMapSites(

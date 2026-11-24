@@ -241,12 +241,32 @@ function MedicationsFeatureRows() {
   );
 }
 
+/** The hunger, fullness and cravings check-in and its report. */
+function AppetiteFeatureRows() {
+  const { t } = useTranslation();
+  return (
+    <ChoiceFeatureRows
+      feature="appetite"
+      icon="food"
+      title={t('featureSettings.appetite.title', {
+        defaultValue: 'Hunger and cravings',
+      })}
+      description={t('featureSettings.appetite.description', {
+        defaultValue:
+          'Log hunger, fullness and cravings in the check-in, and see them in reports.',
+      })}
+    />
+  );
+}
+
 /** One row per feature. A new registry key needs its own rows here: the
  * return type makes a missing case fail to compile. */
 function FeatureRows({ feature }: { feature: FeatureKey }): ReactElement {
   switch (feature) {
     case 'cycle':
       return <CycleFeatureRows />;
+    case 'appetite':
+      return <AppetiteFeatureRows />;
     case 'medications':
       return <MedicationsFeatureRows />;
     case 'labResults':

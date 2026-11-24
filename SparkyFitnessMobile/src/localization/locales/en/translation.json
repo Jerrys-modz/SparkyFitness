@@ -3291,6 +3291,10 @@
     "medications": {
       "title": "Medications",
       "description": "Medications, supplements and GLP-1 tracking. While it is off, reminders stop and come back when you turn it on; supplement nutrients still count in your totals."
+    },
+    "appetite": {
+      "title": "Hunger and cravings",
+      "description": "Log hunger, fullness and cravings in the check-in, and see them in reports."
     }
   },
   "measurements": {

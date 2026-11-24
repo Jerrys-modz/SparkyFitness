@@ -29,7 +29,12 @@ function keys(count: number, value: boolean | null = true) {
 
 describe('optional features registry', () => {
   it('lists cycle, stored in cycle_settings, appetite, medications and lab results, chosen per app', () => {
-    expect(FEATURE_KEYS).toEqual(['cycle', 'appetite', 'medications', 'labResults']);
+    expect(FEATURE_KEYS).toEqual([
+      'cycle',
+      'appetite',
+      'medications',
+      'labResults',
+    ]);
     expect(featureStorage('cycle')).toBe('cycleSettings');
     expect(featureStorage('appetite')).toBe('choices');
     expect(featureStorage('medications')).toBe('choices');
