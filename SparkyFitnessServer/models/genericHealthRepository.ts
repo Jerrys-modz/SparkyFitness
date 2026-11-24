@@ -8,6 +8,8 @@ import {
   DailyHealthMetrics,
   DailyHealthMetricsInitializer,
 } from '@workspace/shared';
+import { log } from '../config/logging.js';
+import { isUniqueViolationOn } from '../utils/uniqueViolation.js';
 import {
   pickDeviceTotalPerDay,
   type DeviceTotalCaloriesSourceRow,
@@ -162,6 +164,33 @@ export async function upsertHealthMetricSamplesWithClient(
 }
 
 // 2. Vitals Entries
+
+/**
+ * A device glitch (systolic 310, diastolic 4) would hit the table's range
+ * check and abort the rest of a provider's batch, so the impossible value is
+ * dropped with a warning and the rest of the row is kept.
+ */
+function withoutImpossibleBloodPressure(
+  entry: VitalsEntriesInitializer
+): VitalsEntriesInitializer {
+  const systolic = entry.systolic_mmhg;
+  const diastolic = entry.diastolic_mmhg;
+  const systolicBad =
+    typeof systolic === 'number' && (systolic < 30 || systolic > 300);
+  const diastolicBad =
+    typeof diastolic === 'number' && (diastolic < 10 || diastolic > 200);
+  if (!systolicBad && !diastolicBad) return entry;
+  log(
+    'warn',
+    `vitals: dropped an impossible blood pressure value (${systolic}/${diastolic}) from ${entry.source_provider}.`
+  );
+  return {
+    ...entry,
+    systolic_mmhg: systolicBad ? null : systolic,
+    diastolic_mmhg: diastolicBad ? null : diastolic,
+  };
+}
+
 export async function bulkUpsertVitals(
   userId: string,
   actingUserId: string,
@@ -172,7 +201,8 @@ export async function bulkUpsertVitals(
   try {
     const results: VitalsEntries[] = [];
 
-    for (const entry of entries) {
+    for (const rawEntry of entries) {
+      const entry = withoutImpossibleBloodPressure(rawEntry);
       const res = (await client.query(
         `INSERT INTO vitals_entries
           (user_id, entry_date, timestamp, systolic_mmhg, diastolic_mmhg, blood_glucose_mgdl, body_temperature_celsius, pulse_bpm, meal_context, source_provider, device_name, external_id)
@@ -228,6 +258,206 @@ export async function getVitalsEntries(
       [userId, startDate, endDate]
     )) as { rows: VitalsEntries[] };
     return res.rows;
+  } finally {
+    client.release();
+  }
+}
+
+// 2b. Blood pressure (manual entries live in vitals_entries next to synced ones)
+export const MANUAL_VITALS_PROVIDER = 'manual';
+
+export interface ManualBloodPressureInput {
+  entry_date: string;
+  timestamp: Date;
+  systolic_mmhg: number;
+  diastolic_mmhg: number;
+  pulse_bpm?: number | null;
+  arm?: string | null;
+  body_position?: string | null;
+  note?: string | null;
+}
+
+export type BloodPressureWriteResult =
+  | { status: 'ok'; entry: VitalsEntries }
+  | { status: 'not_found' }
+  | { status: 'not_editable' }
+  | { status: 'invalid'; reason: string }
+  | { status: 'duplicate' };
+
+/** A reading is a blood pressure row when it carries both values. */
+export async function createManualBloodPressure(
+  userId: string,
+  actingUserId: string,
+  input: ManualBloodPressureInput
+): Promise<BloodPressureWriteResult> {
+  const client = await getClient(actingUserId);
+  try {
+    const res = (await client.query(
+      `INSERT INTO vitals_entries
+        (user_id, entry_date, timestamp, systolic_mmhg, diastolic_mmhg, pulse_bpm, arm, body_position, note, source_provider)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       RETURNING *`,
+      [
+        userId,
+        input.entry_date,
+        input.timestamp,
+        input.systolic_mmhg,
+        input.diastolic_mmhg,
+        input.pulse_bpm === null || input.pulse_bpm === undefined
+          ? null
+          : Math.round(input.pulse_bpm),
+        input.arm ?? null,
+        input.body_position ?? null,
+        input.note ?? null,
+        MANUAL_VITALS_PROVIDER,
+      ]
+    )) as { rows: VitalsEntries[] };
+    return { status: 'ok', entry: res.rows[0] };
+  } catch (error) {
+    if (isUniqueViolationOn(error, 'uq_vitals_entry')) {
+      return { status: 'duplicate' };
+    }
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export interface ManualBloodPressureUpdate {
+  entry_date?: string;
+  timestamp?: Date;
+  systolic_mmhg?: number;
+  diastolic_mmhg?: number;
+  pulse_bpm?: number | null;
+  arm?: string | null;
+  body_position?: string | null;
+  note?: string | null;
+}
+
+/**
+ * Edits a reading the person logged by hand. Synced readings (Garmin, Withings,
+ * Health Connect, ...) are rewritten by the next sync, so they are not editable.
+ */
+export async function updateManualBloodPressure(
+  id: string,
+  userId: string,
+  actingUserId: string,
+  changes: ManualBloodPressureUpdate
+): Promise<BloodPressureWriteResult> {
+  const client = await getClient(actingUserId);
+  try {
+    const existing = (await client.query(
+      `SELECT source_provider, systolic_mmhg, diastolic_mmhg FROM vitals_entries
+       WHERE id = $1 AND user_id = $2 AND systolic_mmhg IS NOT NULL`,
+      [id, userId]
+    )) as {
+      rows: {
+        source_provider: string;
+        systolic_mmhg: string | number;
+        diastolic_mmhg: string | number | null;
+      }[];
+    };
+    const stored = existing.rows[0];
+    if (!stored) return { status: 'not_found' };
+    if (stored.source_provider !== MANUAL_VITALS_PROVIDER) {
+      return { status: 'not_editable' };
+    }
+    // The two values must still make sense together once the change is
+    // applied, whichever of them the change leaves alone.
+    const systolic = changes.systolic_mmhg ?? Number(stored.systolic_mmhg);
+    const diastolic =
+      changes.diastolic_mmhg ??
+      (stored.diastolic_mmhg === null ? null : Number(stored.diastolic_mmhg));
+    if (diastolic !== null && systolic <= diastolic) {
+      return {
+        status: 'invalid',
+        reason: 'Systolic must be higher than diastolic',
+      };
+    }
+
+    const columns: [string, unknown][] = [];
+    if (changes.entry_date !== undefined)
+      columns.push(['entry_date', changes.entry_date]);
+    if (changes.timestamp !== undefined)
+      columns.push(['timestamp', changes.timestamp]);
+    if (changes.systolic_mmhg !== undefined)
+      columns.push(['systolic_mmhg', changes.systolic_mmhg]);
+    if (changes.diastolic_mmhg !== undefined)
+      columns.push(['diastolic_mmhg', changes.diastolic_mmhg]);
+    if (changes.pulse_bpm !== undefined)
+      columns.push([
+        'pulse_bpm',
+        changes.pulse_bpm === null ? null : Math.round(changes.pulse_bpm),
+      ]);
+    if (changes.arm !== undefined) columns.push(['arm', changes.arm]);
+    if (changes.body_position !== undefined)
+      columns.push(['body_position', changes.body_position]);
+    if (changes.note !== undefined) columns.push(['note', changes.note]);
+
+    const sets = columns.map(([name], i) => `${name} = $${i + 3}`);
+    sets.push('updated_at = NOW()');
+    const res = (await client.query(
+      `UPDATE vitals_entries SET ${sets.join(', ')}
+       WHERE id = $1 AND user_id = $2
+       RETURNING *`,
+      [id, userId, ...columns.map(([, value]) => value)]
+    )) as { rows: VitalsEntries[] };
+    return { status: 'ok', entry: res.rows[0] };
+  } catch (error) {
+    if (isUniqueViolationOn(error, 'uq_vitals_entry')) {
+      return { status: 'duplicate' };
+    }
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+/** Deletes one blood pressure reading, manual or synced (a sync can bring a synced one back). */
+export async function deleteBloodPressure(
+  id: string,
+  userId: string,
+  actingUserId: string
+): Promise<boolean> {
+  const client = await getClient(actingUserId);
+  try {
+    const res = (await client.query(
+      `DELETE FROM vitals_entries
+       WHERE id = $1 AND user_id = $2 AND systolic_mmhg IS NOT NULL`,
+      [id, userId]
+    )) as { rowCount: number | null };
+    return (res.rowCount ?? 0) > 0;
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * The stored instant of this source's blood pressure reading closest to `at`
+ * within `windowSeconds`, if any. A device that reports one cuff reading
+ * through two APIs with slightly different times is then written once.
+ */
+export async function findNearbyBloodPressureTimestamp(
+  userId: string,
+  actingUserId: string,
+  sourceProvider: string,
+  at: Date,
+  windowSeconds: number
+): Promise<Date | null> {
+  const client = await getClient(actingUserId);
+  try {
+    const res = (await client.query(
+      `SELECT timestamp FROM vitals_entries
+       WHERE user_id = $1 AND source_provider = $2
+         AND (systolic_mmhg IS NOT NULL OR diastolic_mmhg IS NOT NULL)
+         AND timestamp BETWEEN $3::timestamptz - make_interval(secs => $4)
+                           AND $3::timestamptz + make_interval(secs => $4)
+       ORDER BY ABS(EXTRACT(EPOCH FROM (timestamp - $3::timestamptz))) ASC
+       LIMIT 1`,
+      [userId, sourceProvider, at, windowSeconds]
+    )) as { rows: { timestamp: Date }[] };
+    const found = res.rows[0];
+    return found ? new Date(found.timestamp) : null;
   } finally {
     client.release();
   }

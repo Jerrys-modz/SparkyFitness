@@ -121,9 +121,15 @@ describe('FeatureSettings', () => {
     const toggle = screen.getByRole('switch', { name: 'Lab results' });
     expect(toggle).toBeChecked();
     expect(toggle).toBeEnabled();
+    // Lab results and blood pressure each carry the note.
     expect(
-      screen.getByText('Only this website. The mobile app has its own switch.')
-    ).toBeInTheDocument();
+      screen.getAllByText(
+        'Only this website. The mobile app has its own switch.'
+      )
+    ).toHaveLength(2);
+    expect(
+      screen.getByRole('switch', { name: 'Blood pressure' })
+    ).toBeChecked();
   });
 
   it('turns lab results off on this website', () => {
@@ -156,8 +162,8 @@ describe('FeatureSettings', () => {
     // The defaults on an older server are covered in useWebFeatures.test.
     expect(screen.getByRole('switch', { name: 'Lab results' })).toBeDisabled();
     expect(
-      screen.getByText('Update your SparkyFitness server to change this.')
-    ).toBeInTheDocument();
+      screen.getAllByText('Update your SparkyFitness server to change this.')
+    ).toHaveLength(2);
     expect(
       screen.queryByRole('button', { name: 'Retry' })
     ).not.toBeInTheDocument();
@@ -167,7 +173,9 @@ describe('FeatureSettings', () => {
     mockChoice = { state: 'loadFailed', isPending: false };
     renderSettings();
     expect(screen.getByRole('switch', { name: 'Lab results' })).toBeDisabled();
-    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    const [retry] = screen.getAllByRole('button', { name: 'Retry' });
+    if (!retry) throw new Error('Expected a Retry button');
+    fireEvent.click(retry);
     expect(mockReloadChoices).toHaveBeenCalledTimes(1);
   });
 

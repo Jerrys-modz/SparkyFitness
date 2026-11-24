@@ -755,7 +755,9 @@
       "labResults": "Lab results",
       "labResultsSubtitle": "Blood tests and other markers over time",
       "challenges": "Challenges",
-      "challengesSubtitle": "Group leaderboards with friends and family"
+      "challengesSubtitle": "Group leaderboards with friends and family",
+      "bloodPressure": "Blood pressure",
+      "bloodPressureSubtitle": "Readings, averages and trend"
     },
     "sleep": "Sleep",
     "healthTrendsSettings": "Health Trends",
@@ -809,7 +811,10 @@
     "labResults": "Lab results",
     "labResultDetail": "Lab result",
     "labResultAdd": "Add lab result",
-    "labReportImport": "Import report"
+    "labReportImport": "Import report",
+    "bloodPressure": "Blood pressure",
+    "bloodPressureAdd": "Add reading",
+    "bloodPressureEdit": "Edit reading"
   },
   "activityShare": {
     "title": "Share Activity",
@@ -2950,6 +2955,10 @@
     "labResults": {
       "title": "Lab results",
       "description": "Record blood tests and follow each marker over time."
+    },
+    "bloodPressure": {
+      "title": "Blood pressure",
+      "description": "Log blood pressure readings and follow the trend."
     }
   },
   "measurements": {
@@ -11192,5 +11201,64 @@
       "workoutDays_other": "{{count}} days"
     },
     "youHost": "You host"
+  },
+  "bloodPressure": {
+    "add": "Add reading",
+    "latest": "Latest",
+    "average": "Average",
+    "morning": "Morning average",
+    "evening": "Evening average",
+    "homeAverage": "Home average",
+    "readingCount_one": "{{count}} reading",
+    "readingCount_other": "{{count}} readings",
+    "lastDays_one": "{{count}} day",
+    "lastDays_other": "{{count}} days",
+    "loadFailed": "Could not load your blood pressure readings.",
+    "empty": "No readings in this period yet. Add one to start following your blood pressure.",
+    "chartEmpty": "No readings yet",
+    "homeAtOrAbove_one": "Home average over {{count}} day (first day left out) is at or above 135/85.",
+    "homeAtOrAbove_other": "Home average over {{count}} days (first day left out) is at or above 135/85.",
+    "homeBelow_one": "Home average over {{count}} day (first day left out) is below 135/85.",
+    "homeBelow_other": "Home average over {{count}} days (first day left out) is below 135/85.",
+    "homeNeedsDays": "The home average needs readings on at least 5 different days.",
+    "hint": "Tap a reading you logged to edit it. Press and hold any reading to delete it.",
+    "disclaimer": "For your information only, not a diagnosis. Talk to a clinician about your readings.",
+    "deleteTitle": "Delete this reading?",
+    "deleteMessage": "A reading that came from a device can come back on the next sync.",
+    "deleteFailed": "Could not delete the reading",
+    "saveFailed": "Could not save the reading",
+    "duplicate": "A reading already exists at this exact time",
+    "systolic": "Systolic",
+    "diastolic": "Diastolic",
+    "pulse": "Pulse (bpm)",
+    "optional": "Optional",
+    "arm": "Arm",
+    "position": "Position",
+    "date": "Date",
+    "time": "Time",
+    "valuesInvalid": "Enter whole numbers in mmHg, with the systolic value above the diastolic one.",
+    "pulseInvalid": "Enter a pulse between 20 and 300.",
+    "dateFuture": "The date cannot be in the future.",
+    "timeFuture": "The time cannot be in the future.",
+    "notePlaceholder": "Add a note (optional)",
+    "categories": {
+      "normal": "Normal",
+      "elevated": "Elevated",
+      "stage1": "Stage 1",
+      "stage2": "Stage 2",
+      "severe": "Severe"
+    },
+    "arms": {
+      "left": "Left arm",
+      "right": "Right arm"
+    },
+    "positions": {
+      "sitting": "Sitting",
+      "standing": "Standing",
+      "lying": "Lying down",
+      "reclining": "Reclining"
+    },
+    "unit": "mmHg",
+    "pulseValue": "{{value}} bpm"
   }
 }

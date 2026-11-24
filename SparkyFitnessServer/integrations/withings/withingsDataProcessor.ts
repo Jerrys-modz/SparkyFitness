@@ -5,6 +5,7 @@ import exerciseEntryRepository from '../../models/exerciseEntry.js';
 import sleepRepository from '../../models/sleepRepository.js';
 import { instantToDay, isValidTimeZone } from '@workspace/shared';
 import activityDetailsRepository from '../../models/activityDetailsRepository.js';
+import { recordSyncedBloodPressure } from '../../services/bloodPressureSyncService.js';
 import type {
   WithingsCustomMeasurement,
   WithingsMeasureGroup,
@@ -337,6 +338,13 @@ async function processWithingsMeasures(
     const entryDate = instantToDay(timestamp * 1000, timezone); // Convert Unix timestamp to YYYY-MM-DD
     const measurementsToUpsert = {};
     const customMeasurementsToUpsert = [];
+    // Withings measure types 10 (systolic), 9 (diastolic) and 11 (pulse) of one
+    // group are one blood pressure reading.
+    const bloodPressure: {
+      systolic?: number;
+      diastolic?: number;
+      pulse?: number;
+    } = {};
     for (const measure of group.measures) {
       // @ts-expect-error TS(7053): Element implicitly has an 'any' type because expre... Remove this comment to see the full error message
       const metricInfo = WITHINGS_METRIC_MAPPING[measure.type];
@@ -344,6 +352,9 @@ async function processWithingsMeasures(
         // Withings measures often come with a 'unit' field which is a power of 10.
         // E.g., weight in kg with unit 0 means actual kg, unit -1 means 0.1 kg.
         let value = measure.value * Math.pow(10, measure.unit); // Use measure.unit from Withings API for scaling
+        if (measure.type === 10) bloodPressure.systolic = value;
+        if (measure.type === 9) bloodPressure.diastolic = value;
+        if (measure.type === 11) bloodPressure.pulse = value;
         // Apply unit conversions for check_in_measurement types if needed
         if (
           metricInfo.type === 'check_in_measurement' &&
@@ -399,6 +410,20 @@ async function processWithingsMeasures(
         customMeasurement,
         'Withings'
       );
+    }
+    // Blood pressure also goes to vitals_entries, the single home of readings.
+    if (
+      bloodPressure.systolic !== undefined ||
+      bloodPressure.diastolic !== undefined
+    ) {
+      await recordSyncedBloodPressure(userId, createdByUserId, [
+        {
+          entryDate,
+          timestamp: new Date(timestamp * 1000).toISOString(),
+          sourceProvider: 'withings',
+          ...bloodPressure,
+        },
+      ]);
     }
   }
 }
@@ -516,6 +541,17 @@ async function processWithingsHeartData(
           'Withings'
         );
       }
+      await recordSyncedBloodPressure(userId, createdByUserId, [
+        {
+          entryDate,
+          timestamp: entryTimestamp,
+          // @ts-expect-error TS(2339): Property 'bloodpressure' does not exist on type 'n... Remove this comment to see the full error message
+          systolic: Number(series.bloodpressure.systole),
+          // @ts-expect-error TS(2339): Property 'bloodpressure' does not exist on type 'n... Remove this comment to see the full error message
+          diastolic: Number(series.bloodpressure.diastole),
+          sourceProvider: 'withings',
+        },
+      ]);
       log(
         'info',
         `Upserted Withings heart-rate-sync blood pressure for user ${userId} on ${entryDate}.`

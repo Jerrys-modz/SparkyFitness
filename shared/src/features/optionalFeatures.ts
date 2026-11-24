@@ -53,6 +53,11 @@ interface FeatureDefinition {
 export const OPTIONAL_FEATURES = {
   cycle: { group: 'health', defaultEnabled: false, storage: 'cycleSettings' },
   labResults: { group: 'health', defaultEnabled: true, storage: 'choices' },
+  bloodPressure: {
+    group: 'health',
+    defaultEnabled: true,
+    storage: 'choices',
+  },
 } as const satisfies Record<string, FeatureDefinition>;
 
 export type FeatureKey = keyof typeof OPTIONAL_FEATURES;

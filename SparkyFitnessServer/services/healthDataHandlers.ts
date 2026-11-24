@@ -17,6 +17,10 @@ import * as mindfulnessRepository from '../models/mindfulnessRepository.js';
 import * as oralCareRepository from '../models/oralCareRepository.js';
 import { resolveActivityMapping } from './workoutActivityMapping.js';
 import {
+  recordSyncedBloodPressure,
+  type SyncedBloodPressureReading,
+} from './bloodPressureSyncService.js';
+import {
   computeTimeInZones,
   bucketsFromAppleWorkoutZones,
   appleWorkoutZonesFromWire,
@@ -2760,6 +2764,64 @@ const toothbrushingHandler: HealthTypeHandler = {
   },
 };
 
+// ── Blood pressure ──────────────────────────────────────────────────────────
+
+// Health Connect and Apple Health deliver systolic and diastolic as two
+// records of the same instant. Each is still stored as a custom measurement
+// exactly as before; a record that carries its own `timestamp` is also written
+// to `vitals_entries`, the single home of blood pressure. Records of one
+// instant join into one row; a record without an instant (an older app sends
+// only the day) is not written there, since the day alone would pair readings
+// that were not taken together.
+const BLOOD_PRESSURE_PART: Record<string, 'systolic' | 'diastolic'> = {
+  blood_pressure_systolic: 'systolic',
+  blood_pressure_diastolic: 'diastolic',
+};
+
+const bloodPressureHandleBatch: HandleBatchFn = async (entries, ctx) => {
+  const outcomes = await customMeasurementHandleBatch(entries, ctx);
+  const readings: SyncedBloodPressureReading[] = [];
+  entries.forEach(({ entry, parsedDate, entryTimestamp }, i) => {
+    if (outcomes[i]?.status !== 'success') return;
+    const part = BLOOD_PRESSURE_PART[String(entry?.type)];
+    // A reading needs a real instant of its own; a missing or unreadable one
+    // falls back to the start of the day, which would merge separate readings.
+    if (!part || !Number.isFinite(Date.parse(String(entry.timestamp)))) return;
+    const value = Number(entry.value);
+    if (!Number.isFinite(value)) return;
+    readings.push({
+      entryDate: parsedDate,
+      timestamp: entryTimestamp,
+      sourceProvider: normalizeHealthSourceProvider(entry.source),
+      [part]: value,
+    });
+  });
+  await recordSyncedBloodPressure(
+    String(ctx.userId),
+    String(ctx.actingUserId),
+    readings
+  );
+  return outcomes;
+};
+
+const bloodPressureHandler: HealthTypeHandler = {
+  handle: async (entry, ctx) => {
+    const [outcome] = await bloodPressureHandleBatch(
+      [
+        {
+          entry,
+          parsedDate: ctx.parsedDate,
+          entryTimestamp: ctx.entryTimestamp,
+          entryHour: ctx.entryHour,
+        },
+      ],
+      ctx
+    );
+    return outcome;
+  },
+  handleBatch: bloodPressureHandleBatch,
+};
+
 // ── Registry ────────────────────────────────────────────────────────────────
 
 // Handlers keyed by canonical type name.
@@ -2790,6 +2852,8 @@ export const HEALTH_TYPE_HANDLERS: Record<string, HealthTypeHandler> = {
   resting_heart_rate: restingHeartRateHandler,
   vo2_max: vo2MaxHandler,
   skin_temperature: skinTemperatureHandler,
+  blood_pressure_systolic: bloodPressureHandler,
+  blood_pressure_diastolic: bloodPressureHandler,
 };
 
 // Lookup-only normalization of incoming type spellings to canonical handler

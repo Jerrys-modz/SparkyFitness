@@ -141,9 +141,11 @@ describe('FeatureSettingsScreen', () => {
     const toggle = screen.getByLabelText('Lab results');
     expect(toggle.props.value).toBe(true);
     expect(toggle.props.disabled).toBe(false);
+    // Lab results and blood pressure each carry the note.
     expect(
-      screen.getByText(/Only this app\. The website has its own switch\./)
-    ).toBeTruthy();
+      screen.getAllByText(/Only this app\. The website has its own switch\./)
+    ).toHaveLength(2);
+    expect(screen.getByLabelText('Blood pressure').props.value).toBe(true);
   });
 
   it('turns lab results off in this app', () => {
@@ -182,7 +184,7 @@ describe('FeatureSettingsScreen', () => {
     expect(screen.getByTestId('feature-switch-labResults').props.disabled).toBe(
       true
     );
-    fireEvent.press(screen.getByText('Retry'));
+    fireEvent.press(screen.getAllByText('Retry')[0]!);
     expect(mockReloadChoices).toHaveBeenCalledTimes(1);
   });
 
@@ -193,8 +195,8 @@ describe('FeatureSettingsScreen', () => {
       true
     );
     expect(
-      screen.getByText(/Update your SparkyFitness server to change this\./)
-    ).toBeTruthy();
+      screen.getAllByText(/Update your SparkyFitness server to change this\./)
+    ).toHaveLength(2);
   });
 
   it('asks the server again on each visit while it is older than Features', () => {

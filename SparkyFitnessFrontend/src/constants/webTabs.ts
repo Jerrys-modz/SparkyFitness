@@ -92,6 +92,8 @@ export function choiceFeatureLabel(
   switch (feature) {
     case 'labResults':
       return webTabLabel(t, 'labs');
+    case 'bloodPressure':
+      return t('checkIn.tabs.bloodPressure', 'Blood pressure');
   }
 }
 

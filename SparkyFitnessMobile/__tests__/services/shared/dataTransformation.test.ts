@@ -344,6 +344,32 @@ describe('createBloodPressureTransformer', () => {
   });
 });
 
+describe('createBloodPressureTransformer timestamps', () => {
+  test('sends the reading instant so the server can pair the two values', () => {
+    const transformer = createBloodPressureTransformer(
+      'Health Connect',
+      () => '2024-01-15'
+    );
+    const output: TransformOutput[] = [];
+    const rec = {
+      time: '2024-01-15T08:30:00.000Z',
+      systolic: { inMillimetersOfMercury: 118 },
+      diastolic: { inMillimetersOfMercury: 76 },
+    };
+    transformer(
+      rec,
+      rec,
+      { recordType: 'BloodPressure', unit: 'mmHg', type: 'blood_pressure' },
+      output
+    );
+    expect(output).toHaveLength(2);
+    expect(output.map((o) => o.timestamp)).toEqual([
+      '2024-01-15T08:30:00.000Z',
+      '2024-01-15T08:30:00.000Z',
+    ]);
+  });
+});
+
 describe('extractDirectValue', () => {
   test('parses comma-decimal strings (European locales)', () => {
     expect(extractDirectValue({ rate: '49,51' }, 'rate')).toBe(49.51);

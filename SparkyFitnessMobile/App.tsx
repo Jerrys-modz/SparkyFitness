@@ -51,6 +51,8 @@ import {
   SafeRecipeImport,
   SafeMealPlans,
   SafeLabReportImport,
+  SafeBloodPressure,
+  SafeBloodPressureAdd,
   SafeLabResultAdd,
   SafeLabResultDetail,
   SafeLabResults,
@@ -747,6 +749,20 @@ function AppContent() {
             name="TrainingCalendar"
             component={SafeTrainingCalendar}
             options={createStackScreenOptions(t('screens.trainingCalendar', { defaultValue: 'Training calendar' }), { headerBackTitle: t('navigation.library', { defaultValue: 'Library' }) })}
+          />
+          <Stack.Screen
+            name="BloodPressure"
+            component={SafeBloodPressure}
+            options={createStackScreenOptions(t('screens.bloodPressure', { defaultValue: 'Blood pressure' }), { headerBackTitle: t('navigation.library', { defaultValue: 'Library' }) })}
+          />
+          <Stack.Screen
+            name="BloodPressureAdd"
+            component={SafeBloodPressureAdd}
+            options={createStackScreenOptions(t('screens.bloodPressureAdd', { defaultValue: 'Add reading' }), {
+              presentation: 'modal',
+              headerBackButtonDisplayMode: 'minimal',
+              ...(Platform.OS === 'android' ? androidModalAnimation : {}),
+            })}
           />
           <Stack.Screen
             name="LabResults"

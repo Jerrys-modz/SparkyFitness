@@ -221,6 +221,22 @@ function LabResultsFeatureRows() {
   );
 }
 
+function BloodPressureFeatureRows() {
+  const { t } = useTranslation();
+  return (
+    <ChoiceFeatureRows
+      feature="bloodPressure"
+      icon="blood-pressure"
+      title={t('featureSettings.bloodPressure.title', {
+        defaultValue: 'Blood pressure',
+      })}
+      description={t('featureSettings.bloodPressure.description', {
+        defaultValue: 'Log blood pressure readings and follow the trend.',
+      })}
+    />
+  );
+}
+
 /** One row per feature. A new registry key needs its own rows here. */
 function FeatureRows({ feature }: { feature: FeatureKey }) {
   switch (feature) {
@@ -228,6 +244,8 @@ function FeatureRows({ feature }: { feature: FeatureKey }) {
       return <CycleFeatureRows />;
     case 'labResults':
       return <LabResultsFeatureRows />;
+    case 'bloodPressure':
+      return <BloodPressureFeatureRows />;
   }
 }
 

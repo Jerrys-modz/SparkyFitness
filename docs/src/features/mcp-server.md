@@ -64,6 +64,7 @@ Monitor your weight, sleep, mood, and daily habits.
 | **Weight History** | `get_biometrics_history`      | "Show me my weight trend for the last 30 days." |
 | **Custom Metrics** | `log_custom_metric`           | "My blood pressure was 120/80 today."           |
 | **Oral Care**      | `get_oral_care_summary`       | "Did I brush twice a day this week?"            |
+| **Blood Pressure** | `log_blood_pressure`, `get_blood_pressure_summary` | "Log 122 over 79 with a pulse of 64." |
 
 ### 📋 Goals, Habits & Reports
 

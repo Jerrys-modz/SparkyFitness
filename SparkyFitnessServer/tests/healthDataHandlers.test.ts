@@ -36,6 +36,8 @@ vi.mock('../models/waterContainerRepository.js', () => ({
 }));
 vi.mock('../models/genericHealthRepository.js', () => ({
   upsertDailyHealthMetrics: vi.fn(),
+  bulkUpsertVitals: vi.fn(),
+  findNearbyBloodPressureTimestamp: vi.fn(),
 }));
 vi.mock('../models/moodRepository.js', () => ({
   default: {
@@ -1534,5 +1536,165 @@ describe('toothbrushingHandler', () => {
       vi.mocked(oralCareRepository.upsertOralCareSession).mock.calls[0]![1]
         .duration_seconds
     ).toBeNull();
+  });
+});
+
+describe('blood pressure readings', () => {
+  const handler = HEALTH_TYPE_HANDLERS['blood_pressure_systolic'];
+  const ctx = {
+    userId: 'user-1',
+    actingUserId: 'actor-1',
+    resolveCategory: vi.fn(),
+  } as unknown as HealthBatchContext;
+
+  const prepared = (
+    entry: Record<string, unknown>,
+    entryTimestamp: string
+  ): PreparedHealthEntry => ({
+    entry,
+    parsedDate: '2026-11-20',
+    entryTimestamp,
+    entryHour: new Date(entryTimestamp).getUTCHours(),
+  });
+
+  const vitalsWrites = () =>
+    vi
+      .mocked(genericHealthRepository.bulkUpsertVitals)
+      .mock.calls.flatMap((call) => call[2]);
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(ctx.resolveCategory).mockResolvedValue({
+      id: 'cat-1',
+      data_type: 'numeric',
+      frequency: 'Daily',
+    });
+    vi.mocked(
+      measurementRepository.bulkUpsertCustomMeasurements
+    ).mockImplementation(
+      async (_userId: string, _actingUserId: string, rows: unknown[]) =>
+        rows.map((_, i) => ({ id: `row-${i}` }))
+    );
+    vi.mocked(genericHealthRepository.bulkUpsertVitals).mockResolvedValue(
+      [] as never
+    );
+  });
+
+  it('uses one handler for both halves so they are written together', () => {
+    expect(HEALTH_TYPE_HANDLERS['blood_pressure_diastolic']).toBe(handler);
+  });
+
+  it('keeps the custom measurements and joins a reading of one instant into one row', async () => {
+    const at = '2026-11-20T13:05:00.000Z';
+    const outcomes = await handler.handleBatch!(
+      [
+        prepared(
+          {
+            type: 'blood_pressure_systolic',
+            value: 122,
+            source: 'HealthKit',
+            timestamp: at,
+          },
+          at
+        ),
+        prepared(
+          {
+            type: 'blood_pressure_diastolic',
+            value: 79,
+            source: 'HealthKit',
+            timestamp: at,
+          },
+          at
+        ),
+      ],
+      ctx
+    );
+
+    expect(outcomes.map((o) => o.status)).toEqual(['success', 'success']);
+    expect(
+      vi.mocked(measurementRepository.bulkUpsertCustomMeasurements).mock
+        .calls[0][2]
+    ).toHaveLength(2);
+    expect(vitalsWrites()).toEqual([
+      expect.objectContaining({
+        user_id: 'user-1',
+        entry_date: '2026-11-20',
+        systolic_mmhg: 122,
+        diastolic_mmhg: 79,
+        source_provider: 'healthkit',
+      }),
+    ]);
+  });
+
+  it('does not write a reading that carries only a day, since it has no instant', async () => {
+    const midnight = '2026-11-20T00:00:00.000Z';
+    await handler.handleBatch!(
+      [
+        prepared(
+          {
+            type: 'blood_pressure_systolic',
+            value: 122,
+            source: 'Health Connect',
+            date: '2026-11-20',
+          },
+          midnight
+        ),
+      ],
+      ctx
+    );
+    expect(
+      measurementRepository.bulkUpsertCustomMeasurements
+    ).toHaveBeenCalled();
+    expect(genericHealthRepository.bulkUpsertVitals).not.toHaveBeenCalled();
+  });
+
+  it('does not write readings whose timestamp cannot be read, so they never merge at midnight', async () => {
+    const midnight = '2026-11-20T00:00:00.000Z';
+    await handler.handleBatch!(
+      [
+        prepared(
+          {
+            type: 'blood_pressure_systolic',
+            value: 122,
+            source: 'HealthKit',
+            timestamp: 'garbage',
+          },
+          midnight
+        ),
+        prepared(
+          {
+            type: 'blood_pressure_diastolic',
+            value: 79,
+            source: 'HealthKit',
+            timestamp: 'garbage',
+          },
+          midnight
+        ),
+      ],
+      ctx
+    );
+    expect(genericHealthRepository.bulkUpsertVitals).not.toHaveBeenCalled();
+  });
+
+  it('does not fail the sync when the vitals write fails', async () => {
+    vi.mocked(genericHealthRepository.bulkUpsertVitals).mockRejectedValue(
+      new Error('db down')
+    );
+    const at = '2026-11-20T13:05:00.000Z';
+    const outcomes = await handler.handleBatch!(
+      [
+        prepared(
+          {
+            type: 'blood_pressure_systolic',
+            value: 122,
+            source: 'HealthKit',
+            timestamp: at,
+          },
+          at
+        ),
+      ],
+      ctx
+    );
+    expect(outcomes[0].status).toBe('success');
   });
 });
