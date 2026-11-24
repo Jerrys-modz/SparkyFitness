@@ -114,7 +114,12 @@ enum ContextPayloadMapper {
             goalWeightKg: (payload["goalWeightKg"] as? NSNumber)?.doubleValue ?? previous.goalWeightKg,
             heartRateZoneFloors: WatchHeartRateZone.normalized(
                 (payload["heartRateZoneFloors"] as? [NSNumber])?.map(\.doubleValue)
-            ) ?? previous.heartRateZoneFloors
+            ) ?? previous.heartRateZoneFloors,
+            // Carried forward like the page layout: the phone leaves it out
+            // while it does not know its feature choices.
+            offFeatures: payload.keys.contains("offFeatures")
+                ? stringArray(payload["offFeatures"])
+                : previous.offFeatures
         )
     }
 
