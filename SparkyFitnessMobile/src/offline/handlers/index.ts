@@ -6,6 +6,7 @@ import { registerFoodEntryMealDeleteHandlers } from './foodEntryMealDelete';
 import { registerFoodEntryMealUpdateHandlers } from './foodEntryMealUpdate';
 import { registerFoodEntryMealHandlers } from './foodEntryMeal';
 import { registerFollowUpHandlers } from './followUps';
+import { registerRunHandlers } from './run';
 import { registerWaterIntakeHandlers } from './waterIntake';
 import { registerWorkoutSessionHandlers } from './workoutSession';
 
@@ -21,6 +22,7 @@ export function registerAllOutboxHandlers(): void {
   registered = true;
   registerWorkoutSessionHandlers();
   registerFollowUpHandlers();
+  registerRunHandlers();
   registerWaterIntakeHandlers();
   registerFoodEntryHandlers();
   registerFoodCreateHandlers();

@@ -3,10 +3,12 @@ import WatchConnectivity from '../../modules/watch-connectivity';
 import {
   acceptPendingWatchRuns,
   deleteWatchRunsForConfig,
+  discardWaitingWatchRun,
   enqueueWatchRun,
   hasQueuedWatchRuns,
   onWatchRunRetry,
   processWatchRunQueue,
+  readWaitingWatchRuns,
   receiveWatchRunEffort,
 } from '../../src/services/watchRunQueue';
 import { saveWatchRun } from '../../src/services/watchRunSave';
@@ -111,7 +113,8 @@ test('keeps a run for a retry after a network failure, reusing the entry', async
     'km',
     'entry-9',
     expect.any(Function),
-    null
+    null,
+    expect.any(String)
   );
 });
 
@@ -132,7 +135,8 @@ test('keeps the form measured with the entry, hands it back on a retry and to th
     'km',
     'entry-f',
     expect.any(Function),
-    form
+    form,
+    expect.any(String)
   );
   expect(listener).toHaveBeenCalledWith(expect.anything(), 'entry-f', form);
 });
@@ -675,7 +679,8 @@ test('does not file a run captured under one config after switching to another, 
     'km',
     undefined,
     expect.any(Function),
-    null
+    null,
+    expect.any(String)
   );
 });
 
@@ -712,6 +717,75 @@ test('purges queued runs for a deleted or switched-away config without dropping 
     'km',
     undefined,
     expect.any(Function),
-    null
+    null,
+    expect.any(String)
   );
+});
+
+describe('a run waiting on the phone', () => {
+  test('creates the entry under the same id on every attempt', async () => {
+    await enqueueWatchRun(run('w'));
+    mockedSave.mockRejectedValueOnce(new Error('offline'));
+    await processWatchRunQueue('km');
+    mockedSave.mockResolvedValueOnce({ entryId: 'entry-w', form: null });
+    await processWatchRunQueue('km');
+    const ids = mockedSave.mock.calls.map((call) => call[5]);
+    expect(ids).toHaveLength(2);
+    expect(ids[0]).toMatch(/^[0-9a-f-]{36}$/);
+    expect(ids[1]).toBe(ids[0]);
+  });
+
+  test('is listed for the Diary until it is filed', async () => {
+    await enqueueWatchRun(run('x'));
+    const [waiting] = await readWaitingWatchRuns();
+    expect(waiting).toMatchObject({
+      payload: expect.objectContaining({ clientId: 'x' }),
+      entryId: expect.stringMatching(/^[0-9a-f-]{36}$/),
+      created: false,
+    });
+    mockedSave.mockResolvedValue({ entryId: waiting!.entryId!, form: null });
+    await processWatchRunQueue('km');
+    expect(await readWaitingWatchRuns()).toEqual([]);
+  });
+
+  test('is not listed for another server', async () => {
+    await enqueueWatchRun(run('y'));
+    await AsyncStorage.setItem(ACTIVE_CONFIG_KEY, 'config-b');
+    expect(await readWaitingWatchRuns()).toEqual([]);
+  });
+
+  test('can be deleted, and a copy the watch sends again is not filed', async () => {
+    await enqueueWatchRun(run('z'));
+    const [waiting] = await readWaitingWatchRuns();
+    expect(await discardWaitingWatchRun(waiting!.entryId!)).toEqual({
+      outcome: 'removed',
+      entryDate: '2026-10-10',
+    });
+    expect(await readWaitingWatchRuns()).toEqual([]);
+    expect(await enqueueWatchRun(run('z'))).toBe(false);
+    expect(await processWatchRunQueue('km')).toEqual([]);
+    expect(mockedSave).not.toHaveBeenCalled();
+  });
+
+  test('is dropped from the queue but reported as on the server once an attempt created the entry', async () => {
+    await enqueueWatchRun(run('v'));
+    const [waiting] = await readWaitingWatchRuns();
+    mockedSave.mockImplementationOnce(async (_p, _u, _e, onEntryCreated) => {
+      await onEntryCreated('entry-v', null);
+      throw new Error('offline');
+    });
+    await processWatchRunQueue('km');
+    expect(await discardWaitingWatchRun(waiting!.entryId!)).toEqual({
+      outcome: 'on_server',
+      entryDate: '2026-10-10',
+    });
+    expect(await readWaitingWatchRuns()).toEqual([]);
+    expect(await enqueueWatchRun(run('v'))).toBe(false);
+  });
+
+  test('answers none for a run that is not waiting', async () => {
+    expect(await discardWaitingWatchRun('nothing')).toEqual({
+      outcome: 'none',
+    });
+  });
 });

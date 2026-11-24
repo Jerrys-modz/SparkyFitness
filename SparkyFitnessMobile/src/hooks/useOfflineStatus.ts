@@ -10,11 +10,17 @@ import { uploadsToShow } from '../offline/workoutHandOver';
 import { signedInUserId } from '../offline/syncEngine';
 import type { OutboxRow } from '../offline/types';
 import { getActiveServerConfigId } from '../services/storage';
+import {
+  readWaitingWatchRuns,
+  type WaitingWatchRun,
+} from '../services/watchRunQueue';
 import { offlineStatusQueryKey } from './queryKeys';
 
 export interface OfflineStatus {
   /** Uploads the active server has not confirmed, oldest first. */
   waiting: OutboxRow[];
+  /** Runs the watch recorded alone that are not filed yet (their own queue). */
+  watchRuns: WaitingWatchRun[];
   /** Documents kept for offline use on this phone, and their size. */
   cachedDocuments: number;
   cachedBytes: number;
@@ -32,6 +38,7 @@ export interface OfflineStatus {
 
 const EMPTY: OfflineStatus = {
   waiting: [],
+  watchRuns: [],
   cachedDocuments: 0,
   cachedBytes: 0,
   lastRefreshedAt: null,
@@ -74,6 +81,7 @@ async function readOfflineStatus(): Promise<OfflineStatus> {
   keptExercises.sort((a, b) => a.name.localeCompare(b.name));
   return {
     waiting,
+    watchRuns: await readWaitingWatchRuns().catch(() => []),
     cachedDocuments: stats.documents,
     cachedBytes: stats.bytes,
     lastRefreshedAt: marker?.fetchedAt ?? null,

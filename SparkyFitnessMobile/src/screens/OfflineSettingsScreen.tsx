@@ -28,7 +28,13 @@ import { discardOwnerlessUpload } from '../offline/discardOwnerless';
 import { refreshOfflinePack } from '../offline/offlinePack';
 import Switch from '../components/ui/Switch';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
+import { RUN_SAVE } from '../offline/runHandOver';
 import { drainOutbox } from '../offline/syncEngine';
+import { usePreferences } from '../hooks/usePreferences';
+import {
+  processWatchRunQueue,
+  readWaitingWatchRuns,
+} from '../services/watchRunQueue';
 import type { OutboxRow, OutboxStatus } from '../offline/types';
 import {
   WORKOUT_SESSION_UPDATE,
@@ -36,7 +42,7 @@ import {
 } from '../offline/workoutHandOver';
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import { getActiveServerConfigId } from '../services/storage';
-import { formatDate } from '../utils/dateUtils';
+import { formatDate, toLocalDateString } from '../utils/dateUtils';
 import type { RootStackScreenProps } from '../types/navigation';
 
 type OfflineSettingsScreenProps = RootStackScreenProps<'OfflineSettings'>;
@@ -79,6 +85,12 @@ function kindLabel(row: OutboxRow, t: TFunction): string {
   if (row.kind.startsWith('workout_')) {
     return t('offline.kind.workout', { defaultValue: 'Workout' });
   }
+  if (row.kind === RUN_SAVE) {
+    return t('offline.kind.run', { defaultValue: 'Run' });
+  }
+  if (row.kind.startsWith('run.')) {
+    return t('offline.kind.runFollowUp', { defaultValue: 'Run details' });
+  }
   if (row.kind.startsWith('food')) {
     return t('offline.kind.food', { defaultValue: 'Food entry' });
   }
@@ -94,6 +106,9 @@ const OfflineSettingsScreen: React.FC<OfflineSettingsScreenProps> = () => {
   const activeWorkoutBarPadding = useActiveWorkoutBarPadding('stack');
   const usesNativeHeader = useNativeIOSHeadersActive();
   const { status, refetch } = useOfflineStatus();
+  const { preferences } = usePreferences();
+  const distanceUnit: 'km' | 'miles' =
+    preferences?.default_distance_unit === 'miles' ? 'miles' : 'km';
   const [uploading, setUploading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -103,7 +118,11 @@ const OfflineSettingsScreen: React.FC<OfflineSettingsScreenProps> = () => {
     setUploading(true);
     try {
       const summary = await drainOutbox('manual');
-      if (summary.remaining === 0) {
+      // Runs the watch recorded alone wait in their own queue.
+      await processWatchRunQueue(distanceUnit).catch(() => []);
+      const watchRunsLeft = (await readWaitingWatchRuns().catch(() => []))
+        .length;
+      if (summary.remaining + watchRunsLeft === 0) {
         Toast.show({
           type: 'success',
           text1: t('offline.uploadDone', {
@@ -125,7 +144,7 @@ const OfflineSettingsScreen: React.FC<OfflineSettingsScreenProps> = () => {
     } finally {
       setUploading(false);
     }
-  }, [t]);
+  }, [distanceUnit, t]);
 
   const refreshNow = useCallback(async () => {
     setRefreshing(true);
@@ -326,7 +345,7 @@ const OfflineSettingsScreen: React.FC<OfflineSettingsScreenProps> = () => {
     left: { kind: 'back' },
   });
 
-  const waitingCount = status.waiting.length;
+  const waitingCount = status.waiting.length + status.watchRuns.length;
 
   return (
     <View className="flex-1 bg-background">
@@ -343,7 +362,7 @@ const OfflineSettingsScreen: React.FC<OfflineSettingsScreenProps> = () => {
         <Text className="text-sm text-text-secondary mb-4">
           {t('offline.intro', {
             defaultValue:
-              'Workouts, food, meals, new foods and drinks can be logged without a connection. They are kept on this phone and uploaded when your server can be reached.',
+              'Workouts, recorded runs and rides, food, meals, new foods and drinks can be logged without a connection. They are kept on this phone and uploaded when your server can be reached.',
           })}
         </Text>
 
@@ -393,6 +412,25 @@ const OfflineSettingsScreen: React.FC<OfflineSettingsScreenProps> = () => {
               />
             ))
           )}
+          {status.watchRuns.map((run) => (
+            <SettingsRow
+              key={run.payload.clientId}
+              testID={`offline-waiting-watch-${run.payload.clientId}`}
+              title={t('offline.waitingItem', {
+                defaultValue: '{{kind}}, {{date}}',
+                kind: t('offline.kind.watchRun', {
+                  defaultValue: 'Run on watch',
+                }),
+                date: formatDate(
+                  toLocalDateString(new Date(run.payload.startedAt)),
+                  getAppLocale()
+                ),
+              })}
+              subtitle={t('offline.status.pending', {
+                defaultValue: 'Waiting to upload',
+              })}
+            />
+          ))}
         </SettingsRowGroup>
         {waitingCount > 0 && (
           <Button

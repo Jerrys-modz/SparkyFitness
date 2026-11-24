@@ -30,6 +30,7 @@ import { startRunOnWatch } from '../../src/services/watchRunControl';
 import { useRunProgram } from '../../src/services/runProgramService';
 import { programStatus } from '@workspace/shared';
 import { saveRecordedActivity } from '../../src/services/gpsRecordingSave';
+import { queueRecordedRun } from '../../src/offline/runHandOver';
 import { useAppPreferencesStore } from '../../src/stores/appPreferencesStore';
 import { useIndoorDistanceEstimate } from '../../src/hooks/useIndoorDistanceEstimate';
 import { useLiveHeartRateStore } from '../../src/stores/liveHeartRateStore';
@@ -62,6 +63,7 @@ jest.mock('../../src/services/gpsRecordingService', () => {
     beginRecordingSave: jest.fn(),
     endRecordingSave: jest.fn(),
     getHeartRateSamples: jest.fn(() => Promise.resolve([])),
+    peekAppleWorkoutZones: jest.fn(() => null),
     elapsedSeconds: jest.fn(() => 754),
     getRecordingPreferences: jest.fn(() =>
       Promise.resolve({
@@ -108,6 +110,9 @@ jest.mock('../../src/services/recordingCues', () => ({
 }));
 jest.mock('../../src/services/haptics', () => ({
   fireSelectionHaptic: jest.fn(),
+}));
+jest.mock('../../src/offline/runHandOver', () => ({
+  queueRecordedRun: jest.fn(),
 }));
 jest.mock('../../src/services/gpsRecordingSave', () => ({
   saveRecordedActivity: jest.fn(),
@@ -1037,6 +1042,119 @@ describe('RecordActivityScreen', () => {
     await waitFor(() => expect(saveRecordedActivity).toHaveBeenCalled());
     expect(discardRecording).not.toHaveBeenCalled();
     expect(navigation.replace).not.toHaveBeenCalled();
+  });
+
+  describe('when the server cannot be reached', () => {
+    const ENTRY_ID = '33333333-3333-4333-8333-333333333333';
+    const lostConnection = () => new TypeError('Network request failed');
+
+    it('queues the run, clears the recording and opens a summary that says it is waiting', async () => {
+      state(
+        session({
+          status: 'finished',
+          finishedAt: Date.now(),
+          entryClientId: ENTRY_ID,
+        }),
+        track
+      );
+      jest.mocked(saveRecordedActivity).mockRejectedValue(lostConnection());
+      jest
+        .mocked(queueRecordedRun)
+        .mockResolvedValue({ entryId: ENTRY_ID, entryDate: '2026-10-06' });
+      const screen = await renderScreen();
+
+      fireEvent.press(screen.getByText('Save activity'));
+
+      await waitFor(() => expect(queueRecordedRun).toHaveBeenCalledTimes(1));
+      expect(queueRecordedRun).toHaveBeenCalledWith(
+        expect.objectContaining({
+          points: track,
+          distanceUnit: 'km',
+          fitnessTest: null,
+          programTick: null,
+        })
+      );
+      await waitFor(() => expect(discardRecording).toHaveBeenCalled());
+      expect(navigation.replace).toHaveBeenCalledWith(
+        'RunSummary',
+        expect.objectContaining({ waitingToUpload: true, entryId: null })
+      );
+    });
+
+    it('queues after a timeout when the recording has an entry id of its own', async () => {
+      state(
+        session({
+          status: 'finished',
+          finishedAt: Date.now(),
+          entryClientId: ENTRY_ID,
+        }),
+        track
+      );
+      jest
+        .mocked(saveRecordedActivity)
+        .mockRejectedValue(new Error('Request timed out'));
+      jest
+        .mocked(queueRecordedRun)
+        .mockResolvedValue({ entryId: ENTRY_ID, entryDate: '2026-10-06' });
+      const screen = await renderScreen();
+
+      fireEvent.press(screen.getByText('Save activity'));
+
+      await waitFor(() => expect(queueRecordedRun).toHaveBeenCalled());
+    });
+
+    it('does not queue after a timeout for a recording with no entry id of its own', async () => {
+      state(session({ status: 'finished', finishedAt: Date.now() }), track);
+      jest
+        .mocked(saveRecordedActivity)
+        .mockRejectedValue(new Error('Request timed out'));
+      const screen = await renderScreen();
+
+      fireEvent.press(screen.getByText('Save activity'));
+
+      await waitFor(() => expect(saveRecordedActivity).toHaveBeenCalled());
+      expect(queueRecordedRun).not.toHaveBeenCalled();
+      expect(discardRecording).not.toHaveBeenCalled();
+    });
+
+    it('keeps the recording when the server refused the save', async () => {
+      state(
+        session({
+          status: 'finished',
+          finishedAt: Date.now(),
+          entryClientId: ENTRY_ID,
+        }),
+        track
+      );
+      jest.mocked(saveRecordedActivity).mockRejectedValue(new Error('nope'));
+      const screen = await renderScreen();
+
+      fireEvent.press(screen.getByText('Save activity'));
+
+      await waitFor(() => expect(saveRecordedActivity).toHaveBeenCalled());
+      expect(queueRecordedRun).not.toHaveBeenCalled();
+      expect(discardRecording).not.toHaveBeenCalled();
+    });
+
+    it('keeps the recording when the queue cannot take it', async () => {
+      state(
+        session({
+          status: 'finished',
+          finishedAt: Date.now(),
+          entryClientId: ENTRY_ID,
+        }),
+        track
+      );
+      jest.mocked(saveRecordedActivity).mockRejectedValue(lostConnection());
+      jest.mocked(queueRecordedRun).mockResolvedValue(null);
+      const screen = await renderScreen();
+
+      fireEvent.press(screen.getByText('Save activity'));
+
+      await waitFor(() => expect(queueRecordedRun).toHaveBeenCalled());
+      expect(discardRecording).not.toHaveBeenCalled();
+      expect(navigation.replace).not.toHaveBeenCalled();
+    });
   });
 
   it('still opens the summary when clearing the saved recording fails', async () => {

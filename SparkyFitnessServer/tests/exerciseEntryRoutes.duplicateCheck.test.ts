@@ -26,7 +26,7 @@ vi.mock('../middleware/uploadMiddleware.js', () => ({
   })),
 }));
 vi.mock('../services/exerciseService.js', () => ({
-  default: { createExerciseEntry: vi.fn() },
+  default: { createOrReplayExerciseEntry: vi.fn() },
 }));
 vi.mock('../services/exerciseEntryService.js', () => ({ default: {} }));
 vi.mock('../services/fitImportService.js', () => ({ default: {} }));
@@ -45,8 +45,9 @@ app.use((err: any, _req: any, res: any, _next: any) => {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.mocked(exerciseService.createExerciseEntry).mockResolvedValue({
-    id: 'entry-1',
+  vi.mocked(exerciseService.createOrReplayExerciseEntry).mockResolvedValue({
+    entry: { id: 'entry-1' },
+    replayed: false,
   });
 });
 
@@ -62,9 +63,12 @@ describe('POST /exercise-entries duplicate-check wiring', () => {
       })
       .expect(201);
 
-    expect(exerciseService.createExerciseEntry).toHaveBeenCalledTimes(1);
-    const [, , , options] = vi.mocked(exerciseService.createExerciseEntry).mock
-      .calls[0];
+    expect(exerciseService.createOrReplayExerciseEntry).toHaveBeenCalledTimes(
+      1
+    );
+    const [, , , options] = vi.mocked(
+      exerciseService.createOrReplayExerciseEntry
+    ).mock.calls[0];
     expect(options).toEqual({ skipDuplicateCheck: true });
   });
 
@@ -80,9 +84,12 @@ describe('POST /exercise-entries duplicate-check wiring', () => {
       })
       .expect(201);
 
-    expect(exerciseService.createExerciseEntry).toHaveBeenCalledTimes(1);
-    const [, , , options] = vi.mocked(exerciseService.createExerciseEntry).mock
-      .calls[0];
+    expect(exerciseService.createOrReplayExerciseEntry).toHaveBeenCalledTimes(
+      1
+    );
+    const [, , , options] = vi.mocked(
+      exerciseService.createOrReplayExerciseEntry
+    ).mock.calls[0];
     expect(options).toEqual({ skipDuplicateCheck: false });
   });
 });
@@ -101,16 +108,16 @@ describe('POST /exercise-entries record_timezone', () => {
       .send({ ...body, record_timezone: 'America/Los_Angeles' })
       .expect(201);
 
-    const [, , entry] = vi.mocked(exerciseService.createExerciseEntry).mock
-      .calls[0];
+    const [, , entry] = vi.mocked(exerciseService.createOrReplayExerciseEntry)
+      .mock.calls[0];
     expect(entry).toMatchObject({ record_timezone: 'America/Los_Angeles' });
   });
 
   it('passes no zone when none is sent, so a retry keeps the stored one', async () => {
     await request(app).post('/exercise-entries').send(body).expect(201);
 
-    const [, , entry] = vi.mocked(exerciseService.createExerciseEntry).mock
-      .calls[0];
+    const [, , entry] = vi.mocked(exerciseService.createOrReplayExerciseEntry)
+      .mock.calls[0];
     expect(entry.record_timezone).toBeUndefined();
   });
 
@@ -120,8 +127,8 @@ describe('POST /exercise-entries record_timezone', () => {
       .send({ ...body, record_timezone: '' })
       .expect(201);
 
-    const [, , entry] = vi.mocked(exerciseService.createExerciseEntry).mock
-      .calls[0];
+    const [, , entry] = vi.mocked(exerciseService.createOrReplayExerciseEntry)
+      .mock.calls[0];
     expect(entry).toMatchObject({ record_timezone: null });
   });
 
@@ -130,6 +137,6 @@ describe('POST /exercise-entries record_timezone', () => {
       .post('/exercise-entries')
       .send({ ...body, record_timezone: 'Mars/Olympus' })
       .expect(400);
-    expect(exerciseService.createExerciseEntry).not.toHaveBeenCalled();
+    expect(exerciseService.createOrReplayExerciseEntry).not.toHaveBeenCalled();
   });
 });

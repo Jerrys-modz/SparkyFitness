@@ -187,6 +187,20 @@ export async function listUnconfirmedOutbox(
   return records.map(toRow);
 }
 
+/** Every row of one kind for one server, confirmed or not, oldest first. */
+export async function listOutboxByKind(
+  db: OfflineDb,
+  serverConfigId: string,
+  kind: string
+): Promise<OutboxRow[]> {
+  const records = await db.all<OutboxRecord>(
+    `SELECT * FROM outbox WHERE server_config_id = ? AND kind = ?
+     ORDER BY created_at, id`,
+    [serverConfigId, kind]
+  );
+  return records.map(toRow);
+}
+
 /** How many uploads one server is still waiting for. */
 export async function countUnconfirmedOutbox(
   db: OfflineDb,

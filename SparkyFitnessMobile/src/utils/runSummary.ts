@@ -47,6 +47,11 @@ export interface RunSummaryParams {
   form?: (FormMetrics & { steps?: number }) | null;
   /** The saved diary entry, so the screen can look up the records it set. */
   entryId?: string | null;
+  /**
+   * The run is saved on the phone and has not reached the server yet, so there
+   * is no entry to look records up for or correct.
+   */
+  waitingToUpload?: boolean;
   /** True for a treadmill run, whose distance the person can correct. */
   editableDistance?: boolean;
   /**

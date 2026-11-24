@@ -4,16 +4,29 @@ import type {
   FitnessTestResponse,
 } from '@workspace/shared';
 import { apiFetch } from './apiClient';
+import { cachedRead } from '../../offline/cachedRead';
+import {
+  CACHE_COLLECTIONS,
+  SINGLE_DOCUMENT_KEY,
+} from '../../offline/collections';
 
 const SERVICE = 'Fitness Test API';
 
 /** The person's fitness tests, newest first. */
+export const fetchFitnessTestsFromServer =
+  (): Promise<FitnessTestListResponse> =>
+    apiFetch<FitnessTestListResponse>({
+      endpoint: '/api/v2/fitness-tests',
+      serviceName: SERVICE,
+      operation: 'fetch fitness tests',
+    });
+
 export const fetchFitnessTests = (): Promise<FitnessTestListResponse> =>
-  apiFetch<FitnessTestListResponse>({
-    endpoint: '/api/v2/fitness-tests',
-    serviceName: SERVICE,
-    operation: 'fetch fitness tests',
-  });
+  cachedRead(
+    CACHE_COLLECTIONS.fitnessTests,
+    SINGLE_DOCUMENT_KEY,
+    fetchFitnessTestsFromServer
+  );
 
 /** Saves a test; the server works the result and paces out from the measurements. */
 export const createFitnessTest = (

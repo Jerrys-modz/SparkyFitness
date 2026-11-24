@@ -1,4 +1,7 @@
 import { apiFetch } from './apiClient';
+import { cachedRead } from '../../offline/cachedRead';
+import { CACHE_COLLECTIONS } from '../../offline/collections';
+
 import type {
   AssignShoeResponse,
   CreateShoeBody,
@@ -10,12 +13,19 @@ import type {
 
 const SERVICE = 'Shoes API';
 
-export const fetchShoes = (status?: ShoeStatus): Promise<ShoeListResponse> =>
+export const fetchShoesFromServer = (
+  status?: ShoeStatus
+): Promise<ShoeListResponse> =>
   apiFetch<ShoeListResponse>({
     endpoint: status ? `/api/v2/shoes?status=${status}` : '/api/v2/shoes',
     serviceName: SERVICE,
     operation: 'fetch shoes',
   });
+
+export const fetchShoes = (status?: ShoeStatus): Promise<ShoeListResponse> =>
+  cachedRead(CACHE_COLLECTIONS.shoes, status ?? 'all', () =>
+    fetchShoesFromServer(status)
+  );
 
 export const createShoe = (data: CreateShoeBody): Promise<ShoeResponse> =>
   apiFetch<ShoeResponse>({

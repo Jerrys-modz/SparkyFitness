@@ -12,6 +12,18 @@ import {
 } from '../../src/offline/syncEngine';
 import type { OfflineDb } from '../../src/offline/types';
 import { createTestDb } from '../helpers/offlineTestDb';
+import {
+  processWatchRunQueue,
+  readWaitingWatchRuns,
+} from '../../src/services/watchRunQueue';
+
+jest.mock('../../src/services/watchRunQueue', () => ({
+  readWaitingWatchRuns: jest.fn(async () => []),
+  processWatchRunQueue: jest.fn(async () => []),
+}));
+jest.mock('../../src/hooks/usePreferences', () => ({
+  usePreferences: () => ({ preferences: { default_distance_unit: 'miles' } }),
+}));
 
 jest.mock('../../src/components/ActiveWorkoutBar', () => ({
   useActiveWorkoutBarPadding: () => 0,
@@ -65,6 +77,40 @@ describe('OfflineSettingsScreen', () => {
   afterEach(() => {
     __setOfflineDbForTests(null);
     db.close();
+  });
+
+  const waitingWatchRun = {
+    payload: {
+      clientId: 'w1',
+      startedAt: new Date(2026, 10, 16, 7, 5).getTime(),
+    },
+    entryId: '33333333-3333-4333-8333-333333333333',
+    created: false,
+  };
+
+  it('lists a run the watch recorded alone while it waits', async () => {
+    jest
+      .mocked(readWaitingWatchRuns)
+      .mockResolvedValue([waitingWatchRun] as never);
+    const { findByTestId, queryByTestId } = renderScreen();
+
+    expect(await findByTestId('offline-waiting-watch-w1')).toBeTruthy();
+    expect(queryByTestId('offline-nothing-waiting')).toBeNull();
+    expect(await findByTestId('offline-upload-now')).toBeTruthy();
+  });
+
+  it('sends waiting watch runs too when Upload now is tapped, in the account distance unit', async () => {
+    jest
+      .mocked(readWaitingWatchRuns)
+      .mockResolvedValueOnce([waitingWatchRun] as never)
+      .mockResolvedValue([]);
+    const { findByTestId } = renderScreen();
+
+    fireEvent.press(await findByTestId('offline-upload-now'));
+
+    await waitFor(() =>
+      expect(processWatchRunQueue).toHaveBeenCalledWith('miles')
+    );
   });
 
   it('says nothing is waiting when the queue is empty', async () => {
@@ -165,7 +211,9 @@ describe('OfflineSettingsScreen', () => {
     });
     // The intro no longer speaks of workouts alone.
     expect(
-      getByText(/Workouts, food, meals, new foods and drinks/)
+      getByText(
+        /Workouts, recorded runs and rides, food, meals, new foods and drinks/
+      )
     ).toBeTruthy();
   });
 

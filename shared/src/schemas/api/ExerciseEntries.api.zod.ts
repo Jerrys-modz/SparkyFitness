@@ -460,6 +460,10 @@ export const attachExerciseEntryWatchTelemetryRequestSchema = z
 
 export const createExerciseEntryRequestSchema = z
   .object({
+    // Entry id minted by the client (a run saved offline). A repeated create
+    // with the same id returns the stored entry (200) instead of making a
+    // second one (201).
+    id: z.string().uuid().optional(),
     exercise_id: z.string().uuid(),
     // Display name for this entry. Indoor recordings log "Indoor Walking"
     // against the Walking exercise. Omitted names still snapshot the library

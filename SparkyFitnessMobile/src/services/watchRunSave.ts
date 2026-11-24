@@ -77,7 +77,9 @@ export async function saveWatchRun(
   distanceUnit: 'km' | 'miles',
   existingEntryId: string | undefined,
   onEntryCreated: (entryId: string, form: WatchRunForm | null) => Promise<void>,
-  existingForm: WatchRunForm | null = null
+  existingForm: WatchRunForm | null = null,
+  /** The entry's id, made on the phone: a repeated create finds the first. */
+  clientEntryId?: string
 ): Promise<SavedWatchRun> {
   const points = watchRunPoints(payload);
   const routeMeters =
@@ -109,6 +111,7 @@ export async function saveWatchRun(
     // wearer entered on the wrist.
     form = await measureForm(payload, durationSeconds, distanceKm);
     const created = await createExerciseEntry({
+      ...(clientEntryId ? { id: clientEntryId } : {}),
       exercise_id: exercise.id,
       exercise_name: exercise.name,
       duration_minutes: Math.round((durationSeconds / 60) * 100) / 100,

@@ -57,6 +57,7 @@ import {
   type PaceAlertState,
   type PaceBand,
 } from '@workspace/shared';
+import { newUuid } from '../utils/ids';
 import { fireImpactHaptic } from './haptics';
 import {
   checkInCue,
@@ -189,6 +190,13 @@ export interface RecordingSession {
   paceStepsOff?: boolean;
   /** Likewise for the heart-rate alert. */
   heartRateStepsOff?: boolean;
+  /**
+   * The diary entry's id, made when the recording starts and sent with the
+   * create, so saving the run twice (a lost answer, an upload queued after a
+   * timeout) never makes a second entry. Absent on sessions saved by an
+   * earlier build.
+   */
+  entryClientId?: string;
   /** Set once the diary entry exists, so a retried save never duplicates it. */
   savedEntryId: string | null;
   /**
@@ -1276,6 +1284,7 @@ export function startRecording(options: StartRecordingOptions): Promise<void> {
         : undefined;
     session = {
       id: `rec-${now}`,
+      entryClientId: newUuid(),
       activity: options.activity,
       status: 'recording',
       startedAt: now,

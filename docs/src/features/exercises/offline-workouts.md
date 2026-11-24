@@ -28,9 +28,17 @@ If you try to start a workout offline before the phone has ever refreshed, the a
 - Discard a workout.
 - Delete a saved workout from its detail screen. It disappears from your diary at once and is removed from the server when it can be reached.
 - See your workouts of the last 7 days in the **Diary**, and open them. Your food and workouts of the last 7 days are kept on the phone too. Sleep and the other diary entries need a connection, and the diary says so. Older days are not kept on the phone.
+- Open your **Training programs** and **Training calendar** from the **Library** tab. They show what your phone last saved (the program and your place in it, your own programs, and the calendar for last, this and next month, plus your running goals, fitness tests, saved routes and shoes). Starting, changing or ticking off a program, and planning on the calendar, need your server.
 - Browse your saved workouts, your exercise library, your foods and your saved meals in the **Library** tab. Everything else in the Library (plans, reports) needs a connection, and the tab says so.
 
 - Log a workout after the fact (**Log past workout**, or the **Add workout** form) and edit a workout you already logged. The change is kept on your phone and uploads later, like any other offline workout.
+
+- Record a run, walk or ride with the phone's GPS, or an indoor session, from **Record activity**. When you save it and your server cannot be reached, the run is kept on your phone. The summary opens straight away from what the phone measured, and your personal records and the rest of the analysis appear once it uploads. A fitness test or training-program workout you finished is filed and ticked off after the run uploads. Heart rate from a paired watch is kept with it.
+- A walk or run you record on your Apple Watch alone is kept the same way, and uploads once the watch's data has reached your phone and your server can be reached. It shows in **Settings → Offline** as **Run on watch**, and **Upload now** sends it too.
+- See a run that is waiting in the **Diary** with the **Waiting to upload** mark. Its details (route, laps, records) open once it has uploaded. To remove it, swipe it away or long-press it. If it had already reached your server while its upload was still going on, it is deleted there too.
+- Apple's heart rate zones for a run arrive after the workout ends. They are kept with a run that is still waiting, or added to it once it has uploaded.
+
+Starting a run with no connection works, but the training program, saved routes and suggested paces need your server, so they are not offered until it is back.
 
 - Log a drink with the **+** button on the Dashboard's water card (the Dashboard shows your calories and the water card while your server cannot be reached), with a quick-add drink, or with the water page on your Apple Watch. The drink is kept on your phone and uploads later, and the amount shown goes up at once. Each press is uploaded once: if the connection drops while uploading, sending it again does not add a second drink. Taking a drink off (**−**) works offline too: a drink still waiting is simply cancelled, otherwise your latest drink is removed from your server when it can be reached. A container linked to a food counts the same amount of water offline as it will once uploaded, and the food it logs (with its calories) shows in the Diary at once when that food is kept on the phone. The water total is the amount your server had at last load plus the drinks waiting, so it is correct after the upload.
 
@@ -53,7 +61,7 @@ A workout logged offline shows **Waiting to upload** in the Diary. It uploads by
 
 You can also tap **Upload now** in **Settings → Offline**, which lists everything still waiting.
 
-Each workout is uploaded exactly once. If the connection drops while uploading, sending it again does not create a second copy.
+Each workout and each run is uploaded exactly once. If the connection drops while uploading, sending it again does not create a second copy.
 
 A workout waits as long as it needs to. Nothing waiting is ever deleted by the app. If a workout has waited a week, you get one reminder notification.
 
