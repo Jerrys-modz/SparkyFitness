@@ -12,6 +12,8 @@ import { loadUserTimezone } from '../utils/timezoneLoader.js';
 import {
   healthMetricSchema,
   healthMetricSamplesWriteBodySchema,
+  bloodPressureCreateSchema,
+  bloodPressureUpdateSchema,
   addDays,
   compareDays,
   instantToDay,
@@ -295,7 +297,7 @@ const postHealthMetricSamplesHandler: RequestHandler = async (
 };
 
 /**
- * GET /api/health-data/vitals?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD
+ * GET /api/generic-health/vitals?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD
  */
 const getVitalsHandler: RequestHandler = async (req, res, next) => {
   try {
@@ -332,6 +334,146 @@ const getVitalsHandler: RequestHandler = async (req, res, next) => {
       endDate
     );
     res.status(200).json({ data: entries });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * POST /api/generic-health/vitals/blood-pressure
+ * Logs one reading by hand (source `manual`).
+ */
+const postBloodPressureHandler: RequestHandler = async (req, res, next) => {
+  try {
+    const parsed = bloodPressureCreateSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({
+        error: 'Invalid blood pressure reading',
+        issues: parsed.error.issues,
+      });
+      return;
+    }
+    const body = parsed.data;
+    const userId = req.userId;
+    const actorUserId = req.originalUserId || req.userId;
+    const tz = await loadUserTimezone(userId);
+    const at = body.timestamp ?? new Date().toISOString();
+
+    const result = await genericHealthRepo.createManualBloodPressure(
+      userId,
+      actorUserId,
+      {
+        entry_date: instantToDay(at, tz),
+        timestamp: new Date(at),
+        systolic_mmhg: body.systolic_mmhg,
+        diastolic_mmhg: body.diastolic_mmhg,
+        pulse_bpm: body.pulse_bpm,
+        arm: body.arm,
+        body_position: body.body_position,
+        note: body.note,
+      }
+    );
+    if (result.status === 'duplicate') {
+      res
+        .status(409)
+        .json({ error: 'A reading already exists at this exact time' });
+      return;
+    }
+    if (result.status !== 'ok') {
+      res.status(500).json({ error: 'Could not save the reading' });
+      return;
+    }
+    res.status(201).json({ data: result.entry });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * PUT /api/generic-health/vitals/blood-pressure/:id
+ * Edits a reading logged by hand; synced readings are refused (409).
+ */
+const putBloodPressureHandler: RequestHandler = async (req, res, next) => {
+  try {
+    const parsed = bloodPressureUpdateSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({
+        error: 'Invalid blood pressure update',
+        issues: parsed.error.issues,
+      });
+      return;
+    }
+    const body = parsed.data;
+    const id = req.params.id as string;
+    const userId = req.userId;
+    const actorUserId = req.originalUserId || req.userId;
+    const tz = await loadUserTimezone(userId);
+
+    if (
+      body.systolic_mmhg !== undefined &&
+      body.diastolic_mmhg !== undefined &&
+      body.systolic_mmhg <= body.diastolic_mmhg
+    ) {
+      res.status(400).json({ error: 'Systolic must be higher than diastolic' });
+      return;
+    }
+
+    const result = await genericHealthRepo.updateManualBloodPressure(
+      id,
+      userId,
+      actorUserId,
+      {
+        ...(body.timestamp !== undefined
+          ? {
+              timestamp: new Date(body.timestamp),
+              entry_date: instantToDay(body.timestamp, tz),
+            }
+          : {}),
+        systolic_mmhg: body.systolic_mmhg,
+        diastolic_mmhg: body.diastolic_mmhg,
+        pulse_bpm: body.pulse_bpm,
+        arm: body.arm,
+        body_position: body.body_position,
+        note: body.note,
+      }
+    );
+    if (result.status === 'not_found') {
+      res.status(404).json({ error: 'Reading not found' });
+      return;
+    }
+    if (result.status === 'not_editable') {
+      res
+        .status(409)
+        .json({ error: 'Synced readings cannot be edited; delete instead' });
+      return;
+    }
+    if (result.status === 'duplicate') {
+      res
+        .status(409)
+        .json({ error: 'A reading already exists at this exact time' });
+      return;
+    }
+    res.status(200).json({ data: result.entry });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * DELETE /api/generic-health/vitals/blood-pressure/:id
+ */
+const deleteBloodPressureHandler: RequestHandler = async (req, res, next) => {
+  try {
+    const deleted = await genericHealthRepo.deleteBloodPressure(
+      req.params.id as string,
+      req.userId,
+      req.originalUserId || req.userId
+    );
+    if (!deleted) {
+      res.status(404).json({ error: 'Reading not found' });
+      return;
+    }
+    res.status(200).json({ success: true });
   } catch (error) {
     next(error);
   }
@@ -413,6 +555,9 @@ router.get('/metrics', getMetricsHandler);
 router.get('/samples', getHealthMetricSamplesHandler);
 router.post('/samples', postHealthMetricSamplesHandler);
 router.get('/vitals', getVitalsHandler);
+router.post('/vitals/blood-pressure', postBloodPressureHandler);
+router.put('/vitals/blood-pressure/:id', putBloodPressureHandler);
+router.delete('/vitals/blood-pressure/:id', deleteBloodPressureHandler);
 router.get('/workout-laps/:exerciseEntryId', getWorkoutLapsHandler);
 router.get('/workout-gps/:exerciseEntryId', getWorkoutGpsHandler);
 router.get('/workout-hr-zones/:exerciseEntryId', getWorkoutHrZonesHandler);
