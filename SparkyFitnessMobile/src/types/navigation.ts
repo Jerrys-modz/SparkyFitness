@@ -153,6 +153,21 @@ export type RootStackParamList = {
   /** `marker` is a `LabMarker` id: `builtin:<key>` or `custom:<uuid>`. */
   LabResultDetail: { marker: string; name?: string };
   LabResultAdd: { marker?: string };
+  BloodPressure: undefined;
+  BloodPressureAdd: {
+    /** A reading logged by hand, to edit. */
+    reading?: {
+      id: string;
+      /** Epoch ms of the reading. */
+      at: number;
+      systolic: number;
+      diastolic: number;
+      pulse: number | null;
+      arm: string | null;
+      bodyPosition: string | null;
+      note: string | null;
+    };
+  };
   LabReportImport: undefined;
   Routes: undefined;
   RouteDetail: { id: string };

@@ -559,3 +559,10 @@ export const glucoseSamplesQueryKeyRoot = ['glucoseSamples'] as const;
 export const glucoseContextQueryKeyRoot = ['glucoseContext'] as const;
 
 export const chatMcpServersQueryKey = ['chatMcpServers'] as const;
+
+/** Every blood pressure range read; a write refreshes the whole family. */
+export const bloodPressureRootQueryKey = ['bloodPressure'] as const;
+export const bloodPressureRangeQueryKey = (
+  startDate: string,
+  endDate: string
+) => [...bloodPressureRootQueryKey, 'range', startDate, endDate] as const;

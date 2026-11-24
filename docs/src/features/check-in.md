@@ -63,7 +63,9 @@ Log blood pressure readings by hand and follow them over time. Readings that arr
 - **Editing:** readings you logged by hand can be edited or deleted. Readings that came from a device can only be deleted, since the next sync would rewrite an edit; a deleted device reading can come back when it syncs again.
 - **Family access:** a profile you view through Family Access shows the readings, but only the account owner can log them here.
 
-You can hide the tab in **Settings → Profile & Account → Features → Blood pressure**. This only hides it; nothing is deleted.
+On the mobile app, open **Library → Blood pressure** for the same list, averages and trend, and use **+** to add a reading. Press and hold a reading to delete it.
+
+You can hide it in **Settings → Profile & Account → Features → Blood pressure** on the website and **Settings → Features** in the app. Each app has its own switch. This only hides it; nothing is deleted.
 
 ## Sleep tab
 
