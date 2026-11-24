@@ -352,6 +352,10 @@ async function loadSeries(
       const rows = await compareRepository.getCheckInDays(userId, from, to);
       return seriesOf(rows, (row) => row.steps);
     }
+    case 'vo2Max': {
+      const rows = await compareRepository.getVo2MaxDays(userId, from, to);
+      return seriesOf(rows, (row) => row.vo2Max);
+    }
     default: {
       const unhandled: never = key;
       throw new RangeError(`unknown compare metric ${String(unhandled)}`);

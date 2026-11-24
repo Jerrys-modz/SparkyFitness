@@ -93,6 +93,7 @@ export const COMPARE_METRIC_LABELS: Record<
   weightTrend: (t) =>
     t('compareReport.metrics.weightTrend', { defaultValue: 'Weight trend' }),
   steps: (t) => t('compareReport.metrics.steps', { defaultValue: 'Steps' }),
+  vo2Max: (t) => t('compareReport.metrics.vo2Max', { defaultValue: 'VO2 max' }),
 };
 
 export function compareMetricSections(

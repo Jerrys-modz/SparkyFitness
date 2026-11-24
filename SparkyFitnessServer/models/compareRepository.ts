@@ -100,6 +100,20 @@ async function getMainSleepDays(userId: string, from: string, to: string) {
   }));
 }
 
+/** The day's VO2 max, averaged over sources; only days with a real reading (never carried forward). */
+async function getVo2MaxDays(userId: string, from: string, to: string) {
+  const rows = await query<{ day: string; vo2_max: Numeric | null }>(
+    userId,
+    `SELECT TO_CHAR(entry_date, 'YYYY-MM-DD') AS day,
+            AVG(vo2_max) AS vo2_max
+       FROM daily_health_metrics
+      WHERE user_id = $1 AND entry_date BETWEEN $2 AND $3 AND vo2_max IS NOT NULL
+      GROUP BY entry_date`,
+    [userId, from, to]
+  );
+  return rows.map((r) => ({ day: r.day, vo2Max: numOrNull(r.vo2_max) }));
+}
+
 async function getMeditationDays(userId: string, from: string, to: string) {
   const rows = await query<{
     day: string;
@@ -222,6 +236,7 @@ export {
   getManualMoodDays,
   getMainSleepDays,
   getMeditationDays,
+  getVo2MaxDays,
   getMeditationFirstDay,
   getCardioMinuteDays,
   getStrengthVolumeDays,
@@ -233,6 +248,7 @@ export default {
   getManualMoodDays,
   getMainSleepDays,
   getMeditationDays,
+  getVo2MaxDays,
   getMeditationFirstDay,
   getCardioMinuteDays,
   getStrengthVolumeDays,

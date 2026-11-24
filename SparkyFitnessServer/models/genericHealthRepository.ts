@@ -213,6 +213,34 @@ export async function bulkUpsertVitals(
   }
 }
 
+/**
+ * Real VO2 max readings (never carried forward from an earlier day) between two
+ * days, one row per day and source.
+ */
+export async function getVo2MaxReadings(
+  userId: string,
+  startDate: string,
+  endDate: string
+): Promise<{ entry_date: string; source_provider: string; vo2_max: number }[]> {
+  const client = await getClient(userId);
+  try {
+    const result = await client.query(
+      `SELECT TO_CHAR(entry_date, 'YYYY-MM-DD') AS entry_date,
+              source_provider,
+              vo2_max::float8 AS vo2_max
+         FROM daily_health_metrics
+        WHERE user_id = $1
+          AND entry_date BETWEEN $2 AND $3
+          AND vo2_max IS NOT NULL
+        ORDER BY entry_date, source_provider`,
+      [userId, startDate, endDate]
+    );
+    return result.rows;
+  } finally {
+    client.release();
+  }
+}
+
 export async function getVitalsEntries(
   userId: string,
   actingUserId: string,
