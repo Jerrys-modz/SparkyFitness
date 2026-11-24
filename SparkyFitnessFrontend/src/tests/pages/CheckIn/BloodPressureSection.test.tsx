@@ -57,9 +57,9 @@ const row = (over: Partial<VitalsEntries> = {}): VitalsEntries => ({
   ...over,
 });
 
-const renderSection = () => {
+const renderSection = (selectedDate = '2026-11-24') => {
   const { Wrapper } = wrapper();
-  return render(<BloodPressureSection selectedDate="2026-11-24" />, {
+  return render(<BloodPressureSection selectedDate={selectedDate} />, {
     wrapper: Wrapper,
   });
 };
@@ -79,6 +79,8 @@ beforeEach(() => {
   ]);
   api.createBloodPressure.mockResolvedValue(row());
 });
+
+const updateBp = jest.mocked(bpApi.updateBloodPressure);
 
 describe('BloodPressureSection', () => {
   it('lists blood pressure readings with their category', async () => {
@@ -132,5 +134,43 @@ describe('BloodPressureSection', () => {
     expect(
       screen.queryByRole('button', { name: 'Save reading' })
     ).not.toBeInTheDocument();
+  });
+
+  it('keeps the edited reading on its own day, not the selected one', async () => {
+    api.fetchVitals.mockResolvedValue([
+      row({
+        id: 'old',
+        timestamp: new Date('2026-11-20T08:00:00.000Z'),
+        entry_date: '2026-11-20',
+      }),
+    ]);
+    updateBp.mockResolvedValue(row());
+    renderSection();
+    await screen.findAllByText('138/86');
+    fireEvent.click(screen.getAllByRole('button', { name: 'Edit' })[0]!);
+    fireEvent.change(screen.getByLabelText('Pulse (bpm)'), {
+      target: { value: '70' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+    await waitFor(() => expect(updateBp).toHaveBeenCalled());
+    const body = updateBp.mock.calls[0]?.[1];
+    // The selected day is 2026-11-24; the reading belongs to the 20th.
+    expect(body?.timestamp?.startsWith('2026-11-20')).toBe(true);
+    expect(body?.pulse_bpm).toBe(70);
+  });
+
+  it('blocks a time in the future', async () => {
+    renderSection('2099-01-01');
+    await screen.findByText('Log a reading');
+    fireEvent.change(screen.getByLabelText('Systolic'), {
+      target: { value: '122' },
+    });
+    fireEvent.change(screen.getByLabelText('Diastolic'), {
+      target: { value: '79' },
+    });
+    expect(screen.getByRole('button', { name: 'Save reading' })).toBeDisabled();
+    expect(
+      screen.getByText('The time cannot be in the future.')
+    ).toBeInTheDocument();
   });
 });

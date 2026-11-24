@@ -2238,6 +2238,21 @@ describe('blood pressure actions', () => {
     expect(bloodPressureService.logBloodPressure).not.toHaveBeenCalled();
   });
 
+  it('refuses a reading in the future', async () => {
+    vi.mocked(bloodPressureService.logBloodPressure).mockClear();
+    const result = await tools.sparky_manage_checkin.execute!(
+      {
+        action: 'log_blood_pressure',
+        systolic_mmhg: 120,
+        diastolic_mmhg: 80,
+        taken_at: new Date(Date.now() + 86_400_000).toISOString(),
+      },
+      opts
+    );
+    expect(String(result)).toContain('not in the future');
+    expect(bloodPressureService.logBloodPressure).not.toHaveBeenCalled();
+  });
+
   it('says so when a reading already exists at that instant', async () => {
     vi.mocked(bloodPressureService.logBloodPressure).mockResolvedValue({
       status: 'duplicate',

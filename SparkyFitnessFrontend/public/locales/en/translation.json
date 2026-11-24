@@ -11635,6 +11635,7 @@
     "note": "Note",
     "notSet": "Not set",
     "save": "Save reading",
+    "futureTime": "The time cannot be in the future.",
     "trendTitle": "Trend",
     "disclaimer": "For your information only, not a diagnosis. Talk to a clinician about your readings.",
     "lastDays": "Last {{count}} days",

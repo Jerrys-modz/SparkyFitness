@@ -8,6 +8,14 @@ import {
 
 jest.mock('react-native-toast-message', () => ({ show: jest.fn() }));
 jest.mock('../../src/components/CalendarSheet', () => 'CalendarSheet');
+jest.mock('../../src/components/TimeSheet', () => 'TimeSheet');
+const mockFeatures = { on: true };
+jest.mock('../../src/hooks/useMobileFeatures', () => ({
+  useMobileFeatures: () => ({ isEnabled: () => mockFeatures.on }),
+}));
+jest.mock('../../src/hooks/usePreferences', () => ({
+  usePreferences: () => ({ preferences: { time_format: 'HH:mm' } }),
+}));
 jest.mock('../../src/services/nativeTabBarPreference', () => ({
   useNativeIOSHeadersActive: () => false,
 }));
@@ -34,6 +42,7 @@ const renderScreen = (params?: object) =>
 describe('BloodPressureAddScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockFeatures.on = true;
     createAsync.mockResolvedValue({});
     updateAsync.mockResolvedValue({});
     jest
@@ -97,5 +106,28 @@ describe('BloodPressureAddScreen', () => {
     expect(call.id).toBe('v1');
     expect(call.body.systolic_mmhg).toBe(128);
     expect(call.body).not.toHaveProperty('timestamp');
+  });
+
+  it('shows the time of a reading being edited and keeps it', () => {
+    const at = Date.parse('2026-11-20T08:15:00Z');
+    const { getByText } = renderScreen({
+      reading: {
+        id: 'v1',
+        at,
+        systolic: 130,
+        diastolic: 85,
+        pulse: null,
+        arm: null,
+        bodyPosition: null,
+        note: null,
+      },
+    });
+    expect(getByText('Time')).toBeTruthy();
+  });
+
+  it('closes itself when the feature has been turned off', () => {
+    mockFeatures.on = false;
+    renderScreen();
+    expect(navigation.goBack).toHaveBeenCalled();
   });
 });

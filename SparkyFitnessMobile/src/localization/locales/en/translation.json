@@ -11235,9 +11235,11 @@
     "arm": "Arm",
     "position": "Position",
     "date": "Date",
+    "time": "Time",
     "valuesInvalid": "Enter whole numbers in mmHg, with the systolic value above the diastolic one.",
     "pulseInvalid": "Enter a pulse between 20 and 300.",
     "dateFuture": "The date cannot be in the future.",
+    "timeFuture": "The time cannot be in the future.",
     "notePlaceholder": "Add a note (optional)",
     "categories": {
       "normal": "Normal",

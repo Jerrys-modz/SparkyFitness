@@ -23,6 +23,10 @@ jest.mock('../../src/hooks/useScreenHeader', () => ({
 jest.mock('../../src/hooks/useRefetchOnFocus', () => ({
   useRefetchOnFocus: jest.fn(),
 }));
+const mockFeatures = { on: true };
+jest.mock('../../src/hooks/useMobileFeatures', () => ({
+  useMobileFeatures: () => ({ isEnabled: () => mockFeatures.on }),
+}));
 jest.mock('../../src/hooks/useBloodPressure', () => ({
   useBloodPressureRange: jest.fn(),
   useDeleteBloodPressure: jest.fn(),
@@ -60,6 +64,7 @@ const mockRange = (readings: BloodPressureReading[]) =>
 describe('BloodPressureScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockFeatures.on = true;
     jest.mocked(useDeleteBloodPressure).mockReturnValue({ mutate } as never);
   });
 
@@ -112,5 +117,14 @@ describe('BloodPressureScreen', () => {
         reading: expect.objectContaining({ id: 'v1', systolic: 138 }),
       })
     );
+  });
+
+  it('closes itself when the feature has been turned off', () => {
+    mockRange([]);
+    mockFeatures.on = false;
+    render(<BloodPressureScreen navigation={navigation} route={route} />);
+    expect(
+      (navigation as unknown as { goBack: jest.Mock }).goBack
+    ).toHaveBeenCalled();
   });
 });

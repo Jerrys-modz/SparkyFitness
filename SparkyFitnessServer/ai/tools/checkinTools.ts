@@ -14,6 +14,7 @@ import {
   instantToDayWithOffset,
   resolveRecordZone,
   type RecordZone,
+  isBloodPressureInFuture,
 } from '@workspace/shared';
 import { log } from '../../config/logging.js';
 import measurementService from '../../services/measurementService.js';
@@ -1041,6 +1042,11 @@ Actions:
                 : args.entry_date
                   ? instantForDay(args.entry_date, tz)
                   : new Date();
+              if (Number.isNaN(at.getTime()) || isBloodPressureInFuture(at)) {
+                return ERRORS.VALIDATION(
+                  'The reading time must be a valid time that is not in the future.'
+                );
+              }
               if (args.diastolic_mmhg >= args.systolic_mmhg) {
                 return ERRORS.VALIDATION(
                   'Systolic must be higher than diastolic.'

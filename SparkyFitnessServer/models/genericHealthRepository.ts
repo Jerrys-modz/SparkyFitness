@@ -8,6 +8,7 @@ import {
   DailyHealthMetrics,
   DailyHealthMetricsInitializer,
 } from '@workspace/shared';
+import { log } from '../config/logging.js';
 import { isUniqueViolationOn } from '../utils/uniqueViolation.js';
 import {
   pickDeviceTotalPerDay,
@@ -163,6 +164,33 @@ export async function upsertHealthMetricSamplesWithClient(
 }
 
 // 2. Vitals Entries
+
+/**
+ * A device glitch (systolic 310, diastolic 4) would hit the table's range
+ * check and abort the rest of a provider's batch, so the impossible value is
+ * dropped with a warning and the rest of the row is kept.
+ */
+function withoutImpossibleBloodPressure(
+  entry: VitalsEntriesInitializer
+): VitalsEntriesInitializer {
+  const systolic = entry.systolic_mmhg;
+  const diastolic = entry.diastolic_mmhg;
+  const systolicBad =
+    typeof systolic === 'number' && (systolic < 30 || systolic > 300);
+  const diastolicBad =
+    typeof diastolic === 'number' && (diastolic < 10 || diastolic > 200);
+  if (!systolicBad && !diastolicBad) return entry;
+  log(
+    'warn',
+    `vitals: dropped an impossible blood pressure value (${systolic}/${diastolic}) from ${entry.source_provider}.`
+  );
+  return {
+    ...entry,
+    systolic_mmhg: systolicBad ? null : systolic,
+    diastolic_mmhg: diastolicBad ? null : diastolic,
+  };
+}
+
 export async function bulkUpsertVitals(
   userId: string,
   actingUserId: string,
@@ -173,7 +201,8 @@ export async function bulkUpsertVitals(
   try {
     const results: VitalsEntries[] = [];
 
-    for (const entry of entries) {
+    for (const rawEntry of entries) {
+      const entry = withoutImpossibleBloodPressure(rawEntry);
       const res = (await client.query(
         `INSERT INTO vitals_entries
           (user_id, entry_date, timestamp, systolic_mmhg, diastolic_mmhg, blood_glucose_mgdl, body_temperature_celsius, pulse_bpm, meal_context, source_provider, device_name, external_id)
@@ -252,6 +281,7 @@ export type BloodPressureWriteResult =
   | { status: 'ok'; entry: VitalsEntries }
   | { status: 'not_found' }
   | { status: 'not_editable' }
+  | { status: 'invalid'; reason: string }
   | { status: 'duplicate' };
 
 /** A reading is a blood pressure row when it carries both values. */
@@ -317,13 +347,32 @@ export async function updateManualBloodPressure(
   const client = await getClient(actingUserId);
   try {
     const existing = (await client.query(
-      `SELECT source_provider FROM vitals_entries
+      `SELECT source_provider, systolic_mmhg, diastolic_mmhg FROM vitals_entries
        WHERE id = $1 AND user_id = $2 AND systolic_mmhg IS NOT NULL`,
       [id, userId]
-    )) as { rows: { source_provider: string }[] };
-    if (existing.rows.length === 0) return { status: 'not_found' };
-    if (existing.rows[0].source_provider !== MANUAL_VITALS_PROVIDER) {
+    )) as {
+      rows: {
+        source_provider: string;
+        systolic_mmhg: string | number;
+        diastolic_mmhg: string | number | null;
+      }[];
+    };
+    const stored = existing.rows[0];
+    if (!stored) return { status: 'not_found' };
+    if (stored.source_provider !== MANUAL_VITALS_PROVIDER) {
       return { status: 'not_editable' };
+    }
+    // The two values must still make sense together once the change is
+    // applied, whichever of them the change leaves alone.
+    const systolic = changes.systolic_mmhg ?? Number(stored.systolic_mmhg);
+    const diastolic =
+      changes.diastolic_mmhg ??
+      (stored.diastolic_mmhg === null ? null : Number(stored.diastolic_mmhg));
+    if (diastolic !== null && systolic <= diastolic) {
+      return {
+        status: 'invalid',
+        reason: 'Systolic must be higher than diastolic',
+      };
     }
 
     const columns: [string, unknown][] = [];
@@ -378,6 +427,37 @@ export async function deleteBloodPressure(
       [id, userId]
     )) as { rowCount: number | null };
     return (res.rowCount ?? 0) > 0;
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * The stored instant of this source's blood pressure reading closest to `at`
+ * within `windowSeconds`, if any. A device that reports one cuff reading
+ * through two APIs with slightly different times is then written once.
+ */
+export async function findNearbyBloodPressureTimestamp(
+  userId: string,
+  actingUserId: string,
+  sourceProvider: string,
+  at: Date,
+  windowSeconds: number
+): Promise<Date | null> {
+  const client = await getClient(actingUserId);
+  try {
+    const res = (await client.query(
+      `SELECT timestamp FROM vitals_entries
+       WHERE user_id = $1 AND source_provider = $2
+         AND (systolic_mmhg IS NOT NULL OR diastolic_mmhg IS NOT NULL)
+         AND timestamp BETWEEN $3::timestamptz - make_interval(secs => $4)
+                           AND $3::timestamptz + make_interval(secs => $4)
+       ORDER BY ABS(EXTRACT(EPOCH FROM (timestamp - $3::timestamptz))) ASC
+       LIMIT 1`,
+      [userId, sourceProvider, at, windowSeconds]
+    )) as { rows: { timestamp: Date }[] };
+    const found = res.rows[0];
+    return found ? new Date(found.timestamp) : null;
   } finally {
     client.release();
   }

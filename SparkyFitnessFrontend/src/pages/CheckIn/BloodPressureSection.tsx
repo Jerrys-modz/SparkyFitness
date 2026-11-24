@@ -19,6 +19,7 @@ import {
   homeBloodPressureAverage,
   instantHourMinute,
   instantToDay,
+  isBloodPressureInFuture,
   localDateTimeToUtc,
   summarizeBloodPressure,
   todayInZone,
@@ -126,6 +127,9 @@ export const BloodPressureSection = ({
 
   const [form, setForm] = useState<FormState>(() => emptyForm('08:00'));
   const [editingId, setEditingId] = useState<string | null>(null);
+  // The day of the reading being edited: it keeps its own day, whichever day
+  // is selected above.
+  const [editingDate, setEditingDate] = useState<string | null>(null);
   const [toDelete, setToDelete] = useState<string | null>(null);
 
   const defaultTime = () => {
@@ -170,11 +174,13 @@ export const BloodPressureSection = ({
   const resetForm = () => {
     setForm(emptyForm(defaultTime()));
     setEditingId(null);
+    setEditingDate(null);
   };
 
   const startEdit = (reading: Reading) => {
     const { hour, minute } = instantHourMinute(reading.at, timezone);
     setEditingId(reading.id);
+    setEditingDate(reading.date);
     setForm({
       systolic: String(reading.systolic),
       diastolic: String(reading.diastolic),
@@ -196,7 +202,11 @@ export const BloodPressureSection = ({
   const systolicValue = Number(form.systolic);
   const diastolicValue = Number(form.diastolic);
   const pulseValue = form.pulse.trim() === '' ? null : Number(form.pulse);
+  const formDate = editingId && editingDate ? editingDate : selectedDate;
+  const formInstant = localDateTimeToUtc(`${formDate}T${form.time}`, timezone);
+  const inFuture = isBloodPressureInFuture(formInstant);
   const formValid =
+    !inFuture &&
     form.systolic.trim() !== '' &&
     form.diastolic.trim() !== '' &&
     systolicValue >= 30 &&
@@ -209,10 +219,7 @@ export const BloodPressureSection = ({
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     if (!formValid || isActingOnBehalf) return;
-    const timestamp = localDateTimeToUtc(
-      `${selectedDate}T${form.time}`,
-      timezone
-    ).toISOString();
+    const timestamp = formInstant.toISOString();
     const body = {
       timestamp,
       systolic_mmhg: systolicValue,
@@ -410,6 +417,14 @@ export const BloodPressureSection = ({
                   onChange={(e) => setForm({ ...form, note: e.target.value })}
                 />
               </div>
+              {inFuture && (
+                <p className="col-span-2 text-xs text-destructive md:col-span-4">
+                  {t(
+                    'bloodPressure.futureTime',
+                    'The time cannot be in the future.'
+                  )}
+                </p>
+              )}
               <div className="col-span-2 flex gap-2 md:col-span-4">
                 <Button
                   type="submit"

@@ -20,6 +20,13 @@ export interface SyncedBloodPressureReading {
   pulse?: number | null;
 }
 
+/**
+ * Withings reports one cuff reading through both its measure and heart APIs,
+ * a few seconds apart. Readings of that source this close are one reading.
+ */
+const SAME_READING_WINDOW_SECONDS = 30;
+const SNAPPED_SOURCES = new Set(['withings']);
+
 const SYSTOLIC = { min: 30, max: 300 };
 const DIASTOLIC = { min: 10, max: 200 };
 const PULSE = { min: 20, max: 300 };
@@ -69,6 +76,7 @@ export async function recordSyncedBloodPressure(
 ): Promise<number> {
   const entries = [];
   for (const reading of mergeReadings(readings)) {
+    let timestamp = new Date(reading.timestamp);
     const systolic = inRange(reading.systolic, SYSTOLIC)
       ? reading.systolic
       : null;
@@ -83,10 +91,28 @@ export async function recordSyncedBloodPressure(
       );
       continue;
     }
+    if (SNAPPED_SOURCES.has(reading.sourceProvider)) {
+      try {
+        const nearby =
+          await genericHealthRepository.findNearbyBloodPressureTimestamp(
+            userId,
+            actingUserId,
+            reading.sourceProvider,
+            timestamp,
+            SAME_READING_WINDOW_SECONDS
+          );
+        if (nearby) timestamp = nearby;
+      } catch (error) {
+        log(
+          'warn',
+          `bloodPressureSync: could not look for a nearby reading: ${describeError(error)}`
+        );
+      }
+    }
     entries.push({
       user_id: userId,
       entry_date: reading.entryDate,
-      timestamp: new Date(reading.timestamp),
+      timestamp,
       systolic_mmhg: systolic,
       diastolic_mmhg: diastolic,
       pulse_bpm: inRange(reading.pulse, PULSE) ? reading.pulse : null,

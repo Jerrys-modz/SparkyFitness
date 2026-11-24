@@ -468,3 +468,122 @@ describe('Generic Health & Workout Telemetry Repositories', () => {
     });
   });
 });
+
+describe('blood pressure repository rules', () => {
+  const query = vi.fn();
+  const client = { query, release: vi.fn() };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (getClient as ReturnType<typeof vi.fn>).mockResolvedValue(client);
+  });
+
+  it('refuses an edit that leaves systolic at or below the stored diastolic', async () => {
+    query.mockResolvedValueOnce({
+      rows: [
+        {
+          source_provider: 'manual',
+          systolic_mmhg: '120',
+          diastolic_mmhg: '80',
+        },
+      ],
+    });
+    const result = await genericHealthRepo.updateManualBloodPressure(
+      'v1',
+      'user-1',
+      'user-1',
+      { systolic_mmhg: 70 }
+    );
+    expect(result.status).toBe('invalid');
+    // Only the lookup ran; nothing was written.
+    expect(query).toHaveBeenCalledTimes(1);
+  });
+
+  it('refuses an edit that raises diastolic to the stored systolic', async () => {
+    query.mockResolvedValueOnce({
+      rows: [
+        {
+          source_provider: 'manual',
+          systolic_mmhg: '120',
+          diastolic_mmhg: '80',
+        },
+      ],
+    });
+    const result = await genericHealthRepo.updateManualBloodPressure(
+      'v1',
+      'user-1',
+      'user-1',
+      { diastolic_mmhg: 125 }
+    );
+    expect(result.status).toBe('invalid');
+  });
+
+  it('saves an edit that keeps the pair valid, using the stored half', async () => {
+    query
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            source_provider: 'manual',
+            systolic_mmhg: '120',
+            diastolic_mmhg: '80',
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ rows: [{ id: 'v1' }] });
+    const result = await genericHealthRepo.updateManualBloodPressure(
+      'v1',
+      'user-1',
+      'user-1',
+      { systolic_mmhg: 130 }
+    );
+    expect(result.status).toBe('ok');
+    expect(query).toHaveBeenCalledTimes(2);
+  });
+
+  it('drops an impossible blood pressure value instead of aborting the batch', async () => {
+    query.mockResolvedValue({ rows: [{ id: 'row' }] });
+    await genericHealthRepo.bulkUpsertVitals('user-1', 'user-1', [
+      {
+        user_id: 'user-1',
+        entry_date: '2026-11-20',
+        timestamp: new Date('2026-11-20T08:00:00Z'),
+        systolic_mmhg: 310,
+        diastolic_mmhg: 80,
+        source_provider: 'garmin',
+      },
+      {
+        user_id: 'user-1',
+        entry_date: '2026-11-20',
+        timestamp: new Date('2026-11-20T09:00:00Z'),
+        systolic_mmhg: 120,
+        diastolic_mmhg: 80,
+        source_provider: 'garmin',
+      },
+    ]);
+    expect(query).toHaveBeenCalledTimes(2);
+    // Parameters 4 and 5 are systolic and diastolic.
+    expect(query.mock.calls[0]?.[1][3]).toBeNull();
+    expect(query.mock.calls[0]?.[1][4]).toBe(80);
+    expect(query.mock.calls[1]?.[1][3]).toBe(120);
+  });
+
+  it('finds the stored instant of the nearest reading of a source', async () => {
+    query.mockResolvedValueOnce({
+      rows: [{ timestamp: '2026-11-20T08:00:00.000Z' }],
+    });
+    const found = await genericHealthRepo.findNearbyBloodPressureTimestamp(
+      'user-1',
+      'user-1',
+      'withings',
+      new Date('2026-11-20T08:00:12Z'),
+      30
+    );
+    expect(found).toEqual(new Date('2026-11-20T08:00:00.000Z'));
+    expect(query.mock.calls[0]?.[1]).toEqual([
+      'user-1',
+      'withings',
+      new Date('2026-11-20T08:00:12Z'),
+      30,
+    ]);
+  });
+});
