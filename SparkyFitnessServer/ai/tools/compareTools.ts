@@ -72,6 +72,7 @@ const METRIC_NAMES: Record<CompareMetricKey, string> = {
   trainingLoad: 'Training load',
   weightTrend: 'Weight trend',
   steps: 'Steps',
+  vo2Max: 'VO2 max',
 };
 
 /** A yes/no habit as what was done ("the person meditated") and as a noun ("meditating"). */

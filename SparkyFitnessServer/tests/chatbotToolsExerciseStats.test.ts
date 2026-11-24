@@ -21,6 +21,12 @@ vi.mock('../services/runReviewService.js', () => ({
   },
 }));
 
+vi.mock('../services/vo2MaxReviewService.js', () => ({
+  default: {
+    getVo2MaxReview: vi.fn(),
+  },
+}));
+
 vi.mock('../services/preferenceService.js', () => ({
   default: {
     getUserPreferences: vi.fn(),
@@ -34,6 +40,7 @@ vi.mock('../config/logging.js', () => ({
 import exerciseStatsService from '../services/exerciseStatsService.js';
 import trainingReviewService from '../services/trainingReviewService.js';
 import runReviewService from '../services/runReviewService.js';
+import vo2MaxReviewService from '../services/vo2MaxReviewService.js';
 import preferenceService from '../services/preferenceService.js';
 import { buildExerciseStatsTools } from '../ai/tools/exerciseStatsTools.js';
 import { toolOpts } from './helpers/toolExecutionOptions.js';
@@ -499,6 +506,96 @@ describe('sparky_get_exercise_stats', () => {
     it('returns DB_ERROR when the review fails', async () => {
       runSvc.getRunReview.mockRejectedValue(new Error('boom'));
       const result = await getTool().execute!({ action: 'run_review' }, opts);
+      expect(result).toBe(DB_ERROR_TEXT);
+    });
+  });
+  describe('vo2_max_review', () => {
+    const vo2Svc = vo2MaxReviewService as unknown as {
+      getVo2MaxReview: ReturnType<typeof vi.fn>;
+    };
+    const base = {
+      window: { from: '2026-08-26', to: '2026-11-23', days: 90 },
+      readings: [
+        { day: '2026-09-01', value: 44 },
+        { day: '2026-11-20', value: 46.5 },
+      ],
+      latest: { day: '2026-11-20', value: 46.5 },
+      change: 2.5,
+      direction: 'up',
+      age: 35,
+      sex: 'male',
+      rating: 'good',
+      fitnessAge: { age: 31, limit: null },
+      runEstimate: { value: 45.1, runs: 4 },
+    };
+
+    it('reports the reading, rating, fitness age and the labelled estimate', async () => {
+      vo2Svc.getVo2MaxReview.mockResolvedValue(base);
+      const result = (await getTool().execute!(
+        { action: 'vo2_max_review', window_days: 90 },
+        opts
+      )) as string;
+
+      expect(vo2Svc.getVo2MaxReview).toHaveBeenCalledWith('user-1', 90);
+      expect(result).toContain('# VO2 Max Review (2026-08-26 → 2026-11-23');
+      expect(result).toContain('Latest reading: 46.5 ml/kg/min on 2026-11-20');
+      expect(result).toContain('+2.5 ml/kg/min (up)');
+      expect(result).toContain('Rating for a male aged 35: good');
+      expect(result).toContain('Fitness age from the same norms: 31.');
+      expect(result).toContain('Run-based estimate: 45.1 ml/kg/min from 4');
+      expect(result).toContain('never a measurement');
+    });
+
+    it('says what is missing instead of guessing', async () => {
+      vo2Svc.getVo2MaxReview.mockResolvedValue({
+        ...base,
+        readings: [],
+        latest: null,
+        change: null,
+        direction: null,
+        rating: null,
+        fitnessAge: null,
+        runEstimate: null,
+      });
+      const result = (await getTool().execute!(
+        { action: 'vo2_max_review' },
+        opts
+      )) as string;
+      expect(vo2Svc.getVo2MaxReview).toHaveBeenCalledWith('user-1', undefined);
+      expect(result).toContain('No VO2 max readings');
+      expect(result).not.toContain('Run-based estimate');
+    });
+
+    it('explains a missing rating', async () => {
+      vo2Svc.getVo2MaxReview.mockResolvedValue({
+        ...base,
+        age: null,
+        sex: null,
+        rating: null,
+        fitnessAge: null,
+      });
+      const result = (await getTool().execute!(
+        { action: 'vo2_max_review' },
+        opts
+      )) as string;
+      expect(result).toContain('No rating: it needs the profile date of birth');
+    });
+
+    it('rejects a window outside 14 to 365 days', async () => {
+      const result = (await getTool().execute!(
+        { action: 'vo2_max_review', window_days: 5 },
+        opts
+      )) as string;
+      expect(vo2Svc.getVo2MaxReview).not.toHaveBeenCalled();
+      expect(result).toContain('window_days');
+    });
+
+    it('returns DB_ERROR when the review fails', async () => {
+      vo2Svc.getVo2MaxReview.mockRejectedValue(new Error('boom'));
+      const result = await getTool().execute!(
+        { action: 'vo2_max_review' },
+        opts
+      );
       expect(result).toBe(DB_ERROR_TEXT);
     });
   });

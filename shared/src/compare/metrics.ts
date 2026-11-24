@@ -48,6 +48,7 @@ export const COMPARE_METRIC_KEYS = [
   'trainingLoad',
   'weightTrend',
   'steps',
+  'vo2Max',
 ] as const;
 
 export type CompareMetricKey = (typeof COMPARE_METRIC_KEYS)[number];
@@ -116,6 +117,9 @@ export const COMPARE_METRICS: Record<CompareMetricKey, CompareMetricDef> = {
   trainingLoad: metric('trainingLoad', 'training', 'points', EVENT),
   weightTrend: metric('weightTrend', 'body', 'kg', { since: false }),
   steps: metric('steps', 'body', 'steps'),
+  // Real device readings only. It drifts over weeks, so the before-and-after
+  // view cannot answer for it (as with the weight trend).
+  vo2Max: metric('vo2Max', 'body', 'ml/kg/min', { since: false }),
 };
 
 /** Whether a metric can be asked in a mode: week needs a weekly form, since needs the `since` flag. */

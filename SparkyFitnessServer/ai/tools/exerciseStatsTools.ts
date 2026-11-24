@@ -16,6 +16,9 @@ import exerciseStatsService from '../../services/exerciseStatsService.js';
 import preferenceService from '../../services/preferenceService.js';
 import runReviewService from '../../services/runReviewService.js';
 import trainingReviewService from '../../services/trainingReviewService.js';
+import vo2MaxReviewService, {
+  type Vo2MaxReview,
+} from '../../services/vo2MaxReviewService.js';
 import { ERRORS, formatZodError } from './errors.js';
 import { formatList } from './formatting.js';
 import {
@@ -131,6 +134,55 @@ function formatPace(secPerKm: number, unit: 'km' | 'miles'): string {
   return `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')} /${unit === 'miles' ? 'mi' : 'km'}`;
 }
 
+function formatVo2MaxReview(review: Vo2MaxReview): string {
+  const { window } = review;
+  const lines = [
+    `# VO2 Max Review (${window.from} → ${window.to}, ${window.days} days)`,
+    '',
+  ];
+  if (!review.latest) {
+    lines.push(
+      'No VO2 max readings from a watch or health source in this window. Do not guess a value.'
+    );
+  } else {
+    lines.push(
+      `- Latest reading: ${review.latest.value} ml/kg/min on ${review.latest.day} (${review.readings.length} days with a reading)`
+    );
+    if (review.change !== null && review.direction) {
+      lines.push(
+        `- Change over the window: ${review.change > 0 ? '+' : ''}${review.change} ml/kg/min (${review.direction}); VO2 max moves slowly, so treat a small change as steady.`
+      );
+    }
+    if (review.rating) {
+      lines.push(
+        `- Rating for a ${review.sex} aged ${review.age}: ${review.rating} (Cooper Institute norms; a rough comparison with the general population, not medical advice).`
+      );
+    } else {
+      lines.push(
+        '- No rating: it needs the profile date of birth and sex (male or female), and an age from 20 to 79.'
+      );
+    }
+    if (review.fitnessAge) {
+      const limit =
+        review.fitnessAge.limit === 'younger'
+          ? ' or younger'
+          : review.fitnessAge.limit === 'older'
+            ? ' or older'
+            : '';
+      lines.push(
+        `- Fitness age from the same norms: ${review.fitnessAge.age}${limit}. This is an estimate, not the figure a watch maker shows.`
+      );
+    }
+  }
+  if (review.runEstimate) {
+    lines.push(
+      '',
+      `- Run-based estimate: ${review.runEstimate.value} ml/kg/min from ${review.runEstimate.runs} recent runs. A model estimate from pace and heart rate, never a measurement; say so and do not mix it with the readings above.`
+    );
+  }
+  return lines.join('\n');
+}
+
 function formatRunReview(
   review: RunReview,
   load: TrainingLoad,
@@ -203,7 +255,7 @@ export function buildExerciseStatsTools(userId: string, tz: string) {
   return {
     sparky_get_exercise_stats: tool({
       description:
-        'Read exercise analytics: aggregated stats over an interval (stats_summary), advanced activity search (query_activities), personal records / best efforts (personal_records), and matched course groupings (matched_courses), and a training review of recent strength work (training_review: sessions per week, stalled lifts, effort, muscle coverage; optional window_days 7-90, default 28), and a run review (run_review: runs per week, weekly distance and jumps, pace against the period before, training load and recovery; optional window_days 7-90, default 28). Read-only.',
+        'Read exercise analytics: aggregated stats over an interval (stats_summary), advanced activity search (query_activities), personal records / best efforts (personal_records), and matched course groupings (matched_courses), and a training review of recent strength work (training_review: sessions per week, stalled lifts, effort, muscle coverage; optional window_days 7-90, default 28), and a run review (run_review: runs per week, weekly distance and jumps, pace against the period before, training load and recovery; optional window_days 7-90, default 28), and a VO2 max review (vo2_max_review: the latest device reading, its change over the window, a rating for the user age and sex, a fitness age estimate, and the run-based estimate kept apart; optional window_days 14-365, default 90). Read-only.',
       inputSchema: exerciseStatsInput,
       execute: async (rawArgs) => {
         const normalized = normalizeActionArgs(
@@ -307,6 +359,13 @@ export function buildExerciseStatsTools(userId: string, tz: string) {
                 load,
                 prefs.default_distance_unit === 'miles' ? 'miles' : 'km'
               );
+            }
+            case 'vo2_max_review': {
+              const review = await vo2MaxReviewService.getVo2MaxReview(
+                userId,
+                args.window_days
+              );
+              return formatVo2MaxReview(review);
             }
             case 'matched_courses': {
               const result: MatchedCoursesResponse =

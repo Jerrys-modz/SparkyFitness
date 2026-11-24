@@ -453,6 +453,25 @@ describe('loadMetricDays: food, mood and body', () => {
   });
 });
 
+describe('loadMetricDays vo2Max', () => {
+  it('keeps days with a real reading and leaves the rest missing', async () => {
+    vi.mocked(compareRepository.getVo2MaxDays).mockResolvedValue([
+      { day: '2026-06-01', vo2Max: 46.5 },
+      { day: '2026-06-02', vo2Max: null },
+      { day: '2026-06-05', vo2Max: 47 },
+    ]);
+
+    expect(
+      await loadMetricDays(USER, 'vo2Max', '2026-06-01', '2026-06-05', CTX)
+    ).toEqual({ '2026-06-01': 46.5, '2026-06-05': 47 });
+    expect(compareRepository.getVo2MaxDays).toHaveBeenCalledWith(
+      USER,
+      '2026-06-01',
+      '2026-06-05'
+    );
+  });
+});
+
 describe('getCompare', () => {
   /** Steps every day of the range, varying so the own normal has something to remove. */
   function stepsEveryDay(first: string, last: string) {

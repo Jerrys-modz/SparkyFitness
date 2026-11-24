@@ -8,6 +8,7 @@ export const EXERCISE_STATS_ACTIONS = [
   'matched_courses',
   'training_review',
   'run_review',
+  'vo2_max_review',
 ] as const;
 
 const intervalSchema = z.enum([
@@ -86,6 +87,13 @@ const runReviewSchema = z
   })
   .strict();
 
+const vo2MaxReviewSchema = z
+  .object({
+    action: z.literal('vo2_max_review'),
+    window_days: z.coerce.number().int().min(14).max(365).optional(),
+  })
+  .strict();
+
 export const exerciseStatsSchema = z.discriminatedUnion('action', [
   statsSummarySchema,
   queryActivitiesSchema,
@@ -93,6 +101,7 @@ export const exerciseStatsSchema = z.discriminatedUnion('action', [
   matchedCoursesSchema,
   trainingReviewSchema,
   runReviewSchema,
+  vo2MaxReviewSchema,
 ]);
 
 export type ExerciseStatsInput = z.infer<typeof exerciseStatsSchema>;
