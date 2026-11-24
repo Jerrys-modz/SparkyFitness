@@ -70,6 +70,11 @@ export const OPTIONAL_FEATURES = {
   appetite: { group: 'nutrition', defaultEnabled: true, storage: 'choices' },
   medications: { group: 'health', defaultEnabled: true, storage: 'choices' },
   labResults: { group: 'health', defaultEnabled: true, storage: 'choices' },
+  bloodPressure: {
+    group: 'health',
+    defaultEnabled: true,
+    storage: 'choices',
+  },
 } as const satisfies Record<string, FeatureDefinition>;
 
 export type FeatureKey = keyof typeof OPTIONAL_FEATURES;

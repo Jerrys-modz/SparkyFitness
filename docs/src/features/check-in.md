@@ -66,6 +66,19 @@ A small daily space for breathing and meditation:
 - **Meditation Timer**: run an open or timed session with **Start Timer**, **Pause**, and **Save & Finish**
 - **Today's Sessions**: log a session manually (type: *Meditation* or *Breathwork*, minutes and seconds), or edit and delete past sessions
 
+## Blood pressure tab
+
+Log blood pressure readings by hand and follow them over time. Readings that arrive from a connected device or from Health Connect, Apple Health, Withings or Garmin appear in the same list.
+
+- **Log a reading:** systolic, diastolic (mmHg) and optionally pulse, time, arm, body position and a note. It is saved on the day you have selected.
+- **Category:** each reading shows a category (Normal, Elevated, Stage 1, Stage 2, Severe) from the AHA/ACC adult thresholds. When systolic and diastolic fall in different categories, the higher one is shown. This is information, not a diagnosis.
+- **Trend:** the last 7, 30 or 90 days, with the average, a morning average (before noon), an evening average (from 17:00) and a **home average**.
+- **Home average:** follows the usual home-monitoring approach: the first day of readings is left out and the rest averaged, and it needs readings on at least 5 different days. A home average at or above 135/85 is flagged, because the home cutoff is lower than the clinic one.
+- **Editing:** readings you logged by hand can be edited or deleted. Readings that came from a device can only be deleted, since the next sync would rewrite an edit; a deleted device reading can come back when it syncs again.
+- **Family access:** a profile you view through Family Access shows the readings, but only the account owner can log them here.
+
+You can hide the tab in **Settings → Profile & Account → Features → Blood pressure**. This only hides it; nothing is deleted.
+
 ## Sleep tab
 
 Log your sleep for the selected day:

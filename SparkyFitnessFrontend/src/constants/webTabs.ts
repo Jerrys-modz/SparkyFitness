@@ -101,6 +101,8 @@ export function choiceFeatureLabel(
       return webTabLabel(t, 'medications');
     case 'labResults':
       return webTabLabel(t, 'labs');
+    case 'bloodPressure':
+      return t('checkIn.tabs.bloodPressure', 'Blood pressure');
   }
 }
 

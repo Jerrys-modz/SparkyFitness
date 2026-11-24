@@ -60,3 +60,9 @@ export const oralCareKeys = {
   history: (startDate: string, endDate: string) =>
     [...oralCareKeys.all, 'history', startDate, endDate] as const,
 };
+
+export const bloodPressureKeys = {
+  all: ['bloodPressure'] as const,
+  range: (startDate: string, endDate: string) =>
+    [...bloodPressureKeys.all, 'range', startDate, endDate] as const,
+};

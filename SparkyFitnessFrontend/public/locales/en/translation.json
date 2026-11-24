@@ -3673,6 +3673,9 @@
       },
       "medications": {
         "description": "Medications, supplements and GLP-1 tracking. Supplement nutrients still count in your totals."
+      },
+      "bloodPressure": {
+        "description": "Log blood pressure readings and follow the trend in Check-In."
       }
     },
     "foodProviders": {
@@ -5039,7 +5042,8 @@
       "photos": "Photos",
       "sleep": "Sleep",
       "symptoms": "Symptoms",
-      "oralCare": "Oral care"
+      "oralCare": "Oral care",
+      "bloodPressure": "Blood pressure"
     },
     "noRecentActivity": "No recent activity found.",
     "healthDataImportCSV": {
@@ -12211,6 +12215,58 @@
       "lift": "lifts",
       "distance": "distance",
       "pace": "pace"
+    }
+  },
+  "bloodPressure": {
+    "addTitle": "Log a reading",
+    "editTitle": "Edit reading",
+    "addDescription": "Logged on the selected day. mmHg.",
+    "actingOnBehalf": "Readings can only be logged on your own account.",
+    "systolic": "Systolic",
+    "diastolic": "Diastolic",
+    "pulse": "Pulse (bpm)",
+    "time": "Time",
+    "arm": "Arm",
+    "position": "Position",
+    "note": "Note",
+    "notSet": "Not set",
+    "save": "Save reading",
+    "trendTitle": "Trend",
+    "disclaimer": "For your information only, not a diagnosis. Talk to a clinician about your readings.",
+    "lastDays": "Last {{count}} days",
+    "loadFailed": "Could not load your blood pressure readings.",
+    "empty": "No readings in this period yet.",
+    "average": "Average",
+    "morning": "Morning average",
+    "evening": "Evening average",
+    "homeAverage": "Home average",
+    "readingCount": "{{count}} readings",
+    "homeAtOrAbove": "Home average over {{count}} days (first day left out) is at or above 135/85.",
+    "homeBelow": "Home average over {{count}} days (first day left out) is below 135/85.",
+    "homeNeedsDays": "The home average needs readings on at least 5 different days.",
+    "history": "History",
+    "deleteTitle": "Delete this reading?",
+    "deleteDescription": "A reading that came from a device can come back on the next sync.",
+    "categories": {
+      "normal": "Normal",
+      "elevated": "Elevated",
+      "stage1": "Stage 1",
+      "stage2": "Stage 2",
+      "severe": "Severe"
+    },
+    "arms": {
+      "left": "Left arm",
+      "right": "Right arm"
+    },
+    "positions": {
+      "sitting": "Sitting",
+      "standing": "Standing",
+      "lying": "Lying down",
+      "reclining": "Reclining"
+    },
+    "errors": {
+      "save": "Could not save the reading.",
+      "delete": "Could not delete the reading."
     }
   }
 }

@@ -123,11 +123,15 @@ describe('FeatureSettings', () => {
     expect(toggle).toBeEnabled();
     // Each feature kept per platform says so (lab results, medications and hunger).
     // One line per feature switched on this website only.
+    // Lab results and blood pressure each carry the note.
     expect(
       screen.getAllByText(
         'Only this website. The mobile app has its own switch.'
       )
-    ).toHaveLength(3);
+    ).toHaveLength(4);
+    expect(
+      screen.getByRole('switch', { name: 'Blood pressure' })
+    ).toBeChecked();
   });
 
   it('lists hunger and cravings, on by default, and turns it off on this website', () => {
@@ -196,7 +200,7 @@ describe('FeatureSettings', () => {
     expect(screen.getByRole('switch', { name: 'Medications' })).toBeDisabled();
     expect(
       screen.getAllByText('Update your SparkyFitness server to change this.')
-    ).toHaveLength(3);
+    ).toHaveLength(4);
     expect(
       screen.queryByRole('button', { name: 'Retry' })
     ).not.toBeInTheDocument();
@@ -208,7 +212,7 @@ describe('FeatureSettings', () => {
     expect(screen.getByRole('switch', { name: 'Lab results' })).toBeDisabled();
     expect(screen.getByRole('switch', { name: 'Medications' })).toBeDisabled();
     const retries = screen.getAllByRole('button', { name: 'Retry' });
-    expect(retries).toHaveLength(3);
+    expect(retries).toHaveLength(4);
     fireEvent.click(retries[0]!);
     expect(mockReloadChoices).toHaveBeenCalledTimes(1);
   });
