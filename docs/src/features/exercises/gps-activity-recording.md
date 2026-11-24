@@ -281,6 +281,8 @@ Once you have a provider, the server looks the weather up after the route is sav
 
 If your Apple Watch or Health Connect source records **VO2 max**, turn on VO2 max sync and a **VO2 max** graph joins the Dashboard's Health Trends (7, 30 or 90 days, one reading per day). Garmin and other providers that store VO2 max with your daily metrics show up too. It is a good way to see whether your training is working. The graph only appears once a reading has synced; hide it or move it in Dashboard Settings → Health Trends.
 
+If you have no readings, SparkyFitness can estimate VO2 max from your runs instead (pace, heart rate and climb, from at least two runs in the last six weeks). It is a model, not a measurement. To keep one run out of it, such as a race, a trail run or a run with a bad heart rate reading, open the run and turn off **Use in VO₂ max estimate**. The run still counts as a run everywhere else.
+
 ---
 
 ## Not included yet

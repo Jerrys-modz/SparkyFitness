@@ -31,6 +31,7 @@ import {
   attachExerciseEntryDistanceSeriesRequestSchema,
   setExerciseEntryDistanceRequestSchema,
   setExerciseEntryEffortRequestSchema,
+  setExerciseEntryVo2EstimateRequestSchema,
   setCalorieLinkRequestSchema,
   isEntryTimeString,
   isValidTimeZone,
@@ -1455,6 +1456,73 @@ router.post('/:id/effort', authenticate, demoGuard, async (req, res, next) => {
     next(error);
   }
 });
+/**
+ * @swagger
+ * /exercise-entries/{id}/vo2-estimate:
+ *   post:
+ *     summary: Leave a run out of the estimated VO2 max, or put it back
+ *     tags: [Fitness & Workouts]
+ *     description: >
+ *       Every qualifying run in the last six weeks counts toward the estimated
+ *       VO2 max. `excluded: true` leaves this run out (a race, a trail run or a
+ *       run with a bad heart rate strap); `false` puts it back. Only this entry
+ *       changes, running power and distance totals still count it, and later
+ *       syncs or edits of the entry keep the choice.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [excluded]
+ *             properties:
+ *               excluded: { type: boolean }
+ *     responses:
+ *       204:
+ *         description: Saved.
+ *       400:
+ *         description: Invalid request body or exercise entry ID.
+ *       404:
+ *         description: Exercise entry not found.
+ */
+router.post(
+  '/:id/vo2-estimate',
+  authenticate,
+  demoGuard,
+  async (req, res, next) => {
+    const { id } = req.params;
+    if (!id || typeof id !== 'string' || !isValidUuid(id)) {
+      return res.status(400).json({
+        error: 'Exercise Entry ID is required and must be a valid UUID.',
+      });
+    }
+    const parsed = setExerciseEntryVo2EstimateRequestSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.message });
+    }
+    try {
+      await exerciseEntryService.setExerciseEntryVo2Estimate(
+        req.userId,
+        req.originalUserId || req.userId,
+        id,
+        parsed.data
+      );
+      res.status(204).send();
+    } catch (error) {
+      const status = (error as { status?: number }).status;
+      const message = error instanceof Error ? error.message : '';
+      if (status === 404 || message.startsWith('Exercise entry not found')) {
+        return res.status(404).json({ error: message });
+      }
+      next(error);
+    }
+  }
+);
 /**
  * @swagger
  * /exercise-entries/{id}/calorie-link/suggestions:

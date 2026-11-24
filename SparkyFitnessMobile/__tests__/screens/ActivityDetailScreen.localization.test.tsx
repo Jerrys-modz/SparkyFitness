@@ -25,6 +25,12 @@ jest.mock('../../src/components/ShoePickerCard', () => ({
   default: () => null,
 }));
 
+// The VO2 estimate switch saves through its own mutation; it has its own tests.
+jest.mock('../../src/components/Vo2EstimateCard', () => ({
+  __esModule: true,
+  default: () => null,
+}));
+
 jest.mock('../../src/hooks/useExerciseMutations', () => ({
   useDeleteExerciseEntry: jest.fn(),
   useUpdateExerciseEntry: jest.fn(),

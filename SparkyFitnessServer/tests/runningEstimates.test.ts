@@ -142,3 +142,30 @@ describe('computeRunningEstimates', () => {
     });
   });
 });
+
+describe('computeRunningEstimates excluded runs', () => {
+  it('leaves an excluded run out of VO2 max but keeps it for power', () => {
+    const runs = [
+      run(-2),
+      run(-5),
+      run(-8, { avgHeartRate: 150, excludeFromVo2: true }),
+    ];
+    const withAll = computeRunningEstimates(
+      runs.map((r) => ({ ...r, excludeFromVo2: false })),
+      TODAY,
+      { bodyWeightKg: 70 }
+    );
+    const without = computeRunningEstimates(runs, TODAY, { bodyWeightKg: 70 });
+    expect(withAll.vo2Max?.runs).toBe(3);
+    expect(without.vo2Max?.runs).toBe(2);
+    expect(without.power?.runs).toHaveLength(3);
+  });
+
+  it('gives no estimate once exclusions leave fewer than two runs', () => {
+    const result = computeRunningEstimates(
+      [run(-2), run(-5, { excludeFromVo2: true })],
+      TODAY
+    );
+    expect(result.vo2Max).toBeNull();
+  });
+});

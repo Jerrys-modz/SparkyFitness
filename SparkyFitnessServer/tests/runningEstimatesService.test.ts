@@ -61,6 +61,7 @@ const candidate = (overrides: Record<string, unknown> = {}) => ({
   providerName: null,
   detailData: null,
   exerciseSourceId: null,
+  excludeFromVo2: false,
   ...overrides,
 });
 const vitals = {
@@ -99,6 +100,17 @@ describe('getRunningEstimates', () => {
     const result = await getRunningEstimates('u1', 'u1');
     expect(result.vo2Max?.runs).toBe(2);
     expect(result.power?.runs).toHaveLength(2);
+  });
+
+  it('leaves a run the person excluded out of VO2 max but not power', async () => {
+    repo.getRunCandidates.mockResolvedValue([
+      candidate(),
+      candidate(),
+      candidate({ excludeFromVo2: true }),
+    ]);
+    const result = await getRunningEstimates('u1', 'u1');
+    expect(result.vo2Max?.runs).toBe(2);
+    expect(result.power?.runs).toHaveLength(3);
   });
 
   it('uses the latest body weight on or before today for power', async () => {

@@ -10,6 +10,8 @@ export interface RunForEstimate {
   avgHeartRate: number | null;
   /** Total climb; null when not measured. */
   elevationGainMeters: number | null;
+  /** The person left this run out of the VO2 max estimate (power still counts it). */
+  excludeFromVo2?: boolean;
 }
 
 /** Runs older than this are left out of the VO2 max estimate. */
@@ -179,7 +181,9 @@ export function computeRunningEstimates(
 
   const vo2Start = addDays(today, -(VO2_WINDOW_DAYS - 1));
   const vo2Runs = runs
-    .filter((run) => run.day >= vo2Start && run.day <= today)
+    .filter(
+      (run) => !run.excludeFromVo2 && run.day >= vo2Start && run.day <= today
+    )
     .flatMap((run) => {
       const value = vo2MaxFromRun(run, resting, max);
       return value === null ? [] : [{ day: run.day, value }];
