@@ -28,17 +28,19 @@ function keys(count: number, value: boolean | null = true) {
 }
 
 describe('optional features registry', () => {
-  it('lists cycle, stored in cycle_settings, appetite, medications and lab results, chosen per app', () => {
+  it('lists cycle, stored in cycle_settings, appetite, medications, lab results and blood pressure, chosen per app', () => {
     expect(FEATURE_KEYS).toEqual([
       'cycle',
       'appetite',
       'medications',
       'labResults',
+      'bloodPressure',
     ]);
     expect(featureStorage('cycle')).toBe('cycleSettings');
     expect(featureStorage('appetite')).toBe('choices');
     expect(featureStorage('medications')).toBe('choices');
     expect(featureStorage('labResults')).toBe('choices');
+    expect(featureStorage('bloodPressure')).toBe('choices');
   });
 
   it('shows the appetite check-in until it is turned off', () => {
@@ -61,6 +63,7 @@ describe('optional features registry', () => {
     expect(isFeatureKey('cycle')).toBe(true);
     expect(isFeatureKey('labResults')).toBe(true);
     expect(isFeatureKey('medications')).toBe(true);
+    expect(isFeatureKey('bloodPressure')).toBe(true);
     expect(isFeatureKey('notAFeature')).toBe(false);
     // Inherited object members are not features.
     expect(isFeatureKey('toString')).toBe(false);

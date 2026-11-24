@@ -655,6 +655,39 @@ async function getLatestBpCustomMeasurement(
   }
 }
 
+/**
+ * The latest blood pressure on or before `date` as "systolic/diastolic".
+ * Blood pressure lives in `vitals_entries`; a person who logged it as a
+ * custom category before that (or a Withings user) is read as before.
+ */
+async function getLatestBloodPressure(
+  userId: string,
+  date: string
+): Promise<string | null> {
+  const client = await getClient(userId);
+  try {
+    const result = (await client.query(
+      `SELECT systolic_mmhg, diastolic_mmhg FROM vitals_entries
+       WHERE user_id = $1 AND entry_date <= $2
+         AND systolic_mmhg IS NOT NULL AND diastolic_mmhg IS NOT NULL
+       ORDER BY timestamp DESC LIMIT 1`,
+      [userId, date]
+    )) as {
+      rows: {
+        systolic_mmhg: string | number;
+        diastolic_mmhg: string | number;
+      }[];
+    };
+    const row = result.rows[0];
+    if (row) {
+      return `${Math.round(Number(row.systolic_mmhg))}/${Math.round(Number(row.diastolic_mmhg))}`;
+    }
+  } finally {
+    client.release();
+  }
+  return getLatestBpCustomMeasurement(userId, date);
+}
+
 export default {
   getActivePregnancy,
   getPregnancy,
@@ -681,4 +714,5 @@ export default {
   getMedicationLogStatus,
   getMedicationName,
   getLatestBpCustomMeasurement,
+  getLatestBloodPressure,
 };

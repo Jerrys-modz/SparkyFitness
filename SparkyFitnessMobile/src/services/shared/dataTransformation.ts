@@ -188,6 +188,12 @@ export const createBloodPressureTransformer =
 
     const systolic = rec.systolic as Record<string, number> | undefined;
     const diastolic = rec.diastolic as Record<string, number> | undefined;
+    // The reading's own instant lets the server join the two halves into one
+    // reading; a time that does not parse is left out and the day alone is sent.
+    const takenAt = new Date(rec.time as string);
+    const timestamp = Number.isNaN(takenAt.getTime())
+      ? undefined
+      : takenAt.toISOString();
 
     if (systolic?.inMillimetersOfMercury) {
       output.push({
@@ -196,6 +202,7 @@ export const createBloodPressureTransformer =
         date,
         type: `${type}_systolic`,
         source,
+        ...(timestamp ? { timestamp } : {}),
       });
     }
     if (diastolic?.inMillimetersOfMercury) {
@@ -205,6 +212,7 @@ export const createBloodPressureTransformer =
         date,
         type: `${type}_diastolic`,
         source,
+        ...(timestamp ? { timestamp } : {}),
       });
     }
   };

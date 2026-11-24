@@ -26,3 +26,38 @@ ALTER TABLE vitals_entries
         (systolic_mmhg IS NULL OR systolic_mmhg BETWEEN 30 AND 300)
         AND (diastolic_mmhg IS NULL OR diastolic_mmhg BETWEEN 10 AND 200)
     ) NOT VALID;
+
+-- Readings synced from Health Connect and Apple Health before blood pressure
+-- had its own home were stored as two custom measurements (systolic and
+-- diastolic categories). Copy each pair that shares an exact instant and
+-- source into vitals_entries. The custom measurements are left in place. A
+-- row stamped at the start of its day (an app that sent only the day) is
+-- skipped, since its time of day is not known. Re-running adds nothing.
+INSERT INTO vitals_entries
+    (user_id, entry_date, timestamp, systolic_mmhg, diastolic_mmhg, source_provider)
+SELECT
+    s.user_id,
+    s.entry_date,
+    s.entry_timestamp,
+    s.value,
+    d.value,
+    CASE
+        WHEN lower(regexp_replace(btrim(s.source), '[\s-]+', '_', 'g')) = 'healthconnect'
+            THEN 'health_connect'
+        ELSE lower(regexp_replace(btrim(s.source), '[\s-]+', '_', 'g'))
+    END
+FROM custom_measurements s
+JOIN custom_categories sc
+    ON sc.id = s.category_id AND lower(sc.name) = 'blood_pressure_systolic'
+JOIN custom_categories dc
+    ON dc.user_id = s.user_id AND lower(dc.name) = 'blood_pressure_diastolic'
+JOIN custom_measurements d
+    ON d.category_id = dc.id
+   AND d.user_id = s.user_id
+   AND d.entry_timestamp = s.entry_timestamp
+   AND d.source = s.source
+WHERE s.value BETWEEN 30 AND 300
+  AND d.value BETWEEN 10 AND 200
+  AND s.value > d.value
+  AND s.entry_timestamp <> (s.entry_date::timestamp AT TIME ZONE 'UTC')
+ON CONFLICT (user_id, source_provider, timestamp) DO NOTHING;
