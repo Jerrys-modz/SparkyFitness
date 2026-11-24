@@ -10463,7 +10463,8 @@
       "strengthVolume": "Strength volume",
       "trainingLoad": "Training load",
       "weightTrend": "Weight trend",
-      "steps": "Steps"
+      "steps": "Steps",
+      "vo2Max": "VO2 max"
     },
     "metricNouns": {
       "meditated": "meditating"

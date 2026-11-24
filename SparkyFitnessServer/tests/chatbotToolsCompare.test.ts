@@ -655,12 +655,16 @@ describe('sparky_compare_metrics since weight trend', () => {
 });
 
 describe('sparky_compare_metrics list_metrics', () => {
-  it('marks weight trend as not for since questions', async () => {
+  it('marks the slow-moving metrics as not for since questions', async () => {
     const result = (await run({ action: 'list_metrics' })) as string;
-    const line = result.split('\n').find((l) => l.startsWith('- weightTrend:'));
+    const lines = result.split('\n');
+    const weight = lines.find((l) => l.startsWith('- weightTrend:'));
+    const vo2 = lines.find((l) => l.startsWith('- vo2Max:'));
 
-    expect(line).toContain('not for since questions');
-    expect(result.match(/not for since questions/g)).toHaveLength(1);
+    expect(weight).toContain('not for since questions');
+    expect(vo2).toContain('VO2 max');
+    expect(vo2).toContain('not for since questions');
+    expect(result.match(/not for since questions/g)).toHaveLength(2);
   });
 
   it('lists every metric key with its unit', async () => {
@@ -676,7 +680,7 @@ describe('sparky_compare_metrics list_metrics', () => {
       '- meditationSessions7d: Meditation sessions (7 days) (meditation, sessions, read over the 7 days ending each day, day only)'
     );
     expect(result).toContain('- meditated: Meditated (meditation, yes or no)');
-    expect(result.match(/^- \w+: /gm)).toHaveLength(24);
+    expect(result.match(/^- \w+: /gm)).toHaveLength(25);
   });
 
   it('is what an empty call gets', async () => {
