@@ -109,7 +109,7 @@ const LabResultsScreen: React.FC<Props> = ({ navigation }) => {
   });
 
   return (
-    <>
+    <View className="flex-1 bg-background">
       {header}
       <ScrollView
         className="flex-1 bg-background"
@@ -215,7 +215,7 @@ const LabResultsScreen: React.FC<Props> = ({ navigation }) => {
           </View>
         )}
       </ScrollView>
-    </>
+    </View>
   );
 };
 

@@ -1,6 +1,9 @@
 import { useMemo, useState } from 'react';
 import { ChevronDown, Check, Plus, ExternalLink } from 'lucide-react';
-import { normalizeNutrientName } from '@workspace/shared';
+import {
+  normalizeNutrientName,
+  getFoodProviderMetadata,
+} from '@workspace/shared';
 import type { Food } from '@/types/food';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -28,27 +31,15 @@ import { CENTRAL_NUTRIENT_CONFIG } from '@/constants/nutrients';
 
 import { useTranslation } from 'react-i18next';
 // Public web page for a provider's food, so users can cross-check field names
-// against the source. Only providers with a stable public URL are linked.
+// against the source. Sourced from shared food provider metadata.
 function getProviderFoodUrl(food: Food): string | null {
-  switch (food.provider_type) {
-    case 'usda':
-      return food.provider_external_id
-        ? `https://fdc.nal.usda.gov/food-details/${food.provider_external_id}/nutrients`
-        : null;
-    case 'openfoodfacts': {
-      const code = food.barcode || food.provider_external_id;
-      return code ? `https://world.openfoodfacts.org/product/${code}` : null;
-    }
-    case 'livsmedelsverket': {
-      if (!food.provider_external_id) {
-        return 'https://soknaringsinnehall.livsmedelsverket.se/';
-      }
-      const query = encodeURIComponent(food.name || '');
-      return `https://soknaringsinnehall.livsmedelsverket.se/Home/FoodDetails/${food.provider_external_id}?sokord=${query}&soktyp=1&kategoriId=`;
-    }
-    default:
-      return null;
-  }
+  return (
+    getFoodProviderMetadata(food.provider_type)?.foodPageUrl?.({
+      externalId: food.provider_external_id,
+      barcode: food.barcode,
+      name: food.name,
+    }) ?? null
+  );
 }
 
 interface ProviderNutrientViewerProps {
@@ -83,7 +74,7 @@ export const ProviderNutrientViewer = ({
   const { mutateAsync: updateCustomNutrient } =
     useUpdateCustomNutrientMutation();
 
-  const { providerNutrients, providerUnits } = useMemo(() => {
+  const { providerNutrients, providerUnits, providerStandard } = useMemo(() => {
     const variant =
       food?.default_variant ??
       food?.variants?.find((v) => v.is_default) ??
@@ -94,6 +85,7 @@ export const ProviderNutrientViewer = ({
     return {
       providerNutrients: entries,
       providerUnits: variant?.provider_nutrient_units ?? {},
+      providerStandard: variant?.provider_nutrient_standard,
     };
   }, [food]);
 
@@ -223,13 +215,25 @@ export const ProviderNutrientViewer = ({
               const matchedNutrient = matchByNormalizedLabel.get(
                 normalizeNutrientName(label)
               );
+              // A provider that sends its code mapping decides alone, so a row
+              // it leaves out on purpose (e.g. sodium derived from salt) is not
+              // badged through an alias. Label aliases cover providers that
+              // don't send one.
               const standardId = matchedNutrient
                 ? null
-                : getStandardNutrientId(label);
-              const standardLabel = standardId
-                ? (CENTRAL_NUTRIENT_CONFIG[standardId]?.defaultLabel ??
-                  standardId)
-                : null;
+                : providerStandard
+                  ? (providerStandard[label] ?? null)
+                  : getStandardNutrientId(label);
+              // Own keys only: the config is a plain object, so an id named
+              // like an Object.prototype member (e.g. "toString") would find an
+              // inherited method instead of falling back to showing the raw id.
+              const standardMeta =
+                standardId && Object.hasOwn(CENTRAL_NUTRIENT_CONFIG, standardId)
+                  ? CENTRAL_NUTRIENT_CONFIG[standardId]
+                  : undefined;
+              const standardLabel = standardMeta
+                ? t(standardMeta.label, standardMeta.defaultLabel)
+                : standardId;
               return (
                 <div
                   key={label}

@@ -117,6 +117,66 @@ export const syncIntervalsData = async (
     body: JSON.stringify({ providerId, startDate, endDate, ...mock }),
   });
 };
+export interface ZeppBridgeSyncResult {
+  sleepImported: number;
+  workoutsImported: number;
+  workoutDetailsImported: number;
+  workoutDetailsFailed: number;
+  failed: number;
+  metricDays: number;
+  recordsSkipped: number;
+}
+
+export interface ZeppBridgeTestResult {
+  success: boolean;
+  version: string | null;
+  recordsVersion: string | null;
+}
+
+export const syncZeppBridgeData = async (
+  providerId?: string,
+  startDate?: string,
+  endDate?: string
+): Promise<ZeppBridgeSyncResult> => {
+  return apiCall('/integrations/zeppbridge/sync', {
+    method: 'POST',
+    body: JSON.stringify({ providerId, startDate, endDate }),
+  });
+};
+
+export const testZeppBridge = async (
+  providerId?: string
+): Promise<ZeppBridgeTestResult> => {
+  return apiCall('/integrations/zeppbridge/test', {
+    method: 'POST',
+    body: JSON.stringify({ providerId }),
+  });
+};
+export interface IntervalsRemoveResult {
+  cleared: number;
+  kept: number;
+  failed: number;
+  remaining: number;
+}
+
+export const setIntervalsNutritionPush = async (
+  enabled: boolean
+): Promise<{ pushNutrition: boolean }> => {
+  return apiCall('/integrations/intervals/nutrition-push', {
+    method: 'PUT',
+    body: JSON.stringify({ enabled }),
+  });
+};
+
+export const removeIntervalsPushedData = async (
+  providerId?: string
+): Promise<IntervalsRemoveResult> => {
+  return apiCall('/integrations/intervals/nutrition-push/remove', {
+    method: 'POST',
+    body: JSON.stringify({ providerId }),
+  });
+};
+
 export interface GarminLoginPayload {
   email: string;
   password: string;

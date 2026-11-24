@@ -26,7 +26,7 @@ import CalendarSheet, {
   type CalendarSheetRef,
 } from '../components/CalendarSheet';
 import TimeSheet, { type TimeSheetRef } from '../components/TimeSheet';
-import { toHourMinute } from '@workspace/shared';
+import { toHourMinute, energyFromKcal } from '@workspace/shared';
 import { formatTimeLabel } from '../utils/entryTimeDisplay';
 import { usableFoodImages } from '../utils/foodImages';
 import NutritionMacroCard from '../components/NutritionMacroCard';
@@ -43,7 +43,6 @@ import { useFoodEntryMealDetails } from '../hooks/useFoodEntryMealDetails';
 import { useUpdateFoodEntryMeal } from '../hooks/useUpdateFoodEntryMeal';
 import { useDeleteFoodEntryMeal } from '../hooks/useDeleteFoodEntryMeal';
 import { consumePendingMealIngredientSelection } from '../services/mealBuilderSelection';
-import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import { formatDateLabel, normalizeDate } from '../utils/dateUtils';
 import { getFoodEntryMealTypeLabel } from '../utils/mealNutrition';
 import { buildMealIngredientDraftFromEntryMealFood } from '../utils/mealBuilderDraft';
@@ -56,6 +55,8 @@ import { mealIngredientDraftToFoodInfo } from '../types/foodInfo';
 import type { MealIngredientDraft } from '../types/meals';
 import type { FoodEntryMealUpdateData } from '../types/foodEntryMeals';
 import type { RootStackScreenProps } from '../types/navigation';
+import { energyUnitLabel } from '../utils/energyUnit';
+import { useEnergyUnit } from '../hooks/useEnergyUnit';
 
 type EditLoggedMealScreenProps = RootStackScreenProps<'EditLoggedMeal'>;
 
@@ -99,12 +100,12 @@ const EditLoggedMealScreen: React.FC<EditLoggedMealScreenProps> = ({
   route,
 }) => {
   const { t, i18n: translationI18n } = useTranslation();
+  const energyUnit = useEnergyUnit();
   const dateLocale = translationI18n.language.startsWith('pl')
     ? 'pl-PL'
     : 'en-US';
   const { foodEntryMealId, initialMeal } = route.params;
   const insets = useSafeAreaInsets();
-  const usesNativeHeader = useNativeIOSHeadersActive();
   const activeWorkoutBarPadding = useActiveWorkoutBarPadding('stack');
   const calendarRef = useRef<CalendarSheetRef>(null);
   const timeSheetRef = useRef<TimeSheetRef>(null);
@@ -253,6 +254,11 @@ const EditLoggedMealScreen: React.FC<EditLoggedMealScreenProps> = ({
     mealId: foodEntryMealId,
     entryDate: meal?.entry_date ?? '',
     onSuccess: () => {
+      invalidateUpdateCache(effectiveDate ?? undefined);
+      navigation.goBack();
+    },
+    // Kept on the phone: the day is read again with the meal on it.
+    onKeptOnPhone: () => {
       invalidateUpdateCache(effectiveDate ?? undefined);
       navigation.goBack();
     },
@@ -405,7 +411,26 @@ const EditLoggedMealScreen: React.FC<EditLoggedMealScreenProps> = ({
       })),
     };
 
-    updateMeal(payload);
+    // The meal as one Diary entry while the save waits on the phone: the
+    // totals are the ones this screen shows for the saved amounts.
+    updateMeal(payload, {
+      food_name: effectiveName,
+      meal_type: payload.meal_type,
+      meal_type_id: effectiveMealId,
+      quantity,
+      unit: meal.unit,
+      entry_date: effectiveDate,
+      entry_time: effectiveEntryTime || null,
+      notes: effectiveNotes.trim() || null,
+      calories: baseTotals.calories * templateScale * scaleFactor,
+      protein: baseTotals.protein * templateScale * scaleFactor,
+      carbs: baseTotals.carbs * templateScale * scaleFactor,
+      fat: baseTotals.fat * templateScale * scaleFactor,
+      dietary_fiber:
+        baseTotals.fiber != null
+          ? baseTotals.fiber * templateScale * scaleFactor
+          : undefined,
+    });
   };
 
   // Diary drill-in, so the left slot stays a back chevron (not a modal X).
@@ -426,11 +451,11 @@ const EditLoggedMealScreen: React.FC<EditLoggedMealScreenProps> = ({
   });
 
   if (isLoading) {
+    // The bar keeps the spinner where it was below the status bar, and gives
+    // a way back while the meal loads (Save stays disabled until it does).
     return (
-      <View
-        className="flex-1 bg-background"
-        style={usesNativeHeader ? undefined : { paddingTop: insets.top }}
-      >
+      <View className="flex-1 bg-background">
+        {header}
         <StatusView loading />
       </View>
     );
@@ -453,10 +478,7 @@ const EditLoggedMealScreen: React.FC<EditLoggedMealScreenProps> = ({
     baseTotals.fiber != null ? baseTotals.fiber * displayScale : undefined;
 
   return (
-    <View
-      className="flex-1 bg-background"
-      style={usesNativeHeader ? undefined : { paddingTop: insets.top }}
-    >
+    <View className="flex-1 bg-background">
       {header}
 
       <ScrollView
@@ -698,7 +720,7 @@ const EditLoggedMealScreen: React.FC<EditLoggedMealScreenProps> = ({
                 const scale =
                   food.serving_size > 0 ? scaledQty / food.serving_size : 0;
                 const foodCals = formatCaloriesDisplay(
-                  (food.calories ?? 0) * scale
+                  energyFromKcal((food.calories ?? 0) * scale, energyUnit)
                 );
                 return (
                   <SwipeableIngredientRow
@@ -708,7 +730,7 @@ const EditLoggedMealScreen: React.FC<EditLoggedMealScreenProps> = ({
                       t('common.food', { defaultValue: 'Food' })
                     }
                     quantityLabel={`${formatServingSizeDisplay(scaledQty)} ${food.unit}`}
-                    caloriesLabel={`${foodCals} ${t('nutrition.caloriesShort', { defaultValue: 'kcal' })}`}
+                    caloriesLabel={`${foodCals} ${energyUnitLabel(energyUnit, t)}`}
                     showBottomBorder={index < ingredients.length - 1}
                     isLastIngredient={ingredients.length === 1}
                     disabled={isRowBusy}

@@ -1,4 +1,5 @@
 import type { TFunction } from 'i18next';
+import type { FeatureKey } from '@workspace/shared';
 
 export const DASHBOARD_CARD_KEYS = [
   'calorieRing',
@@ -8,6 +9,7 @@ export const DASHBOARD_CARD_KEYS = [
   'trainingLoad',
   'hydration',
   'caffeine',
+  'bloodAlcohol',
   'fasting',
   'cycle',
   'medications',
@@ -16,10 +18,24 @@ export const DASHBOARD_CARD_KEYS = [
   'progressPhotos',
   'healthTrends',
   'mindfulness',
+  'oralCare',
   'labResults',
+  'challenges',
 ] as const;
 
 export type DashboardCardKey = (typeof DASHBOARD_CARD_KEYS)[number];
+
+/**
+ * Cards that belong to an optional feature (Settings → Features): the
+ * Dashboard and Dashboard Settings leave them out while it is off, and their
+ * place and switch are kept for when it comes back.
+ */
+export const DASHBOARD_CARD_FEATURES: Partial<
+  Record<DashboardCardKey, FeatureKey>
+> = {
+  cycle: 'cycle',
+  labResults: 'labResults',
+};
 
 export const DASHBOARD_CARD_TITLES: Record<
   DashboardCardKey,
@@ -38,6 +54,10 @@ export const DASHBOARD_CARD_TITLES: Record<
     t('dashboardSettings.hydration', { defaultValue: 'Hydration' }),
   caffeine: (t) =>
     t('dashboardSettings.caffeine', { defaultValue: 'Caffeine' }),
+  bloodAlcohol: (t) =>
+    t('dashboardSettings.bloodAlcohol', {
+      defaultValue: 'Blood Alcohol Estimate',
+    }),
   fasting: (t) => t('dashboardSettings.fasting', { defaultValue: 'Fasting' }),
   cycle: (t) =>
     t('dashboardSettings.cyclePregnancy', {
@@ -56,8 +76,12 @@ export const DASHBOARD_CARD_TITLES: Record<
     t('dashboardSettings.healthTrends', { defaultValue: 'Health Trends' }),
   mindfulness: (t) =>
     t('dashboardSettings.mindfulness', { defaultValue: 'Mindfulness' }),
+  oralCare: (t) =>
+    t('dashboardSettings.oralCare', { defaultValue: 'Oral care' }),
   labResults: (t) =>
     t('dashboardSettings.labResults', { defaultValue: 'Lab Results' }),
+  challenges: (t) =>
+    t('dashboardSettings.challenges', { defaultValue: 'Challenges' }),
 };
 
 export const DASHBOARD_CARD_SUBTITLES: Record<
@@ -93,6 +117,11 @@ export const DASHBOARD_CARD_SUBTITLES: Record<
     t('dashboardSettings.caffeineSubtitle', {
       defaultValue: 'Show the active caffeine card on the Dashboard',
     }),
+  bloodAlcohol: (t) =>
+    t('dashboardSettings.bloodAlcoholSubtitle', {
+      defaultValue:
+        'Show a rough blood alcohol estimate from logged drinks on the Dashboard',
+    }),
   fasting: (t) =>
     t('dashboardSettings.fastingSubtitle', {
       defaultValue: 'Show the fasting card on the Dashboard',
@@ -126,8 +155,16 @@ export const DASHBOARD_CARD_SUBTITLES: Record<
       defaultValue:
         'Show mindfulness sessions, breathing, and meditation on the Dashboard',
     }),
+  oralCare: (t) =>
+    t('dashboardSettings.oralCareSubtitle', {
+      defaultValue: 'Show brushing against your goal and your streak',
+    }),
   labResults: (t) =>
     t('dashboardSettings.labResultsSubtitle', {
       defaultValue: 'Show your latest lab results and which are out of range',
+    }),
+  challenges: (t) =>
+    t('dashboardSettings.challengesSubtitle', {
+      defaultValue: 'Show your place in the challenges you are in',
     }),
 };

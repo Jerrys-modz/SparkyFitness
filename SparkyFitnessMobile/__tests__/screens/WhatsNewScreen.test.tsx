@@ -51,6 +51,23 @@ jest.mock('../../src/hooks/useWatchConnectivity', () => ({
   }),
 }));
 
+const mockNfc = { supported: false };
+jest.mock('../../src/hooks/useNfcSupport', () => ({
+  useNfcSupport: () => ({
+    supported: mockNfc.supported,
+    enabled: mockNfc.supported,
+    isLoading: false,
+    refetch: jest.fn(),
+  }),
+}));
+
+let mockFeaturesOff = new Set<string>();
+jest.mock('../../src/hooks/useMobileFeatures', () => ({
+  useMobileFeatures: () => ({
+    isEnabled: (key: string) => !mockFeaturesOff.has(key),
+  }),
+}));
+
 jest.mock('uniwind', () => ({
   useCSSVariable: jest.fn((variables: string | string[]) =>
     (Array.isArray(variables) ? variables : [variables]).map(() => '#000000')
@@ -71,6 +88,8 @@ describe('WhatsNewScreen localization', () => {
     jest.clearAllMocks();
     mockWatch.supported = false;
     mockWatch.paired = false;
+    mockNfc.supported = false;
+    mockFeaturesOff = new Set();
     await initializeI18n('en');
     await i18n.changeLanguage('en');
   });
@@ -132,5 +151,36 @@ describe('WhatsNewScreen localization', () => {
 
     fireEvent.press(screen.getByText('Open watch settings'));
     expect(navigation.navigate).toHaveBeenCalledWith('WatchSettings');
+  });
+
+  it('opens lab results from the lab results card', () => {
+    render(<WhatsNewScreen navigation={navigation} route={route} />);
+
+    expect(screen.getByText('Keep your lab results in one place')).toBeTruthy();
+    fireEvent.press(screen.getByText('Open lab results'));
+    expect(navigation.navigate).toHaveBeenCalledWith('LabResults');
+  });
+
+  it('keeps the lab results card without its button while lab results are off', () => {
+    mockFeaturesOff = new Set(['labResults']);
+    render(<WhatsNewScreen navigation={navigation} route={route} />);
+
+    expect(screen.getByText('Keep your lab results in one place')).toBeTruthy();
+    expect(screen.queryByText('Open lab results')).toBeNull();
+  });
+
+  it('hides the NFC tags button on a phone without NFC', () => {
+    render(<WhatsNewScreen navigation={navigation} route={route} />);
+
+    expect(screen.getByText('Log with a tap')).toBeTruthy();
+    expect(screen.queryByText('Set up NFC tags')).toBeNull();
+  });
+
+  it('opens NFC tag settings when the phone has NFC', () => {
+    mockNfc.supported = true;
+    render(<WhatsNewScreen navigation={navigation} route={route} />);
+
+    fireEvent.press(screen.getByText('Set up NFC tags'));
+    expect(navigation.navigate).toHaveBeenCalledWith('ActionTags');
   });
 });

@@ -17,11 +17,14 @@ import {
   History,
   Utensils,
   ClipboardCopy,
+  Copy,
   PlusCircle,
   Users,
+  UtensilsCrossed,
 } from 'lucide-react';
 import { useState } from 'react';
 import EnhancedFoodSearch from '../../components/FoodSearch/FoodSearch';
+import { FOOD_SEARCH_DIALOG_CONTENT_CLASS } from '../../components/FoodSearch/foodSearchDialogLayout';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { debug } from '@/utils/logging';
@@ -69,12 +72,150 @@ import ImageLightbox from '@/components/ImageLightbox';
 
 const MOBILE_ENTRY_NUTRIENT_LIMIT = 4;
 
+// Desktop meal total row: the narrowest column, and the gap between columns
+// (gap-x-2).
+const TOTAL_COLUMN_MIN_PX = 92;
+const TOTAL_COLUMN_GAP_PX = 8;
+
+/** Wide enough for one row of `count` columns plus their gaps. */
+const totalRowMaxWidth = (count: number): string =>
+  `${count * TOTAL_COLUMN_MIN_PX + Math.max(count - 1, 0) * TOTAL_COLUMN_GAP_PX}px`;
+
 const MOBILE_NUTRIENT_LABEL_OVERRIDES: Record<
   string,
   { label: string; defaultLabel: string }
 > = {
   carbs: { label: 'nutrition.carbs', defaultLabel: 'Carbs' },
   dietary_fiber: { label: 'nutrition.fiber', defaultLabel: 'Fiber' },
+};
+
+// The diary reads as one timeline: each meal sits on a vertical rail with an
+// icon or emoji for its meal type, and each entry hangs off the rail with its own dot.
+const MEAL_ICON_STYLES: Record<
+  string,
+  { emoji?: string; Icon?: typeof Utensils; className: string }
+> = {
+  breakfast: {
+    emoji: '☕',
+    className:
+      'bg-amber-100 ring-amber-200 dark:bg-amber-900/40 dark:ring-amber-800',
+  },
+  lunch: {
+    emoji: '🥪',
+    className:
+      'bg-orange-100 ring-orange-200 dark:bg-orange-900/40 dark:ring-orange-800',
+  },
+  snack: {
+    emoji: '🍏',
+    className:
+      'bg-green-100 ring-green-200 dark:bg-green-900/40 dark:ring-green-800',
+  },
+  snacks: {
+    emoji: '🍏',
+    className:
+      'bg-green-100 ring-green-200 dark:bg-green-900/40 dark:ring-green-800',
+  },
+  dinner: {
+    emoji: '🍽️',
+    className:
+      'bg-indigo-100 ring-indigo-200 dark:bg-indigo-900/40 dark:ring-indigo-800',
+  },
+};
+
+const DEFAULT_MEAL_ICON_STYLE: {
+  emoji?: string;
+  Icon: typeof Utensils;
+  className: string;
+} = {
+  Icon: Utensils,
+  className:
+    'bg-slate-100 text-slate-600 ring-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700',
+};
+
+// Own keys only, so a meal named e.g. "constructor" never resolves to an
+// Object.prototype member.
+const mealIconStyleFor = (key: string) => {
+  const normalized = key.toLowerCase();
+  return Object.hasOwn(MEAL_ICON_STYLES, normalized)
+    ? MEAL_ICON_STYLES[normalized]
+    : undefined;
+};
+
+/**
+ * The images a diary row shows. Food entries: per-entry override, else the
+ * food's own image. Logged meals: their override, else the meal template's.
+ */
+const mealCardEntryImages = (item: FoodEntry | FoodEntryMeal): string[] => {
+  if (!('foods' in item && 'entry_date' in item)) {
+    return diaryEntryImages(item as FoodEntry);
+  }
+  const loggedMeal = item as FoodEntryMeal;
+  const override = usableFoodImages(loggedMeal.images);
+  return override.length > 0
+    ? override
+    : usableFoodImages(loggedMeal.meal_images);
+};
+
+interface EntryThumbnailProps {
+  images: string[];
+  alt: string;
+  /** Whether a row without a usable image keeps an image-sized slot. */
+  reserveSpace: boolean;
+  viewLabel: string;
+  /** Opens the lightbox on the images that have not failed, shown one first. */
+  onOpen: (images: string[]) => void;
+}
+
+/**
+ * A diary row's image, opening the lightbox. When an image fails to load the
+ * next one is tried. A row without images, or whose images all fail, shows a
+ * placeholder of the same size from sm up, so a meal's nutrient grids line up.
+ */
+const EntryThumbnail = ({
+  images,
+  alt,
+  reserveSpace,
+  viewLabel,
+  onOpen,
+}: EntryThumbnailProps) => {
+  // How many images failed. The caller keys this component by the list, so
+  // another list starts again from its first image.
+  const [failedCount, setFailedCount] = useState(0);
+  const remaining = images.slice(failedCount);
+  const src = remaining[0] ?? null;
+
+  if (src) {
+    return (
+      <button
+        type="button"
+        className="flex-shrink-0 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        onClick={() => onOpen(remaining)}
+        aria-label={viewLabel}
+      >
+        <img
+          // A new element per attempt, so the browser loads it afresh and
+          // reports its own error, even when the list repeats an address.
+          key={`${failedCount}:${src}`}
+          src={src}
+          alt={alt}
+          className="w-16 h-16 object-cover rounded-md cursor-zoom-in"
+          loading="lazy"
+          // A dead provider link shouldn't leave a broken icon.
+          onError={() => setFailedCount(failedCount + 1)}
+        />
+      </button>
+    );
+  }
+  if (images.length === 0 && !reserveSpace) return null;
+  return (
+    <div
+      aria-hidden="true"
+      data-testid="meal-entry-image-placeholder"
+      className="hidden sm:flex w-16 h-16 flex-shrink-0 items-center justify-center rounded-md bg-gray-100 dark:bg-gray-700"
+    >
+      <UtensilsCrossed className="h-6 w-6 text-muted-foreground" />
+    </div>
+  );
 };
 
 interface MealCardProps {
@@ -84,6 +225,8 @@ interface MealCardProps {
     entries: (FoodEntry | FoodEntryMeal)[];
     targetCalories?: number;
     selectedDate: string;
+    /** The meal type's default time ('HH:MM' or 'HH:MM:SS'), if it has one. */
+    defaultTime?: string | null;
   };
   totals: MealTotals;
   selectedDate: string;
@@ -95,6 +238,8 @@ interface MealCardProps {
   ) => Promise<void>;
   getEntryNutrition: (entry: FoodEntry | FoodEntryMeal) => MealTotals;
   onCopyClick: (mealType: string) => void;
+  /** Copies one logged food; omitted where copying isn't offered. */
+  onCopyEntry?: (entry: FoodEntry) => void;
   onCopyFamilyClick: (mealType: string) => void;
   onConvertToMealClick: (mealType: string) => void;
   energyUnit: 'kcal' | 'kJ';
@@ -116,6 +261,7 @@ const MealCard = ({
   onRemoveEntry,
   getEntryNutrition,
   onCopyClick,
+  onCopyEntry,
   onCopyFamilyClick,
   onConvertToMealClick,
   energyUnit,
@@ -159,6 +305,14 @@ const MealCard = ({
       ? t('common.kcalUnit', 'kcal')
       : t('common.kJUnit', 'kJ');
   };
+  const mealIconStyle =
+    mealIconStyleFor(meal.type) ??
+    mealIconStyleFor(meal.name) ??
+    DEFAULT_MEAL_ICON_STYLE;
+  const MealIcon = mealIconStyle.Icon ?? Utensils;
+  const mealStartTime = meal.defaultTime
+    ? formatTimeOfDayString(meal.defaultTime, timeFormat)
+    : null;
   debug(loggingLevel, 'MealCard: Component rendered for meal:', meal.name);
   debug(loggingLevel, 'MealCard: meal.entries:', meal.entries);
   const [editingFood, setEditingFood] = useState<Food | null>(null); // Changed from editingFoodEntry to editingFood
@@ -229,6 +383,12 @@ const MealCard = ({
     summableNutrients.includes(nutrient)
   );
 
+  // On desktop an image narrows its row's nutrient grid, so once any row has
+  // one, rows without get an empty slot of the same width.
+  const mealHasImages = meal.entries.some(
+    (item) => mealCardEntryImages(item).length > 0
+  );
+
   const handleCopyFromYesterday = () => {
     copyFoodEntriesFromYesterday({
       mealType: meal.type,
@@ -238,22 +398,50 @@ const MealCard = ({
 
   return (
     <>
-      <Card>
+      <Card className="relative">
         <CardHeader>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4">
-            <div className="flex items-center gap-2">
-              <CardTitle className="text-lg sm:text-xl dark:text-slate-300">
-                {meal.name}
-              </CardTitle>
-              <span className="text-xs sm:text-sm text-gray-500">
-                {Math.round(convertEnergy(totals.calories, 'kcal', energyUnit))}
-                {!!meal.targetCalories && (
-                  <span>{` / ${Math.round(
-                    convertEnergy(meal.targetCalories, 'kcal', energyUnit)
-                  )}`}</span>
+            <div className="flex items-center gap-3">
+              <div
+                className={cn(
+                  'relative z-10 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full ring-4',
+                  mealIconStyle.className
                 )}
-                {getEnergyUnitString(energyUnit)}
-              </span>
+                aria-hidden="true"
+              >
+                {mealIconStyle.emoji ? (
+                  <span className="text-xl leading-none select-none">
+                    {mealIconStyle.emoji}
+                  </span>
+                ) : (
+                  <MealIcon className="h-5 w-5 text-muted-foreground" />
+                )}
+              </div>
+              <div className="min-w-0">
+                <CardTitle className="text-lg sm:text-xl dark:text-slate-300">
+                  {meal.name}
+                </CardTitle>
+                <span className="text-xs sm:text-sm text-gray-500">
+                  {mealStartTime && (
+                    <>
+                      {t('mealCard.fromTime', 'from {{time}}', {
+                        time: mealStartTime,
+                      })}
+                      {' · '}
+                    </>
+                  )}
+                  <span className="font-semibold text-foreground">
+                    {Math.round(
+                      convertEnergy(totals.calories, 'kcal', energyUnit)
+                    )}
+                    {!!meal.targetCalories &&
+                      ` / ${Math.round(
+                        convertEnergy(meal.targetCalories, 'kcal', energyUnit)
+                      )}`}{' '}
+                    {getEnergyUnitString(energyUnit)}
+                  </span>
+                </span>
+              </div>
             </div>
             <div className="flex flex-wrap gap-2 sm:gap-4 justify-end">
               <Dialog
@@ -274,7 +462,7 @@ const MealCard = ({
                     <Utensils className="w-4 h-4" />
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-6xl max-h-[80vh] overflow-y-auto">
+                <DialogContent className={FOOD_SEARCH_DIALOG_CONTENT_CLASS}>
                   <DialogHeader>
                     <DialogTitle>
                       {t('mealCard.addFoodToMeal', {
@@ -374,11 +562,17 @@ const MealCard = ({
         </CardHeader>
         <CardContent>
           {meal.entries.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              {t('foodDiary.noFoodsAddedYet', 'No foods added yet')}
+            <div className="relative pl-12">
+              <button
+                type="button"
+                className="w-full rounded-xl border border-dashed border-muted-foreground/40 py-6 text-center text-sm text-muted-foreground transition-colors hover:bg-muted/50"
+                onClick={() => handleFoodSearchOpenChange(true)}
+              >
+                {t('mealCard.nothingLogged', 'Nothing logged yet, add food')}
+              </button>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="relative space-y-3 pl-12">
               {meal.entries.map((item) => {
                 // Changed entry to item
                 const entryNutrition = getEntryNutrition(item);
@@ -400,19 +594,7 @@ const MealCard = ({
                 const entryIsHighlighted =
                   'food_id' in item &&
                   (item as FoodEntry).food_id === highlightFoodId;
-                // Food entries: per-entry override, else the food's own image.
-                // Logged meals: the meal template's image.
-                const entryImages = isFoodEntry
-                  ? diaryEntryImages(item as FoodEntry)
-                  : (() => {
-                      const override = usableFoodImages(
-                        (item as FoodEntryMeal).images
-                      );
-                      return override.length > 0
-                        ? override
-                        : usableFoodImages((item as FoodEntryMeal).meal_images);
-                    })();
-                const entryImageSrc = entryImages[0] ?? null;
+                const entryImages = mealCardEntryImages(item);
 
                 // Determine glycemic index directly from the entryNutrition object
                 const giValue: GlycemicIndex | undefined | null =
@@ -478,10 +660,18 @@ const MealCard = ({
                     <div
                       key={item.id}
                       className={cn(
-                        'rounded-xl border bg-card p-4 shadow-sm transition-colors duration-300 dark:bg-secondary/50',
+                        'group relative rounded-xl border bg-card p-4 shadow-sm transition-all duration-300 hover:shadow-md dark:bg-secondary/50',
                         entryIsHighlighted && 'border-2 border-blue-500'
                       )}
                     >
+                      <span
+                        className="absolute -left-[33px] top-5 h-2.5 w-2.5 rounded-full border-2 border-primary bg-background transition-colors group-hover:bg-primary"
+                        aria-hidden="true"
+                      />
+                      <span
+                        className="absolute -left-[23px] top-6 h-px w-[23px] bg-border"
+                        aria-hidden="true"
+                      />
                       <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
                         <div className="min-w-0">
                           <div className="text-base font-semibold leading-tight text-card-foreground">
@@ -607,6 +797,18 @@ const MealCard = ({
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
+                        {isFoodEntry && onCopyEntry && (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-9 w-9 text-muted-foreground"
+                            onClick={() => onCopyEntry(item as FoodEntry)}
+                            title={t('mealCard.copyFood', 'Copy food')}
+                            aria-label={t('mealCard.copyFood', 'Copy food')}
+                          >
+                            <Copy className="h-4 w-4" />
+                          </Button>
+                        )}
                         <Button
                           size="icon"
                           variant="ghost"
@@ -635,31 +837,29 @@ const MealCard = ({
                   <div
                     key={item.id} // Use item.id directly
                     className={cn(
-                      'flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg gap-4 transition-colors duration-300',
+                      'group relative flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg gap-4 transition-all duration-300 hover:shadow-md',
                       entryIsHighlighted && 'border-2 border-blue-500'
                     )}
                   >
-                    {entryImageSrc && (
-                      <button
-                        type="button"
-                        className="flex-shrink-0 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        onClick={() =>
-                          openLightbox(entryImages, 0, entryName ?? undefined)
-                        }
-                        aria-label={t('food.viewImages', 'View images')}
-                      >
-                        <img
-                          src={entryImageSrc}
-                          alt={entryName ?? ''}
-                          className="w-16 h-16 object-cover rounded-md cursor-zoom-in"
-                          loading="lazy"
-                          onError={(e) => {
-                            // A dead provider link shouldn't leave a broken icon.
-                            e.currentTarget.style.display = 'none';
-                          }}
-                        />
-                      </button>
-                    )}
+                    <span
+                      className="absolute -left-[33px] top-5 h-2.5 w-2.5 rounded-full border-2 border-primary bg-background transition-colors group-hover:bg-primary"
+                      aria-hidden="true"
+                    />
+                    <span
+                      className="absolute -left-[23px] top-6 h-px w-[23px] bg-border"
+                      aria-hidden="true"
+                    />
+                    <EntryThumbnail
+                      // A changed list rebuilds it, so failures start over.
+                      key={entryImages.join('\n')}
+                      images={entryImages}
+                      alt={entryName ?? ''}
+                      reserveSpace={mealHasImages}
+                      viewLabel={t('food.viewImages', 'View images')}
+                      onOpen={(images) =>
+                        openLightbox(images, 0, entryName ?? undefined)
+                      }
+                    />
                     <div className="flex-1">
                       <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-1">
                         <span className="font-medium">{entryName}</span>
@@ -742,6 +942,17 @@ const MealCard = ({
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
+                      {isFoodEntry && onCopyEntry && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => onCopyEntry(item as FoodEntry)}
+                          title={t('mealCard.copyFood', 'Copy food')}
+                          aria-label={t('mealCard.copyFood', 'Copy food')}
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      )}
                       <Button
                         size="sm"
                         variant="ghost"
@@ -766,17 +977,29 @@ const MealCard = ({
 
               <Separator />
 
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center pt-2 gap-4">
-                <span className="font-semibold dark:text-slate-300">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center pt-2 gap-4">
+                <span className="shrink-0 font-semibold dark:text-slate-300">
                   {t('mealCard.mealTotal', {
                     mealName: t(`common.${meal.type}`, meal.name),
                     defaultValue: `${meal.name} Total:`,
                   })}
                 </span>
+                {/* Columns wide enough that a long label ("Kohlenhydrate")
+                    never runs into the next one. The grid takes the space
+                    beside the title, on desktop up to one row of every
+                    nutrient shown, and wraps into more rows when narrower. */}
                 <div
-                  className="grid gap-x-2 gap-y-2 text-xs sm:text-sm w-full sm:w-[35%] sm:ml-auto"
+                  data-testid="meal-total-nutrients"
+                  className={cn(
+                    'grid gap-x-2 gap-y-2 text-xs sm:text-sm w-full sm:w-auto sm:flex-1 sm:min-w-0 sm:ml-auto',
+                    isMobile && 'sm:max-w-[37rem]'
+                  )}
                   style={{
-                    gridTemplateColumns: `repeat(auto-fit, minmax(${isMobile ? '40px' : '60px'}, 1fr))`,
+                    // 92px fits "Kohlenhydrate" in text-xs on one line.
+                    gridTemplateColumns: `repeat(auto-fit, minmax(${isMobile ? '80px' : `${TOTAL_COLUMN_MIN_PX}px`}, 1fr))`,
+                    maxWidth: isMobile
+                      ? undefined
+                      : totalRowMaxWidth(visibleNutrientsForGrid.length),
                   }}
                 >
                   {visibleNutrientsForGrid.map((nutrient) => {
@@ -803,7 +1026,10 @@ const MealCard = ({
                         : metadata.unit;
 
                     return (
-                      <div key={nutrient} className="text-center min-w-[40px]">
+                      <div
+                        key={nutrient}
+                        className="text-center min-w-0 wrap-break-word"
+                      >
                         <div className={`font-bold ${metadata.color}`}>
                           {displayValue} {unitDisplay}
                         </div>

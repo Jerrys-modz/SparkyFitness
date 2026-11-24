@@ -1,4 +1,8 @@
 import { useState } from 'react';
+import {
+  MCP_SERVER_PROVIDER_TYPE,
+  getFoodProviderMetadata,
+} from '@workspace/shared';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import {
@@ -53,6 +57,11 @@ import {
   useDisconnectLiftosaurMutation,
   useSyncIntervalsMutation,
   useDisconnectIntervalsMutation,
+  useSetIntervalsNutritionPushMutation,
+  useRemoveIntervalsPushedDataMutation,
+  useSyncZeppBridgeMutation,
+  useDisconnectZeppBridgeMutation,
+  useTestZeppBridgeMutation,
   useConnectCorosMutation,
   useDisconnectCorosMutation,
   useManualSyncCorosMutation,
@@ -238,6 +247,21 @@ export const ProviderCard = ({
     mutate: handleDisconnectIntervals,
     isPending: isDisconnectIntervalsPending,
   } = useDisconnectIntervalsMutation();
+  const { mutate: setIntervalsPush, isPending: isSetIntervalsPushPending } =
+    useSetIntervalsNutritionPushMutation();
+  const {
+    mutate: removeIntervalsPushed,
+    isPending: isRemoveIntervalsPushedPending,
+  } = useRemoveIntervalsPushedDataMutation();
+
+  const { mutate: syncZeppBridgeData, isPending: isSyncZeppBridgePending } =
+    useSyncZeppBridgeMutation();
+  const {
+    mutate: handleDisconnectZeppBridge,
+    isPending: isDisconnectZeppBridgePending,
+  } = useDisconnectZeppBridgeMutation();
+  const { mutate: testZeppBridge, isPending: isTestZeppBridgePending } =
+    useTestZeppBridgeMutation();
 
   const [isSyncDialogOpen, setIsSyncDialogOpen] = useState(false);
 
@@ -318,6 +342,13 @@ export const ProviderCard = ({
           ...mock,
         });
         break;
+      case 'zeppbridge':
+        syncZeppBridgeData({
+          providerId: provider.id,
+          startDate,
+          endDate,
+        });
+        break;
     }
   };
 
@@ -354,7 +385,12 @@ export const ProviderCard = ({
     isSyncLiftosaurPending ||
     isDisconnectLiftosaurPending ||
     isSyncIntervalsPending ||
-    isDisconnectIntervalsPending;
+    isDisconnectIntervalsPending ||
+    isSetIntervalsPushPending ||
+    isRemoveIntervalsPushedPending ||
+    isSyncZeppBridgePending ||
+    isDisconnectZeppBridgePending ||
+    isTestZeppBridgePending;
 
   const handleToggleActive = async (providerId: string, isActive: boolean) => {
     try {
@@ -432,7 +468,8 @@ export const ProviderCard = ({
       provider.garmin_connect_status === 'connected' ||
       provider.hevy_connect_status === 'connected' ||
       provider.liftosaur_connect_status === 'connected' ||
-      provider.intervals_connect_status === 'connected';
+      provider.intervals_connect_status === 'connected' ||
+      provider.zeppbridge_connect_status === 'connected';
 
     // Polar's is the only token expiry shown: the other OAuth providers refresh their
     // access tokens on their own, so their short expiry misleads users into reconnecting.
@@ -536,12 +573,25 @@ export const ProviderCard = ({
           tokenExpires: null,
           hasToken: isLinked && provider.is_active,
         };
+      case 'zeppbridge':
+        return {
+          connect: null,
+          disconnect: () => handleDisconnectZeppBridge(provider.id),
+          sync: () => setIsSyncDialogOpen(true),
+          lastSync: provider.zeppbridge_last_sync_at,
+          tokenExpires: null,
+          hasToken: isLinked && provider.is_active,
+        };
       default:
         return null;
     }
   };
 
   const config = getProviderConfig();
+  // The Garmin status check reports null when the account has never synced.
+  const garminNeverSynced =
+    provider.provider_type === 'garmin' &&
+    provider.garmin_last_status_check === null;
 
   return (
     <div className="space-y-3">
@@ -758,6 +808,24 @@ export const ProviderCard = ({
           {provider.sync_frequency && (
             <span>{` - ${t('settings.providerCard.syncLabel', 'Sync:')} ${provider.sync_frequency}`}</span>
           )}
+          {provider.provider_type === MCP_SERVER_PROVIDER_TYPE && (
+            <span>
+              {` - ${t(
+                'settings.providerCard.mcpServerToolCount',
+                'Chat may use {{count}} tools',
+                {
+                  count: provider.provider_options?.allowed_tools.length ?? 0,
+                  defaultValue_one: 'Chat may use {{count}} tool',
+                  defaultValue_other: 'Chat may use {{count}} tools',
+                }
+              )}`}
+              {provider.provider_options?.send_user_id &&
+                ` - ${t(
+                  'settings.providerCard.mcpServerSendsUserId',
+                  'Tells the server who is chatting'
+                )}`}
+            </span>
+          )}
         </p>
 
         {provider.provider_type === 'swissfood' && (
@@ -957,7 +1025,10 @@ export const ProviderCard = ({
 
         {(() => {
           const portal = PROVIDER_PORTALS[provider.provider_type];
-          if (!portal) return null;
+          const meta = getFoodProviderMetadata(provider.provider_type);
+          const portalUrl = portal?.url || meta?.portalUrl;
+          const portalLabel = portal?.label || meta?.displayName;
+          if (!portalUrl) return null;
           return (
             <p className="text-xs text-muted-foreground mt-1.5 max-w-2xl leading-relaxed">
               <Trans
@@ -965,11 +1036,11 @@ export const ProviderCard = ({
                 defaults={
                   'For more details or to manage your integration, visit the <link>{{label}}</link>.'
                 }
-                values={{ label: portal.label }}
+                values={{ label: portalLabel }}
                 components={{
                   link: (
                     <a
-                      href={portal.url}
+                      href={portalUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-primary hover:underline font-medium"
@@ -981,27 +1052,47 @@ export const ProviderCard = ({
           );
         })()}
 
-        {config?.hasToken && (config.lastSync || config.tokenExpires) && (
-          <div className="text-sm text-muted-foreground">
-            {config.lastSync && (
-              <span>
-                {t('settings.providerCard.lastSync2', 'Last Sync: {{value}}', {
-                  value: new Date(config.lastSync).toLocaleString(),
-                })}
-              </span>
-            )}
-            {config.lastSync && config.tokenExpires && <span> | </span>}
-            {config.tokenExpires && (
-              <span>
-                {t(
-                  'settings.providerCard.tokenExpires2',
-                  'Token Expires: {{value}}',
-                  { value: new Date(config.tokenExpires).toLocaleString() }
-                )}
-              </span>
-            )}
-          </div>
-        )}
+        {config?.hasToken &&
+          (config.lastSync || config.tokenExpires || garminNeverSynced) && (
+            <div className="text-sm text-muted-foreground">
+              {config.lastSync && (
+                <span>
+                  {t(
+                    'settings.providerCard.lastSync2',
+                    'Last Sync: {{value}}',
+                    {
+                      value: new Date(config.lastSync).toLocaleString(),
+                    }
+                  )}
+                </span>
+              )}
+              {!config.lastSync && garminNeverSynced && (
+                <span>
+                  {t('settings.providerCard.neverSynced', 'Last Sync: never')}
+                </span>
+              )}
+              {config.lastSync && config.tokenExpires && <span> | </span>}
+              {config.tokenExpires && (
+                <span>
+                  {t(
+                    'settings.providerCard.tokenExpires2',
+                    'Token Expires: {{value}}',
+                    { value: new Date(config.tokenExpires).toLocaleString() }
+                  )}
+                </span>
+              )}
+            </div>
+          )}
+
+        {provider.provider_type === 'garmin' &&
+          provider.garmin_service_reachable === false && (
+            <p className="text-sm text-destructive">
+              {t(
+                'settings.providerCard.garminServiceUnreachable',
+                'Garmin service unreachable. Syncing is not possible.'
+              )}
+            </p>
+          )}
 
         {provider.provider_type === 'intervals' && (
           <p className="text-xs text-muted-foreground mt-2">
@@ -1010,6 +1101,109 @@ export const ProviderCard = ({
               'Activities that Intervals.icu received from Garmin Connect are skipped while Garmin is connected here, so they are not imported twice.'
             )}
           </p>
+        )}
+
+        {provider.provider_type === 'zeppbridge' && (
+          <div className="mt-2 space-y-2">
+            <p className="text-xs text-muted-foreground">
+              <Trans
+                i18nKey="integrations.zeppbridgeThirdPartyNote"
+                defaults={
+                  'Third-party integration: it needs <repo>ZeppBridge</repo>, an independent project not supported by SparkyFitness, running on your own machine.'
+                }
+                components={{
+                  repo: (
+                    <a
+                      href="https://github.com/lingcang728/ZeppBridge"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-500 underline"
+                    />
+                  ),
+                }}
+              />
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {t(
+                'integrations.zeppbridgeDuplicateNote',
+                'If the Zepp app also writes to Apple Health or Health Connect and you sync that here too, the same night or workout can appear twice. Use one of the two.'
+              )}
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={loading}
+              onClick={() => testZeppBridge(provider.id)}
+            >
+              {t('integrations.zeppbridgeTestButton', 'Test connection')}
+            </Button>
+          </div>
+        )}
+
+        {provider.provider_type === 'intervals' && (
+          <div className="mt-3 space-y-2">
+            <div className="flex items-center gap-2">
+              <Switch
+                id={`intervals-push-${provider.id}`}
+                checked={!!provider.intervals_push_nutrition}
+                disabled={loading}
+                onCheckedChange={(enabled) => setIntervalsPush(enabled)}
+              />
+              <label
+                htmlFor={`intervals-push-${provider.id}`}
+                className="text-sm"
+              >
+                {t(
+                  'integrations.intervalsPushLabel',
+                  'Push daily nutrition to Intervals.icu'
+                )}
+              </label>
+            </div>
+            {provider.intervals_push_nutrition &&
+              provider.intervals_pushed_since && (
+                <p className="text-xs text-muted-foreground">
+                  {t(
+                    'integrations.intervalsPushingSince',
+                    'Pushing since {{date}}',
+                    {
+                      date: provider.intervals_pushed_since,
+                    }
+                  )}
+                </p>
+              )}
+            {!provider.intervals_push_nutrition &&
+              (provider.intervals_pushed_days ?? 0) > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  {t(
+                    'integrations.intervalsPushedRemain',
+                    '{{count}} days of pushed data remain',
+                    { count: provider.intervals_pushed_days }
+                  )}
+                </p>
+              )}
+            {(provider.intervals_pushed_days ?? 0) > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={loading}
+                onClick={() => {
+                  if (
+                    confirm(
+                      t(
+                        'integrations.intervalsRemoveConfirm',
+                        'Turn off pushing and remove the nutrition values SparkyFitness wrote to Intervals.icu? Values another app has changed since are left alone.'
+                      )
+                    )
+                  ) {
+                    removeIntervalsPushed(provider.id);
+                  }
+                }}
+              >
+                {t('integrations.intervalsRemovePushed', 'Remove pushed data')}
+              </Button>
+            )}
+          </div>
         )}
 
         {provider.availability_error && (

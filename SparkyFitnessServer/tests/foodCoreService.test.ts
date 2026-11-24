@@ -525,3 +525,112 @@ describe('foodCoreService.deleteFoodVariant', () => {
     );
   });
 });
+
+describe('updateFoodVariant custom_nutrients', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(foodRepository.getFoodVariantById).mockResolvedValue({
+      id: 'variant-1',
+      food_id: 'food-1',
+      serving_size: 100,
+      serving_unit: 'g',
+    } as never);
+    vi.mocked(foodRepository.getFoodOwnerId).mockResolvedValue(
+      'user-1' as never
+    );
+    vi.mocked(foodRepository.updateFoodVariant).mockResolvedValue({
+      id: 'variant-1',
+    } as never);
+  });
+
+  it('leaves stored custom nutrients alone when the update omits them', async () => {
+    await foodCoreService.updateFoodVariant('user-1', 'variant-1', {
+      food_id: 'food-1',
+      calories: 100,
+    } as never);
+
+    const sent = vi.mocked(foodRepository.updateFoodVariant).mock.calls[0][1];
+    expect(sent.custom_nutrients).toBeUndefined();
+  });
+
+  it('saves custom nutrients when the update includes them', async () => {
+    await foodCoreService.updateFoodVariant('user-1', 'variant-1', {
+      food_id: 'food-1',
+      custom_nutrients: { Zinc: 3, Iron: '' },
+    } as never);
+
+    const sent = vi.mocked(foodRepository.updateFoodVariant).mock.calls[0][1];
+    expect(sent.custom_nutrients).toEqual({ Zinc: 3 });
+  });
+});
+
+describe('foodCoreService.createFood with a client id (offline replay)', () => {
+  const CLIENT_ID = '22222222-2222-4222-8222-222222222222';
+  const plain = (overrides = {}) =>
+    makeFoodData({
+      barcode: null,
+      provider_type: null,
+      provider_external_id: null,
+      client_id: CLIENT_ID,
+      ...overrides,
+    });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(foodRepository.findFoodByClientId).mockResolvedValue(null);
+  });
+
+  it('returns the food an earlier request created and creates nothing', async () => {
+    const stored = makeExistingFood();
+    vi.mocked(foodRepository.findFoodByClientId).mockResolvedValue(
+      stored as never
+    );
+
+    const result = await foodCoreService.createFood(TEST_USER_ID, plain());
+
+    expect(result).toBe(stored);
+    expect(foodRepository.createFood).not.toHaveBeenCalled();
+  });
+
+  it('creates the food with the key when none is stored', async () => {
+    vi.mocked(foodRepository.createFood).mockResolvedValue(
+      makeExistingFood() as never
+    );
+
+    await foodCoreService.createFood(TEST_USER_ID, plain());
+
+    expect(foodRepository.createFood).toHaveBeenCalledWith(
+      expect.objectContaining({ client_id: CLIENT_ID })
+    );
+  });
+
+  it('answers a lost race with the winning food', async () => {
+    const winner = makeExistingFood({ id: 'winner' });
+    vi.mocked(foodRepository.findFoodByClientId)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(winner as never);
+    vi.mocked(foodRepository.createFood).mockRejectedValue(
+      Object.assign(new Error('duplicate'), {
+        code: '23505',
+        constraint: 'idx_foods_user_client_id',
+      })
+    );
+
+    const result = await foodCoreService.createFood(TEST_USER_ID, plain());
+
+    expect(result).toBe(winner);
+  });
+
+  it('does not look anything up without a key', async () => {
+    vi.mocked(foodRepository.createFood).mockResolvedValue(
+      makeExistingFood() as never
+    );
+
+    await foodCoreService.createFood(
+      TEST_USER_ID,
+      plain({ client_id: undefined })
+    );
+
+    expect(foodRepository.findFoodByClientId).not.toHaveBeenCalled();
+  });
+});

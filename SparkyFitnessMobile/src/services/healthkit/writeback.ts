@@ -1,18 +1,24 @@
 import {
+  saveCategorySample,
   saveCorrelationSample,
   saveQuantitySample,
   deleteObjects,
   authorizationStatusFor,
+  type CategoryValueForIdentifier,
   type CorrelationSample,
   type QuantitySample,
-  type QuantityTypeIdentifierWriteable,
   type ObjectTypeIdentifier,
   type SampleTypeIdentifierWriteable,
 } from '@kingstinct/react-native-healthkit';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { addLog } from '../LogService';
 import { fetchDailySummary } from '../api/dailySummaryApi';
-import { fetchWaterIntakeLog } from '../api/measurementsApi';
+import {
+  fetchMeasurementsRange,
+  fetchWaterIntakeLog,
+} from '../api/measurementsApi';
+import { fetchOralCareSessions } from '../api/oralCareApi';
+import { isSparkyOralCareProvider } from '@workspace/shared';
 import { resolveCollapsedFoodEntries } from '../../utils/loggedMealCollapse';
 import {
   loadHealthPreference,
@@ -39,6 +45,25 @@ import {
 import { getMealTypeLabel } from '../../constants/meals';
 import i18n from '../../localization/i18n';
 import { runTasksInBatches } from '../../utils/concurrency';
+import {
+  EXERCISE_FILTER_OWN_PREF,
+  WORKOUT_TYPE,
+  removeExerciseData,
+  writeExerciseForDate,
+} from './exerciseWriteback';
+import { loadExerciseWritebackContext } from '../shared/exerciseWritebackContext';
+import {
+  checkInRowsByDate,
+  keysNamingTrackedRecords,
+} from '../shared/bodyWriteback';
+import {
+  HEALTHKIT_BODY_IDENTIFIERS,
+  bodyIdentifierFor,
+  bodyUuidsKeyPrefixFor,
+  isHealthKitBodyMetric,
+  writeBodyMetricForDate,
+} from './bodyWriteback';
+import type { CheckInMeasurementRange } from '../../types/measurements';
 
 type DailySummary = Awaited<ReturnType<typeof fetchDailySummary>>;
 
@@ -83,6 +108,18 @@ const nutritionSigKey = (date: string): string =>
   `writebackNutritionSig:${date}`;
 const hydrationSigKey = (date: string): string =>
   `writebackHydrationSig:${date}`;
+const toothbrushingUuidsKey = (date: string): string =>
+  `writebackToothbrushingUuids:${date}`;
+const toothbrushingSigKey = (date: string): string =>
+  `writebackToothbrushingSig:${date}`;
+
+// Apple Health's toothbrushing type (#1862). Its value is always "not applicable";
+// the sample's start and end carry the brush.
+const TOOTHBRUSHING_IDENTIFIER =
+  'HKCategoryTypeIdentifierToothbrushingEvent' as const;
+const TOOTHBRUSHING_NOT_APPLICABLE = 0 as CategoryValueForIdentifier<
+  typeof TOOTHBRUSHING_IDENTIFIER
+>;
 
 // Order-independent djb2 content signature (shared formula with Android), so an
 // unchanged day can be skipped without any HealthKit writes. Excludes UUID/version —
@@ -447,6 +484,111 @@ const writeHydrationForDate = async (
   );
 };
 
+interface BrushDescriptor {
+  start: Date;
+  end: Date;
+}
+
+/**
+ * The day's brushes logged in Sparky (by hand or with the timer) that have a time
+ * and a duration. Brushes that came from Apple Health are never written back,
+ * and the read side skips Sparky's own samples, so nothing loops.
+ */
+const buildBrushDescriptors = async (
+  date: string
+): Promise<BrushDescriptor[]> => {
+  const sessions = await fetchOralCareSessions(date, date);
+  const descriptors: BrushDescriptor[] = [];
+  for (const session of sessions) {
+    if (session.care_type !== 'brushing') continue;
+    if (!isSparkyOralCareProvider(session.provider)) continue;
+    if (!session.start_time || !session.duration_seconds) continue;
+    const start = new Date(session.start_time);
+    if (Number.isNaN(start.getTime())) continue;
+    descriptors.push({
+      start,
+      end: new Date(start.getTime() + session.duration_seconds * 1000),
+    });
+  }
+  return descriptors;
+};
+
+const brushSignature = (descriptors: BrushDescriptor[]): string =>
+  hashString(
+    descriptors
+      .map((d) => `${d.start.toISOString()}~${d.end.toISOString()}`)
+      .sort()
+      .join('|')
+  );
+
+const writeToothbrushingForDate = async (
+  date: string,
+  version: number
+): Promise<void> => {
+  let descriptors: BrushDescriptor[];
+  try {
+    descriptors = await buildBrushDescriptors(date);
+  } catch (error) {
+    addLog(
+      `[Writeback] Failed to load brushes for ${date}: ${message(error)}`,
+      'ERROR'
+    );
+    return;
+  }
+
+  const signature = brushSignature(descriptors);
+  if (
+    signature ===
+    (await loadHealthPreference<string>(toothbrushingSigKey(date)))
+  ) {
+    addLog(`[Writeback] Toothbrushing ${date}: unchanged — skipped`, 'DEBUG');
+    return;
+  }
+
+  const previous =
+    (await loadHealthPreference<string[]>(toothbrushingUuidsKey(date))) ?? [];
+  const tracked: string[] = [];
+  let allSucceeded = true;
+  if (previous.length > 0) {
+    try {
+      await deleteObjects(TOOTHBRUSHING_IDENTIFIER, { uuids: previous });
+    } catch (error) {
+      addLog(
+        `[Writeback] Failed to delete previous brushes for ${date}: ${message(error)}`,
+        'WARNING'
+      );
+      tracked.push(...previous);
+      allSucceeded = false;
+    }
+  }
+
+  for (const descriptor of descriptors) {
+    try {
+      const saved = await saveCategorySample(
+        TOOTHBRUSHING_IDENTIFIER,
+        TOOTHBRUSHING_NOT_APPLICABLE,
+        descriptor.start,
+        descriptor.end,
+        { SparkyWritebackVersion: version }
+      );
+      if (saved) tracked.push(saved.uuid);
+      else allSucceeded = false;
+    } catch (error) {
+      addLog(`[Writeback] Failed to save a brush: ${message(error)}`, 'ERROR');
+      allSucceeded = false;
+    }
+  }
+
+  await saveHealthPreference(toothbrushingUuidsKey(date), tracked);
+  if (allSucceeded) {
+    await saveHealthPreference(toothbrushingSigKey(date), signature);
+  }
+  addLog(
+    `[Writeback] Toothbrushing ${date}: ${descriptors.length} brush(es) -> tracking ${tracked.length} record(s)`,
+    'INFO'
+  );
+};
+
 // Active metrics that also hold a granted write permission. Hydration gates on
 // DietaryWater; nutrition gates on DietaryEnergyConsumed (individual denied nutrients
 // are handled by the per-type filter in writeNutritionForDate, not by gating here). A
@@ -454,10 +596,15 @@ const writeHydrationForDate = async (
 // Android does — so it doesn't retry forever.
 const writableMetrics = (metrics: WritebackMetric[]): WritebackMetric[] =>
   metrics.filter((m) => {
-    const gate: QuantityTypeIdentifierWriteable =
-      m.id === 'hydration'
-        ? DIETARY_WATER_IDENTIFIER
-        : DIETARY_ENERGY_IDENTIFIER;
+    const gate: ObjectTypeIdentifier = isHealthKitBodyMetric(m.id)
+      ? bodyIdentifierFor(m.id)
+      : m.id === 'toothbrushing'
+        ? TOOTHBRUSHING_IDENTIFIER
+        : m.id === 'exercise'
+          ? WORKOUT_TYPE
+          : m.id === 'hydration'
+            ? DIETARY_WATER_IDENTIFIER
+            : DIETARY_ENERGY_IDENTIFIER;
     const ok = isAuthorized(gate);
     if (!ok)
       addLog(
@@ -470,9 +617,10 @@ const writableMetrics = (metrics: WritebackMetric[]): WritebackMetric[] =>
 /**
  * Run the writeback phase for the given calendar dates. Gated per-metric on the opt-in
  * preference AND a granted write permission. Each metric/date is isolated so one
- * failure doesn't abort the rest. HealthKit has no write quota, so this always returns
- * `true` once every date has been attempted; per-date failures are logged and
- * reconciled by the cursor's 1-day overlap. A metric the user hasn't granted is skipped
+ * failure doesn't abort the rest. HealthKit has no write quota, so this returns
+ * `true` once every date has been attempted, or `false` when the check-in read for
+ * body measurements failed (the caller then holds the cursor so those dates retry);
+ * other per-date failures are logged and reconciled by the cursor's 1-day overlap. A metric the user hasn't granted is skipped
  * without holding the cursor.
  */
 export const writebackPhase = async (dates: string[]): Promise<boolean> => {
@@ -488,11 +636,72 @@ export const writebackPhase = async (dates: string[]): Promise<boolean> => {
   // Traceability marker stamped into written samples' metadata (no clientRecordId on iOS).
   const version = Date.now();
 
+  // Exercise needs the profile zone (for entries without their own) and the
+  // weight unit (for the sets summary); loaded once per run.
+  const exerciseContext = writable.some((m) => m.id === 'exercise')
+    ? await loadExerciseWritebackContext()
+    : null;
+
+  // Body measurements (#2465) come from the check-in rows, read once for the
+  // whole window. A failed read skips them for the window, so the run reports
+  // itself incomplete below and the cursor holds instead of moving past dates
+  // whose body values were never written.
+  const bodyMetrics = writable.filter((m) => isHealthKitBodyMetric(m.id));
+  let checkIns: Map<string, CheckInMeasurementRange> | null = null;
+  let bodyReadFailed = false;
+  if (bodyMetrics.length > 0 && dates.length > 0) {
+    try {
+      checkIns = checkInRowsByDate(
+        await fetchMeasurementsRange(dates[0], dates[dates.length - 1])
+      );
+    } catch (error) {
+      bodyReadFailed = true;
+      addLog(
+        `[Writeback] Failed to load check-ins: ${message(error)}`,
+        'ERROR'
+      );
+    }
+  }
+
   // One worker per date. The metrics within a date stay sequential (they write distinct
   // sample types to the same day, so there's nothing to gain from racing them), but
   // distinct dates run concurrently. Each worker swallows its own errors so one failed
   // date never aborts the others.
   const writeForDate = async (date: string): Promise<void> => {
+    // Toothbrushing reads its own sessions, not the daily summary, so a failed
+    // summary load never holds it back.
+    if (writable.some((m) => m.id === 'toothbrushing')) {
+      try {
+        await writeToothbrushingForDate(date, version);
+      } catch (error) {
+        addLog(
+          `[Writeback] Failed Toothbrushing for ${date}: ${message(error)}`,
+          'ERROR'
+        );
+      }
+    }
+    if (checkIns) {
+      for (const metric of bodyMetrics) {
+        if (!isHealthKitBodyMetric(metric.id)) continue;
+        try {
+          await writeBodyMetricForDate(
+            metric.id,
+            date,
+            checkIns.get(date),
+            version
+          );
+        } catch (error) {
+          addLog(
+            `[Writeback] Failed ${metric.defaultLabel} for ${date}: ${message(error)}`,
+            'ERROR'
+          );
+        }
+      }
+    }
+    const diaryMetrics = writable.filter(
+      (m) => m.id !== 'toothbrushing' && !isHealthKitBodyMetric(m.id)
+    );
+    if (diaryMetrics.length === 0) return;
     let summary: DailySummary;
     try {
       summary = await fetchDailySummary(date); // once per date, shared by both metrics
@@ -503,10 +712,22 @@ export const writebackPhase = async (dates: string[]): Promise<boolean> => {
       );
       return;
     }
-    for (const metric of writable) {
+    for (const metric of diaryMetrics) {
       try {
         if (metric.id === 'nutrition') {
           await writeNutritionForDate(date, summary, version);
+        } else if (metric.id === 'exercise') {
+          if (exerciseContext) {
+            await writeExerciseForDate(
+              date,
+              summary.exerciseSessions ?? [],
+              version,
+              {
+                ...exerciseContext,
+                bmrKcalPerDay: summary.calorieBalance?.bmr ?? null,
+              }
+            );
+          }
         } else {
           await writeHydrationForDate(date, summary, version);
         }
@@ -520,7 +741,7 @@ export const writebackPhase = async (dates: string[]): Promise<boolean> => {
   };
 
   await runTasksInBatches(dates, WRITEBACK_DATE_CONCURRENCY, writeForDate);
-  return true;
+  return !bodyReadFailed;
 };
 
 /**
@@ -541,6 +762,7 @@ const WRITEBACK_DELETE_TYPES: SampleTypeIdentifierWriteable[] = [
     ...DIETARY_WRITE_IDENTIFIERS,
     DIETARY_WATER_IDENTIFIER,
     FOOD_CORRELATION_TYPE as SampleTypeIdentifierWriteable,
+    TOOTHBRUSHING_IDENTIFIER,
   ]),
 ];
 
@@ -552,7 +774,8 @@ const trackingKeysToClear = (
 ): string[] =>
   keys.filter((k) => {
     if (!k.startsWith(`${HEALTH_PREFERENCE_PREFIX}:writeback`)) return false;
-    if (!k.includes('Uuids:') && !k.includes('Sig:')) return false;
+    if (!k.includes('Uuids:') && !k.includes('Sig:') && !k.includes('Keys:'))
+      return false;
     if (!range) return true;
     const day = k.slice(k.lastIndexOf(':') + 1);
     return day >= range.from && day <= range.to;
@@ -585,12 +808,28 @@ export const removeWrittenData = async (
       }
     : { endDate: new Date() };
 
-  let ok = true;
-  for (const type of WRITEBACK_DELETE_TYPES) {
+  const exerciseRemoved = await removeExerciseData(dateFilter);
+  let ok = exerciseRemoved;
+  // Body measurements (#2465): HealthKit deletes only this app's samples, and
+  // only for a type it may write, so a type never turned on is left out rather
+  // than reported as a failed removal.
+  const deleteTypes: SampleTypeIdentifierWriteable[] = [
+    ...WRITEBACK_DELETE_TYPES,
+    ...HEALTHKIT_BODY_IDENTIFIERS.filter(isAuthorized),
+  ];
+  // A body type without sharing permission cannot be deleted here; the samples
+  // it may hold stay until the permission is back.
+  const skippedBodyUuidPrefixes = HEALTHKIT_BODY_IDENTIFIERS.filter(
+    (type) => !isAuthorized(type)
+  ).flatMap((type) => bodyUuidsKeyPrefixFor(type) ?? []);
+  const failedBodyUuidPrefixes: string[] = [];
+  for (const type of deleteTypes) {
     try {
       await deleteObjects(type, { date: dateFilter });
     } catch (error) {
       ok = false;
+      const bodyPrefix = bodyUuidsKeyPrefixFor(type);
+      if (bodyPrefix) failedBodyUuidPrefixes.push(bodyPrefix);
       addLog(
         `[Writeback] Failed to delete ${type} records: ${message(error)}`,
         'WARNING'
@@ -599,18 +838,41 @@ export const removeWrittenData = async (
   }
 
   const keys = await AsyncStorage.getAllKeys();
-  const toClear = trackingKeysToClear(keys, range);
+  // When removing written workouts failed, keep their per-day key lists: they
+  // are what the next sync deletes before rewriting a day, so dropping them
+  // would leave the surviving workouts beside new copies. Signatures are still
+  // cleared, so that sync re-checks the day. Body measurements follow the same
+  // rule per sample type: a type whose delete failed keeps its UUID lists.
+  const candidates = trackingKeysToClear(keys, range);
+  // Skipped body types that still have tracked samples keep those lists, and the
+  // removal is reported incomplete; ones that never held any are a no-op.
+  const survivors = new Set(
+    await keysNamingTrackedRecords(
+      candidates.filter((k) =>
+        skippedBodyUuidPrefixes.some((prefix) => k.includes(prefix))
+      ),
+      (k) => AsyncStorage.getItem(k)
+    )
+  );
+  const toClear = candidates.filter(
+    (k) =>
+      (exerciseRemoved || !k.includes('writebackExerciseKeys:')) &&
+      !failedBodyUuidPrefixes.some((prefix) => k.includes(prefix)) &&
+      !survivors.has(k)
+  );
   if (toClear.length > 0) await AsyncStorage.multiRemove(toClear);
 
   if (!range) {
     await Promise.all(
       WRITEBACK_METRICS.map((m) => saveHealthPreference(m.preferenceKey, false))
     );
+    // Nothing written is left, so the daily totals stop filtering for it.
+    if (ok) await saveHealthPreference(EXERCISE_FILTER_OWN_PREF, false);
   }
 
   addLog(
     `[Writeback] Removed SparkyFitness data from Apple Health (${range ? `${range.from}..${range.to}` : 'all time'})`,
     'INFO'
   );
-  return { ok };
+  return { ok: ok && survivors.size === 0 };
 };

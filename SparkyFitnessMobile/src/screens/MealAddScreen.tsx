@@ -1,18 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  Platform,
-  ScrollView,
-  Alert,
-} from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { useFocusEffect } from '@react-navigation/native';
 import { TouchableOpacity as GHTouchableOpacity } from 'react-native-gesture-handler';
 import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCSSVariable } from 'uniwind';
 import BottomSheetPicker from '../components/BottomSheetPicker';
 import Button from '../components/ui/Button';
@@ -41,7 +33,11 @@ import {
   formatServingSizeDisplay,
 } from '../utils/foodDetails';
 import { buildMealIngredientDraftFromMealFood } from '../utils/mealBuilderDraft';
-import { MEAL_SERVING_PRECISION, MEAL_SERVING_UNITS } from '@workspace/shared';
+import {
+  MEAL_SERVING_PRECISION,
+  MEAL_SERVING_UNITS,
+  energyFromKcal,
+} from '@workspace/shared';
 import {
   DECIMAL_INPUT_REGEX,
   parseDecimalInput,
@@ -49,6 +45,9 @@ import {
 } from '../utils/numericInput';
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import { useScreenHeader } from '../hooks/useScreenHeader';
+import { energyUnitLabel } from '../utils/energyUnit';
+import { useEnergyUnit } from '../hooks/useEnergyUnit';
+import type { TranslateFn } from '../localization/translateFn';
 
 type MealAddScreenProps = RootStackScreenProps<'MealAdd'>;
 
@@ -57,10 +56,7 @@ const SERVING_UNIT_OPTIONS = MEAL_SERVING_UNITS.map((unit) => ({
   value: unit,
 }));
 
-function getServingUnitLabel(
-  unit: string,
-  t: (key: string, options?: Record<string, unknown>) => string
-): string {
+function getServingUnitLabel(unit: string, t: TranslateFn): string {
   const labels: Record<string, string> = {
     serving: t('mealBuilder.units.serving', { defaultValue: 'serving' }),
     g: t('mealBuilder.units.g', { defaultValue: 'g' }),
@@ -129,6 +125,7 @@ const mealIngredientToPayload = ({
 
 const MealAddScreen: React.FC<MealAddScreenProps> = ({ navigation, route }) => {
   const { t } = useTranslation();
+  const energyUnit = useEnergyUnit();
   const localizedServingUnitOptions = useMemo(
     () =>
       SERVING_UNIT_OPTIONS.map((option) => ({
@@ -139,7 +136,6 @@ const MealAddScreen: React.FC<MealAddScreenProps> = ({ navigation, route }) => {
   );
   const isEditMode = route.params?.mode === 'edit';
   const editMealId = isEditMode ? route.params.mealId : undefined;
-  const insets = useSafeAreaInsets();
   const usesNativeHeader = useNativeIOSHeadersActive();
   const [accentColor, textMuted, proteinColor, carbsColor, fatColor] =
     useCSSVariable([
@@ -503,6 +499,7 @@ const MealAddScreen: React.FC<MealAddScreenProps> = ({ navigation, route }) => {
   const isSaving = isPending || isUpdatePending;
 
   const header = useScreenHeader({
+    topInset: 'android-only',
     title: isEditMode
       ? t('mealBuilder.editTitle', { defaultValue: 'Edit Meal' })
       : t('mealBuilder.createTitle', { defaultValue: 'Create Meal' }),
@@ -526,12 +523,7 @@ const MealAddScreen: React.FC<MealAddScreenProps> = ({ navigation, route }) => {
 
   if (isEditMode && isEditMealLoading && !editMeal) {
     return (
-      <View
-        className="flex-1 bg-background"
-        style={
-          Platform.OS === 'android' ? { paddingTop: insets.top } : undefined
-        }
-      >
+      <View className="flex-1 bg-background">
         {header}
         <StatusView
           loading
@@ -543,12 +535,7 @@ const MealAddScreen: React.FC<MealAddScreenProps> = ({ navigation, route }) => {
 
   if (isEditMode && (isEditMealError || !editMeal)) {
     return (
-      <View
-        className="flex-1 bg-background"
-        style={
-          Platform.OS === 'android' ? { paddingTop: insets.top } : undefined
-        }
-      >
+      <View className="flex-1 bg-background">
         {header}
         <StatusView
           icon="alert-circle"
@@ -571,10 +558,7 @@ const MealAddScreen: React.FC<MealAddScreenProps> = ({ navigation, route }) => {
   }
 
   return (
-    <View
-      className="flex-1 bg-background"
-      style={Platform.OS === 'android' ? { paddingTop: insets.top } : undefined}
-    >
+    <View className="flex-1 bg-background">
       {header}
 
       <ScrollView
@@ -738,7 +722,10 @@ const MealAddScreen: React.FC<MealAddScreenProps> = ({ navigation, route }) => {
                 const quantity = toFiniteNumber(ingredient.quantity);
                 const scale = servingSize > 0 ? quantity / servingSize : 0;
                 const ingredientCalories = formatCaloriesDisplay(
-                  toFiniteNumber(ingredient.calories) * scale
+                  energyFromKcal(
+                    toFiniteNumber(ingredient.calories) * scale,
+                    energyUnit
+                  )
                 );
                 const ingredientProtein = formatMacroDisplay(
                   toFiniteNumber(ingredient.protein) * scale
@@ -849,9 +836,7 @@ const MealAddScreen: React.FC<MealAddScreenProps> = ({ navigation, route }) => {
                         <View className="items-end">
                           <Text className="text-text-primary text-base font-semibold">
                             {ingredientCalories}{' '}
-                            {t('foodSearch.labels.caloriesUnit', {
-                              defaultValue: 'cal',
-                            })}
+                            {energyUnitLabel(energyUnit, t)}
                           </Text>
                           <Text className="text-text-muted text-sm mt-1">
                             {formatServingSizeDisplay(quantity)}{' '}
@@ -895,10 +880,10 @@ const MealAddScreen: React.FC<MealAddScreenProps> = ({ navigation, route }) => {
                     {t('mealBuilder.mealTotal', { defaultValue: 'Meal total' })}
                   </Text>
                   <Text className="text-text-primary text-base font-semibold text-right">
-                    {formatCaloriesDisplay(totals.calories)}{' '}
-                    {t('foodSearch.labels.caloriesUnit', {
-                      defaultValue: 'cal',
-                    })}
+                    {formatCaloriesDisplay(
+                      energyFromKcal(totals.calories, energyUnit)
+                    )}{' '}
+                    {energyUnitLabel(energyUnit, t)}
                   </Text>
                 </View>
                 <View className="flex-row items-start gap-2 mt-1">
@@ -929,11 +914,12 @@ const MealAddScreen: React.FC<MealAddScreenProps> = ({ navigation, route }) => {
                     </Text>
                     <Text className="text-text-primary text-base font-semibold text-right">
                       {formatCaloriesDisplay(
-                        totals.calories / totalServingsCount
+                        energyFromKcal(
+                          totals.calories / totalServingsCount,
+                          energyUnit
+                        )
                       )}{' '}
-                      {t('foodSearch.labels.caloriesUnit', {
-                        defaultValue: 'cal',
-                      })}
+                      {energyUnitLabel(energyUnit, t)}
                     </Text>
                   </View>
                   <View className="flex-row items-start gap-2 mt-1">

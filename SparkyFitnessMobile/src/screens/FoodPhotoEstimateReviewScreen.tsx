@@ -37,6 +37,9 @@ import type {
   RootStackParamList,
   SaveMode,
 } from '../types/navigation';
+import { useEnergyUnit } from '../hooks/useEnergyUnit';
+import { energyUnitLabel, roundedEnergy } from '../utils/energyUnit';
+import type { TranslateFn } from '../localization/translateFn';
 
 type Props = FoodPhotoFlowScreenProps<'EstimateReview'>;
 
@@ -76,7 +79,7 @@ const positiveOrUndefined = (v: number | undefined | null) =>
   v !== undefined && v !== null && v > 0 ? v : undefined;
 
 function confidenceLabel(
-  t: (key: string, options?: Record<string, unknown>) => string,
+  t: TranslateFn,
   confidence: keyof typeof overallConfidenceLabels,
   scope: 'overall' | 'item'
 ): string {
@@ -113,6 +116,7 @@ const FoodPhotoEstimateReviewScreen: React.FC<Props> = ({
   route,
 }) => {
   const { t } = useTranslation();
+  const energyUnit = useEnergyUnit();
   const insets = useSafeAreaInsets();
   const textPrimary = useCSSVariable('--color-text-primary') as string;
   const { backColor } = useHeaderActionColors();
@@ -592,9 +596,11 @@ const FoodPhotoEstimateReviewScreen: React.FC<Props> = ({
 
   /** The one-line "kcal · P · C · F" summary, optionally scaled. */
   const macroSummary = (factor = 1) =>
-    t('foodPhotoEstimate.ingredients.macroSummary', {
-      defaultValue: '{{calories}} kcal · {{protein}}P · {{carbs}}C · {{fat}}F',
-      calories: Math.round(totals.calories_kcal * factor),
+    t('foodPhotoEstimate.ingredients.macroSummaryWithUnit', {
+      defaultValue:
+        '{{calories}} {{unit}} · {{protein}}P · {{carbs}}C · {{fat}}F',
+      calories: roundedEnergy(totals.calories_kcal * factor, energyUnit),
+      unit: energyUnitLabel(energyUnit, t),
       protein: Math.round(totals.protein_g * factor),
       carbs: Math.round(totals.carbs_g * factor),
       fat: Math.round(totals.fat_g * factor),

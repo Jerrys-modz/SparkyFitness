@@ -5,6 +5,7 @@ import {
   GOOGLE_HEALTH_SYNC_POLL_MS,
   GOOGLE_HEALTH_SYNC_TIMEOUT_MS,
   handleManualSyncGoogleHealth,
+  getEnrichedProviders,
 } from '@/api/Settings/externalProviderService';
 
 jest.mock('@/api/api', () => ({
@@ -46,6 +47,38 @@ describe('createExternalProvider', () => {
       });
     }
   );
+
+  it('keeps the ZeppBridge URL and token, and no app id', async () => {
+    jest.mocked(apiCall).mockResolvedValue({
+      id: 'zepp-1',
+      provider_type: 'zeppbridge',
+      is_active: true,
+    });
+
+    await createExternalProvider({
+      user_id: 'user-1',
+      provider_name: 'My ZeppBridge',
+      provider_type: 'zeppbridge',
+      app_id: 'stale-value',
+      app_key: 'pull-token',
+      is_active: true,
+      base_url: 'http://127.0.0.1:43921',
+    });
+
+    expect(apiCall).toHaveBeenLastCalledWith('/external-providers', {
+      method: 'POST',
+      body: JSON.stringify({
+        user_id: 'user-1',
+        provider_name: 'My ZeppBridge',
+        provider_type: 'zeppbridge',
+        app_id: null,
+        app_key: 'pull-token',
+        is_active: true,
+        base_url: 'http://127.0.0.1:43921',
+        sync_frequency: null,
+      }),
+    });
+  });
 
   it('keeps Open Food Facts contribution consent out of provider credentials', async () => {
     jest.mocked(apiCall).mockResolvedValue({
@@ -198,5 +231,42 @@ describe('handleManualSyncGoogleHealth', () => {
       GOOGLE_HEALTH_SYNC_TIMEOUT_MS + GOOGLE_HEALTH_SYNC_POLL_MS
     );
     await assertion;
+  });
+});
+
+describe('getEnrichedProviders Garmin last sync', () => {
+  const lastUpdated = '2026-11-01T08:00:00Z';
+
+  const enrichGarmin = async (status: Record<string, unknown>) => {
+    jest.mocked(apiCall).mockReset();
+    jest.mocked(apiCall).mockImplementation(async (endpoint: string) => {
+      if (endpoint === '/external-providers') {
+        return [{ id: 'garmin-1', provider_type: 'garmin', is_active: true }];
+      }
+      return { isLinked: true, lastUpdated, tokenExpiresAt: null, ...status };
+    });
+    const garmin = (await getEnrichedProviders()).find(
+      (provider) => provider.provider_type === 'garmin'
+    );
+    if (!garmin) throw new Error('Expected an enriched Garmin provider.');
+    return garmin;
+  };
+
+  it('uses lastSyncAt when the server sends it', async () => {
+    const garmin = await enrichGarmin({ lastSyncAt: '2026-11-05T08:00:00Z' });
+
+    expect(garmin.garmin_last_status_check).toBe('2026-11-05T08:00:00Z');
+  });
+
+  it('keeps null so the card can say it never synced', async () => {
+    const garmin = await enrichGarmin({ lastSyncAt: null });
+
+    expect(garmin.garmin_last_status_check).toBeNull();
+  });
+
+  it('ignores lastUpdated when the server sends no lastSyncAt', async () => {
+    const garmin = await enrichGarmin({});
+
+    expect(garmin.garmin_last_status_check).toBeNull();
   });
 });

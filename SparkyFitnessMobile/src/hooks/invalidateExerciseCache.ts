@@ -1,5 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query';
 import {
+  glucoseContextQueryKeyRoot,
   exerciseHistoryQueryKey,
   exerciseHistoryResetQueryKey,
   exerciseStatsQueryKeyRoot,
@@ -7,12 +8,16 @@ import {
   dailySummaryQueryKey,
   workoutSessionQueryKeyRoot,
   workoutLocationsQueryKey,
+  trainingCalendarRootQueryKey,
+  trainingLoadRootQueryKey,
+  fitnessFatigueRootQueryKey,
 } from './queryKeys';
 
 export function invalidateExerciseCache(
   queryClient: QueryClient,
   entryDate: string
 ) {
+  void queryClient.invalidateQueries({ queryKey: glucoseContextQueryKeyRoot });
   void queryClient.invalidateQueries({
     queryKey: [...workoutLocationsQueryKey],
   });
@@ -42,10 +47,23 @@ export function invalidateExerciseCache(
   void queryClient.invalidateQueries({
     queryKey: [...workoutSessionQueryKeyRoot],
   });
+  // A cardio session read from the list or already open (distance, stride,
+  // effort, pace series) and the trends built from the same entries.
+  void queryClient.invalidateQueries({ queryKey: ['cardioSessionDetail'] });
+  void queryClient.invalidateQueries({ queryKey: ['cardioSessions'] });
   void queryClient.invalidateQueries({
     queryKey: ['activeWorkoutPlan'],
   });
   void queryClient.invalidateQueries({
     queryKey: ['workoutPlanTemplates'],
   });
+  // Load, readiness and the plan calendar are all worked out from the diary's
+  // workouts, so a saved, edited or deleted workout changes every one of them.
+  for (const queryKey of [
+    trainingLoadRootQueryKey,
+    fitnessFatigueRootQueryKey,
+    trainingCalendarRootQueryKey,
+  ]) {
+    void queryClient.invalidateQueries({ queryKey: [...queryKey] });
+  }
 }

@@ -6,6 +6,7 @@ import {
   presetKeys,
 } from '@/api/keys/exercises';
 import {
+  bloodAlcoholKeys,
   caffeineKeys,
   dailyProgressKeys,
   diaryReportKeys,
@@ -21,11 +22,28 @@ import { goalKeys } from '@/api/keys/goals';
 import { reportKeys } from '@/api/keys/reports';
 import { fastingKeys } from '@/api/keys/fasting';
 import { runProgramKeys } from '@/api/keys/runPrograms';
+import { externalProviderKeys } from '@/api/keys/settings';
+import { garminKeys } from '@/api/keys/integrations';
+import { challengeKeys } from '@/api/keys/challenges';
+
+/**
+ * After a Garmin sync: the provider list carries the Garmin status (last sync,
+ * whether the Garmin service answered), and so does useGarminStatus.
+ */
+export const useGarminStatusInvalidation = () => {
+  const queryClient = useQueryClient();
+
+  return useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: externalProviderKeys.lists() });
+    queryClient.invalidateQueries({ queryKey: garminKeys.status });
+  }, [queryClient]);
+};
 
 export const useDiaryInvalidation = () => {
   const queryClient = useQueryClient();
 
   return useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['glucoseContext'] });
     queryClient.invalidateQueries({ queryKey: exerciseEntryKeys.all });
     queryClient.invalidateQueries({ queryKey: exerciseKeys.all });
     queryClient.invalidateQueries({ queryKey: presetKeys.all });
@@ -39,6 +57,7 @@ export const useDiaryInvalidation = () => {
     // A linked water container logs a coffee as a food entry, so pressing "+"
     // moves the caffeine curve as surely as logging one by hand does.
     queryClient.invalidateQueries({ queryKey: caffeineKeys.all });
+    queryClient.invalidateQueries({ queryKey: bloodAlcoholKeys.all });
     queryClient.invalidateQueries({ queryKey: checkInKeys.all });
     queryClient.invalidateQueries({ queryKey: sleepKeys.all });
     queryClient.invalidateQueries({ queryKey: goalKeys.all });
@@ -46,6 +65,8 @@ export const useDiaryInvalidation = () => {
     queryClient.invalidateQueries({ queryKey: ['workoutPlanTemplates'] });
     queryClient.invalidateQueries({ queryKey: fastingKeys.all });
     queryClient.invalidateQueries({ queryKey: runProgramKeys.all });
+    // Challenge scores come from workouts and steps.
+    queryClient.invalidateQueries({ queryKey: challengeKeys.allStandings() });
   }, [queryClient]);
 };
 
@@ -63,6 +84,7 @@ export const useFoodEntryInvalidation = () => {
   const queryClient = useQueryClient();
 
   return useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['glucoseContext'] });
     queryClient.invalidateQueries({ queryKey: foodEntryMealKeys.all });
     queryClient.invalidateQueries({ queryKey: foodEntryKeys.all });
     queryClient.invalidateQueries({ queryKey: dailyProgressKeys.all });
@@ -75,8 +97,10 @@ export const useFoodEntryInvalidation = () => {
     queryClient.invalidateQueries({ queryKey: waterIntakeKeys.all });
     // Caffeine kinetics is a derived view over the same entries: logging or
     // editing a coffee moves the whole curve, and its query is keyed by date
-    // rather than by entry, so nothing else would refresh it.
+    // rather than by entry, so nothing else would refresh it. The blood
+    // alcohol estimate is the same kind of view over the same entries.
     queryClient.invalidateQueries({ queryKey: caffeineKeys.all });
+    queryClient.invalidateQueries({ queryKey: bloodAlcoholKeys.all });
     // Fasting auto-calculation and check-in measurements/status derive from food logs.
     // Logging or updating foods directly shifts fasting windows, eating windows, and check-in state.
     queryClient.invalidateQueries({ queryKey: checkInKeys.all });
@@ -103,6 +127,7 @@ export const useDailyProgressInvalidation = () => {
   const queryClient = useQueryClient();
 
   return useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['glucoseContext'] });
     queryClient.invalidateQueries({
       queryKey: dailyProgressKeys.all,
     });
@@ -113,6 +138,7 @@ export const useExerciseInvalidation = () => {
   const queryClient = useQueryClient();
 
   return useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['glucoseContext'] });
     queryClient.invalidateQueries({ queryKey: exerciseKeys.all });
     queryClient.invalidateQueries({ queryKey: presetKeys.all });
     queryClient.invalidateQueries({ queryKey: ['workoutPlanTemplates'] });
@@ -122,6 +148,7 @@ export const useExerciseInvalidation = () => {
     queryClient.invalidateQueries({ queryKey: diaryReportKeys.all });
     queryClient.invalidateQueries({ queryKey: reportKeys.all });
     queryClient.invalidateQueries({ queryKey: runProgramKeys.all });
+    queryClient.invalidateQueries({ queryKey: challengeKeys.allStandings() });
   }, [queryClient]);
 };
 

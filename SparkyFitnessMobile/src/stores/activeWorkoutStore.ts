@@ -28,6 +28,7 @@ import type { Exercise } from '../types/exercise';
 import {
   captureResumedDurations,
   describeActiveSetAssumed,
+  effectiveSetDurationSec,
   formatDurationSeconds,
   getDefaultRestSec,
   getSupersetRuns,
@@ -47,8 +48,8 @@ import {
   ungroupSessionExercise,
 } from '../utils/workoutSession';
 import type {
-  AssumedSetValues,
   LiveExerciseConfig,
+  PlannedSetValues,
   PrBaselineEntry,
 } from '../utils/workoutSession';
 import { newUuid } from '../utils/ids';
@@ -101,6 +102,17 @@ export function syncWatchIntervalTiming(timing: {
       ? { pausedAt: new Date(timing.pausedAtMs).toISOString() }
       : {}),
   });
+}
+
+/**
+ * What creating a session on the server needs beyond the session the store
+ * already holds (its id, name, exercises and sets).
+ */
+export interface PendingSessionCreate {
+  /** Calendar day (YYYY-MM-DD) the workout was started on. */
+  entryDate: string;
+  workoutPresetId: number | null;
+  workoutPlanAssignmentId: number | null;
 }
 
 /** Monotonic counter used to reject stale async schedule resolutions. */
@@ -215,6 +227,29 @@ export interface ActiveWorkoutState {
    */
   createdByLiveStart: boolean;
   /**
+   * Set while the session exists only on this phone (#1983): it was started
+   * with no connection, or its create has not been confirmed. Holds what the
+   * create request needs besides the session itself. The next save sends a
+   * create (carrying the phone-minted session id) instead of an update, and
+   * clears this once the server has the session. Persisted, so a workout
+   * started offline survives a restart still knowing it must be created.
+   */
+  pendingCreate: PendingSessionCreate | null;
+  /**
+   * True once a create for this session has been sent, whatever came of it.
+   * A create whose answer was lost may have reached the server, so a later
+   * create can come back with that older stored copy; the save after it then
+   * sends the phone's current sets instead of taking the answer as current.
+   */
+  createAttempted: boolean;
+  /**
+   * The server revision last seen before this phone lost the connection
+   * while changing a session the server already had. Presented with the
+   * first save once back online, so a change made elsewhere meanwhile is
+   * noticed instead of overwritten. Null when there is nothing to guard.
+   */
+  offlineBaseRevision: number | null;
+  /**
    * Per-exercise historical best captured once at the start of the session
    * (keyed by `exercise_id`). Key absent = not yet captured; `null` = captured
    * with no history (first-ever exercise). The PR baseline is a store snapshot
@@ -262,9 +297,10 @@ export interface ActiveWorkoutState {
    * placeholder fallback only — never written back to sets except through
    * completion adoption. Keys are birth server ids (live starts create every
    * set server-side), so they survive autosaves. Persisted: the plan can't be
-   * recaptured after a cold start.
+   * recaptured after a cold start. Each value carries `preferOverHistory`
+   * when "Use planned values as placeholders" was on at the start.
    */
-  plannedSetValues: Record<string, AssumedSetValues>;
+  plannedSetValues: Record<string, PlannedSetValues>;
   /**
    * Each exercise's most recent prior-session sets (keyed by `exercise_id`),
    * captured once per exercise from the stats query like `prBaseline`. This is
@@ -339,7 +375,9 @@ export interface ActiveWorkoutState {
     session: PresetSessionResponse,
     opts?: {
       createdByLiveStart?: boolean;
-      plannedSetValues?: AssumedSetValues[][];
+      /** Present when the session has not been created on the server yet. */
+      pendingCreate?: PendingSessionCreate;
+      plannedSetValues?: PlannedSetValues[][];
       /** Positional with `session.exercises`, like `plannedSetValues`. */
       exerciseConfigs?: LiveExerciseConfig[];
       sourcePresetId?: number;
@@ -622,6 +660,9 @@ const initialData: Pick<
   | 'sessionRevision'
   | 'hasUnsavedChanges'
   | 'createdByLiveStart'
+  | 'pendingCreate'
+  | 'createAttempted'
+  | 'offlineBaseRevision'
   | 'prBaseline'
   | 'prSetIds'
   | 'resumedDurationMinutes'
@@ -660,6 +701,9 @@ const initialData: Pick<
   sessionRevision: 0,
   hasUnsavedChanges: false,
   createdByLiveStart: false,
+  pendingCreate: null,
+  createAttempted: false,
+  offlineBaseRevision: null,
   prBaseline: {},
   prSetIds: {},
   resumedDurationMinutes: {},
@@ -1400,7 +1444,7 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
         // Key the live-start plan (positional, from the stripped create
         // payload) to the created session's set ids — same exercise and set
         // order by construction.
-        const plannedSetValues: Record<string, AssumedSetValues> = {};
+        const plannedSetValues: Record<string, PlannedSetValues> = {};
         opts?.plannedSetValues?.forEach((plannedSets, exerciseIndex) => {
           session.exercises[exerciseIndex]?.sets.forEach((s, setIndex) => {
             const planned = plannedSets[setIndex];
@@ -1431,24 +1475,51 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
           if (workoutFormat === 'tabata' || workoutFormat === 'emom') {
             engineSteps = session.exercises.map((ex) => {
               const firstSet = ex.sets[0];
+              // A live start strips planned values from the created session,
+              // so read them back from the planned snapshot.
+              const planned =
+                firstSet != null
+                  ? plannedSetValues[String(firstSet.id)]
+                  : undefined;
+              // Legacy `duration`-modality rows keep their seconds in reps.
+              const plannedDurationSec = effectiveSetDurationSec(
+                {
+                  duration: firstSet?.duration ?? planned?.duration,
+                  reps: firstSet?.reps ?? planned?.reps,
+                },
+                resolveSnapshotModality(ex.exercise_snapshot)
+              );
               return {
                 exerciseName: ex.exercise_snapshot?.name || 'Exercise',
                 durationSec:
-                  firstSet?.duration ??
+                  plannedDurationSec ??
                   (workoutFormat === 'tabata' ? 20 : null),
                 restSec:
                   firstSet?.rest_time ??
                   (workoutFormat === 'tabata' ? 10 : null),
-                reps: firstSet?.reps ?? null,
+                reps: firstSet?.reps ?? planned?.reps ?? null,
               };
             });
           } else {
             engineSteps = steps.map((s) => {
               const loc = locateSet(session, s.setId);
+              const planned = plannedSetValues[s.setId];
+              // Created sessions carry null durations/reps on a live start
+              // (planned values are stripped), so fall back to the plan.
+              const sessionSet = loc?.exercise.sets[loc.setIndex];
+              const reps = sessionSet?.reps ?? planned?.reps ?? null;
+              // Legacy `duration`-modality rows keep their seconds in reps.
               const durationSec =
-                loc?.exercise.sets[loc.setIndex]?.duration ?? null;
+                loc != null
+                  ? effectiveSetDurationSec(
+                      {
+                        duration: sessionSet?.duration ?? planned?.duration,
+                        reps,
+                      },
+                      resolveSnapshotModality(loc.exercise.exercise_snapshot)
+                    )
+                  : (planned?.duration ?? null);
               const restSec = s.restSec;
-              const reps = loc?.exercise.sets[loc.setIndex]?.reps ?? null;
               return {
                 exerciseName: s.exerciseName,
                 durationSec,
@@ -1484,6 +1555,11 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
           sessionRevision: 0,
           hasUnsavedChanges: false,
           createdByLiveStart: opts?.createdByLiveStart ?? false,
+          pendingCreate: opts?.pendingCreate ?? null,
+          createAttempted: false,
+          offlineBaseRevision: null,
+          // A session the server does not have yet is unsaved by definition.
+          ...(opts?.pendingCreate ? { hasUnsavedChanges: true } : {}),
           // Baseline is captured lazily per exercise by the live card; stamps
           // resume from the server.
           prBaseline: {},
@@ -1557,6 +1633,9 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
           sessionRevision: addedPriors ? 1 : 0,
           hasUnsavedChanges: addedPriors,
           createdByLiveStart: false,
+          pendingCreate: null,
+          createAttempted: false,
+          offlineBaseRevision: null,
           // Backfilled priors are never PRs (detection lives only in
           // completeActiveSet); stamps resume from the server.
           prBaseline: {},
@@ -3016,6 +3095,9 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
         // next launch. sessionRevision is deliberately transient.
         hasUnsavedChanges: state.hasUnsavedChanges,
         createdByLiveStart: state.createdByLiveStart,
+        pendingCreate: state.pendingCreate,
+        createAttempted: state.createAttempted,
+        offlineBaseRevision: state.offlineBaseRevision,
         // Baseline and stamps survive a cold-start resume.
         prBaseline: state.prBaseline,
         prSetIds: state.prSetIds,

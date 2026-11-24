@@ -5,6 +5,13 @@ import type {
 
 export const serverConnectionQueryKey = ['serverConnection'] as const;
 
+/** What the phone holds for offline use (its own file, not a server read). */
+export const offlineStatusQueryKey = ['offlineStatus'] as const;
+export const keptExercisesQueryKey = ['keptExercises'] as const;
+export const offlineDiaryDayQueryKeyRoot = ['offlineDiaryDay'] as const;
+export const offlineDiaryDayQueryKey = (date: string) =>
+  [...offlineDiaryDayQueryKeyRoot, date] as const;
+
 export const serverConfigsQueryKey = ['serverConfigs'] as const;
 
 export const dailySummaryQueryKey = (date: string) =>
@@ -26,6 +33,10 @@ export const familyDailySummaryQueryKey = (
 export const caffeineActiveRootQueryKey = ['caffeineActive'] as const;
 export const caffeineActiveQueryKey = (date: string) =>
   ['caffeineActive', date] as const;
+
+export const bloodAlcoholRootQueryKey = ['bloodAlcohol'] as const;
+export const bloodAlcoholQueryKey = (date: string) =>
+  ['bloodAlcohol', date] as const;
 
 export const measurementsQueryKey = (date: string) =>
   ['measurements', date] as const;
@@ -128,6 +139,10 @@ export const goalsRangeQueryKey = (
   adjust: boolean
 ) => ['goalsRange', startDate, endDate, adjust] as const;
 
+/** One saved food; under `foods`, so invalidating the food caches covers it. */
+export const foodDetailQueryKey = (foodId: string) =>
+  ['foods', 'detail', foodId] as const;
+
 export const foodVariantsQueryKey = (foodId: string) =>
   ['foodVariants', foodId] as const;
 
@@ -144,6 +159,11 @@ export const heartRateRangeQueryKeyRoot = ['heartRateRange'] as const;
 export const heartRateRangeQueryKey = (startDate: string, endDate: string) =>
   [...heartRateRangeQueryKeyRoot, startDate, endDate] as const;
 
+export const heartRateDaySleepQueryKeyRoot = ['heartRateDaySleep'] as const;
+
+export const heartRateDaySleepQueryKey = (day: string) =>
+  [...heartRateDaySleepQueryKeyRoot, day] as const;
+
 export const heartRateReportQueryKeyRoot = ['heartRateReport'] as const;
 
 export const heartRateReportQueryKey = (startDate: string, endDate: string) =>
@@ -153,8 +173,15 @@ export const waterIntakeRangeQueryKey = (startDate: string, endDate: string) =>
   ['waterIntakeRange', startDate, endDate] as const;
 
 export const sleepRangeQueryKeyRoot = ['sleepRange'] as const;
+/** Tonight's sleep need; it moves with both synced sleep and logged workouts. */
+export const sleepNeedQueryKey = ['sleepNeed'] as const;
 export const sleepRangeQueryKey = (startDate: string, endDate: string) =>
   [...sleepRangeQueryKeyRoot, startDate, endDate] as const;
+
+/** Skin temperature samples around one night, for the Sleep Details row. */
+export const skinTemperatureQueryKeyRoot = ['skinTemperature'] as const;
+export const skinTemperatureQueryKey = (startDate: string, endDate: string) =>
+  [...skinTemperatureQueryKeyRoot, startDate, endDate] as const;
 
 export const sleepDayQueryKeyRoot = ['sleep'] as const;
 export const sleepDayQueryKey = (day: string) =>
@@ -365,6 +392,9 @@ export const foodEntriesRangeRootQueryKey = ['foodEntriesRange'] as const;
 export const foodEntriesRangeQueryKey = (startDate: string, endDate: string) =>
   ['foodEntriesRange', startDate, endDate] as const;
 
+export const lastCookedFoodEntryQueryKey = (foodId: string) =>
+  ['lastCookedFoodEntry', foodId] as const;
+
 export const exerciseDashboardQueryKey = (startDate: string, endDate: string) =>
   ['exerciseDashboard', startDate, endDate] as const;
 
@@ -378,8 +408,12 @@ export const trainingLoadQueryKey = (today: string) =>
 
 export const runEstimatesQueryKey = (today: string) =>
   ['runEstimates', today] as const;
+export const fitnessFatigueRootQueryKey = ['fitnessFatigue'] as const;
 export const fitnessFatigueQueryKey = (today: string) =>
-  ['fitnessFatigue', today] as const;
+  [...fitnessFatigueRootQueryKey, today] as const;
+export const trainingCalendarRootQueryKey = ['trainingCalendar'] as const;
+export const trainingCalendarQueryKey = (start: string, end: string) =>
+  [...trainingCalendarRootQueryKey, start, end] as const;
 
 export const cardioSessionsQueryKey = (
   startDate: string,
@@ -395,8 +429,13 @@ export const cardioSessionDetailQueryKey = (
   exerciseEntryId: string
 ) => ['cardioSessionDetail', part, exerciseEntryId] as const;
 
+export const heartRateSamplesQueryKeyRoot = ['heartRateSamples'] as const;
+
 export const heartRateSamplesQueryKey = (startDate: string, endDate: string) =>
-  ['heartRateSamples', startDate, endDate] as const;
+  [...heartRateSamplesQueryKeyRoot, startDate, endDate] as const;
+
+// --- Optional features (#3487) ---
+export const featureChoicesQueryKey = ['featureChoices'] as const;
 
 // --- Cycle & Pregnancy ---
 export const cycleSettingsQueryKey = ['cycleSettings'] as const;
@@ -515,3 +554,8 @@ export const compareQueryKey = (p: CompareParams) =>
 /** One since-a-habit-started answer: the habit, the outcome, the start and the line (null = the server's pick). */
 export const compareSinceQueryKey = (p: CompareSinceParams) =>
   ['compare', 'since', p.a, p.b, p.habitStart, p.line] as const;
+
+export const glucoseSamplesQueryKeyRoot = ['glucoseSamples'] as const;
+export const glucoseContextQueryKeyRoot = ['glucoseContext'] as const;
+
+export const chatMcpServersQueryKey = ['chatMcpServers'] as const;

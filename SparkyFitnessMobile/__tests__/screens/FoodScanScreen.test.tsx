@@ -19,6 +19,11 @@ import {
   markFoodPhotoIntroSeen,
 } from '../../src/services/foodPhotoIntro';
 
+jest.mock('@react-navigation/native', () => ({
+  ...jest.requireActual('@react-navigation/native'),
+  useIsFocused: () => true,
+}));
+
 jest.mock('../../src/services/api/externalFoodSearchApi', () => ({
   lookupBarcodeV2: jest.fn(),
   scanNutritionLabel: jest.fn(),
@@ -60,6 +65,7 @@ describe('FoodScanScreen', () => {
     navigate: jest.fn(),
     dispatch: jest.fn(),
     isFocused: jest.fn(() => true),
+    addListener: jest.fn(() => jest.fn()),
   } as any;
 
   const mockRoute = {
@@ -206,7 +212,8 @@ describe('FoodScanScreen', () => {
       );
       expect(mockLookupBarcodeV2).toHaveBeenCalledWith(
         '1234567890123',
-        requestedProvider
+        requestedProvider,
+        expect.any(AbortSignal)
       );
     }
   );
@@ -239,6 +246,25 @@ describe('FoodScanScreen', () => {
       )
     );
   });
+
+  it.each(['action-tag', 'container-link'] as const)(
+    'keeps %s picking after a barcode lookup instead of logging',
+    async (pickerMode) => {
+      mockLookupBarcodeV2.mockResolvedValue(existingFoodResult);
+      const screen = renderScreenWithRoute({ pickerMode, returnDepth: 2 });
+
+      fireEvent(screen.getByTestId('camera-view'), 'onBarcodeScanned', {
+        data: '012345678905',
+      });
+
+      await waitFor(() =>
+        expect(mockNavigation.replace).toHaveBeenCalledWith(
+          'FoodEntryAdd',
+          expect.objectContaining({ pickerMode, returnDepth: 2 })
+        )
+      );
+    }
+  );
 
   it('does not fire a success haptic when barcode lookup finds no match', async () => {
     mockLookupBarcodeV2.mockResolvedValue({
@@ -401,8 +427,29 @@ describe('FoodScanScreen', () => {
     ).toBeTruthy();
   });
 
+  it('says what is possible when an unknown barcode is scanned with no connection', async () => {
+    mockLookupBarcodeV2.mockRejectedValue(
+      new TypeError('Network request failed')
+    );
+    const screen = renderScreen();
+
+    fireEvent(screen.getByTestId('camera-view'), 'onBarcodeScanned', {
+      data: '012345678905',
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          "No connection. This barcode isn't in the foods saved on your phone."
+        )
+      ).toBeTruthy();
+    });
+    // The flow stays recoverable.
+    expect(screen.getByText('Add Food Manually')).toBeTruthy();
+  });
+
   it('does not retrigger haptics while a scan lookup is locked', async () => {
-    let resolveLookup: ((value: any) => void) | undefined;
+    let resolveLookup: ((value: BarcodeLookupResult) => void) | undefined;
     mockLookupBarcodeV2.mockImplementation(
       () =>
         new Promise((resolve) => {
@@ -411,12 +458,11 @@ describe('FoodScanScreen', () => {
     );
 
     const screen = renderScreen();
-
-    fireEvent(screen.getByTestId('camera-view'), 'onBarcodeScanned', {
-      data: '012345678905',
-    });
-    fireEvent(screen.getByTestId('camera-view'), 'onBarcodeScanned', {
-      data: '012345678905',
+    const queuedScan = screen.getByTestId('camera-view').props
+      .onBarcodeScanned as (event: { data: string }) => Promise<void>;
+    await act(async () => {
+      void queuedScan({ data: '012345678905' });
+      void queuedScan({ data: '012345678905' });
     });
 
     expect(mockLookupBarcodeV2).toHaveBeenCalledTimes(1);
@@ -546,6 +592,13 @@ describe('FoodScanScreen', () => {
 
       expect(screen.getByText('Barcode')).toBeTruthy();
       expect(screen.getByText('Label')).toBeTruthy();
+      expect(screen.queryByText('Photo')).toBeNull();
+    });
+
+    it('hides the diary-only Photo segment when picking for an NFC tag', () => {
+      const screen = renderScreenWithRoute({ pickerMode: 'action-tag' });
+
+      expect(screen.getByText('Barcode')).toBeTruthy();
       expect(screen.queryByText('Photo')).toBeNull();
     });
 

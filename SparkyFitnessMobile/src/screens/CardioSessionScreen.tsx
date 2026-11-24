@@ -7,7 +7,6 @@ import Toast from 'react-native-toast-message';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { useCardioSessionDetail } from '../hooks/useCardioSessionDetail';
 import { getAppLocale } from '../localization';
-import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import { useActiveWorkoutBarPadding } from '../components/ActiveWorkoutBar';
 import {
   METERS_PER_KM,
@@ -19,6 +18,7 @@ import {
   paceSeriesFromTrack,
   splitsFromTrack,
 } from '../utils/cardioSession';
+import { useTemperatureUnit } from '../hooks/useTemperatureUnit';
 import { bpmText, sessionStats } from '../utils/cardioSessionStats';
 import Button from '../components/ui/Button';
 import { shareRouteAsGpx } from '../services/gpxExport';
@@ -32,6 +32,7 @@ import ProgramWorkoutBadge from '../components/recording/ProgramWorkoutBadge';
 import FitnessTestBadge from '../components/recording/FitnessTestBadge';
 import ShoePickerCard from '../components/ShoePickerCard';
 import type { RootStackScreenProps } from '../types/navigation';
+import { useEnergyUnit } from '../hooks/useEnergyUnit';
 
 type CardioSessionScreenProps = RootStackScreenProps<'CardioSession'>;
 
@@ -53,7 +54,6 @@ const CardioSessionScreen: React.FC<CardioSessionScreenProps> = ({
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const activeWorkoutBarPadding = useActiveWorkoutBarPadding('stack');
-  const usesNativeHeader = useNativeIOSHeadersActive();
 
   const header = useScreenHeader({
     title: session.exerciseName,
@@ -79,7 +79,15 @@ const CardioSessionScreen: React.FC<CardioSessionScreenProps> = ({
   });
 
   const detail = useCardioSessionDetail(session.id, session.entryDate);
-  const stats = sessionStats(t, session, distanceUnit);
+  const temperatureUnit = useTemperatureUnit();
+  const energyUnit = useEnergyUnit();
+  const stats = sessionStats(
+    t,
+    session,
+    distanceUnit,
+    temperatureUnit,
+    energyUnit
+  );
   const exportGpx = async () => {
     try {
       await shareRouteAsGpx({
@@ -160,10 +168,7 @@ const CardioSessionScreen: React.FC<CardioSessionScreenProps> = ({
       : 0;
 
   return (
-    <View
-      className="flex-1 bg-background"
-      style={usesNativeHeader ? undefined : { paddingTop: insets.top }}
-    >
+    <View className="flex-1 bg-background">
       {header}
       <ScrollView
         className="flex-1"

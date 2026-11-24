@@ -10,6 +10,8 @@ import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { startGuidedCheckIn } from '../hooks/useGuidedCheckIn';
 import { useWatchConnectivity } from '../hooks/useWatchConnectivity';
+import { useNfcSupport } from '../hooks/useNfcSupport';
+import { useMobileFeatures } from '../hooks/useMobileFeatures';
 import { getTodayDate } from '../utils/dateUtils';
 import { canUseLiquidGlass } from '../utils/liquidGlass';
 import type { RootStackScreenProps } from '../types/navigation';
@@ -674,6 +676,60 @@ const WeeklyGoalMockup: React.FC = () => {
   );
 };
 
+const LabResultsMockup: React.FC = () => {
+  const { t } = useTranslation();
+  return (
+    <StatCardMockup
+      colorVariable="--color-cat-blue"
+      icon="document-text"
+      title={t('whatsNewPage.mockup.vitaminD', { defaultValue: 'Vitamin D' })}
+      badge={t('whatsNewPage.mockup.labLow', { defaultValue: 'Low' })}
+      left={t('whatsNewPage.mockup.labValue', { defaultValue: '18 ng/mL' })}
+      right={t('whatsNewPage.mockup.labRange', {
+        defaultValue: 'Range 30–100',
+      })}
+    />
+  );
+};
+
+const NfcTagMockup: React.FC = () => {
+  const { t } = useTranslation();
+  return (
+    <StatCardMockup
+      colorVariable="--color-hydration"
+      icon="nfc"
+      title={t('whatsNewPage.mockup.deskTag', { defaultValue: 'Desk tag' })}
+      badge={t('whatsNewPage.mockup.tapped', { defaultValue: 'Tapped' })}
+      left={t('whatsNewPage.mockup.tagWater', {
+        defaultValue: 'Water • 500 mL',
+      })}
+      right={t('whatsNewPage.mockup.logged', { defaultValue: 'Logged' })}
+    />
+  );
+};
+
+const OfflineWorkoutMockup: React.FC = () => {
+  const { t } = useTranslation();
+  return (
+    <StatCardMockup
+      colorVariable="--color-exercise"
+      icon="cloud-offline"
+      title={t('whatsNewPage.mockup.offlinePush', {
+        defaultValue: 'Push Day',
+      })}
+      badge={t('whatsNewPage.mockup.offlineBadge', {
+        defaultValue: 'Offline',
+      })}
+      left={t('whatsNewPage.mockup.offlineSets', {
+        defaultValue: '12 sets logged',
+      })}
+      right={t('whatsNewPage.mockup.offlineWaiting', {
+        defaultValue: 'Waiting to upload',
+      })}
+    />
+  );
+};
+
 const WhatsNewScreen: React.FC<WhatsNewScreenProps> = ({ navigation }) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
@@ -691,9 +747,81 @@ const WhatsNewScreen: React.FC<WhatsNewScreenProps> = ({ navigation }) => {
     useWatchConnectivity();
   const hasPairedWatch = watchSupported && watchPaired;
 
+  // Settings lists NFC tags only on a phone with NFC, so the button follows it.
+  const { supported: nfcSupported } = useNfcSupport();
+
+  // A feature turned off in Settings → Features keeps its card, without a
+  // button to open it.
+  const { isEnabled: isFeatureOn } = useMobileFeatures();
+
   // Added or changed a card below? Bump WHATS_NEW_CONTENT_VERSION in
   // services/whatsNewBanner.ts so the banner re-appears for existing users.
   const features: Feature[] = [
+    {
+      eyebrow: t('whatsNewPage.features.offlineWorkouts.eyebrow', {
+        defaultValue: 'OFFLINE WORKOUTS',
+      }),
+      headline: t('whatsNewPage.features.offlineWorkouts.headline', {
+        defaultValue: 'Train with no signal',
+      }),
+      body: t('whatsNewPage.features.offlineWorkouts.body', {
+        defaultValue:
+          'Start, log and finish a workout even when your server cannot be reached. It is kept on your phone and uploads by itself once you are back online. Long-press exercises in your library to keep their pictures offline too.',
+      }),
+      hero: <OfflineWorkoutMockup />,
+      cta: {
+        label: t('whatsNewPage.features.offlineWorkouts.cta', {
+          defaultValue: 'Offline settings',
+        }),
+        onPress: () => navigation.navigate('OfflineSettings'),
+      },
+    },
+    {
+      eyebrow: t('whatsNewPage.features.labResults.eyebrow', {
+        defaultValue: 'LAB RESULTS',
+      }),
+      headline: t('whatsNewPage.features.labResults.headline', {
+        defaultValue: 'Keep your lab results in one place',
+      }),
+      body: t('whatsNewPage.features.labResults.body', {
+        defaultValue:
+          'Add blood test results by hand or import a lab report from a PDF or photo. See each marker against its reference range, chart it over time, and spot what is out of range from the dashboard.',
+      }),
+      hero: <LabResultsMockup />,
+      ...(isFeatureOn('labResults')
+        ? {
+            cta: {
+              label: t('whatsNewPage.features.labResults.cta', {
+                defaultValue: 'Open lab results',
+              }),
+              onPress: () => navigation.navigate('LabResults'),
+            },
+          }
+        : {}),
+    },
+    {
+      eyebrow: t('whatsNewPage.features.nfcTags.eyebrow', {
+        defaultValue: 'NFC TAGS',
+      }),
+      headline: t('whatsNewPage.features.nfcTags.headline', {
+        defaultValue: 'Log with a tap',
+      }),
+      body: t('whatsNewPage.features.nfcTags.body', {
+        defaultValue:
+          'Stick an NFC tag on your water bottle, desk or kitchen cupboard and set it to log a drink, a food or a saved meal. Tap your phone on it to log, with Undo if you did not mean to.',
+      }),
+      hero: <NfcTagMockup />,
+      ...(nfcSupported
+        ? {
+            cta: {
+              label: t('whatsNewPage.features.nfcTags.cta', {
+                defaultValue: 'Set up NFC tags',
+              }),
+              onPress: () => navigation.navigate('ActionTags'),
+            },
+          }
+        : {}),
+    },
     {
       eyebrow: t('whatsNewPage.features.running.eyebrow', {
         defaultValue: 'RUNNING',
@@ -988,10 +1116,7 @@ const WhatsNewScreen: React.FC<WhatsNewScreenProps> = ({ navigation }) => {
   });
 
   return (
-    <View
-      className="flex-1 bg-background"
-      style={usesNativeHeader ? undefined : { paddingTop: insets.top }}
-    >
+    <View className="flex-1 bg-background">
       {header}
       <ScrollView
         contentContainerStyle={{

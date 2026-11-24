@@ -1,4 +1,7 @@
+import { queryClient } from '../../../src/hooks/queryClient';
+import { glucoseSamplesQueryKeyRoot } from '../../../src/hooks/queryKeys';
 import {
+  allDayHeartRateSettled,
   collectHealthData,
   runForegroundSync,
   type HealthReadProvider,
@@ -24,9 +27,27 @@ jest.mock('../../../src/services/api/healthDataApi', () => ({
   syncHealthData: jest.fn(),
 }));
 
+jest.mock('../../../src/services/storage', () => ({
+  ...jest.requireActual('../../../src/services/storage'),
+  getActiveServerConfig: jest.fn().mockResolvedValue({
+    id: 'server-1',
+    url: 'https://sparky.example',
+    apiKey: 'key-1',
+  }),
+  getActiveServerConfigId: jest.fn().mockResolvedValue('server-1'),
+}));
+jest.mock('../../../src/services/api/healthSamplesApi', () => ({
+  postHealthMetricSamples: jest.fn().mockResolvedValue({}),
+}));
+
 jest.mock('../../../src/services/api/measurementsApi', () => ({
   serverSupportsPerRecordWater: jest.fn().mockResolvedValue(true),
 }));
+
+const storage = require('../../../src/services/storage') as {
+  getActiveServerConfig: jest.Mock;
+  getActiveServerConfigId: jest.Mock;
+};
 
 const api = require('../../../src/services/api/healthDataApi') as {
   syncHealthData: jest.Mock;
@@ -647,6 +668,25 @@ describe('collectHealthData', () => {
         measurementsApi.serverSupportsPerRecordWater
       ).not.toHaveBeenCalled();
     });
+
+    test('cancels water deletion run with runId when hydration query fails or times out', async () => {
+      const cancelWaterDeletionRun = jest.fn();
+      const beginRun = jest.fn(() => 77);
+      const provider = fakeProvider({
+        beginRun,
+        cancelWaterDeletionRun,
+        readRaw: jest.fn().mockRejectedValue(new Error('Network failure')),
+      });
+
+      const outcomes = await collectHealthData(provider, [hydration], windows, {
+        timeoutLabelPrefix: 'Test query',
+        telemetry: createTelemetryRunContext(),
+      });
+
+      expect(outcomes[0].status).toBe('rejected');
+      expect(beginRun).toHaveBeenCalled();
+      expect(cancelWaterDeletionRun).toHaveBeenCalledWith(77);
+    });
   });
 });
 
@@ -657,10 +697,95 @@ describe('runForegroundSync', () => {
     timeoutLabelPrefix: 'Test query',
   };
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    // A heart rate phase left over from an earlier test must not run into
+    // this one, or its calls would pass for this sync's.
+    await allDayHeartRateSettled();
     jest.clearAllMocks();
     writeback.runWriteback.mockResolvedValue(undefined);
   });
+
+  test.each(['ios', 'android'] as const)(
+    'uploads %s glucose samples without heart rate and refreshes an open chart afterwards',
+    async (platform) => {
+      const measuredAt = new Date();
+      measuredAt.setHours(0, 0, 0, 0);
+      const invalidate = jest.spyOn(queryClient, 'invalidateQueries');
+      const provider = fakeProvider({
+        readMinMaxAvgByDay: jest.fn().mockResolvedValue({ records: [] }),
+        readRaw: jest.fn().mockResolvedValue({
+          records: [
+            {
+              time: measuredAt.toISOString(),
+              level: { inMillimolesPerLiter: 5 },
+              ...(platform === 'android'
+                ? { metadata: { dataOrigin: 'com.dexcom.healthconnect' } }
+                : {}),
+            },
+          ],
+        }),
+      });
+      const { Platform } = jest.requireActual(
+        'react-native'
+      ) as typeof import('react-native');
+      const previous = Platform.OS;
+      Object.defineProperty(Platform, 'OS', {
+        value: platform,
+        configurable: true,
+      });
+      try {
+        await runForegroundSync(
+          provider,
+          'today',
+          { isBloodGlucoseSyncEnabled: true },
+          opts
+        );
+        await allDayHeartRateSettled();
+        expect(invalidate).toHaveBeenCalledWith({
+          queryKey: glucoseSamplesQueryKeyRoot,
+        });
+        expect(provider.readRaw).toHaveBeenCalledWith(
+          'BloodGlucose',
+          expect.any(Date),
+          expect.any(Date),
+          expect.anything()
+        );
+        const { postHealthMetricSamples } =
+          require('../../../src/services/api/healthSamplesApi') as {
+            postHealthMetricSamples: jest.Mock;
+          };
+        expect(postHealthMetricSamples).toHaveBeenCalledWith(
+          expect.objectContaining({
+            metric: 'blood_glucose',
+            device_name: platform === 'ios' ? 'Apple Health' : 'Health Connect',
+            samples: [
+              {
+                t: measuredAt.toISOString(),
+                mmol_l: 5,
+                ...(platform === 'android'
+                  ? { source_bundle_id: 'com.dexcom.healthconnect' }
+                  : {}),
+              },
+            ],
+          }),
+          expect.anything(),
+          expect.objectContaining({ id: 'server-1' })
+        );
+        expect(provider.readRaw).not.toHaveBeenCalledWith(
+          'HeartRate',
+          expect.anything(),
+          expect.anything(),
+          expect.anything()
+        );
+      } finally {
+        invalidate.mockRestore();
+        Object.defineProperty(Platform, 'OS', {
+          value: previous,
+          configurable: true,
+        });
+      }
+    }
+  );
 
   test('returns the pinned empty message when no metrics are enabled', async () => {
     const provider = fakeProvider();
@@ -696,6 +821,159 @@ describe('runForegroundSync', () => {
     expect(result.uploadErrors).toEqual(recordErrors);
     // Upload rejections are not read errors — the cursor logic keys off syncErrors.
     expect(result.syncErrors).toEqual([]);
+  });
+
+  test('uploads all-day heart rate when Heart Rate sync is on, without touching syncErrors', async () => {
+    const healthSamples =
+      require('../../../src/services/api/healthSamplesApi') as {
+        postHealthMetricSamples: jest.Mock;
+      };
+    // A reading inside whichever window is asked for, so the test does not
+    // depend on today's date.
+    const readRaw = jest.fn(async (_type: string, start: Date) => ({
+      records: [
+        {
+          startTime: start.toISOString(),
+          samples: [{ beatsPerMinute: 64 }],
+        },
+      ],
+    }));
+    const provider = fakeProvider({
+      readRaw,
+      readMinMaxAvgByDay: jest.fn().mockResolvedValue({ records: [] }),
+    });
+    healthSamples.postHealthMetricSamples.mockRejectedValue(new Error('down'));
+
+    const result = await runForegroundSync(
+      provider,
+      'today',
+      { isHeartRateSyncEnabled: true },
+      opts
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.syncErrors).toEqual([]);
+    // The phase runs after the sync returns.
+    await allDayHeartRateSettled();
+    expect(healthSamples.postHealthMetricSamples).toHaveBeenCalled();
+    expect(readRaw).toHaveBeenCalledWith(
+      'HeartRate',
+      expect.any(Date),
+      expect.any(Date),
+      expect.anything()
+    );
+  });
+
+  test('uploads the main payload first and returns without waiting for all-day heart rate', async () => {
+    const order: string[] = [];
+    let releaseHeartRate: () => void = () => {};
+    const heartRateRead = new Promise<{ records: [] }>((resolve) => {
+      releaseHeartRate = () => resolve({ records: [] });
+    });
+    const readRaw = jest.fn((type: string) => {
+      if (type !== 'HeartRate') return Promise.resolve({ records: [] });
+      order.push('heartRate');
+      return heartRateRead;
+    });
+    const provider = fakeProvider({
+      readRaw,
+      readMinMaxAvgByDay: jest.fn().mockResolvedValue({
+        records: [
+          {
+            value: 70,
+            type: 'heart_rate_avg',
+            date: '2026-07-01',
+            unit: 'bpm',
+            source: 'HealthKit',
+          },
+        ],
+      }),
+    });
+    api.syncHealthData.mockImplementation(async () => {
+      order.push('upload');
+      return { success: true };
+    });
+
+    const result = await runForegroundSync(
+      provider,
+      'today',
+      { isHeartRateSyncEnabled: true },
+      opts
+    );
+
+    // Resolved while the heart rate read is still pending.
+    expect(result.success).toBe(true);
+    // The phase reaches its heart rate read after the upload, and is still
+    // waiting on it.
+    for (let i = 0; i < 50 && order.length < 2; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+    expect(order).toEqual(['upload', 'heartRate']);
+    releaseHeartRate();
+    await allDayHeartRateSettled();
+  });
+
+  test('a sync that finds a heart rate phase running queues its own after it', async () => {
+    let releaseFirst: () => void = () => {};
+    const firstRead = new Promise<{ records: [] }>((resolve) => {
+      releaseFirst = () => resolve({ records: [] });
+    });
+    const firstReadRaw = jest.fn((type: string) =>
+      type === 'HeartRate' ? firstRead : Promise.resolve({ records: [] })
+    );
+    const secondReadRaw = jest.fn().mockResolvedValue({ records: [] });
+
+    // Day statistics come from their own reader, so readRaw is only the
+    // all-day phase's.
+    const readMinMaxAvgByDay = () => Promise.resolve({ records: [] });
+    await runForegroundSync(
+      fakeProvider({ readRaw: firstReadRaw, readMinMaxAvgByDay }),
+      'today',
+      { isHeartRateSyncEnabled: true },
+      opts
+    );
+    for (let i = 0; i < 50 && firstReadRaw.mock.calls.length === 0; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+    await runForegroundSync(
+      fakeProvider({ readRaw: secondReadRaw, readMinMaxAvgByDay }),
+      'today',
+      { isHeartRateSyncEnabled: true },
+      opts
+    );
+    // Held back while the first phase is still running...
+    expect(secondReadRaw).not.toHaveBeenCalledWith(
+      'HeartRate',
+      expect.anything(),
+      expect.anything(),
+      expect.anything()
+    );
+
+    // ...and run, not dropped, once it settles.
+    releaseFirst();
+    await allDayHeartRateSettled();
+    expect(secondReadRaw).toHaveBeenCalledWith(
+      'HeartRate',
+      expect.any(Date),
+      expect.any(Date),
+      expect.anything()
+    );
+  });
+
+  test('does not read all-day heart rate when Heart Rate sync is off', async () => {
+    const readRaw = jest.fn().mockResolvedValue({ records: [] });
+    await runForegroundSync(
+      fakeProvider({ readRaw }),
+      'today',
+      { isStepsSyncEnabled: true },
+      opts
+    );
+    expect(readRaw).not.toHaveBeenCalledWith(
+      'HeartRate',
+      expect.anything(),
+      expect.anything(),
+      expect.anything()
+    );
   });
 
   test('read errors land in syncErrors while other metrics still sync', async () => {
@@ -976,6 +1254,134 @@ describe('telemetry reuse cache commits only on a fully accepted upload', () => 
 
     expect(api.syncHealthData).not.toHaveBeenCalled();
     expect(markSpy).toHaveBeenCalled();
+  });
+
+  test('binds runId from beginRun to commitRun in runForegroundSync', async () => {
+    const beginRun = jest.fn(() => 88);
+    const commitRun = jest.fn().mockResolvedValue(undefined);
+    const provider = fakeProvider({
+      beginRun,
+      commitRun,
+      readRaw: jest.fn().mockResolvedValue({ records: [] }),
+    });
+
+    await runForegroundSync(provider, '1d', {}, opts);
+
+    expect(beginRun).toHaveBeenCalled();
+    expect(commitRun).toHaveBeenCalledWith(88);
+  });
+
+  test('passes owning runId to provider.readRaw', async () => {
+    const beginRun = jest.fn(() => 42);
+    const readRaw = jest.fn().mockResolvedValue({ records: [] });
+    const provider = fakeProvider({
+      beginRun,
+      readRaw,
+    });
+
+    await runForegroundSync(
+      provider,
+      '1d',
+      { isHydrationSyncEnabled: true },
+      opts
+    );
+
+    expect(readRaw).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      42
+    );
+  });
+
+  test('cancels water deletion run and aborts if active account changes before upload', async () => {
+    const beginRun = jest.fn(() => 99);
+    const commitRun = jest.fn();
+    const cancelWaterDeletionRun = jest.fn();
+    const readRaw = jest.fn().mockResolvedValue({ records: [{ id: 'w1' }] });
+    const provider = fakeProvider({
+      beginRun,
+      commitRun,
+      cancelWaterDeletionRun,
+      readRaw,
+    });
+
+    let callCount = 0;
+    storage.getActiveServerConfigId.mockImplementation(async () => {
+      callCount++;
+      return callCount <= 2 ? 'acc-1' : 'acc-2';
+    });
+
+    const result = await runForegroundSync(
+      provider,
+      '1d',
+      { isHydrationSyncEnabled: true },
+      opts
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('Active account changed');
+    expect(cancelWaterDeletionRun).toHaveBeenCalledWith(99);
+    expect(commitRun).not.toHaveBeenCalled();
+    expect(api.syncHealthData).not.toHaveBeenCalled();
+
+    // Reset mock
+    storage.getActiveServerConfigId.mockResolvedValue('server-1');
+  });
+
+  test('aborts before run begins if active account changes while queued', async () => {
+    const beginRun = jest.fn(() => 99);
+    const provider = fakeProvider({ beginRun });
+
+    let callCount = 0;
+    storage.getActiveServerConfigId.mockImplementation(async () => {
+      callCount++;
+      return callCount === 1 ? 'acc-1' : 'acc-2';
+    });
+
+    const result = await runForegroundSync(
+      provider,
+      '1d',
+      { isHydrationSyncEnabled: true },
+      opts
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('Active account changed while queued');
+    expect(beginRun).not.toHaveBeenCalled();
+
+    // Reset mock
+    storage.getActiveServerConfigId.mockResolvedValue('server-1');
+  });
+
+  test('cancels water deletion run when legacy sum fallback discards tombstones', async () => {
+    measurementsApi.serverSupportsPerRecordWater.mockResolvedValue(false);
+    const beginRun = jest.fn(() => 77);
+    const cancelWaterDeletionRun = jest.fn();
+    const readRaw = jest.fn().mockResolvedValue({
+      records: [
+        { deleted: true, uuid: 'del-1' },
+        { value: 250, date: '2026-07-03' },
+      ],
+    });
+    const provider = fakeProvider({
+      beginRun,
+      cancelWaterDeletionRun,
+      readRaw,
+    });
+
+    await runForegroundSync(
+      provider,
+      '1d',
+      { isHydrationSyncEnabled: true },
+      opts
+    );
+
+    expect(cancelWaterDeletionRun).toHaveBeenCalledWith(77);
+
+    // Reset mock
+    measurementsApi.serverSupportsPerRecordWater.mockResolvedValue(true);
   });
 });
 

@@ -18,8 +18,9 @@ import { useDailySummary, useServerConnection, useMealTypes } from '../hooks';
 import { useCopyFoodEntries } from '../hooks/useCopyFoodEntries';
 import { usePreferences } from '../hooks/usePreferences';
 import { useScreenHeader } from '../hooks/useScreenHeader';
-import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import { formatDateLabel } from '../utils/dateUtils';
+import { useEnergyUnit } from '../hooks/useEnergyUnit';
+import { energyUnitLabel, formatEnergyNumber } from '../utils/energyUnit';
 import {
   calculateEntryNutrition,
   calculateMealNutrition,
@@ -37,12 +38,12 @@ const MealTypeDetailScreen: React.FC<MealTypeDetailScreenProps> = ({
   route,
 }) => {
   const { t, i18n: translationI18n } = useTranslation();
+  const energyUnit = useEnergyUnit();
   const dateLocale = translationI18n.language.startsWith('pl')
     ? 'pl-PL'
     : 'en-US';
   const { date, mealType, mealTypeId, mealLabel } = route.params;
   const insets = useSafeAreaInsets();
-  const usesNativeHeader = useNativeIOSHeadersActive();
   const activeWorkoutBarPadding = useActiveWorkoutBarPadding('stack');
   const servingSheetRef = useRef<ServingAdjustSheetRef>(null);
   const copySheetRef = useRef<CopyMealSheetRef>(null);
@@ -192,7 +193,7 @@ const MealTypeDetailScreen: React.FC<MealTypeDetailScreenProps> = ({
           name={label}
           brand={
             targetCalories > 0
-              ? `${formatDateLabel(date, t, dateLocale)} · ${t('mealTypeDetail.targetCalories', { defaultValue: 'Target: {{calories}} kcal', calories: targetCalories })}`
+              ? `${formatDateLabel(date, t, dateLocale)} · ${t('mealTypeDetail.targetCaloriesWithUnit', { defaultValue: 'Target: {{calories}} {{unit}}', calories: formatEnergyNumber(targetCalories, energyUnit), unit: energyUnitLabel(energyUnit, t) })}`
               : formatDateLabel(date, t, dateLocale)
           }
           values={nutrition.values}
@@ -297,10 +298,7 @@ const MealTypeDetailScreen: React.FC<MealTypeDetailScreenProps> = ({
   });
 
   return (
-    <View
-      className="flex-1 bg-background"
-      style={usesNativeHeader ? undefined : { paddingTop: insets.top }}
-    >
+    <View className="flex-1 bg-background">
       {header}
 
       <ServerGate>{renderContent()}</ServerGate>
@@ -312,7 +310,7 @@ const MealTypeDetailScreen: React.FC<MealTypeDetailScreenProps> = ({
       <CopyMealSheet
         ref={copySheetRef}
         isPending={isCopying}
-        onCopy={copyMeal}
+        onCopy={(payload) => copyMeal(payload)}
       />
     </View>
   );

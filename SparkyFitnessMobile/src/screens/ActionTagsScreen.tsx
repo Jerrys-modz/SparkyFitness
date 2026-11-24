@@ -13,11 +13,11 @@ import ServerGate from '../components/ServerGate';
 import Button from '../components/ui/Button';
 import { useServerConnection, useWaterContainersQuery } from '../hooks';
 import { useActionTagsQuery } from '../hooks/useActionTags';
+import { useMealTypes } from '../hooks/useMealTypes';
 import { useCancelNfcOnBlur } from '../hooks/useCancelNfcOnBlur';
 import { useNfcSupport } from '../hooks/useNfcSupport';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { ApiError } from '../services/api/errors';
-import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import { cancelNfcRequest, readTag } from '../services/nfc/nfcService';
 import { describeTagAction } from '../services/tagActions';
 import type { RootStackScreenProps } from '../types/navigation';
@@ -27,7 +27,6 @@ type ActionTagsScreenProps = RootStackScreenProps<'ActionTags'>;
 const ActionTagsScreen: React.FC<ActionTagsScreenProps> = ({ navigation }) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const usesNativeHeader = useNativeIOSHeadersActive();
   const [accentColor] = useCSSVariable(['--color-accent-primary']) as [string];
   const [refreshing, setRefreshing] = useState(false);
   const [scanning, setScanning] = useState(false);
@@ -37,6 +36,7 @@ const ActionTagsScreen: React.FC<ActionTagsScreenProps> = ({ navigation }) => {
     enabled: isConnected,
   });
   const { containers } = useWaterContainersQuery({ enabled: isConnected });
+  const { mealTypes } = useMealTypes({ enabled: isConnected });
   const { supported } = useNfcSupport();
   const serverTooOld = error instanceof ApiError && error.statusCode === 404;
 
@@ -111,7 +111,10 @@ const ActionTagsScreen: React.FC<ActionTagsScreenProps> = ({ navigation }) => {
             {item.label}
           </Text>
           <Text className="text-sm text-text-secondary mt-1">
-            {describeTagAction(t, item.action, { waterContainers: containers })}
+            {describeTagAction(t, item.action, {
+              waterContainers: containers,
+              mealTypes,
+            })}
           </Text>
           {item.ask_before_running ? (
             <Text className="text-xs text-text-muted mt-1">
@@ -199,7 +202,7 @@ const ActionTagsScreen: React.FC<ActionTagsScreenProps> = ({ navigation }) => {
                 })}
               </Text>
             </View>
-          ) : null
+          ) : undefined
         }
         ListEmptyComponent={
           <StatusView
@@ -230,10 +233,7 @@ const ActionTagsScreen: React.FC<ActionTagsScreenProps> = ({ navigation }) => {
   };
 
   return (
-    <View
-      className="flex-1 bg-background"
-      style={usesNativeHeader ? undefined : { paddingTop: insets.top }}
-    >
+    <View className="flex-1 bg-background">
       {header}
       <ServerGate>{content()}</ServerGate>
       <NfcWaitingCard

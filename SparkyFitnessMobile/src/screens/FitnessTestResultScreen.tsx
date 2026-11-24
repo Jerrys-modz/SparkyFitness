@@ -98,7 +98,7 @@ const FitnessTestResultScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   return (
-    <>
+    <View className="flex-1 bg-background">
       {header}
       <ScrollView
         className="flex-1 bg-background"
@@ -231,7 +231,7 @@ const FitnessTestResultScreen: React.FC<Props> = ({ navigation, route }) => {
           </>
         )}
       </ScrollView>
-    </>
+    </View>
   );
 };
 

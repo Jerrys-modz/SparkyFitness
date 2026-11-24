@@ -32,7 +32,7 @@ const PersonalRecordsScreen: React.FC<Props> = () => {
   const groups = groupPersonalRecords(records);
 
   return (
-    <>
+    <View className="flex-1 bg-background">
       {header}
       <ScrollView
         className="flex-1 bg-background"
@@ -102,7 +102,7 @@ const PersonalRecordsScreen: React.FC<Props> = () => {
           ))
         )}
       </ScrollView>
-    </>
+    </View>
   );
 };
 

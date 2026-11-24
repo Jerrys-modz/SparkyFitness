@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatLocalizedNumber } from '../../localization';
-import { View, TouchableOpacity, Platform, Text } from 'react-native';
+import { View, TouchableOpacity, Text } from 'react-native';
 import Toast from 'react-native-toast-message';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCSSVariable } from 'uniwind';
 import { StackActions } from '@react-navigation/native';
 import { useQueryClient } from '@tanstack/react-query';
@@ -11,6 +10,8 @@ import {
   buildNamedFoodPortion,
   getFoodPortionUnit,
   parseNamedFoodPortion,
+  prefillEntryTime,
+  userHourMinute,
 } from '@workspace/shared';
 import Icon from '../../components/Icon';
 import StepperInput from '../../components/StepperInput';
@@ -24,6 +25,7 @@ import BottomSheetPicker from '../../components/BottomSheetPicker';
 import CalendarSheet, {
   type CalendarSheetRef,
 } from '../../components/CalendarSheet';
+import TimeSheet, { type TimeSheetRef } from '../../components/TimeSheet';
 import Switch from '../../components/ui/Switch';
 import { setPendingMealIngredientSelection } from '../../services/mealBuilderSelection';
 import {
@@ -32,6 +34,7 @@ import {
 } from '../../services/mealPlanSelection';
 import { useMealTypes, usePreferences } from '../../hooks';
 import { useSaveFood } from '../../hooks/useSaveFood';
+import { isPendingFoodId } from '../../offline/foodCreateHandOver';
 import {
   resolveSelectedVariant,
   useAddFoodEntry,
@@ -41,7 +44,9 @@ import {
   getTodayDate,
   normalizeDate,
   formatDateLabel,
+  getDeviceTimezone,
 } from '../../utils/dateUtils';
+import { formatTimeLabel } from '../../utils/entryTimeDisplay';
 import { parseOptional } from '../../types/foodInfo';
 import {
   createFoodVariant,
@@ -74,6 +79,9 @@ import {
 } from '../../utils/numericInput';
 import { useNativeIOSHeadersActive } from '../../services/nativeTabBarPreference';
 import { useScreenHeader } from '../../hooks/useScreenHeader';
+import { setPendingActionTagSelection } from '../../services/actionTagSelection';
+import { setPendingContainerLinkSelection } from '../../services/waterContainerLinkSelection';
+import { isFoodSelectionMode } from '../../utils/foodPickerMode';
 import { BarcodeField, BARCODE_REGEX } from './BarcodeField';
 import {
   FOOD_VARIANT_FIELDS,
@@ -114,7 +122,6 @@ export function CreateFoodMode({
   const dateLocale = translationI18n.language.startsWith('pl')
     ? 'pl-PL'
     : 'en-US';
-  const insets = useSafeAreaInsets();
   const usesNativeHeader = useNativeIOSHeadersActive();
   const [textPrimary, textSecondary] = useCSSVariable([
     '--color-text-primary',
@@ -124,26 +131,39 @@ export function CreateFoodMode({
   const returnDepth = params.returnDepth ?? 1;
   const isMealBuilderMode = pickerMode === 'meal-builder';
   const isMealPlanMode = pickerMode === 'meal-plan';
-  const isSelectionMode = isMealBuilderMode || isMealPlanMode;
+  const isSelectionMode = isFoodSelectionMode(pickerMode);
   const isLibraryMode = pickerMode === 'library';
   const isLogEntryMode = !isSelectionMode && !isLibraryMode;
   const showBarcodeField = !isMealBuilderMode;
   const initialFood = params.initialFood;
   const hasImportedInitialFood = !!initialFood;
   const showAutoScaleNutrition = isSelectionMode || hasImportedInitialFood;
-  const { preferences } = usePreferences({ enabled: showAutoScaleNutrition });
-  const initialAutoScaleNutritionEnabled =
-    preferences?.auto_scale_online_imports ?? false;
+  const { preferences } = usePreferences({
+    enabled: showAutoScaleNutrition || isLogEntryMode,
+  });
+  const initialAutoScaleNutritionEnabled = showAutoScaleNutrition
+    ? (preferences?.auto_scale_online_imports ?? false)
+    : false;
 
   const providerType = params.providerType;
   const [barcodeInput, setBarcodeInput] = useState(params.barcode ?? '');
   const { pendingScannedBarcode, scannedBarcodeNonce } = params;
 
+  // Consume a one-shot navigation param: applied once per nonce, then cleared
+  // with setParams.
+  const [appliedBarcodeNonce, setAppliedBarcodeNonce] = useState<
+    typeof scannedBarcodeNonce | null
+  >(null);
+  const hasPendingScan =
+    scannedBarcodeNonce != null && pendingScannedBarcode != null;
+  if (!hasPendingScan) {
+    if (appliedBarcodeNonce !== null) setAppliedBarcodeNonce(null);
+  } else if (appliedBarcodeNonce !== scannedBarcodeNonce) {
+    setAppliedBarcodeNonce(scannedBarcodeNonce);
+    setBarcodeInput(pendingScannedBarcode);
+  }
   useEffect(() => {
     if (scannedBarcodeNonce == null || pendingScannedBarcode == null) return;
-    // Consume a one-shot navigation param: guarded by the nonce and paired with
-    // clearing the param via setParams, so it can't move to a render-time derive.
-    setBarcodeInput(pendingScannedBarcode);
     navigation.setParams({
       pendingScannedBarcode: undefined,
       scannedBarcodeNonce: undefined,
@@ -203,10 +223,58 @@ export function CreateFoodMode({
     params.date ?? getTodayDate()
   );
   const calendarRef = useRef<CalendarSheetRef>(null);
-  const { mealTypes, defaultMealTypeId } = useMealTypes();
-  const [selectedMealId, setSelectedMealId] = useState<string | undefined>();
-  const effectiveMealId = selectedMealId ?? defaultMealTypeId;
+  const timeSheetRef = useRef<TimeSheetRef>(null);
+  const {
+    mealTypes,
+    defaultMealTypeId,
+    isLoading: isMealTypesLoading,
+    isError: isMealTypesError,
+  } = useMealTypes();
+  const [selectedMealId, setSelectedMealId] = useState<string | undefined>(
+    params.mealTypeId
+  );
+  const effectiveMealId =
+    selectedMealId &&
+    (isMealTypesLoading || mealTypes.some((mt) => mt.id === selectedMealId))
+      ? selectedMealId
+      : isMealTypesLoading
+        ? undefined
+        : (defaultMealTypeId ?? undefined);
   const selectedMealType = mealTypes.find((mt) => mt.id === effectiveMealId);
+
+  if (
+    !isMealTypesLoading &&
+    !isMealTypesError &&
+    mealTypes.length > 0 &&
+    selectedMealId &&
+    !mealTypes.some((mt) => mt.id === selectedMealId)
+  ) {
+    setSelectedMealId(defaultMealTypeId ?? undefined);
+  }
+
+  const [entryTime, setEntryTime] = useState(params.entryTime ?? '');
+  const entryTimeTouched = useRef(params.entryTime !== undefined);
+  useEffect(() => {
+    if (entryTimeTouched.current) return;
+    setEntryTime(
+      prefillEntryTime({
+        defaultTime: selectedMealType?.default_time,
+        isToday: selectedDate === getTodayDate(),
+        tz: getDeviceTimezone(),
+      })
+    );
+  }, [selectedDate, selectedMealType?.default_time]);
+
+  const handleSelectEntryTime = (time: string) => {
+    entryTimeTouched.current = true;
+    setEntryTime(time);
+  };
+  const handleSetEntryTimeNow = () => {
+    const { hour, minute } = userHourMinute(getDeviceTimezone());
+    handleSelectEntryTime(
+      `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
+    );
+  };
   const mealTypeLabel = (mealType: (typeof mealTypes)[number]) =>
     mealType.user_id == null
       ? getLocalizedMealLabel(
@@ -443,7 +511,15 @@ export function CreateFoodMode({
 
     const saveFoodForForm = async () => {
       if (portionDraft.length === 0 && !savedFoodRef.current) {
-        return saveFoodAsync(saveFoodPayload, imageArgs);
+        // A food made only for the library can wait on the phone, unless it
+        // carries equivalent servings: those are saved after the food and
+        // would be lost, so that food needs the server.
+        return saveFoodAsync(
+          saveFoodPayload,
+          imageArgs,
+          undefined,
+          isLibraryMode && cleanEquivalents.length === 0
+        );
       }
       setIsPortionSaving(true);
       try {
@@ -740,7 +816,27 @@ export function CreateFoodMode({
           parseDecimalInput(data.servingSize) || 0,
           data.servingUnit || 'serving'
         );
-        if (isMealPlanMode && params.mealPlanTarget) {
+        if (pickerMode === 'action-tag') {
+          if (ingredient.food_id && ingredient.variant_id) {
+            setPendingActionTagSelection({
+              kind: 'food',
+              foodId: ingredient.food_id,
+              variantId: ingredient.variant_id,
+              name: ingredient.food_name ?? savedFood.name,
+              quantity: ingredient.quantity,
+              unit: ingredient.unit,
+            });
+          }
+        } else if (pickerMode === 'container-link') {
+          if (ingredient.food_id && ingredient.variant_id) {
+            setPendingContainerLinkSelection({
+              foodId: ingredient.food_id,
+              variantId: ingredient.variant_id,
+              foodName: ingredient.food_name ?? savedFood.name,
+              quantity: ingredient.quantity,
+            });
+          }
+        } else if (isMealPlanMode && params.mealPlanTarget) {
           setPendingMealPlanSelection({
             ...(params.mealPlanTarget.assignmentIndex === undefined
               ? {}
@@ -765,14 +861,18 @@ export function CreateFoodMode({
       try {
         const savedFood = await saveFoodForForm();
         isSavingRef.current = true;
-        if (portionDraft.length === 0 && !savedFoodRef.current)
+        const waitsOnPhone = isPendingFoodId(savedFood.id);
+        if (portionDraft.length === 0 && !savedFoodRef.current && !waitsOnPhone)
           saveEquivalentsAsync(savedFood.id);
-        Toast.show({
-          type: 'success',
-          text1: t('createFood.success.foodSaved', {
-            defaultValue: 'Food saved',
-          }),
-        });
+        // A food kept on the phone is announced by the save itself.
+        if (!waitsOnPhone) {
+          Toast.show({
+            type: 'success',
+            text1: t('createFood.success.foodSaved', {
+              defaultValue: 'Food saved',
+            }),
+          });
+        }
         navigation.dispatch(StackActions.pop(returnDepth));
       } catch {
         // Error toast is handled in the save hook.
@@ -788,6 +888,27 @@ export function CreateFoodMode({
         }),
         text2: t('createFood.errors.amountRequired', {
           defaultValue: 'Amount must be greater than zero.',
+        }),
+      });
+      return;
+    }
+    if (isMealTypesLoading) {
+      Toast.show({
+        type: 'info',
+        text1: t('common.loading', { defaultValue: 'Loading...' }),
+        text2: t('createFood.errors.loadingMealTypes', {
+          defaultValue:
+            'Meal types are still loading. Please try again in a moment.',
+        }),
+      });
+      return;
+    }
+    if (isMealTypesError && !effectiveMealId) {
+      Toast.show({
+        type: 'error',
+        text1: t('common.error', { defaultValue: 'Error' }),
+        text2: t('createFood.errors.mealTypesLoadFailed', {
+          defaultValue: 'Failed to load meal types. Please try again.',
         }),
       });
       return;
@@ -821,6 +942,7 @@ export function CreateFoodMode({
             quantity,
             unit: data.servingUnit || 'serving',
             entry_date: selectedDate,
+            entry_time: entryTime || null,
           },
         });
       } catch {
@@ -838,11 +960,13 @@ export function CreateFoodMode({
     addEntry({
       saveFoodPayload,
       saveFoodImages: imageArgs,
+      hasEquivalentServings: cleanEquivalents.length > 0,
       createEntryPayload: {
         meal_type_id: effectiveMealId,
         quantity,
         unit: data.servingUnit || 'serving',
         entry_date: selectedDate,
+        entry_time: entryTime || null,
       },
     });
   };
@@ -854,6 +978,7 @@ export function CreateFoodMode({
     : t('createFood.actions.addFood', { defaultValue: 'Add Food' });
 
   const header = useScreenHeader({
+    topInset: 'android-only',
     title: t('createFood.title', { defaultValue: 'New Food' }),
     left: {
       kind: 'dismiss',
@@ -880,10 +1005,7 @@ export function CreateFoodMode({
   } = useRetryLabelScan(params, navigation);
 
   return (
-    <View
-      className="flex-1 bg-background"
-      style={Platform.OS === 'android' ? { paddingTop: insets.top } : undefined}
-    >
+    <View className="flex-1 bg-background">
       {header}
 
       <FoodForm
@@ -986,6 +1108,51 @@ export function CreateFoodMode({
                 </View>
               ) : null}
             </View>
+
+            {/* Time */}
+            <View className="flex-row items-center">
+              <TouchableOpacity
+                onPress={() => timeSheetRef.current?.present()}
+                activeOpacity={0.7}
+                className="flex-row items-center"
+              >
+                <Text className="text-text-secondary text-base">
+                  {t('foodEntryAdd.labels.time', { defaultValue: 'Time' })}
+                </Text>
+                <Text className="text-text-primary text-base font-medium mx-1.5">
+                  {formatTimeLabel(entryTime, preferences?.time_format) ??
+                    t('foodEntryAdd.labels.none', { defaultValue: 'None' })}
+                </Text>
+                <Icon
+                  name="chevron-down"
+                  size={12}
+                  color={textPrimary}
+                  weight="medium"
+                />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                activeOpacity={0.7}
+                className="flex-row items-center mx-4"
+                onPress={handleSetEntryTimeNow}
+              >
+                <Text className="text-text-link text-sm font-medium mx-1.5">
+                  {t('foodEntryAdd.actions.now', { defaultValue: 'Now' })}
+                </Text>
+              </TouchableOpacity>
+
+              {entryTime !== '' && (
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  className="flex-row items-center"
+                  onPress={() => handleSelectEntryTime('')}
+                >
+                  <Text className="text-text-link text-sm font-medium mx-1.5">
+                    {t('foodEntryAdd.actions.clear', { defaultValue: 'Clear' })}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
             {/* Amount */}
             <View>
               <View className="flex-row items-center">
@@ -1051,11 +1218,18 @@ export function CreateFoodMode({
       </FoodForm>
 
       {isLogEntryMode ? (
-        <CalendarSheet
-          ref={calendarRef}
-          selectedDate={selectedDate}
-          onSelectDate={setSelectedDate}
-        />
+        <>
+          <CalendarSheet
+            ref={calendarRef}
+            selectedDate={selectedDate}
+            onSelectDate={setSelectedDate}
+          />
+          <TimeSheet
+            ref={timeSheetRef}
+            value={entryTime}
+            onSelectTime={handleSelectEntryTime}
+          />
+        </>
       ) : null}
     </View>
   );

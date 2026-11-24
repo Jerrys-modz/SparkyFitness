@@ -1,3 +1,4 @@
+import type { FeatureKey } from '@workspace/shared';
 import type { IconName } from '../components/Icon';
 
 /**
@@ -19,11 +20,23 @@ export const ADD_MENU_ITEM_KEYS = [
   'symptoms',
   'mood',
   'mindfulness',
+  'oralCare',
+  'copyFromYesterday',
   'askSparky',
   'syncHealth',
 ] as const;
 
 export type AddMenuItemKey = (typeof ADD_MENU_ITEM_KEYS)[number];
+
+/**
+ * Items that belong to an optional feature (Settings → Features): the sheet
+ * leaves them out while it is off, wherever they are arranged.
+ */
+export const ADD_MENU_ITEM_FEATURES: Partial<
+  Record<AddMenuItemKey, FeatureKey>
+> = {
+  wellness: 'cycle',
+};
 
 /** How many big cards the sheet has room for: two rows of two. */
 export const ADD_MENU_CARD_COUNT = 4;
@@ -61,6 +74,9 @@ export const ADD_MENU_ITEM_LABELS: Record<
   mood: (t) => t('addSheet.mood', { defaultValue: 'Mood' }),
   mindfulness: (t) =>
     t('addSheet.mindfulness', { defaultValue: 'Mindfulness' }),
+  oralCare: (t) => t('addSheet.oralCare', { defaultValue: 'Oral care' }),
+  copyFromYesterday: (t) =>
+    t('addSheet.copyFromYesterday', { defaultValue: 'Copy from yesterday' }),
   askSparky: (t) => t('addSheet.askSparky', { defaultValue: 'Ask Sparky' }),
   syncHealth: (t) =>
     t('addSheet.syncHealthShort', { defaultValue: 'Sync Health' }),
@@ -86,6 +102,8 @@ export const ADD_MENU_ITEM_ICONS: Record<AddMenuItemKey, IconName> = {
   symptoms: 'symptoms',
   mood: 'mood',
   mindfulness: 'exercise-yoga',
+  oralCare: 'oral-care',
+  copyFromYesterday: 'copy',
   askSparky: 'sparkles',
   syncHealth: 'sync',
 };
@@ -105,6 +123,8 @@ export const ADD_MENU_ITEM_TINTS: Record<AddMenuItemKey, AddMenuItemTint> = {
   symptoms: 'red',
   mood: 'amber',
   mindfulness: 'sky',
+  oralCare: 'sky',
+  copyFromYesterday: 'sky',
   askSparky: 'accent',
   syncHealth: 'accent',
 };
@@ -138,6 +158,8 @@ export const ADD_MENU_ITEM_ROW_STYLES: Record<AddMenuItemKey, AddMenuRowStyle> =
     symptoms: 'list',
     mood: 'compact',
     mindfulness: 'compact',
+    oralCare: 'list',
+    copyFromYesterday: 'list',
     askSparky: 'action',
     syncHealth: 'action',
   };

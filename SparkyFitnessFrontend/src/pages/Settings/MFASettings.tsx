@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useOnChange } from '@/hooks/useOnChange';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -50,15 +51,17 @@ const MFASettings = () => {
     | null
   >(null);
 
-  useEffect(() => {
+  useOnChange([session], () => {
     if (session?.user) {
       setTotpEnabled(!!(session.user as BetterAuthUser).mfaTotpEnabled);
       setEmailMfaEnabled(!!(session.user as BetterAuthUser).mfaEmailEnabled);
     }
-  }, [session]);
+  });
 
   const handlePasswordAction = async () => {
-    if (!confirmPassword) {
+    // SSO-only accounts have no password; the server skips the check for them,
+    // so turning email MFA off may go ahead with the field left blank.
+    if (!confirmPassword && pendingAction !== 'disableEmail') {
       toast({
         title: t('common.error', 'Error'),
         description: t(
@@ -116,6 +119,21 @@ const MFASettings = () => {
           await refetch();
           queryClient.invalidateQueries({ queryKey: ['users'] });
           queryClient.refetchQueries({ queryKey: ['users'], type: 'all' });
+          break;
+        }
+        case 'disableEmail': {
+          await toggleEmailMfa({
+            enabled: false,
+            currentPassword: confirmPassword || undefined,
+          });
+          toast({
+            title: t('common.success', 'Success'),
+            description: t(
+              'settings.mfaSettings.emailMFADisabled',
+              'Email MFA disabled.'
+            ),
+          });
+          await refetch();
           break;
         }
         case 'generateBackup': {
@@ -199,7 +217,7 @@ const MFASettings = () => {
   const handleEnableEmailMfa = async () => {
     setEmailLoading(true);
     try {
-      await toggleEmailMfa(true);
+      await toggleEmailMfa({ enabled: true });
       toast({
         title: t('common.success', 'Success'),
         description: t(
@@ -217,35 +235,6 @@ const MFASettings = () => {
           t(
             'settings.mfaSettings.failedToEnableEmailMFA',
             'Failed to enable Email MFA'
-          ),
-        variant: 'destructive',
-      });
-    } finally {
-      setEmailLoading(false);
-    }
-  };
-
-  const handleDisableEmailMfa = async () => {
-    setEmailLoading(true);
-    try {
-      await toggleEmailMfa(false);
-      toast({
-        title: t('common.success', 'Success'),
-        description: t(
-          'settings.mfaSettings.emailMFADisabled',
-          'Email MFA disabled.'
-        ),
-      });
-      await refetch();
-    } catch (error: unknown) {
-      const message = getErrorMessage(error);
-      toast({
-        title: t('common.error', 'Error'),
-        description:
-          message ||
-          t(
-            'settings.mfaSettings.failedToDisableEmailMFA',
-            'Failed to disable Email MFA'
           ),
         variant: 'destructive',
       });
@@ -289,6 +278,11 @@ const MFASettings = () => {
                 'settings.mfa.passwordRequired',
                 'Please enter your account password to modify security settings.'
               )}
+              {pendingAction === 'disableEmail' &&
+                ` ${t(
+                  'settings.mfa.passwordSsoHint',
+                  'Leave blank if you sign in with SSO.'
+                )}`}
             </p>
             <form
               onSubmit={(e) => {
@@ -443,8 +437,11 @@ const MFASettings = () => {
               {emailMfaEnabled ? (
                 <Button
                   variant="destructive"
-                  onClick={handleDisableEmailMfa}
-                  disabled={emailLoading}
+                  onClick={() => {
+                    setPendingAction('disableEmail');
+                    setShowPasswordPrompt(true);
+                  }}
+                  disabled={emailLoading || showPasswordPrompt}
                 >
                   {emailLoading ? (
                     <RefreshCw className="h-4 w-4 mr-2 animate-spin" />

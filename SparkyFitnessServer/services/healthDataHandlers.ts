@@ -14,6 +14,7 @@ import moodRepository from '../models/moodRepository.js';
 import waterContainerRepository from '../models/waterContainerRepository.js';
 import * as workoutTelemetryRepo from '../models/workoutTelemetryRepository.js';
 import * as mindfulnessRepository from '../models/mindfulnessRepository.js';
+import * as oralCareRepository from '../models/oralCareRepository.js';
 import { resolveActivityMapping } from './workoutActivityMapping.js';
 import {
   computeTimeInZones,
@@ -30,7 +31,10 @@ import {
   type LapWindow,
   type TelemetryGpsPoint,
 } from './workoutTelemetryDerivation.js';
-import { upsertSamplesByDay } from './healthMetricSampleWriter.js';
+import {
+  type FlatHealthSample,
+  upsertSamplesByDay,
+} from './healthMetricSampleWriter.js';
 import { loadUserTimezone } from '../utils/timezoneLoader.js';
 import * as genericHealthRepository from '../models/genericHealthRepository.js';
 import {
@@ -39,7 +43,9 @@ import {
   instantHourMinute,
   instantToDay,
   isDayString,
+  isSkinTemperatureSite,
   MAX_HEALTH_TOTAL_CALORIES_PER_DAY,
+  type SkinTemperatureSite,
   MIN_MEASURED_BMR_KCAL,
   MAX_MEASURED_BMR_KCAL,
   todayInZone,
@@ -967,7 +973,7 @@ const waterHandler: HealthTypeHandler = {
     const outcomes: HandlerOutcome[] = new Array(entries.length);
     if (entries.length === 0) return outcomes;
 
-    // Group entries by source; each source is upserted independently.
+    // Group additions/updates by source.
     const entriesBySource = new Map<
       string,
       Array<{
@@ -977,9 +983,45 @@ const waterHandler: HealthTypeHandler = {
         waterMl: number;
       }>
     >();
+
+    // Group deletions by source.
+    const deletionsBySource = new Map<
+      string,
+      Array<{
+        index: number;
+        sourceId: string;
+      }>
+    >();
+
     for (let i = 0; i < entries.length; i++) {
       const item = entries[i];
       const source = (item.entry.source as string) || 'manual';
+
+      if (item.entry.deleted === true || item.entry.action === 'delete') {
+        if (!item.entry.source_id) {
+          outcomes[i] = {
+            status: 'error',
+            error: 'Missing source_id for water deletion',
+          };
+          continue;
+        }
+        if (source === 'manual') {
+          outcomes[i] = {
+            status: 'error',
+            error:
+              'Manual water entries cannot be deleted via health data sync',
+          };
+          continue;
+        }
+        const existingDeletions = deletionsBySource.get(source) || [];
+        existingDeletions.push({
+          index: i,
+          sourceId: String(item.entry.source_id),
+        });
+        deletionsBySource.set(source, existingDeletions);
+        continue;
+      }
+
       if (
         item.entry.value === null ||
         item.entry.value === undefined ||
@@ -1016,13 +1058,106 @@ const waterHandler: HealthTypeHandler = {
       entriesBySource.set(source, existing);
     }
 
+    // Process deletions first
+    for (const [source, deletionGroup] of deletionsBySource) {
+      if (deletionGroup.length === 0) continue;
+      const sourceIds = deletionGroup.map((d) => d.sourceId);
+      try {
+        const affectedDates =
+          await measurementRepository.deleteWaterIntakeSamplesBySourceIds(
+            ctx.userId,
+            ctx.actingUserId,
+            source,
+            sourceIds
+          );
+        // `affectedDates` is group-wide: repeating it on every outcome makes
+        // the response O(entries x distinct dates). Report it once on the first entry, plus a count.
+        deletionGroup.forEach((d, pos) => {
+          outcomes[d.index] = {
+            status: 'success',
+            data: {
+              deleted: true,
+              source_id: d.sourceId,
+              affectedDateCount: affectedDates.length,
+              ...(pos === 0 ? { affectedDates } : {}),
+            },
+          };
+        });
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        log(
+          'error',
+          `[waterHandler.handleBatch] deleteWaterIntakeSamplesBySourceIds failed for source '${source}' (${deletionGroup.length} record(s)): ${msg}`,
+          error
+        );
+        deletionGroup.forEach((d) => {
+          outcomes[d.index] = { status: 'error', error: msg };
+        });
+      }
+    }
+
+    // Exclude additions that share (source, source_id) with a tombstone in the same batch
+    // so the deletion is the final state.
+    for (const [source, deletionGroup] of deletionsBySource) {
+      if (deletionGroup.length === 0) continue;
+      const deletedSourceIds = new Set(deletionGroup.map((d) => d.sourceId));
+      const group = entriesBySource.get(source);
+      if (group) {
+        const filteredGroup: typeof group = [];
+        for (const item of group) {
+          const itemSourceId = item.entry.source_id as string | undefined;
+          if (itemSourceId && deletedSourceIds.has(itemSourceId)) {
+            // Tombstone takes precedence over addition with same ID in same batch
+            outcomes[item.index] = {
+              status: 'success',
+              data: {
+                deleted: true,
+                source_id: itemSourceId,
+                supersededByTombstone: true,
+              },
+            };
+          } else {
+            filteredGroup.push(item);
+          }
+        }
+        entriesBySource.set(source, filteredGroup);
+      }
+    }
+
+    // If there are no additions to process, return early without querying primary container
+    const totalAdditions = Array.from(entriesBySource.values()).reduce(
+      (sum, g) => sum + g.length,
+      0
+    );
+    if (totalAdditions === 0) {
+      return outcomes;
+    }
+
     // Synced entries log against the user's default container, same as manual entries.
-    const primaryContainer =
-      await waterContainerRepository.getPrimaryWaterContainerByUserId(
-        ctx.userId
+    let primaryContainerId: number | null = null;
+    let primaryContainerName = 'Default';
+    try {
+      const primaryContainer =
+        await waterContainerRepository.getPrimaryWaterContainerByUserId(
+          ctx.userId
+        );
+      primaryContainerId = primaryContainer?.id ?? null;
+      primaryContainerName = primaryContainer?.name || 'Default';
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      log(
+        'error',
+        `[waterHandler.handleBatch] Failed to fetch primary container: ${msg}`,
+        error
       );
-    const primaryContainerId = primaryContainer?.id ?? null;
-    const primaryContainerName = primaryContainer?.name || 'Default';
+      // Contain container lookup failure to addition outcomes, preserving deletion successes
+      for (const [, group] of entriesBySource) {
+        group.forEach((g) => {
+          outcomes[g.index] = { status: 'error', error: msg };
+        });
+      }
+      return outcomes;
+    }
 
     for (const [source, group] of entriesBySource) {
       if (group.length === 0) continue;
@@ -2438,6 +2573,193 @@ const vo2MaxHandler = createDailySummaryReadingHandler('vo2_max', {
   decimals: 1,
 });
 
+// Apple's sleeping wrist temperature arrives as a plain record, one per night.
+// It is kept as a `skin_temperature` sample, not a custom measurement, so the
+// Sleep screen reads it from the same place as Polar's skin temperature.
+const SKIN_TEMPERATURE_BOUNDS = { min: 20, max: 45 };
+
+const skinTemperatureHandleBatch: HandleBatchFn = async (entries, ctx) => {
+  const outcomes: HandlerOutcome[] = new Array(entries.length);
+  // One write per provider and site: wrist and body readings share the
+  // provider's day row, and each write replaces only its own site's samples.
+  interface SiteGroup {
+    provider: string;
+    site: SkinTemperatureSite | undefined;
+    indexes: number[];
+    samples: FlatHealthSample[];
+  }
+  const byProvider = new Map<string, SiteGroup>();
+
+  entries.forEach(({ entry, parsedDate, entryTimestamp }, i) => {
+    const celsius = parseDailySummaryReading(entry.value);
+    const timestamp = new Date(entryTimestamp);
+    if (
+      celsius === null ||
+      celsius < SKIN_TEMPERATURE_BOUNDS.min ||
+      celsius > SKIN_TEMPERATURE_BOUNDS.max ||
+      !Number.isFinite(timestamp.getTime())
+    ) {
+      outcomes[i] = {
+        status: 'error',
+        error: `Invalid skin temperature value: ${String(entry.value)}`,
+      };
+      return;
+    }
+    // A site the server does not know is refused rather than dropped: written
+    // without one, the merge would treat it as an older reading.
+    if (
+      entry.site !== undefined &&
+      entry.site !== null &&
+      !isSkinTemperatureSite(entry.site)
+    ) {
+      outcomes[i] = {
+        status: 'error',
+        error: `Invalid skin temperature site: ${String(entry.site)}`,
+      };
+      return;
+    }
+    const provider = normalizeHealthSourceProvider(entry.source);
+    const site = isSkinTemperatureSite(entry.site) ? entry.site : undefined;
+    const key = `${provider}|${site ?? ''}`;
+    const group: SiteGroup = byProvider.get(key) ?? {
+      provider,
+      site,
+      indexes: [],
+      samples: [],
+    };
+    group.indexes.push(i);
+    group.samples.push({
+      entry_date: parsedDate,
+      timestamp,
+      celsius: Math.round(celsius * 100) / 100,
+      // Wrist and overnight body temperature both come from one source, so the
+      // site keeps their baselines apart.
+      ...(site ? { site } : {}),
+      device_name: typeof entry.source === 'string' ? entry.source : null,
+    });
+    byProvider.set(key, group);
+  });
+
+  for (const { provider, site, ...group } of byProvider.values()) {
+    try {
+      await upsertSamplesByDay(
+        ctx.userId,
+        ctx.actingUserId,
+        'skin_temperature',
+        provider,
+        group.samples,
+        {
+          // One row per (user, metric, day, provider): replace only the span
+          // these readings cover, so a re-sync does not duplicate a night.
+          mode: 'merge',
+          window: minMax(group.samples.map((s) => s.timestamp.getTime())),
+          ...(site ? { site } : {}),
+        }
+      );
+      for (const i of group.indexes) {
+        outcomes[i] = {
+          status: 'success',
+          data: { metric: 'skin_temperature' },
+        };
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      for (const i of group.indexes) {
+        outcomes[i] = {
+          status: 'error',
+          error: `Failed to store skin temperature: ${message}`,
+        };
+      }
+    }
+  }
+  return outcomes;
+};
+
+const skinTemperatureHandler: HealthTypeHandler = {
+  async handle(entry, ctx) {
+    const [outcome] = await skinTemperatureHandleBatch(
+      [
+        {
+          entry,
+          parsedDate: ctx.parsedDate,
+          entryTimestamp: ctx.entryTimestamp,
+          entryHour: ctx.entryHour,
+        },
+      ],
+      ctx
+    );
+    return outcome;
+  },
+  handleBatch: skinTemperatureHandleBatch,
+};
+
+// Toothbrushing from a health store (#1862; Apple Health's ToothbrushingEvent,
+// which smart brushes such as Oral-B write). The sample's start and end give
+// the duration. Re-sending a sample updates its row through
+// (user, provider, external_id). A brush the person also logged in Sparky is
+// kept and counted once when read (shared oralCareSessionsCoveredBySync).
+const toothbrushingHandler: HealthTypeHandler = {
+  async handle(entry, ctx) {
+    const startTime =
+      typeof entry.startTime === 'string' && entry.startTime
+        ? entry.startTime
+        : null;
+    const endTime =
+      typeof entry.endTime === 'string' && entry.endTime ? entry.endTime : null;
+    const startMs = startTime ? Date.parse(startTime) : Number.NaN;
+    const endMs = endTime ? Date.parse(endTime) : Number.NaN;
+    if (Number.isFinite(startMs) && Number.isFinite(endMs) && endMs < startMs) {
+      return {
+        status: 'error',
+        error: 'Invalid Toothbrushing entry: endTime is before startTime.',
+      };
+    }
+    const sentDuration = Number(entry.duration_seconds ?? entry.duration);
+    const durationSeconds =
+      Number.isFinite(sentDuration) && sentDuration > 0
+        ? Math.round(sentDuration)
+        : Number.isFinite(startMs) && Number.isFinite(endMs) && endMs > startMs
+          ? Math.round((endMs - startMs) / 1000)
+          : null;
+    const externalId = entry.source_id
+      ? String(entry.source_id)
+      : entry.id
+        ? String(entry.id)
+        : null;
+    try {
+      const result = await oralCareRepository.upsertOralCareSession(
+        ctx.userId,
+        {
+          entry_date: ctx.parsedDate,
+          start_time: startTime,
+          end_time: endTime,
+          // A brushing longer than an hour is not one brushing.
+          duration_seconds:
+            durationSeconds !== null && durationSeconds <= 3600
+              ? durationSeconds
+              : null,
+          care_type: 'brushing',
+          custom_label: null,
+          provider:
+            typeof entry.source === 'string' && entry.source
+              ? entry.source
+              : 'apple_health',
+          external_id: externalId,
+          notes: null,
+        },
+        ctx.actingUserId
+      );
+      return { status: 'success', data: result };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return {
+        status: 'error',
+        error: `Failed to process Toothbrushing entry: ${message}`,
+      };
+    }
+  },
+};
+
 // ── Registry ────────────────────────────────────────────────────────────────
 
 // Handlers keyed by canonical type name.
@@ -2464,8 +2786,10 @@ export const HEALTH_TYPE_HANDLERS: Record<string, HealthTypeHandler> = {
   sleep_entry: sleepEntryHandler,
   Mood: moodHandler,
   MindfulnessSession: mindfulnessHandler,
+  Toothbrushing: toothbrushingHandler,
   resting_heart_rate: restingHeartRateHandler,
   vo2_max: vo2MaxHandler,
+  skin_temperature: skinTemperatureHandler,
 };
 
 // Lookup-only normalization of incoming type spellings to canonical handler
@@ -2495,6 +2819,9 @@ export const TYPE_ALIASES: Record<string, string> = {
   mindfulness_session: 'MindfulnessSession',
   mindfulness: 'MindfulnessSession',
   mindful: 'MindfulnessSession',
+  ToothbrushingEvent: 'Toothbrushing',
+  HKCategoryTypeIdentifierToothbrushingEvent: 'Toothbrushing',
+  toothbrushing: 'Toothbrushing',
   RestingHeartRate: 'resting_heart_rate',
   Vo2Max: 'vo2_max',
 };

@@ -14,7 +14,6 @@ import Button from '../components/ui/Button';
 import { useFamilyDailySummary } from '../hooks';
 import { familyUsersQueryKey } from '../hooks/queryKeys';
 import { useScreenHeader } from '../hooks/useScreenHeader';
-import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import { ApiError } from '../services/api/errors';
 import type { RootStackScreenProps } from '../types/navigation';
 import {
@@ -23,6 +22,8 @@ import {
   groupFamilyFoodEntries,
 } from '../utils/familyDiary';
 import { addDays, formatDate, getTodayDate } from '../utils/dateUtils';
+import { useEnergyUnit } from '../hooks/useEnergyUnit';
+import { energyUnitLabel, roundedEnergy } from '../utils/energyUnit';
 
 type FamilyDiaryScreenProps = RootStackScreenProps<'FamilyDiary'>;
 
@@ -32,9 +33,9 @@ const FamilyDiaryScreen: React.FC<FamilyDiaryScreenProps> = ({
 }) => {
   const { familyUser, date } = route.params;
   const { t, i18n } = useTranslation();
+  const energyUnit = useEnergyUnit();
   const insets = useSafeAreaInsets();
   const activeWorkoutBarPadding = useActiveWorkoutBarPadding('stack');
-  const usesNativeHeader = useNativeIOSHeadersActive();
   const queryClient = useQueryClient();
   const calendarRef = useRef<CalendarSheetRef>(null);
   const [selectedDate, setSelectedDate] = useState(
@@ -150,9 +151,10 @@ const FamilyDiaryScreen: React.FC<FamilyDiaryScreenProps> = ({
                   {group.mealTypeName}
                 </Text>
                 <Text className="text-sm text-text-secondary">
-                  {t('familyDiary.mealCalories', {
-                    calories: Math.round(totals.calories),
-                    defaultValue: '{{calories}} kcal',
+                  {t('familyDiary.mealCaloriesWithUnit', {
+                    calories: roundedEnergy(totals.calories, energyUnit),
+                    unit: energyUnitLabel(energyUnit, t),
+                    defaultValue: '{{calories}} {{unit}}',
                   })}
                 </Text>
               </View>
@@ -180,10 +182,7 @@ const FamilyDiaryScreen: React.FC<FamilyDiaryScreenProps> = ({
   );
 
   return (
-    <View
-      className="flex-1 bg-background"
-      style={usesNativeHeader ? undefined : { paddingTop: insets.top }}
-    >
+    <View className="flex-1 bg-background">
       {header}
       <DateNavigator
         title={t('familyDiary.diary', { defaultValue: 'Family diary' })}

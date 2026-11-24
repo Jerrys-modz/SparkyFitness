@@ -1,5 +1,6 @@
 import React from 'react';
-import { Alert } from 'react-native';
+import { Alert, StyleSheet, Text } from 'react-native';
+import type { ReactTestInstance } from 'react-test-renderer';
 import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -18,15 +19,18 @@ import {
   setPaceBandPreference,
   setRecordingPaceBand,
   setRecordingAutoPause,
+  markRecordingSaveComplete,
   useGpsRecording,
   type RecordingSession,
   type RecordingSnapshot,
 } from '../../src/services/gpsRecordingService';
 import { useWatchConnectivity } from '../../src/hooks/useWatchConnectivity';
+import { useScreenHeader } from '../../src/hooks/useScreenHeader';
 import { startRunOnWatch } from '../../src/services/watchRunControl';
 import { useRunProgram } from '../../src/services/runProgramService';
 import { programStatus } from '@workspace/shared';
 import { saveRecordedActivity } from '../../src/services/gpsRecordingSave';
+import { useAppPreferencesStore } from '../../src/stores/appPreferencesStore';
 import { useIndoorDistanceEstimate } from '../../src/hooks/useIndoorDistanceEstimate';
 import { useLiveHeartRateStore } from '../../src/stores/liveHeartRateStore';
 import { initializeI18n } from '../../src/localization/i18n';
@@ -54,6 +58,9 @@ jest.mock('../../src/services/gpsRecordingService', () => {
     setRecordingAudioCues: jest.fn(() => Promise.resolve()),
     finishRecording: jest.fn(() => Promise.resolve()),
     discardRecording: jest.fn(() => Promise.resolve()),
+    markRecordingSaveComplete: jest.fn(() => Promise.resolve()),
+    beginRecordingSave: jest.fn(),
+    endRecordingSave: jest.fn(),
     getHeartRateSamples: jest.fn(() => Promise.resolve([])),
     elapsedSeconds: jest.fn(() => 754),
     getRecordingPreferences: jest.fn(() =>
@@ -124,8 +131,14 @@ jest.mock('../../src/hooks/useScreenHeader', () => ({
 jest.mock('../../src/utils/routeMapSupport', () => ({
   canShowRouteMap: () => false,
 }));
+const mockInsets = { top: 0, bottom: 0, left: 0, right: 0 };
 jest.mock('react-native-safe-area-context', () => ({
-  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+  useSafeAreaInsets: () => mockInsets,
+}));
+const mockUsesNativeHeader = jest.fn(() => false);
+jest.mock('../../src/services/nativeTabBarPreference', () => ({
+  ...jest.requireActual('../../src/services/nativeTabBarPreference'),
+  useNativeIOSHeadersActive: () => mockUsesNativeHeader(),
 }));
 jest.mock('uniwind', () => ({
   useCSSVariable: (keys: string | string[]) =>
@@ -196,6 +209,46 @@ const renderScreen = async () => {
 describe('RecordActivityScreen', () => {
   beforeAll(async () => {
     await initializeI18n('en');
+  });
+
+  /** The top padding of the nearest element above `node` that sets one. */
+  const paddingTopAbove = (node: ReactTestInstance): unknown => {
+    for (let current = node.parent; current; current = current.parent) {
+      const style = StyleSheet.flatten(current.props.style) as
+        { paddingTop?: unknown } | undefined;
+      if (style?.paddingTop !== undefined) return style.paddingTop;
+    }
+    return undefined;
+  };
+
+  it('leaves the status bar to its header bar on the custom-header path', async () => {
+    // On Android (and iOS 26+ with Liquid Glass off) the bar the hook returns
+    // reserves the status bar itself (#3465); a padded root would add it twice.
+    state(null);
+    jest
+      .mocked(useScreenHeader)
+      .mockReturnValue(<Text testID="screen-header-bar">Record Activity</Text>);
+    try {
+      for (const top of [24, 48]) {
+        mockInsets.top = top;
+        const custom = await renderScreen();
+        expect(
+          paddingTopAbove(custom.getByTestId('screen-header-bar'))
+        ).toBeUndefined();
+        custom.unmount();
+      }
+
+      // With the native header the stack owns the top area: no extra inset.
+      mockUsesNativeHeader.mockReturnValue(true);
+      const native = await renderScreen();
+      expect(
+        paddingTopAbove(native.getByTestId('screen-header-bar'))
+      ).toBeUndefined();
+    } finally {
+      mockInsets.top = 0;
+      mockUsesNativeHeader.mockReturnValue(false);
+      jest.mocked(useScreenHeader).mockReturnValue(null);
+    }
   });
   beforeEach(() => {
     jest.clearAllMocks();
@@ -1005,6 +1058,61 @@ describe('RecordActivityScreen', () => {
     );
   });
 
+  it('marks the save complete before clearing the recording', async () => {
+    state(session({ status: 'finished', finishedAt: Date.now() }), track);
+    jest
+      .mocked(saveRecordedActivity)
+      .mockResolvedValue({ entryId: 'entry-1', entryDate: '2026-10-06' });
+    const screen = await renderScreen();
+
+    fireEvent.press(screen.getByText('Save activity'));
+
+    await waitFor(() => expect(discardRecording).toHaveBeenCalled());
+    // A session left behind after this point holds a finished save, which a
+    // Discard must not delete.
+    expect(
+      jest.mocked(saveRecordedActivity).mock.invocationCallOrder[0]
+    ).toBeLessThan(
+      jest.mocked(markRecordingSaveComplete).mock.invocationCallOrder[0]
+    );
+    expect(
+      jest.mocked(markRecordingSaveComplete).mock.invocationCallOrder[0]
+    ).toBeLessThan(jest.mocked(discardRecording).mock.invocationCallOrder[0]);
+    // Clearing after a save is not the person discarding it.
+    expect(discardRecording).toHaveBeenCalledWith();
+  });
+
+  it('still opens the summary when marking the save complete fails', async () => {
+    state(session({ status: 'finished', finishedAt: Date.now() }), track);
+    jest
+      .mocked(saveRecordedActivity)
+      .mockResolvedValue({ entryId: 'entry-1', entryDate: '2026-10-06' });
+    jest
+      .mocked(markRecordingSaveComplete)
+      .mockRejectedValueOnce(new Error('disk'));
+    const screen = await renderScreen();
+
+    fireEvent.press(screen.getByText('Save activity'));
+
+    await waitFor(() =>
+      expect(navigation.replace).toHaveBeenCalledWith(
+        'RunSummary',
+        expect.anything()
+      )
+    );
+  });
+
+  it('does not mark a failed save complete', async () => {
+    state(session({ status: 'finished', finishedAt: Date.now() }), track);
+    jest.mocked(saveRecordedActivity).mockRejectedValue(new Error('offline'));
+    const screen = await renderScreen();
+
+    fireEvent.press(screen.getByText('Save activity'));
+
+    await waitFor(() => expect(saveRecordedActivity).toHaveBeenCalled());
+    expect(markRecordingSaveComplete).not.toHaveBeenCalled();
+  });
+
   it('shows a spinner, not Start, until the saved-session check finishes', async () => {
     state(null);
     let finishCheck: () => void = () => {};
@@ -1244,6 +1352,133 @@ describe('RecordActivityScreen', () => {
           false
         )
       );
+    });
+
+    describe('with a treadmill correction', () => {
+      const correct = (percent: number) => {
+        useAppPreferencesStore.getState().setTreadmillCorrectionEnabled(true);
+        useAppPreferencesStore
+          .getState()
+          .setTreadmillCorrectionPercent(percent);
+      };
+      afterEach(() => {
+        act(() => {
+          useAppPreferencesStore
+            .getState()
+            .setTreadmillCorrectionEnabled(false);
+          useAppPreferencesStore.getState().setTreadmillCorrectionPercent(0);
+        });
+      });
+
+      it('corrects a figure typed from the treadmill and shows both', async () => {
+        correct(4);
+        finishedIndoor();
+        jest.mocked(useIndoorDistanceEstimate).mockReturnValue(rough);
+        jest
+          .mocked(saveRecordedActivity)
+          .mockResolvedValue({ entryId: 'entry-1', entryDate: '2026-10-08' });
+        const screen = await renderScreen();
+
+        fireEvent.changeText(screen.getByLabelText('Distance'), '5.2');
+        expect(
+          screen.getByText(
+            'Treadmill showed 5.20 km. Saved as 5.00 km with your +4% treadmill correction.'
+          )
+        ).toBeTruthy();
+        fireEvent.press(screen.getByText('Save activity'));
+
+        await waitFor(() =>
+          expect(saveRecordedActivity).toHaveBeenCalledWith(
+            expect.objectContaining({ indoor: true }),
+            [],
+            'km',
+            expect.closeTo(5, 6),
+            rough,
+            false
+          )
+        );
+      });
+
+      it('leaves an indoor ride as typed, since the setting is for a treadmill', async () => {
+        correct(4);
+        state(
+          session({
+            activity: 'ride',
+            indoor: true,
+            status: 'finished',
+            finishedAt: Date.now(),
+          })
+        );
+        jest.mocked(useIndoorDistanceEstimate).mockReturnValue(null);
+        jest
+          .mocked(saveRecordedActivity)
+          .mockResolvedValue({ entryId: 'entry-1', entryDate: '2026-10-08' });
+        const screen = await renderScreen();
+
+        fireEvent.changeText(screen.getByLabelText('Distance'), '10');
+        expect(screen.queryByText(/treadmill correction/)).toBeNull();
+        fireEvent.press(screen.getByText('Save activity'));
+
+        await waitFor(() =>
+          expect(saveRecordedActivity).toHaveBeenCalledWith(
+            expect.objectContaining({ activity: 'ride', indoor: true }),
+            [],
+            'km',
+            10,
+            null,
+            false
+          )
+        );
+      });
+
+      it('never corrects the step estimate it prefilled', async () => {
+        correct(4);
+        finishedIndoor();
+        jest.mocked(useIndoorDistanceEstimate).mockReturnValue(rough);
+        jest
+          .mocked(saveRecordedActivity)
+          .mockResolvedValue({ entryId: 'entry-1', entryDate: '2026-10-08' });
+        const screen = await renderScreen();
+
+        expect(screen.queryByText(/treadmill correction/)).toBeNull();
+        fireEvent.press(screen.getByText('Save activity'));
+
+        await waitFor(() =>
+          expect(saveRecordedActivity).toHaveBeenCalledWith(
+            expect.objectContaining({ indoor: true }),
+            [],
+            'km',
+            3.12,
+            rough,
+            true
+          )
+        );
+      });
+
+      it('saves a typed figure as it is while the correction is off', async () => {
+        useAppPreferencesStore.getState().setTreadmillCorrectionPercent(4);
+        finishedIndoor();
+        jest.mocked(useIndoorDistanceEstimate).mockReturnValue(rough);
+        jest
+          .mocked(saveRecordedActivity)
+          .mockResolvedValue({ entryId: 'entry-1', entryDate: '2026-10-08' });
+        const screen = await renderScreen();
+
+        fireEvent.changeText(screen.getByLabelText('Distance'), '5.2');
+        expect(screen.queryByText(/treadmill correction/)).toBeNull();
+        fireEvent.press(screen.getByText('Save activity'));
+
+        await waitFor(() =>
+          expect(saveRecordedActivity).toHaveBeenCalledWith(
+            expect.objectContaining({ indoor: true }),
+            [],
+            'km',
+            5.2,
+            rough,
+            false
+          )
+        );
+      });
     });
 
     it('lets them clear it to log no distance', async () => {

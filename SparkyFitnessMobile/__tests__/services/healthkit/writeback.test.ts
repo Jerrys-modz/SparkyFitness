@@ -1,12 +1,16 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
+  saveCategorySample,
   saveCorrelationSample,
   saveQuantitySample,
   deleteObjects,
   authorizationStatusFor,
 } from '@kingstinct/react-native-healthkit';
 import { fetchDailySummary } from '../../../src/services/api/dailySummaryApi';
-import { fetchWaterIntakeLog } from '../../../src/services/api/measurementsApi';
+import {
+  fetchMeasurementsRange,
+  fetchWaterIntakeLog,
+} from '../../../src/services/api/measurementsApi';
 import {
   loadHealthPreference,
   saveHealthPreference,
@@ -23,6 +27,10 @@ jest.mock('../../../src/services/api/dailySummaryApi', () => ({
 }));
 jest.mock('../../../src/services/api/measurementsApi', () => ({
   fetchWaterIntakeLog: jest.fn(),
+  fetchMeasurementsRange: jest.fn(),
+}));
+jest.mock('../../../src/services/api/oralCareApi', () => ({
+  fetchOralCareSessions: jest.fn().mockResolvedValue([]),
 }));
 jest.mock('../../../src/utils/loggedMealCollapse', () => ({
   resolveCollapsedFoodEntries: jest.fn((_date: string, entries: unknown) =>
@@ -120,6 +128,33 @@ const manualLogEntry = (
 });
 
 describe('writebackPhase', () => {
+  it('saves the check-in body fat (#2465) without loading the daily summary', async () => {
+    prefs({ writebackBodyFatEnabled: true });
+    (fetchMeasurementsRange as jest.Mock).mockResolvedValue([
+      {
+        id: 'c1',
+        user_id: 'u1',
+        entry_date: '2026-06-01',
+        body_fat_percentage: 22.5,
+        updated_at: '2026-06-01T08:00:00Z',
+      },
+    ]);
+    const { queryQuantitySamples } = jest.requireMock(
+      '@kingstinct/react-native-healthkit'
+    );
+    (queryQuantitySamples as jest.Mock).mockResolvedValue([]);
+    await writebackPhase(['2026-06-01']);
+    expect(mockSummary).not.toHaveBeenCalled();
+    expect(mockSaveQuantity).toHaveBeenCalledWith(
+      'HKQuantityTypeIdentifierBodyFatPercentage',
+      '%',
+      0.225,
+      expect.any(Date),
+      expect.any(Date),
+      expect.objectContaining({ SparkyBodyWriteback: expect.any(String) })
+    );
+  });
+
   it('does nothing when both metrics are disabled', async () => {
     prefs({
       writebackNutritionEnabled: false,
@@ -428,6 +463,17 @@ describe('runWriteback (cursor)', () => {
     expect(mockSaveCursor).toHaveBeenCalled();
   });
 
+  it('holds the cursor when the body check-in read fails, so those dates retry', async () => {
+    prefs({ writebackWeightEnabled: true });
+    (fetchMeasurementsRange as jest.Mock).mockRejectedValue(
+      new Error('offline')
+    );
+    await expect(writebackPhase(['2026-06-01'])).resolves.toBe(false);
+    await runWriteback();
+    expect(mockSaveCursor).not.toHaveBeenCalled();
+    expect(mockSaveQuantity).not.toHaveBeenCalled();
+  });
+
   it('advances the cursor (without holding it) when a metric is not authorized', async () => {
     prefs({ writebackNutritionEnabled: true });
     mockAuthStatus.mockReturnValue(SHARING_DENIED); // nothing granted
@@ -437,7 +483,111 @@ describe('runWriteback (cursor)', () => {
   });
 });
 
+describe('removeWrittenData (body measurements)', () => {
+  it('keeps tracked UUIDs of a body type whose sharing permission is gone, and reports it incomplete', async () => {
+    await AsyncStorage.clear();
+    await AsyncStorage.setItem(
+      '@HealthKit:writebackBodyWeightUuids:2026-06-01',
+      JSON.stringify(['uuid-weight'])
+    );
+    await AsyncStorage.setItem(
+      '@HealthKit:writebackBodyWeightSig:2026-06-01',
+      '"sig"'
+    );
+    // Height was never turned on: an empty list is not a sample left behind.
+    await AsyncStorage.setItem(
+      '@HealthKit:writebackBodyHeightUuids:2026-06-01',
+      JSON.stringify([])
+    );
+    mockAuthStatus.mockReturnValue(SHARING_DENIED); // sharing taken away
+
+    const result = await removeWrittenData(null);
+    expect(result).toEqual({ ok: false });
+    expect(mockDeleteObjects).not.toHaveBeenCalledWith(
+      'HKQuantityTypeIdentifierBodyMass',
+      expect.anything()
+    );
+
+    const remaining = await AsyncStorage.getAllKeys();
+    expect(remaining).toContain(
+      '@HealthKit:writebackBodyWeightUuids:2026-06-01'
+    );
+    expect(remaining).not.toContain(
+      '@HealthKit:writebackBodyWeightSig:2026-06-01'
+    );
+    expect(remaining).not.toContain(
+      '@HealthKit:writebackBodyHeightUuids:2026-06-01'
+    );
+  });
+
+  it('keeps UUID lists when deleting that type fails, and clears only its signature', async () => {
+    await AsyncStorage.clear();
+    await AsyncStorage.setItem(
+      '@HealthKit:writebackBodyWeightUuids:2026-06-01',
+      JSON.stringify(['uuid-weight'])
+    );
+    await AsyncStorage.setItem(
+      '@HealthKit:writebackBodyWeightSig:2026-06-01',
+      '"sig"'
+    );
+    await AsyncStorage.setItem(
+      '@HealthKit:writebackBodyBodyFatUuids:2026-06-01',
+      JSON.stringify(['uuid-fat'])
+    );
+    mockDeleteObjects.mockImplementation((type: string) =>
+      type === 'HKQuantityTypeIdentifierBodyMass'
+        ? Promise.reject(new Error('denied'))
+        : Promise.resolve(1)
+    );
+
+    const result = await removeWrittenData(null);
+    expect(result).toEqual({ ok: false });
+
+    const remaining = await AsyncStorage.getAllKeys();
+    // Weight failed: the next write still needs the UUIDs to delete the survivor.
+    expect(remaining).toContain(
+      '@HealthKit:writebackBodyWeightUuids:2026-06-01'
+    );
+    expect(remaining).not.toContain(
+      '@HealthKit:writebackBodyWeightSig:2026-06-01'
+    );
+    // Body fat succeeded: both keys go.
+    expect(remaining).not.toContain(
+      '@HealthKit:writebackBodyBodyFatUuids:2026-06-01'
+    );
+    mockDeleteObjects.mockReset();
+    mockDeleteObjects.mockResolvedValue(1);
+  });
+});
+
 describe('removeWrittenData (cleanup)', () => {
+  it('keeps exercise key lists when deleting written workouts fails', async () => {
+    await AsyncStorage.clear();
+    await AsyncStorage.setItem(
+      '@HealthKit:writebackExerciseKeys:2026-06-01',
+      JSON.stringify(['sparky-exercise-individual-e1'])
+    );
+    await AsyncStorage.setItem(
+      '@HealthKit:writebackExerciseSig:2026-06-01',
+      '"sig"'
+    );
+    // The exercise removal deletes by marker (an AND filter); fail those.
+    mockDeleteObjects.mockImplementation((_type: string, filter: object) =>
+      'AND' in filter ? Promise.reject(new Error('locked')) : Promise.resolve(0)
+    );
+
+    const result = await removeWrittenData(null);
+    expect(result).toEqual({ ok: false });
+
+    const remaining = await AsyncStorage.getAllKeys();
+    expect(remaining).toContain('@HealthKit:writebackExerciseKeys:2026-06-01');
+    expect(remaining).not.toContain(
+      '@HealthKit:writebackExerciseSig:2026-06-01'
+    );
+    mockDeleteObjects.mockReset();
+    mockDeleteObjects.mockResolvedValue(0);
+  });
+
   it('full purge: range-deletes each type all-time, clears tracking, disables writeback', async () => {
     await AsyncStorage.clear();
     await AsyncStorage.setItem(
@@ -460,6 +610,11 @@ describe('removeWrittenData (cleanup)', () => {
     expect(mockDeleteObjects).toHaveBeenCalledWith(ENERGY, allTime);
     expect(mockDeleteObjects).toHaveBeenCalledWith(WATER, allTime);
     expect(mockDeleteObjects).toHaveBeenCalledWith(FOOD_CORRELATION, allTime);
+    // Body types are removed only where the app may write them (all here).
+    expect(mockDeleteObjects).toHaveBeenCalledWith(
+      'HKQuantityTypeIdentifierBodyMass',
+      allTime
+    );
 
     const remaining = await AsyncStorage.getAllKeys();
     expect(remaining).not.toContain(
@@ -521,5 +676,91 @@ describe('removeWrittenData (cleanup)', () => {
     mockDeleteObjects.mockRejectedValueOnce(new Error('denied'));
     const result = await removeWrittenData(null);
     expect(result).toEqual({ ok: false });
+  });
+});
+
+describe('toothbrushing writeback', () => {
+  const {
+    fetchOralCareSessions,
+  } = require('../../../src/services/api/oralCareApi');
+  const mockSessions = fetchOralCareSessions as jest.Mock;
+  const mockSaveCategory = saveCategorySample as jest.Mock;
+  const BRUSH = 'HKCategoryTypeIdentifierToothbrushingEvent';
+  const session = (overrides: Record<string, unknown>) => ({
+    id: 's1',
+    care_type: 'brushing',
+    provider: 'manual',
+    start_time: '2026-06-01T08:00:00.000Z',
+    duration_seconds: 120,
+    ...overrides,
+  });
+
+  beforeEach(() => {
+    mockSaveCategory.mockResolvedValue({ uuid: 'brush-1' });
+  });
+
+  it('writes only brushes logged in Sparky that have a duration', async () => {
+    prefs({ writebackToothbrushingEnabled: true });
+    mockSessions.mockResolvedValue([
+      session({ id: 'manual' }),
+      session({
+        id: 'timer',
+        provider: 'timer',
+        start_time: '2026-06-01T21:00:00.000Z',
+      }),
+      session({ id: 'synced', provider: 'HealthKit' }),
+      session({ id: 'untimed', duration_seconds: null }),
+      session({ id: 'floss', care_type: 'flossing' }),
+    ]);
+
+    await writebackPhase(['2026-06-01']);
+
+    expect(mockSaveCategory).toHaveBeenCalledTimes(2);
+    expect(mockSaveCategory).toHaveBeenCalledWith(
+      BRUSH,
+      0,
+      new Date('2026-06-01T08:00:00.000Z'),
+      new Date('2026-06-01T08:02:00.000Z'),
+      expect.objectContaining({ SparkyWritebackVersion: expect.any(Number) })
+    );
+    // Toothbrushing alone never needs the diary summary.
+    expect(mockSummary).not.toHaveBeenCalled();
+  });
+
+  it('replaces the brushes it wrote before and skips an unchanged day', async () => {
+    prefs({
+      writebackToothbrushingEnabled: true,
+      'writebackToothbrushingUuids:2026-06-01': ['old-brush'],
+    });
+    mockSessions.mockResolvedValue([session({})]);
+
+    await writebackPhase(['2026-06-01']);
+    expect(mockDeleteObjects).toHaveBeenCalledWith(BRUSH, {
+      uuids: ['old-brush'],
+    });
+    expect(store['writebackToothbrushingUuids:2026-06-01']).toEqual([
+      'brush-1',
+    ]);
+
+    mockSaveCategory.mockClear();
+    await writebackPhase(['2026-06-01']);
+    expect(mockSaveCategory).not.toHaveBeenCalled();
+  });
+
+  it('skips toothbrushing when its write permission is not granted', async () => {
+    prefs({ writebackToothbrushingEnabled: true });
+    mockAuthStatus.mockImplementation((type: string) =>
+      type === BRUSH ? SHARING_DENIED : SHARING_AUTHORIZED
+    );
+    mockSessions.mockResolvedValue([session({})]);
+    await writebackPhase(['2026-06-01']);
+    expect(mockSaveCategory).not.toHaveBeenCalled();
+  });
+
+  it('removes written brushes with the rest of the written data', async () => {
+    prefs({});
+    (AsyncStorage.getAllKeys as jest.Mock).mockResolvedValue([]);
+    await removeWrittenData(null);
+    expect(mockDeleteObjects).toHaveBeenCalledWith(BRUSH, expect.anything());
   });
 });

@@ -1,3 +1,7 @@
+import {
+  isSkinTemperatureSite,
+  type SkinTemperatureSite,
+} from '@workspace/shared';
 import { addLog } from '../LogService';
 import {
   MetricConfig,
@@ -19,7 +23,7 @@ import { toLocalDateString } from '../../utils/dateUtils';
 // mg/dL per mmol/L for blood glucose (molar mass of glucose ≈ 180.18 g/mol). Shared by
 // both platforms' glucose transformers and the HealthKit day-statistics read so every
 // path converts identically.
-export const BLOOD_GLUCOSE_MG_DL_PER_MMOL_L = 18.018;
+export { BLOOD_GLUCOSE_MG_DL_PER_MMOL_L } from '@workspace/shared';
 
 // HC stores every nutrient as Mass (grams), but Sparky's food columns expect a
 // specific unit per nutrient — matching how OpenFoodFacts/Garmin populate them:
@@ -76,6 +80,7 @@ export interface ValueTransformResult {
   type?: string; // Optional override for output type
   timestamp?: string;
   source_id?: string;
+  site?: SkinTemperatureSite;
 }
 
 // Transformer that extracts value and date for standard record output
@@ -268,6 +273,25 @@ export const createTransformHealthRecords =
       try {
         const rec = record as Record<string, unknown>;
 
+        // Handle deletion entries (e.g. from HKAnchoredObjectQuery or HC getChanges)
+        if (rec.deleted === true) {
+          const sourceId =
+            (rec.source_id as string) ||
+            (rec.uuid as string) ||
+            (rec.id as string) ||
+            (rec.metadata as { id?: string } | undefined)?.id;
+          if (sourceId) {
+            transformedData.push({
+              type,
+              deleted: true,
+              source_id: sourceId,
+              source,
+            } as TransformOutput);
+            successCount++;
+          }
+          return;
+        }
+
         // Handle pre-aggregated records (from deduplicating aggregation functions)
         // These have value and date at top level — raw platform records never do
         if (rec.value !== undefined && rec.date) {
@@ -285,6 +309,9 @@ export const createTransformHealthRecords =
             };
             if (typeof rec.timestamp === 'string') {
               transformedRecord.timestamp = rec.timestamp;
+            }
+            if (isSkinTemperatureSite(rec.site)) {
+              transformedRecord.site = rec.site;
             }
             // Forward timezone metadata from aggregation layer
             if (rec.record_timezone != null) {
@@ -324,6 +351,7 @@ export const createTransformHealthRecords =
               source,
               ...(result.timestamp ? { timestamp: result.timestamp } : {}),
               ...(result.source_id ? { source_id: result.source_id } : {}),
+              ...(result.site ? { site: result.site } : {}),
               ...extractTimezoneMetadata(rec),
             };
             transformedData.push(transformedRecord);

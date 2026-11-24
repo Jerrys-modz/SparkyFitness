@@ -14,6 +14,7 @@ import { useServerConnection } from '../hooks/useServerConnection';
 import {
   EXERCISE_SECTIONS,
   HEART_RATE_SECTIONS,
+  ORAL_CARE_SECTIONS,
   HYDRATION_SECTIONS,
   MEASUREMENTS_SECTIONS,
   MOOD_SECTIONS,
@@ -142,6 +143,10 @@ const SECTION_LABELS: Record<
     t('reportsSettings.sections.hydrationWeekdays', {
       defaultValue: 'Average by weekday',
     }),
+  'measurements.timeline': (t) =>
+    t('reportsSettings.sections.measurementTimeline', {
+      defaultValue: 'Measurement timeline',
+    }),
   'measurements.insights': (t) =>
     t('reportsSettings.sections.insights', { defaultValue: 'What stood out' }),
   'measurements.overview': (t) =>
@@ -163,6 +168,10 @@ const SECTION_LABELS: Record<
   'sleep.weekendVsWeekday': (t) =>
     t('reportsSettings.sections.sleepWeekend', {
       defaultValue: 'Weekdays vs weekends',
+    }),
+  'sleep.need': (t) =>
+    t('reportsSettings.sections.sleepNeed', {
+      defaultValue: 'Sleep need tonight',
     }),
   'sleep.nights': (t) =>
     t('reportsSettings.sections.sleepNights', { defaultValue: 'Nights' }),
@@ -224,9 +233,33 @@ const SECTION_LABELS: Record<
     t('reportsSettings.sections.restingHrChart', {
       defaultValue: 'Resting heart rate chart',
     }),
+  'heartRate.rangeTimeline': (t) =>
+    t('reportsSettings.sections.heartRateRangeTimeline', {
+      defaultValue: 'Average heart rate by day',
+    }),
+  'heartRate.dayTimeline': (t) =>
+    t('reportsSettings.sections.heartRateDayTimeline', {
+      defaultValue: 'Heart rate through the day',
+    }),
   'heartRate.zones': (t) =>
     t('reportsSettings.sections.heartRateZones', {
       defaultValue: 'Intensity zones',
+    }),
+  'oralCare.overview': (t) =>
+    t('reportsSettings.sections.overview', { defaultValue: 'Key figures' }),
+  'oralCare.insights': (t) =>
+    t('reportsSettings.sections.insights', { defaultValue: 'What stood out' }),
+  'oralCare.brushesChart': (t) =>
+    t('reportsSettings.sections.oralCareBrushesChart', {
+      defaultValue: 'Brushes per day chart',
+    }),
+  'oralCare.minutesChart': (t) =>
+    t('reportsSettings.sections.oralCareMinutesChart', {
+      defaultValue: 'Minutes brushing chart',
+    }),
+  'oralCare.summary': (t) =>
+    t('reportsSettings.sections.oralCareSummary', {
+      defaultValue: 'Streaks and other care',
     }),
 };
 
@@ -372,10 +405,7 @@ const ReportsSettingsScreen: React.FC<ReportsSettingsScreenProps> = () => {
       : SECTION_LABELS[key as keyof typeof SECTION_LABELS](t);
 
   return (
-    <View
-      className="flex-1 bg-background"
-      style={usesNativeHeader ? undefined : { paddingTop: insets.top }}
-    >
+    <View className="flex-1 bg-background">
       {header}
       <ScrollView
         contentContainerStyle={{
@@ -521,6 +551,14 @@ const ReportsSettingsScreen: React.FC<ReportsSettingsScreenProps> = () => {
           }),
           'reports-section',
           HEART_RATE_SECTIONS,
+          sectionLabel
+        )}
+        {renderSections(
+          t('reportsSettings.oralCareSections', {
+            defaultValue: 'Oral care report',
+          }),
+          'reports-section',
+          ORAL_CARE_SECTIONS,
           sectionLabel
         )}
       </ScrollView>

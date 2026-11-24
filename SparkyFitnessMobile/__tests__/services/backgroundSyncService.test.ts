@@ -30,6 +30,7 @@ jest.mock('../../src/services/api/dailySummaryApi', () => ({
 
 jest.mock('../../src/services/api/preferencesApi', () => ({
   ensureTimezoneBootstrapped: jest.fn(),
+  fetchPreferences: jest.fn(() => Promise.resolve({ energy_unit: 'kcal' })),
 }));
 
 jest.mock('../../src/services/CalorieWidgetBridge', () => ({
@@ -50,6 +51,7 @@ jest.mock('../../src/services/storage', () => ({
   loadBackgroundSyncEnabled: jest.fn(),
   savePendingHealthSyncCacheRefresh: jest.fn(),
   consumePendingHealthSyncCacheRefresh: jest.fn(),
+  getActiveServerConfigId: jest.fn(() => Promise.resolve('test-config-id')),
 }));
 
 jest.mock('../../src/HealthMetrics', () => ({

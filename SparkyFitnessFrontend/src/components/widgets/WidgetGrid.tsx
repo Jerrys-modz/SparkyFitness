@@ -8,6 +8,7 @@ import {
   type ComponentType,
   type ReactNode,
 } from 'react';
+import { useOnChange } from '@/hooks/useOnChange';
 import { Responsive, useContainerWidth } from 'react-grid-layout';
 import type { Layout, ResponsiveLayouts } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
@@ -39,6 +40,11 @@ export interface Widget {
   title: string;
   icon: ComponentType<{ className?: string }>;
   render: () => ReactNode;
+  /**
+   * Show the widget without its frame outside edit mode, so neighbouring
+   * widgets can read as one piece (the diary's meal timeline).
+   */
+  seamless?: boolean;
 }
 
 interface WidgetGridProps {
@@ -47,6 +53,8 @@ interface WidgetGridProps {
   widgets: Widget[];
   /** Builds the default layout for the current widget set (page-specific sizing). */
   generateDefaultLayouts: (widgetKeys: string[]) => DashboardLayouts;
+  /** Widget keys to treat as hidden when no saved layout row exists yet. */
+  defaultHidden?: string[];
   /** Optional container to render the toolbar controls inside via portal */
   toolbarContainer?: HTMLElement | null;
 }
@@ -86,6 +94,7 @@ const WidgetGridInner = ({
   pageKey,
   widgets,
   generateDefaultLayouts,
+  defaultHidden,
   toolbarContainer,
 }: WidgetGridProps) => {
   const { t } = useTranslation();
@@ -98,9 +107,9 @@ const WidgetGridInner = ({
   // the raw measurement straight to the grid lets a ~15px scrollbar toggle flip
   // the breakpoint near a threshold and oscillate forever (#2056), so damp it.
   const [width, setWidth] = useState(rawWidth);
-  useEffect(() => {
+  useOnChange([rawWidth], () => {
     setWidth((prev) => stabilizeGridWidth(prev, rawWidth));
-  }, [rawWidth]);
+  });
 
   // Layout editing is a personal action; when viewing someone else's profile
   // the layout is shown read-only (the server also rejects writes).
@@ -118,7 +127,10 @@ const WidgetGridInner = ({
     [widgetKeys, generateDefaultLayouts]
   );
 
-  const hidden = useMemo(() => saved?.hidden ?? EMPTY_HIDDEN, [saved]);
+  const hidden = useMemo(
+    () => saved?.hidden ?? defaultHidden ?? EMPTY_HIDDEN,
+    [saved, defaultHidden]
+  );
 
   const [layouts, setLayouts] = useState<DashboardLayouts>(() =>
     reconcileLayouts(saved?.layout, widgetKeys, defaults)
@@ -131,15 +143,16 @@ const WidgetGridInner = ({
   // clobbering a rapid follow-up drag. On exiting edit mode the optimistic
   // cache already holds the latest layout, so the resync is a no-op.
   const syncSig = `${widgetKeys.join(',')}|${saved?.updated_at ?? ''}`;
-  useEffect(() => {
+  useOnChange([syncSig, effectiveEditMode], () => {
     if (effectiveEditMode) return;
     setLayouts(reconcileLayouts(saved?.layout, widgetKeys, defaults));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [syncSig, effectiveEditMode]);
+  });
 
   // Latest full (all-breakpoint) layout, kept in sync by onLayoutChange.
   const latestLayoutsRef = useRef<DashboardLayouts>(layouts);
-  latestLayoutsRef.current = layouts;
+  useEffect(() => {
+    latestLayoutsRef.current = layouts;
+  }, [layouts]);
 
   // Measured natural content height (in grid rows) per widget. Heights are
   // content-driven so tiles grow to fit and never show an inner scrollbar.
@@ -211,7 +224,9 @@ const WidgetGridInner = ({
   // Hide/Restore clicks would otherwise capture a stale `hidden` closure and
   // clobber the prior click's save before the re-render lands.
   const hiddenRef = useRef(hidden);
-  hiddenRef.current = hidden;
+  useEffect(() => {
+    hiddenRef.current = hidden;
+  }, [hidden]);
 
   const hideWidget = useCallback(
     (key: string) => {
@@ -331,6 +346,7 @@ const WidgetGridInner = ({
                     widgetKey={w.key}
                     title={w.title}
                     editMode={effectiveEditMode}
+                    seamless={w.seamless}
                     isMax={maximized === w.key}
                     onToggleMax={() =>
                       setMaximized((cur) => (cur === w.key ? null : w.key))
@@ -375,13 +391,18 @@ const WidgetGridInner = ({
   );
 };
 
+/**
+ * Customizable dashboard widget grid with responsive layouts, show/hide toggles,
+ * fullscreen maximizing, and persisted layout configuration per pageKey.
+ */
 export default function WidgetGrid({
   pageKey,
   widgets,
   generateDefaultLayouts,
+  defaultHidden,
   toolbarContainer,
 }: WidgetGridProps) {
-  const { reset } = useDashboardLayout(pageKey);
+  const { saved, reset } = useDashboardLayout(pageKey);
   const { t } = useTranslation();
   const [resetKey, setResetKey] = useState(0);
 
@@ -393,6 +414,15 @@ export default function WidgetGrid({
   const handleResetLayout = () => {
     reset({ onSuccess: () => setResetKey((prev) => prev + 1) });
   };
+
+  const fallbackHiddenSet = useMemo(
+    () => new Set(saved?.hidden ?? defaultHidden ?? []),
+    [saved?.hidden, defaultHidden]
+  );
+  const fallbackWidgets = useMemo(
+    () => widgets.filter((w) => !fallbackHiddenSet.has(w.key)),
+    [widgets, fallbackHiddenSet]
+  );
 
   return (
     <GridErrorBoundary
@@ -414,7 +444,7 @@ export default function WidgetGrid({
               {t('diary.widgets.resetLayout', 'Reset layout')}
             </Button>
           </div>
-          {widgets.map((w) => (
+          {fallbackWidgets.map((w) => (
             <div key={w.key}>{w.render()}</div>
           ))}
         </div>
@@ -424,6 +454,7 @@ export default function WidgetGrid({
         pageKey={pageKey}
         widgets={widgets}
         generateDefaultLayouts={generateDefaultLayouts}
+        defaultHidden={defaultHidden}
         toolbarContainer={toolbarContainer}
       />
     </GridErrorBoundary>

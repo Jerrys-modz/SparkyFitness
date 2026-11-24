@@ -9,7 +9,6 @@ import {
 } from 'react-native';
 import FadeView from '../components/FadeView';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCSSVariable } from 'uniwind';
 import Icon from '../components/Icon';
 import FormInput from '../components/FormInput';
@@ -43,6 +42,9 @@ import { resolveExerciseModality } from '@workspace/shared';
 import { useDiaryDateStore } from '../stores/diaryDateStore';
 import type { Exercise } from '../types/exercise';
 import type { RootStackScreenProps } from '../types/navigation';
+import { useEnergyUnit } from '../hooks/useEnergyUnit';
+import { energyUnitLabel } from '../utils/energyUnit';
+import EnergyFormInput from '../components/EnergyFormInput';
 
 type Props = RootStackScreenProps<'ActivityAdd'>;
 
@@ -54,7 +56,6 @@ const ActivityAddScreen: React.FC<Props> = ({ navigation, route }) => {
   const popCount = route.params?.popCount ?? 1;
   const isEditMode = !!entry;
 
-  const insets = useSafeAreaInsets();
   const calendarSheetRef = useRef<CalendarSheetRef>(null);
 
   const [accentPrimary, textMuted, raisedBg] = useCSSVariable([
@@ -93,6 +94,7 @@ const ActivityAddScreen: React.FC<Props> = ({ navigation, route }) => {
     },
     [setFormDate]
   );
+  const energyUnit = useEnergyUnit();
 
   const {
     createEntry,
@@ -257,10 +259,7 @@ const ActivityAddScreen: React.FC<Props> = ({ navigation, route }) => {
   });
 
   return (
-    <View
-      className="flex-1 bg-background"
-      style={usesNativeHeader ? undefined : { paddingTop: insets.top }}
-    >
+    <View className="flex-1 bg-background">
       {header}
 
       <KeyboardAwareScrollView
@@ -461,11 +460,14 @@ const ActivityAddScreen: React.FC<Props> = ({ navigation, route }) => {
           {/* Calories */}
           <View className="mb-4">
             <Text className="text-sm font-medium text-text-secondary mb-1.5">
-              {t('activityAdd.fields.calories', { defaultValue: 'Calories' })}
+              {t('activityAdd.fields.caloriesWithUnit', {
+                defaultValue: 'Calories ({{unit}})',
+                unit: energyUnitLabel(energyUnit, t),
+              })}
             </Text>
-            <FormInput
-              value={state.calories}
-              onChangeText={setCalories}
+            <EnergyFormInput
+              kcalValue={state.calories}
+              onChangeKcal={setCalories}
               accessibilityLabel={t('activityAdd.accessibility.calories', {
                 defaultValue: 'Calories',
               })}

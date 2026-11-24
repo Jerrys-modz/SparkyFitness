@@ -1,16 +1,16 @@
 {
   "name": "@workspace/shared",
-  "version": "1.11.0",
+  "version": "1.12.1",
   "main": "src/index.ts",
   "type": "module",
   "types": "./src/index.ts",
   "dependencies": {
-    "papaparse": "^5.7.0",
+    "papaparse": "^5.7.1",
     "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/papaparse": "^5.5.2",
-    "prettier": "3.9.10",
+    "prettier": "3.10.1",
     "ts-to-zod": "^5.1.0",
     "typescript": "^6.0.3"
   },

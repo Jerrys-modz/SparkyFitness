@@ -7,6 +7,7 @@ import {
   fetchExerciseProgressionStats,
   deleteExerciseEntry,
   createPresetSession,
+  updatePresetSession,
   logWorkoutPreset,
   deleteExercisePresetEntry,
   getExerciseHistory,
@@ -16,12 +17,15 @@ import {
   clearCalorieLink,
 } from '@/api/Exercises/exerciseEntryService';
 import { exerciseEntryKeys } from '@/api/keys/exercises';
+import { HttpApiError } from '@/api/api';
 import { dailyProgressKeys } from '@/api/keys/diary';
 import { goalKeys } from '@/api/keys/goals';
+import { challengeKeys } from '@/api/keys/challenges';
 import { shoeKeys } from '@/api/keys/shoes';
 import {
   SetCalorieLinkRequest,
   UpdateExerciseEntryRequest,
+  UpdatePresetSessionRequest,
 } from '@workspace/shared';
 import { useDiaryInvalidation } from '../useInvalidateKeys';
 
@@ -151,6 +155,7 @@ export const useLogWorkoutPresetMutation = () => {
         queryKey: dailyProgressKeys.all,
       });
       queryClient.invalidateQueries({ queryKey: goalKeys.all });
+      queryClient.invalidateQueries({ queryKey: challengeKeys.allStandings() });
       queryClient.invalidateQueries({
         queryKey: ['workoutPlanTemplates'],
       });
@@ -178,6 +183,7 @@ export const useCreatePresetSessionMutation = () => {
       queryClient.invalidateQueries({ queryKey: exerciseEntryKeys.all });
       queryClient.invalidateQueries({ queryKey: dailyProgressKeys.all });
       queryClient.invalidateQueries({ queryKey: goalKeys.all });
+      queryClient.invalidateQueries({ queryKey: challengeKeys.allStandings() });
       queryClient.invalidateQueries({ queryKey: ['workoutPlanTemplates'] });
     },
     meta: {
@@ -189,6 +195,32 @@ export const useCreatePresetSessionMutation = () => {
         'diary.exerciseEntry.createPresetSessionError',
         'Failed to save workout.'
       ),
+    },
+  });
+};
+
+/**
+ * Updates a grouped workout session, including the #1995 phase 1 lifecycle
+ * writes (finish stamps finished_at, resume sends null). No toast meta: the
+ * resume call is followed by navigation and the finish call already shows
+ * its own summary dialog.
+ */
+export const useUpdatePresetSessionMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      presetEntryId,
+      payload,
+    }: {
+      presetEntryId: string;
+      payload: UpdatePresetSessionRequest;
+    }) => updatePresetSession(presetEntryId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: exerciseEntryKeys.all });
+      queryClient.invalidateQueries({ queryKey: dailyProgressKeys.all });
+      queryClient.invalidateQueries({ queryKey: goalKeys.all });
+      queryClient.invalidateQueries({ queryKey: challengeKeys.allStandings() });
     },
   });
 };
@@ -205,6 +237,7 @@ export const useDeleteExercisePresetEntryMutation = () => {
         queryKey: dailyProgressKeys.all,
       });
       queryClient.invalidateQueries({ queryKey: goalKeys.all });
+      queryClient.invalidateQueries({ queryKey: challengeKeys.allStandings() });
       queryClient.invalidateQueries({ queryKey: ['workoutPlanTemplates'] });
     },
     meta: {
@@ -293,3 +326,10 @@ export const useClearCalorieLinkMutation = () => {
     },
   });
 };
+/**
+ * True when the server refused a preset-session write because the session
+ * changed on another device or tab (#1995 phase 1 revision check).
+ * Pages route on this instead of importing the API error class directly.
+ */
+export const isPresetSessionConflictError = (error: unknown): boolean =>
+  error instanceof HttpApiError && error.status === 409;

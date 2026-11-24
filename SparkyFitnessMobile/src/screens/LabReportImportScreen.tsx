@@ -9,7 +9,6 @@ import {
   View,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import { labRangeStatus } from '@workspace/shared';
 import CalendarSheet, {
@@ -51,6 +50,8 @@ import {
   parseLabValue,
 } from '../utils/labResults';
 import type { RootStackScreenProps } from '../types/navigation';
+import { newUuid } from '../utils/ids';
+import { ApiError } from '../services/api/errors';
 
 type Props = RootStackScreenProps<'LabReportImport'>;
 
@@ -58,6 +59,17 @@ interface ScannedReport {
   labName: string | null;
   rows: LabImportRow[];
   date: string;
+  /**
+   * Made once per scanned report and sent with every try to save it, so a
+   * retry after a lost answer gets the saved report back, not a second copy.
+   */
+  requestId: string;
+  /**
+   * Set after a save that may have been stored (no answer, or a server
+   * error): the review is locked so a retry sends exactly the same report
+   * under the same key. Choosing the report again starts a new review.
+   */
+  locked: boolean;
 }
 
 const todayOrEarlier = (date: string | null): string =>
@@ -65,7 +77,6 @@ const todayOrEarlier = (date: string | null): string =>
 
 const LabReportImportScreen: React.FC<Props> = ({ navigation }) => {
   const { t, i18n } = useTranslation();
-  const insets = useSafeAreaInsets();
   const usesNativeHeader = useNativeIOSHeadersActive();
   const dateLocale = i18n.language.startsWith('pl') ? 'pl-PL' : 'en-US';
   const calendarRef = useRef<CalendarSheetRef>(null);
@@ -148,6 +159,8 @@ const LabReportImportScreen: React.FC<Props> = ({ navigation }) => {
         labName: response.report.lab_name,
         rows,
         date: todayOrEarlier(response.report.collected_on),
+        requestId: newUuid(),
+        locked: false,
       });
     } catch {
       // The error text is shown from scan.error below.
@@ -184,14 +197,29 @@ const LabReportImportScreen: React.FC<Props> = ({ navigation }) => {
           labName: report.labName,
           date: report.date,
           values,
+          clientRequestId: report.requestId,
         })
       );
-    } catch {
+    } catch (error) {
+      // A 4xx answer means the server refused it and nothing was saved; any
+      // other failure may have been stored, so the review is locked.
+      const refused =
+        error instanceof ApiError &&
+        error.statusCode >= 400 &&
+        error.statusCode < 500;
+      if (!refused) {
+        setReport((prev) => (prev ? { ...prev, locked: true } : prev));
+      }
       Toast.show({
         type: 'error',
-        text1: t('labs.import.saveFailed', {
-          defaultValue: 'Could not save the report. Nothing was saved.',
-        }),
+        text1: refused
+          ? t('labs.import.saveFailed', {
+              defaultValue: 'Could not save the report. Nothing was saved.',
+            })
+          : t('labs.import.saveUnconfirmed', {
+              defaultValue:
+                'Could not confirm the report was saved. Save again: it is stored only once.',
+            }),
       });
       return;
     }
@@ -238,10 +266,7 @@ const LabReportImportScreen: React.FC<Props> = ({ navigation }) => {
     });
 
   return (
-    <View
-      className="flex-1 bg-background"
-      style={usesNativeHeader ? undefined : { paddingTop: insets.top }}
-    >
+    <View className="flex-1 bg-background">
       {header}
       <ScrollView
         className="flex-1 px-4 py-3"
@@ -311,6 +336,7 @@ const LabReportImportScreen: React.FC<Props> = ({ navigation }) => {
               </Text>
               <TouchableOpacity
                 onPress={() => calendarRef.current?.present()}
+                disabled={report.locked}
                 className="flex-row items-center px-3 py-2.5 rounded-lg border border-border-subtle bg-raised min-h-11"
                 accessibilityRole="button"
                 accessibilityLabel={t('labs.date', {
@@ -322,6 +348,15 @@ const LabReportImportScreen: React.FC<Props> = ({ navigation }) => {
                 </Text>
               </TouchableOpacity>
             </View>
+
+            {report.locked && (
+              <Text className="text-sm text-text-secondary">
+                {t('labs.import.lockedAfterFailedSave', {
+                  defaultValue:
+                    'Saving did not finish, so this review is locked: Save again sends exactly the same report, and it is stored only once. To change values, choose the report again.',
+                })}
+              </Text>
+            )}
 
             <Text className="text-xs text-text-muted">
               {t('labs.import.editHint', {
@@ -389,7 +424,7 @@ const LabReportImportScreen: React.FC<Props> = ({ navigation }) => {
                               [row.key]: text,
                             }))
                           }
-                          editable={row.blocked === null}
+                          editable={row.blocked === null && !report.locked}
                           keyboardType="decimal-pad"
                           selectTextOnFocus
                           className={`min-w-14 text-right text-base font-bold border-b px-1 py-0.5 ${
@@ -418,7 +453,7 @@ const LabReportImportScreen: React.FC<Props> = ({ navigation }) => {
                     </View>
                     <Switch
                       value={isIncluded}
-                      disabled={row.blocked !== null}
+                      disabled={row.blocked !== null || report.locked}
                       onValueChange={(on) => toggleRow(row.key, on)}
                       accessibilityLabel={t('labs.import.includeRow', {
                         defaultValue: 'Include {{name}}',

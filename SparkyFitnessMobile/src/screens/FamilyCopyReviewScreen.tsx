@@ -11,7 +11,6 @@ import Button from '../components/ui/Button';
 import { useCopyFamilyFoodEntries } from '../hooks/useCopyFamilyFoodEntries';
 import { useMealTypes } from '../hooks/useMealTypes';
 import { useScreenHeader } from '../hooks/useScreenHeader';
-import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import { useDiaryDateStore } from '../stores/diaryDateStore';
 import type { RootStackScreenProps } from '../types/navigation';
 import {
@@ -22,8 +21,10 @@ import {
 } from '../utils/familyDiary';
 import { formatDate, getTodayDate } from '../utils/dateUtils';
 import { parseDecimalInput } from '../utils/numericInput';
-import { copyFingerprintFor } from '@workspace/shared';
+import { copyFingerprintFor, energyFromKcal } from '@workspace/shared';
 import { ApiError } from '../services/api/errors';
+import { useEnergyUnit } from '../hooks/useEnergyUnit';
+import { energyUnitLabel } from '../utils/energyUnit';
 
 type FamilyCopyReviewScreenProps = RootStackScreenProps<'FamilyCopyReview'>;
 
@@ -58,6 +59,7 @@ const FamilyCopyReviewScreen: React.FC<FamilyCopyReviewScreenProps> = ({
   } = route.params;
   const toFamily = direction === 'to-family';
   const { t, i18n } = useTranslation();
+  const energyUnit = useEnergyUnit();
   const locale = i18n?.resolvedLanguage ?? i18n?.language ?? 'en-US';
   const displayName = familyDiaryUserName(
     familyUser,
@@ -65,7 +67,6 @@ const FamilyCopyReviewScreen: React.FC<FamilyCopyReviewScreenProps> = ({
   );
   const insets = useSafeAreaInsets();
   const activeWorkoutBarPadding = useActiveWorkoutBarPadding('stack');
-  const usesNativeHeader = useNativeIOSHeadersActive();
   const calendarRef = useRef<CalendarSheetRef>(null);
   const submitInFlightRef = useRef(false);
   const wasPendingRef = useRef(false);
@@ -266,10 +267,7 @@ const FamilyCopyReviewScreen: React.FC<FamilyCopyReviewScreenProps> = ({
   };
 
   return (
-    <View
-      className="flex-1 bg-background"
-      style={usesNativeHeader ? undefined : { paddingTop: insets.top }}
-    >
+    <View className="flex-1 bg-background">
       {header}
       <ScrollView
         contentContainerStyle={{
@@ -418,9 +416,12 @@ const FamilyCopyReviewScreen: React.FC<FamilyCopyReviewScreenProps> = ({
             {t('familyDiary.copyNutrition', { defaultValue: 'Copy nutrition' })}
           </Text>
           <Text className="mt-2 text-text-secondary">
-            {t('familyDiary.copyCalories', {
-              calories: formatNutritionValue(totals.calories),
-              defaultValue: '{{calories}} kcal',
+            {t('familyDiary.copyCaloriesWithUnit', {
+              calories: formatNutritionValue(
+                energyFromKcal(totals.calories, energyUnit)
+              ),
+              unit: energyUnitLabel(energyUnit, t),
+              defaultValue: '{{calories}} {{unit}}',
             })}
           </Text>
           <Text className="mt-1 text-text-secondary">

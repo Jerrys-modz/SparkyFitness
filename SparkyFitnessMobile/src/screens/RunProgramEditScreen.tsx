@@ -275,7 +275,7 @@ const RunProgramEditScreen: React.FC<Props> = ({ navigation, route }) => {
 
   if (!draft) {
     return (
-      <>
+      <View className="flex-1 bg-background">
         {header}
         <View className="flex-1 bg-background p-4">
           <Text className="text-text-secondary text-sm">
@@ -286,7 +286,7 @@ const RunProgramEditScreen: React.FC<Props> = ({ navigation, route }) => {
               : t('common.loading', { defaultValue: 'Loading...' })}
           </Text>
         </View>
-      </>
+      </View>
     );
   }
 
@@ -372,7 +372,7 @@ const RunProgramEditScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   return (
-    <>
+    <View className="flex-1 bg-background">
       {header}
       <ScrollView
         className="flex-1 bg-background"
@@ -629,7 +629,7 @@ const RunProgramEditScreen: React.FC<Props> = ({ navigation, route }) => {
           </View>
         ) : null}
       </ScrollView>
-    </>
+    </View>
   );
 };
 

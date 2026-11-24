@@ -7,6 +7,8 @@ const NATIVE_TABS_ROUTE_EXCLUSIONS = {
   Onboarding: 'First-run setup route shown before the tab host exists.',
   FoodsLibrary: 'Root-stack library drill-in presented above the tab host.',
   MealsLibrary: 'Root-stack library drill-in presented above the tab host.',
+  RecipeImport:
+    'Root-stack recipe import drill-in presented above the tab host.',
   ExercisesLibrary: 'Root-stack library drill-in presented above the tab host.',
   WorkoutPresetsLibrary:
     'Root-stack library drill-in presented above the tab host.',
@@ -64,6 +66,7 @@ const NATIVE_TABS_ROUTE_EXCLUSIONS = {
   About: 'Root-stack settings route presented above the tab host.',
   WhatsNew: 'Root-stack informational route presented above the tab host.',
   CycleSettings: 'Root-stack settings route presented above the tab host.',
+  FeatureSettings: 'Root-stack settings route presented above the tab host.',
   CycleOnboarding:
     'First-run cycle setup wizard route presented above the tab host.',
   CycleHub:
@@ -82,6 +85,18 @@ const NATIVE_TABS_ROUTE_EXCLUSIONS = {
 
 function readMobileFile(relativePath: string): string {
   return fs.readFileSync(path.join(mobileRoot, relativePath), 'utf8');
+}
+
+/**
+ * Every screen file, including the ones in subfolders (the food form modes in
+ * src/screens/foodForm render their own header).
+ */
+function listAllScreenFiles(): string[] {
+  return fs
+    .readdirSync(path.join(mobileRoot, 'src/screens'), { recursive: true })
+    .map(String)
+    .filter((fileName) => fileName.endsWith('.tsx'))
+    .map((fileName) => `src/screens/${fileName.split(path.sep).join('/')}`);
 }
 
 function extractTypeKeys(source: string, typeName: string): string[] {
@@ -208,6 +223,23 @@ function usesScreenHeaderAbstraction(source: string): boolean {
     // FormScreenChrome module does not give a screen a header.
     /<FormScreenChrome\b/.test(source)
   );
+}
+
+/**
+ * Layouts that render a useScreenHeader bar for the screen. Like the screens,
+ * they leave the status-bar room to the bar.
+ */
+const SCREEN_HEADER_LAYOUTS = {
+  FormScreenChrome: 'src/components/FormScreenChrome.tsx',
+  ReportScreenLayout: 'src/components/reports/ReportScreenLayout.tsx',
+} as const;
+
+function padsTopWithSafeAreaInset(source: string): boolean {
+  // A comment that mentions paddingTop is not a style.
+  const code = source.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, '');
+  // The value may wrap over several lines once Prettier breaks it up, but it
+  // ends at the next `,`, `;` or `}`, so insets.top has to be part of it.
+  return /paddingTop:[^,;}]*\binsets\.top\b/.test(code);
 }
 
 function hasHandRolledHeaderMarker(source: string): boolean {
@@ -362,6 +394,7 @@ function failNativeHeaderContract(message: string): never {
       '- Root-stack screens with a screen-owned React header must hide that React header on iOS because the native stack header owns the iOS chrome.',
       '- Declare screen headers with useScreenHeader(...) (src/hooks/useScreenHeader.tsx). It renders the custom bar on the fallback path, mirrors the same descriptor into unstable_header*Items on the native path, and returns null on native so the two never coexist.',
       '- A screen on useScreenHeader must not keep hand-rolled header code: no unstable_header*Items blocks, renderHeader()/renderHeaderBar() functions, or {/* Header */} custom bars alongside the hook.',
+      "- A screen on useScreenHeader must render the bar the hook returns, and must not pad its root with insets.top: the custom bar reserves the status bar itself (#3465), so a padded root shows the room twice. A modal that needs the room on Android only passes topInset: 'android-only' (an iOS sheet already starts below the status bar); a bar that does not sit at the top of the window passes topInset: 'none'.",
       '- Screens intentionally off the hook (e.g. FoodSearchScreen with its anchored + menu) must mirror custom actions with unstable_headerLeftItems or unstable_headerRightItems themselves and gate the custom bar on useNativeIOSHeadersActive().',
       '- When adding a new root-stack screen that is intentionally presented above Tabs instead of inside native tabs mode, add it to NATIVE_TABS_ROUTE_EXCLUSIONS with a short reason.',
     ].join('\n')
@@ -667,6 +700,89 @@ describe('native header navigation contract', () => {
     if (offenders.length > 0) {
       failNativeHeaderContract(
         `Screens using useScreenHeader/FormScreenChrome still contain hand-rolled header code (stray custom bar or unstable_header*Items block): ${formatList(offenders)}.`
+      );
+    }
+  });
+
+  it('renders the bar useScreenHeader returns instead of discarding it', () => {
+    // The hook only mirrors the descriptor into the native header; on the
+    // custom path it returns the bar, so a bare `useScreenHeader({...})`
+    // statement leaves Android without a title or back button.
+    const offenders = listAllScreenFiles().filter((relativePath) =>
+      /^\s*useScreenHeader\(/m.test(readMobileFile(relativePath))
+    );
+
+    if (offenders.length > 0) {
+      failNativeHeaderContract(
+        `Screens calling useScreenHeader without rendering the bar it returns (no header on Android): ${formatList(offenders)}.`
+      );
+    }
+  });
+
+  it('reads insets.top only as part of a paddingTop value', () => {
+    expect(
+      padsTopWithSafeAreaInset(
+        'style={usesNativeHeader ? undefined : { paddingTop: insets.top }}'
+      )
+    ).toBe(true);
+    // Prettier wraps a long value over several lines.
+    expect(
+      padsTopWithSafeAreaInset(
+        'style={{\n  paddingTop: usesNativeHeader\n    ? undefined\n    : insets.top,\n}}'
+      )
+    ).toBe(true);
+    // Another property, a later statement or a comment does not count.
+    expect(
+      padsTopWithSafeAreaInset(
+        'style={{ paddingTop: 16, marginTop: insets.top }}'
+      )
+    ).toBe(false);
+    expect(
+      padsTopWithSafeAreaInset(
+        'interface Layout {\n  paddingTop: number;\n  offset: typeof insets.top;\n}'
+      )
+    ).toBe(false);
+    expect(
+      padsTopWithSafeAreaInset(
+        '// paddingTop: set by the layout\nconst offset = insets.top;'
+      )
+    ).toBe(false);
+  });
+
+  it('keeps the custom header bar below the Android status bar', () => {
+    // The app is edge to edge on Android, so the bar the hook returns has to
+    // reserve the status bar itself; screens no longer do it (#3465).
+    const hookSource = readMobileFile('src/hooks/useScreenHeader.tsx');
+
+    expect(hookSource).toMatch(/\buseSafeAreaInsets\(\)/);
+    expect(hookSource).toMatch(/paddingTop:[^,;}]*\bbarInset\b/);
+    expect(hookSource).toMatch(
+      /const barInset = statusBarInset\(topInset, insets\.top\)/
+    );
+  });
+
+  it('leaves the status-bar room to the header bar instead of padding screens', () => {
+    // A root padded with insets.top on top of the bar's own room would push
+    // the header down by the status bar a second time.
+    const layoutsPadding = Object.entries(SCREEN_HEADER_LAYOUTS)
+      .filter(([, relativePath]) =>
+        padsTopWithSafeAreaInset(readMobileFile(relativePath))
+      )
+      .map(([layout]) => layout);
+    const offenders = listAllScreenFiles().filter((relativePath) => {
+      const source = readMobileFile(relativePath);
+      return (
+        usesScreenHeaderAbstraction(source) && padsTopWithSafeAreaInset(source)
+      );
+    });
+
+    if (layoutsPadding.length > 0 || offenders.length > 0) {
+      failNativeHeaderContract(
+        [
+          'Custom header bars get the status-bar room twice.',
+          `Header layouts that still pad the top with the safe-area inset: ${formatList(layoutsPadding)}.`,
+          `Screens on useScreenHeader that still pad with insets.top: ${formatList(offenders)}.`,
+        ].join('\n')
       );
     }
   });

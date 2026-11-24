@@ -133,12 +133,14 @@ nix build .#sparkyfitness-server
 nix build .#sparkyfitness-frontend
 nix build .#sparkyfitness-garmin
 
-nix develop   # dev shell with node 24, pnpm and postgresql
+nix develop   # dev shell with node 26, pnpm and postgresql
 ```
 
 The `pnpmDeps.hash` values pinned in the flake must be refreshed whenever
 `pnpm-lock.yaml` changes (a stale hash surfaces as a `hash mismatch` build
-failure). Run the helper script to recompute them:
+failure). On `main`, the Update Nix pnpm Hashes workflow does this after every
+lockfile change and merges the result itself. To recompute them on a branch, run
+the helper script:
 
 ```bash
 nix/update-hashes.sh

@@ -5,12 +5,14 @@ import { useTranslation } from 'react-i18next';
 import { useActiveWorkoutBarPadding } from '../components/ActiveWorkoutBar';
 import Button from '../components/ui/Button';
 import { useScreenHeader } from '../hooks/useScreenHeader';
-import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import type { RootStackScreenProps } from '../types/navigation';
 import {
   calculateFamilyCopyTotals,
   familyDiaryUserName,
 } from '../utils/familyDiary';
+import { useEnergyUnit } from '../hooks/useEnergyUnit';
+import { energyUnitLabel } from '../utils/energyUnit';
+import { energyFromKcal } from '@workspace/shared';
 
 type FamilyMealDetailScreenProps = RootStackScreenProps<'FamilyMealDetail'>;
 
@@ -25,13 +27,13 @@ const FamilyMealDetailScreen: React.FC<FamilyMealDetailScreenProps> = ({
   const { familyUser, sourceDate, mealTypeId, mealTypeName, entries } =
     route.params;
   const { t } = useTranslation();
+  const energyUnit = useEnergyUnit();
   const displayName = familyDiaryUserName(
     familyUser,
     t('familyDiary.unnamedMember', { defaultValue: 'Family member' })
   );
   const insets = useSafeAreaInsets();
   const activeWorkoutBarPadding = useActiveWorkoutBarPadding('stack');
-  const usesNativeHeader = useNativeIOSHeadersActive();
   const [selectedIds, setSelectedIds] = useState(
     () => new Set(entries.map((entry) => entry.id))
   );
@@ -84,10 +86,7 @@ const FamilyMealDetailScreen: React.FC<FamilyMealDetailScreenProps> = ({
   };
 
   return (
-    <View
-      className="flex-1 bg-background"
-      style={usesNativeHeader ? undefined : { paddingTop: insets.top }}
-    >
+    <View className="flex-1 bg-background">
       {header}
       <ScrollView
         contentContainerStyle={{
@@ -100,13 +99,16 @@ const FamilyMealDetailScreen: React.FC<FamilyMealDetailScreenProps> = ({
           {mealTypeName}
         </Text>
         <Text className="mt-1 text-text-secondary">
-          {t('familyDiary.selectedNutrition', {
-            calories: formatNutritionValue(selectedTotals.calories),
+          {t('familyDiary.selectedNutritionWithUnit', {
+            calories: formatNutritionValue(
+              energyFromKcal(selectedTotals.calories, energyUnit)
+            ),
+            unit: energyUnitLabel(energyUnit, t),
             protein: formatNutritionValue(selectedTotals.protein),
             carbs: formatNutritionValue(selectedTotals.carbs),
             fat: formatNutritionValue(selectedTotals.fat),
             defaultValue:
-              'Selected: {{calories}} kcal · P {{protein}} g · C {{carbs}} g · F {{fat}} g',
+              'Selected: {{calories}} {{unit}} · P {{protein}} g · C {{carbs}} g · F {{fat}} g',
           })}
         </Text>
 
@@ -157,13 +159,16 @@ const FamilyMealDetailScreen: React.FC<FamilyMealDetailScreenProps> = ({
                     {entry.quantity} {entry.unit}
                   </Text>
                   <Text className="mt-1 text-sm text-text-secondary">
-                    {t('familyDiary.nutritionSummary', {
-                      calories: formatNutritionValue(entryTotals.calories),
+                    {t('familyDiary.nutritionSummaryWithUnit', {
+                      calories: formatNutritionValue(
+                        energyFromKcal(entryTotals.calories, energyUnit)
+                      ),
+                      unit: energyUnitLabel(energyUnit, t),
                       protein: formatNutritionValue(entryTotals.protein),
                       carbs: formatNutritionValue(entryTotals.carbs),
                       fat: formatNutritionValue(entryTotals.fat),
                       defaultValue:
-                        '{{calories}} kcal · P {{protein}} g · C {{carbs}} g · F {{fat}} g',
+                        '{{calories}} {{unit}} · P {{protein}} g · C {{carbs}} g · F {{fat}} g',
                     })}
                   </Text>
                 </View>

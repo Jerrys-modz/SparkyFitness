@@ -19,7 +19,10 @@ import {
   LatestCustomEntryQuerySchema,
   ImportHealthDataBodySchema,
 } from '../schemas/measurementSchemas.js';
-import { isDayString } from '@workspace/shared';
+import {
+  isDayString,
+  customMeasurementDayQuerySchema,
+} from '@workspace/shared';
 import { canAccessUserData } from '../utils/permissionUtils.js';
 import { clearUserTdeeCache } from '../services/AdaptiveTdeeService.js';
 const router = express.Router();
@@ -353,6 +356,10 @@ router.get(
  *                 type: string
  *                 format: uuid
  *                 description: Optional target user ID (requires checkin permission).
+ *               client_id:
+ *                 type: string
+ *                 format: uuid
+ *                 description: Optional idempotency key. Only valid with change_drinks of 1. A repeat returns the current totals without logging another drink.
  *             required: [entry_date, change_drinks, container_id]
  *     responses:
  *       200:
@@ -373,7 +380,7 @@ router.post(
         error: bodyResult.error.issues.map((i) => i.message).join(', '),
       });
     }
-    const { entry_date, change_drinks, container_id, user_id } =
+    const { entry_date, change_drinks, container_id, user_id, client_id } =
       bodyResult.data;
 
     const targetUserId = user_id || req.userId;
@@ -395,7 +402,8 @@ router.post(
         req.originalUserId || req.userId,
         entry_date,
         change_drinks,
-        container_id ?? null
+        container_id ?? null,
+        client_id ?? null
       );
       res.status(200).json(result);
     } catch (error) {
@@ -1423,11 +1431,18 @@ router.get(
  * @swagger
  * /measurements/custom-entries/{date}:
  *   get:
+ *     description: >-
+ *       Normally filters stored entry_date. With byTimestamp=true, returns
+ *       entries whose timestamp falls in the account-local day, including
+ *       imported records with a different entry_date. Retains source and category metadata.
  *     summary: Get custom measurement entries for a specific date
  *     tags: [Wellness & Metrics]
  *     security:
  *       - cookieAuth: []
  *     parameters:
+ *       - in: query
+ *         name: byTimestamp
+ *         schema: { type: string, enum: ['true', 'false'] }
  *       - in: path
  *         name: date
  *         required: true
@@ -1453,14 +1468,25 @@ router.get(
       });
     }
     const { date } = paramResult.data;
+    const queryResult = customMeasurementDayQuerySchema.safeParse(req.query);
+    if (!queryResult.success) {
+      return res
+        .status(400)
+        .json({ error: 'byTimestamp must be true or false' });
+    }
     try {
       const entries =
-        await measurementService.getCustomMeasurementEntriesByDate(
-          req.userId,
-
-          req.userId,
-          date
-        );
+        queryResult.data.byTimestamp === 'true'
+          ? await measurementService.getCustomMeasurementTimelineEntries(
+              req.authenticatedUserId ?? req.userId,
+              req.userId,
+              date
+            )
+          : await measurementService.getCustomMeasurementEntriesByDate(
+              req.userId,
+              req.userId,
+              date
+            );
       res.status(200).json(entries);
     } catch (error) {
       // @ts-expect-error TS(2571): Object is of type 'unknown'.

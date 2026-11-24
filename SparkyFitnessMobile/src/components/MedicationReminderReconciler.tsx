@@ -1,16 +1,21 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useReducer, useState } from 'react';
 import { AppState } from 'react-native';
+import { useCalendars } from 'expo-localization';
 
 import { useMedications, useMedicationEntries } from '../hooks/useMedications';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
-import { getTodayDate } from '../utils/dateUtils';
+import { getDeviceTimezone, getTodayDate } from '../utils/dateUtils';
 import { reconcileMedicationReminders } from '../services/medicationReminderService';
 import {
   maybePromptForExactAlarmPermission,
   registerLocalizedNotificationPresentation,
 } from '../services/notifications';
+import { syncMedicationActiveUser } from '../services/backgroundWater';
+import { syncNativeMedicationSnoozeMinutes } from '../services/medicationNativeSync';
 import { addLog } from '../services/LogService';
 import i18n from '../localization/i18n';
+
+const FOREGROUND_CLOCK_POLL_MS = 30_000;
 
 const MedicationReminderReconciler: React.FC = () => {
   const medicationRemindersEnabled = useAppPreferencesStore(
@@ -33,6 +38,15 @@ const MedicationReminderReconciler: React.FC = () => {
   );
   const remindersActive = medicationRemindersEnabled && notificationsEnabled;
   const [languageRevision, setLanguageRevision] = useState(0);
+  const [, bumpResumeRevision] = useReducer((n: number) => n + 1, 0);
+
+  // `useCalendars()` re-renders on iOS `significantTimeChangeNotification`,
+  // while the foreground poll below covers Android (`expo-localization` 57.0.2
+  // only observes configuration changes, not `ACTION_TIMEZONE_CHANGED`) and
+  // open-app midnight rollovers.
+  useCalendars();
+  const timezone = getDeviceTimezone();
+  const today = getTodayDate();
 
   const {
     data: medications,
@@ -40,7 +54,6 @@ const MedicationReminderReconciler: React.FC = () => {
     refetch: refetchMeds,
   } = useMedications({ activeOnly: true, enabled: remindersActive });
 
-  const today = getTodayDate();
   const {
     data: todayEntries,
     isLoading: isLoadingEntries,
@@ -50,6 +63,18 @@ const MedicationReminderReconciler: React.FC = () => {
     toDate: today,
     enabled: remindersActive,
   });
+
+  useEffect(() => {
+    syncNativeMedicationSnoozeMinutes();
+  }, [medicationReminderSnoozeMinutes]);
+
+  // The iOS native handler logs a reminder's Taken / Skip only for the account
+  // the device is signed in to; the medications' owner is the only identity
+  // available here.
+  const activeUserId = medications?.find((m) => m.user_id)?.user_id ?? null;
+  useEffect(() => {
+    if (activeUserId) void syncMedicationActiveUser(activeUserId);
+  }, [activeUserId, medications]);
 
   useEffect(() => {
     void registerLocalizedNotificationPresentation().catch((error) => {
@@ -84,6 +109,7 @@ const MedicationReminderReconciler: React.FC = () => {
     medicationReminderHideNames,
     medicationReminderConsolidate,
     today,
+    timezone,
     languageRevision,
   ]);
 
@@ -108,13 +134,45 @@ const MedicationReminderReconciler: React.FC = () => {
 
   useEffect(() => {
     if (!remindersActive) return;
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+
+    const checkClock = () => {
+      if (getDeviceTimezone() !== timezone || getTodayDate() !== today) {
+        bumpResumeRevision();
+      }
+    };
+
+    const startPolling = () => {
+      if (intervalId !== null) return;
+      intervalId = setInterval(checkClock, FOREGROUND_CLOCK_POLL_MS);
+    };
+
+    const stopPolling = () => {
+      if (intervalId === null) return;
+      clearInterval(intervalId);
+      intervalId = null;
+    };
+
+    if (AppState.currentState !== 'background') {
+      startPolling();
+    }
+
     const subscription = AppState.addEventListener('change', (state) => {
-      if (state !== 'active') return;
+      if (state !== 'active') {
+        stopPolling();
+        return;
+      }
+      checkClock();
+      startPolling();
       void refetchMeds();
       void refetchEntries();
     });
-    return () => subscription.remove();
-  }, [refetchMeds, refetchEntries, remindersActive]);
+
+    return () => {
+      stopPolling();
+      subscription.remove();
+    };
+  }, [refetchMeds, refetchEntries, remindersActive, timezone, today]);
 
   return null;
 };

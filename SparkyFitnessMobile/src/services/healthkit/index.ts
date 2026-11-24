@@ -3,6 +3,7 @@ import {
   getRequestStatusForAuthorization,
   AuthorizationRequestStatus,
   queryQuantitySamples,
+  queryQuantitySamplesWithAnchor,
   queryStatisticsCollectionForQuantity,
   isHealthDataAvailable,
   queryCategorySamples,
@@ -16,6 +17,7 @@ import {
 import { Platform, Alert } from 'react-native';
 import { addLog } from '../LogService';
 import i18n from '../../localization/i18n';
+import { loadHealthWaterSyncToken, saveHealthWaterSyncToken } from '../storage';
 import { isAuthorizationNotDeterminedError } from '../../utils/healthErrors';
 import {
   AggregatedHealthRecord,
@@ -28,15 +30,26 @@ import {
 import { getSyncStartDate } from '../../utils/syncUtils';
 import { getDeviceTimezone } from '../../utils/dateUtils';
 import {
+  aggregateSleepSessions,
   toLocalDateString,
   mapDayStatisticsToMinMaxAvg,
 } from './dataAggregation';
+import { overnightBodyTemperatures } from './overnightBodyTemperature';
 import { BLOOD_GLUCOSE_MG_DL_PER_MMOL_L } from '../shared/dataTransformation';
 import {
   WATCH_SESSION_METADATA_KEY,
   isOwnWatchWorkout,
+  EXERCISE_WRITEBACK_METADATA_KEY,
+  isOwnWrittenWorkout,
+  isOwnWrittenBodySample,
 } from './dataTransformation';
 import { DIETARY_WRITE_IDENTIFIERS } from './writebackMappers';
+import {
+  EXERCISE_FILTER_OWN_PREF,
+  EXERCISE_WRITTEN_QUANTITY_TYPES,
+  exerciseWriteTypes,
+} from './exerciseWriteback';
+import { loadHealthPreference } from './preferences';
 import {
   WORKOUT_EFFORT_IDENTIFIER,
   matchWorkoutEffort,
@@ -162,6 +175,7 @@ const SUPPORTED_HK_TYPES = new Set<string>([
   'HKQuantityTypeIdentifierBloodPressureSystolic',
   'HKQuantityTypeIdentifierBloodPressureDiastolic',
   'HKQuantityTypeIdentifierBodyTemperature',
+  'HKQuantityTypeIdentifierAppleSleepingWristTemperature',
   'HKQuantityTypeIdentifierBloodGlucose',
   'HKQuantityTypeIdentifierOxygenSaturation',
   'HKQuantityTypeIdentifierVO2Max',
@@ -172,8 +186,10 @@ const SUPPORTED_HK_TYPES = new Set<string>([
   'HKQuantityTypeIdentifierFlightsClimbed',
   'HKQuantityTypeIdentifierDietaryWater',
   'HKQuantityTypeIdentifierLeanBodyMass',
+  'HKQuantityTypeIdentifierWaistCircumference',
   'HKCategoryTypeIdentifierSleepAnalysis',
   'HKCategoryTypeIdentifierMindfulSession', // For Stress
+  'HKCategoryTypeIdentifierToothbrushingEvent',
   'HKWorkoutTypeIdentifier', // For Workouts
   'HKCategoryTypeIdentifierCervicalMucusQuality',
   'HKCategoryTypeIdentifierIntermenstrualBleeding',
@@ -241,6 +257,8 @@ const HEALTHKIT_UNIT_MAP: Record<string, string> = {
   Hydration: 'L',
   BodyTemperature: 'degC',
   BasalBodyTemperature: 'degC',
+  SleepingWristTemperature: 'degC',
+  OvernightBodyTemperature: 'degC',
   BloodGlucose: 'mg/dL',
   HeartRateVariabilitySDNN: 'ms',
   // Add other metrics that need explicit units as needed
@@ -260,6 +278,10 @@ export const HEALTHKIT_TYPE_MAP: Record<string, string> = {
   BloodPressureSystolic: 'HKQuantityTypeIdentifierBloodPressureSystolic',
   BloodPressureDiastolic: 'HKQuantityTypeIdentifierBloodPressureDiastolic',
   BodyTemperature: 'HKQuantityTypeIdentifierBodyTemperature',
+  SleepingWristTemperature:
+    'HKQuantityTypeIdentifierAppleSleepingWristTemperature',
+  // Body Temperature read against the person's sleep, one mean per night.
+  OvernightBodyTemperature: 'HKQuantityTypeIdentifierBodyTemperature',
   BloodGlucose: 'HKQuantityTypeIdentifierBloodGlucose',
   OxygenSaturation: 'HKQuantityTypeIdentifierOxygenSaturation',
   Vo2Max: 'HKQuantityTypeIdentifierVO2Max',
@@ -270,9 +292,12 @@ export const HEALTHKIT_TYPE_MAP: Record<string, string> = {
   FloorsClimbed: 'HKQuantityTypeIdentifierFlightsClimbed',
   Hydration: 'HKQuantityTypeIdentifierDietaryWater',
   LeanBodyMass: 'HKQuantityTypeIdentifierLeanBodyMass',
+  // Written by body measurement write-back (#2465); not read.
+  WaistCircumference: 'HKQuantityTypeIdentifierWaistCircumference',
   SleepSession: 'HKCategoryTypeIdentifierSleepAnalysis',
   Stress: 'HKCategoryTypeIdentifierMindfulSession', // Map Stress to MindfulSession for HealthKit
   MindfulnessSession: 'HKCategoryTypeIdentifierMindfulSession',
+  Toothbrushing: 'HKCategoryTypeIdentifierToothbrushingEvent',
   Workout: 'HKWorkoutTypeIdentifier', // Map Workout to HKWorkoutTypeIdentifier for HealthKit
   CervicalMucus: 'HKCategoryTypeIdentifierCervicalMucusQuality',
   // The route is its own HealthKit type; mapping it to the workout type would
@@ -376,7 +401,14 @@ const healthKitAuthorizationTypes = (
             readPermissionsSet.add(identifier)
           );
         } else if (p.accessType === 'write') {
-          writePermissionsSet.add('HKWorkoutTypeIdentifier');
+          // Exercise write-back (#1750) attaches active energy and distance
+          // to each workout, and checks Apple Health's own workouts before
+          // writing so a session the watch already recorded is not added
+          // twice; that check needs workout read access.
+          exerciseWriteTypes().forEach((identifier) =>
+            writePermissionsSet.add(identifier)
+          );
+          readPermissionsSet.add('HKWorkoutTypeIdentifier');
         }
       } else if (p.recordType === 'ActiveCaloriesBurned') {
         // The daily active figure can come from the Move ring (an account
@@ -621,11 +653,26 @@ const queryDayStatistics = async (
   const now = new Date();
   const filterEnd = endDate.getTime() < now.getTime() ? endDate : now; // never query future dates
   const options: {
-    filter: { date: { startDate: Date; endDate: Date } };
+    filter: {
+      date: { startDate: Date; endDate: Date };
+      NOT?: { metadata: { withMetadataKey: string } }[];
+    };
     unit?: string;
   } = {
     filter: { date: { startDate: filterStart, endDate: filterEnd } },
   };
+  // Leave out the energy and distance exercise write-back saved (#1750), or
+  // Sparky would count a logged workout again as device activity. Only once
+  // something was written, so nobody who never turned it on sees a changed
+  // query.
+  if (
+    EXERCISE_WRITTEN_QUANTITY_TYPES.has(identifier) &&
+    (await loadHealthPreference<boolean>(EXERCISE_FILTER_OWN_PREF)) === true
+  ) {
+    options.filter.NOT = [
+      { metadata: { withMetadataKey: EXERCISE_WRITEBACK_METADATA_KEY } },
+    ];
+  }
   if (unit) {
     options.unit = unit;
   }
@@ -1134,7 +1181,8 @@ type RecordHandler = (
   identifier: string,
   startDate: Date,
   endDate: Date,
-  telemetry: TelemetryRunContext
+  telemetry: TelemetryRunContext,
+  runId?: number
 ) => Promise<unknown[]>;
 
 // Filter helpers for date range checking. Every handler pushes the window into the
@@ -1235,9 +1283,10 @@ const handleStress: RecordHandler = async (identifier, startDate, endDate) => {
   }));
 };
 
-// Handler for MindfulnessSession records. Unlike Stress (presence only), each
-// sample keeps its uuid and source so the server can upsert it by id.
-const handleMindfulnessSession: RecordHandler = async (
+// Handler for category samples that are sessions (mindful minutes, toothbrushing).
+// Unlike Stress (presence only), each sample keeps its uuid and source so the
+// server can upsert it by id.
+const handleCategorySession: RecordHandler = async (
   identifier,
   startDate,
   endDate
@@ -1329,7 +1378,9 @@ const handleWorkout: RecordHandler = async (
     }
     // Drop our own watch sessions before they claim telemetry-budget slots.
     // The transformer still skips them as defense in depth.
-    return !isOwnWatchWorkout(w as unknown as Record<string, unknown>);
+    const rec = w as unknown as Record<string, unknown>;
+    // Also drop workouts exercise write-back saved from the diary (#1750).
+    return !isOwnWatchWorkout(rec) && !isOwnWrittenWorkout(rec);
   });
 
   // Budget slots are assigned in list order (the query is newest-first) before
@@ -1549,6 +1600,15 @@ const handleWorkout: RecordHandler = async (
         record.metadata = {
           ...(record.metadata as Record<string, unknown> | undefined),
           [WATCH_SESSION_METADATA_KEY]: watchSessionId,
+        };
+      }
+      const writebackKey = (
+        w as unknown as { metadata?: Record<string, unknown> }
+      ).metadata?.[EXERCISE_WRITEBACK_METADATA_KEY];
+      if (writebackKey !== undefined) {
+        record.metadata = {
+          ...(record.metadata as Record<string, unknown> | undefined),
+          [EXERCISE_WRITEBACK_METADATA_KEY]: writebackKey,
         };
       }
 
@@ -1789,6 +1849,10 @@ const QUANTITY_TRANSFORMS: Record<
   Height: (base, q) => ({ ...base, height: { inMeters: q } }),
   BodyFat: (base, q) => ({ ...base, percentage: { inPercent: q * 100 } }),
   BodyTemperature: (base, q) => ({ ...base, temperature: { inCelsius: q } }),
+  SleepingWristTemperature: (base, q) => ({
+    ...base,
+    temperature: { inCelsius: q },
+  }),
   BloodGlucose: (base, q) => ({
     ...base,
     level: { inMilligramsPerDeciliter: q },
@@ -1811,6 +1875,9 @@ const QUANTITY_TRANSFORMS: Record<
 };
 
 // Handler for standard quantity types (most common metrics)
+// Quantities that span the night and are dated by their end, the wake day.
+const END_DATED_QUANTITIES = new Set(['SleepingWristTemperature']);
+
 const createQuantityHandler = (recordType: string): RecordHandler => {
   return async (identifier, startDate, endDate) => {
     if (!SUPPORTED_HK_TYPES.has(identifier)) {
@@ -1841,8 +1908,16 @@ const createQuantityHandler = (recordType: string): RecordHandler => {
       return [];
     }
 
+    // A sample dated by its end (the wake day) is matched by its end: last night's
+    // wrist temperature starts the evening before a window that opens at midnight.
+    const matchByEnd = END_DATED_QUANTITIES.has(recordType);
     const filteredSamples = samples.filter((record) => {
-      const recordDate = new Date(record.startDate);
+      // Body write-back's own samples (#2465) came from the check-in; never
+      // import them back.
+      if (isOwnWrittenBodySample(record)) return false;
+      const recordDate = new Date(
+        matchByEnd ? record.endDate : record.startDate
+      );
       return isInDateRange(recordDate, startDate, endDate);
     });
 
@@ -2169,11 +2244,201 @@ const handleNutrition: RecordHandler = async (
   return [...correlationRecords, ...looseRecords];
 };
 
+// A night that began before the sync window would otherwise be read from the
+// window start only, and its mean would replace the full night's on the server.
+const OVERNIGHT_LOOKBACK_MS = 24 * 60 * 60 * 1000;
+
+// Body Temperature (a smart ring writes it through the night) as one reading per
+// night: the mean of one source's readings inside each sleep session. The stored
+// Body Temperature value is one per day, so the night is worked out here from the
+// raw readings. Emits pre-aggregated { value, date, timestamp, site } records that
+// the shared transformer passes through as the metric's `skin_temperature` type.
+const handleOvernightBodyTemperature: RecordHandler = async (
+  identifier,
+  startDate,
+  endDate,
+  telemetry
+) => {
+  const sleepRecords = await handleSleepSession(
+    HEALTHKIT_TYPE_MAP.SleepSession,
+    new Date(startDate.getTime() - OVERNIGHT_LOOKBACK_MS),
+    endDate,
+    telemetry
+  );
+  // Read from a day earlier so a night that began before the window is whole,
+  // but send only the nights that ended inside it.
+  const sessions = aggregateSleepSessions(
+    sleepRecords as Parameters<typeof aggregateSleepSessions>[0]
+  ).filter((s) => Date.parse(s.wake_time) >= startDate.getTime());
+  if (sessions.length === 0) return [];
+
+  const spanStart = new Date(
+    Math.min(...sessions.map((s) => Date.parse(s.bedtime)))
+  );
+  const spanEnd = new Date(
+    Math.max(...sessions.map((s) => Date.parse(s.wake_time)))
+  );
+  if (
+    !Number.isFinite(spanStart.getTime()) ||
+    !Number.isFinite(spanEnd.getTime())
+  ) {
+    return [];
+  }
+
+  const samples = await queryQuantitySamples(
+    identifier as Parameters<typeof queryQuantitySamples>[0],
+    {
+      ascending: false,
+      limit: 0,
+      unit: HEALTHKIT_UNIT_MAP.OvernightBodyTemperature,
+      filter: { date: { startDate: spanStart, endDate: spanEnd } },
+    }
+  );
+  if (!Array.isArray(samples)) return [];
+
+  return overnightBodyTemperatures(
+    sessions,
+    samples.map((s) => ({
+      ms: new Date(s.startDate).getTime(),
+      celsius: s.quantity,
+      source: (
+        s as { sourceRevision?: { source?: { bundleIdentifier?: string } } }
+      ).sourceRevision?.source?.bundleIdentifier,
+    }))
+  );
+};
+
+interface StagedWaterRun {
+  anchor: string | null;
+  configId: string | null;
+  cancelled: boolean;
+}
+const stagedWaterRuns = new Map<number, StagedWaterRun>();
+let nextWaterRunId = 1;
+
+export const beginWaterDeletionRun = (configId?: string | null): number => {
+  const runId = nextWaterRunId++;
+  stagedWaterRuns.set(runId, {
+    anchor: null,
+    configId: configId ?? null,
+    cancelled: false,
+  });
+  return runId;
+};
+
+export const cancelWaterDeletionRun = (runId?: number): void => {
+  if (runId !== undefined) {
+    const staged = stagedWaterRuns.get(runId);
+    if (staged) {
+      staged.cancelled = true;
+      staged.anchor = null;
+    }
+  } else {
+    for (const staged of stagedWaterRuns.values()) {
+      staged.cancelled = true;
+      staged.anchor = null;
+    }
+  }
+};
+
+export const commitWaterDeletionRun = async (runId?: number): Promise<void> => {
+  if (runId !== undefined) {
+    const staged = stagedWaterRuns.get(runId);
+    if (!staged) return;
+    stagedWaterRuns.delete(runId);
+    if (staged.anchor && !staged.cancelled) {
+      await saveHealthWaterSyncToken('ios', staged.anchor, staged.configId);
+    }
+  } else {
+    for (const [id, staged] of Array.from(stagedWaterRuns.entries())) {
+      stagedWaterRuns.delete(id);
+      if (staged.anchor && !staged.cancelled) {
+        await saveHealthWaterSyncToken('ios', staged.anchor, staged.configId);
+      }
+    }
+  }
+};
+
+const handleHydration: RecordHandler = async (
+  identifier,
+  startDate,
+  endDate,
+  telemetry,
+  runId
+) => {
+  if (!SUPPORTED_HK_TYPES.has(identifier)) {
+    return [];
+  }
+
+  const staged = runId != null ? stagedWaterRuns.get(runId) : undefined;
+
+  // 1. Window-based query for additions (preserves full-day sums and wider imports)
+  const quantityHandler = createQuantityHandler('Hydration');
+  const windowSamples = await quantityHandler(
+    identifier,
+    startDate,
+    endDate,
+    telemetry
+  );
+
+  // 2. Anchored query for deletions
+  const savedAnchor = await loadHealthWaterSyncToken('ios', staged?.configId);
+  const unit = HEALTHKIT_UNIT_MAP.Hydration || 'L';
+
+  try {
+    const res = savedAnchor
+      ? await queryQuantitySamplesWithAnchor(
+          identifier as Parameters<typeof queryQuantitySamplesWithAnchor>[0],
+          {
+            unit,
+            anchor: savedAnchor,
+            limit: 0,
+          } as Parameters<typeof queryQuantitySamplesWithAnchor>[1]
+        )
+      : await queryQuantitySamplesWithAnchor(
+          identifier as Parameters<typeof queryQuantitySamplesWithAnchor>[0],
+          {
+            unit,
+            filter: { date: { startDate, endDate } },
+            limit: 0,
+          } as Parameters<typeof queryQuantitySamplesWithAnchor>[1]
+        );
+
+    if (res.newAnchor && staged && !staged.cancelled) {
+      staged.anchor = res.newAnchor;
+    }
+
+    const deletedSamples = Array.isArray(res.deletedSamples)
+      ? res.deletedSamples
+      : [];
+
+    const mappedDeletions: Record<string, unknown>[] = [];
+    for (const del of deletedSamples) {
+      if (del.uuid) {
+        mappedDeletions.push({
+          deleted: true,
+          uuid: del.uuid,
+          source_id: del.uuid,
+        });
+      }
+    }
+
+    return [...windowSamples, ...mappedDeletions];
+  } catch (err) {
+    if (staged) {
+      staged.anchor = null;
+    }
+    throw err;
+  }
+};
+
 // Registry mapping record types to their handlers
 const RECORD_HANDLERS: Record<string, RecordHandler> = {
   SleepSession: handleSleepSession,
+  OvernightBodyTemperature: handleOvernightBodyTemperature,
   Stress: handleStress,
-  MindfulnessSession: handleMindfulnessSession,
+  MindfulnessSession: handleCategorySession,
+  Toothbrushing: handleCategorySession,
   IntermenstrualBleeding: handleReproductiveHealth,
   MenstruationFlow: handleReproductiveHealth,
   OvulationTest: handleReproductiveHealth,
@@ -2182,6 +2447,7 @@ const RECORD_HANDLERS: Record<string, RecordHandler> = {
   ExerciseSession: handleWorkout,
   BloodPressure: handleBloodPressure,
   Nutrition: handleNutrition,
+  Hydration: handleHydration,
 };
 
 // Read health records from HealthKit. A failed read returns an error envelope so
@@ -2190,7 +2456,8 @@ export const readHealthRecordsDetailed = async (
   recordType: string,
   startDate: Date,
   endDate: Date,
-  telemetry: TelemetryRunContext
+  telemetry: TelemetryRunContext,
+  runId?: number
 ): Promise<HealthKitReadResult> => {
   if (!isHealthKitAvailable) {
     return { records: [] };
@@ -2206,7 +2473,7 @@ export const readHealthRecordsDetailed = async (
     const handler =
       RECORD_HANDLERS[recordType] || createQuantityHandler(recordType);
     return {
-      records: await handler(identifier, startDate, endDate, telemetry),
+      records: await handler(identifier, startDate, endDate, telemetry, runId),
     };
   } catch (error) {
     return { records: [], error: recordReadError(error, `${recordType} read`) };
@@ -2287,6 +2554,7 @@ const CATEGORY_PROBE_TYPES = new Set([
   'SleepSession',
   'Stress',
   'MindfulnessSession',
+  'Toothbrushing',
   'IntermenstrualBleeding',
   'MenstruationFlow',
   'OvulationTest',

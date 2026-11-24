@@ -3,7 +3,6 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useTranslation } from 'react-i18next';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import { useCSSVariable } from 'uniwind';
 import { FooterSaveBar } from '../components/FormScreenChrome';
@@ -39,6 +38,9 @@ import {
   validateMealPlanDraft,
   type MealPlanNutritionTotals,
 } from '../utils/mealPlanForm';
+import { useEnergyUnit } from '../hooks/useEnergyUnit';
+import { energyUnitLabel } from '../utils/energyUnit';
+import { energyFromKcal } from '@workspace/shared';
 
 type MealPlanFormScreenProps = RootStackScreenProps<'MealPlanForm'>;
 
@@ -73,7 +75,7 @@ const MealPlanFormScreen: React.FC<MealPlanFormScreenProps> = ({
   route,
 }) => {
   const { t } = useTranslation();
-  const insets = useSafeAreaInsets();
+  const energyUnit = useEnergyUnit();
   const usesNativeHeader = useNativeIOSHeadersActive();
   const [dangerColor, caloriesColor, proteinColor, carbsColor, fatColor] =
     useCSSVariable([
@@ -322,10 +324,7 @@ const MealPlanFormScreen: React.FC<MealPlanFormScreenProps> = ({
 
   if (isMealsLoading || isMealTypesLoading) {
     return (
-      <View
-        className="flex-1 bg-background"
-        style={!usesNativeHeader ? { paddingTop: insets.top } : undefined}
-      >
+      <View className="flex-1 bg-background">
         {header}
         <StatusView
           loading
@@ -339,10 +338,7 @@ const MealPlanFormScreen: React.FC<MealPlanFormScreenProps> = ({
 
   if (isMealsError || isMealTypesError) {
     return (
-      <View
-        className="flex-1 bg-background"
-        style={!usesNativeHeader ? { paddingTop: insets.top } : undefined}
-      >
+      <View className="flex-1 bg-background">
         {header}
         <StatusView
           icon="alert-circle"
@@ -365,10 +361,7 @@ const MealPlanFormScreen: React.FC<MealPlanFormScreenProps> = ({
 
   if (mealTypes.length === 0) {
     return (
-      <View
-        className="flex-1 bg-background"
-        style={!usesNativeHeader ? { paddingTop: insets.top } : undefined}
-      >
+      <View className="flex-1 bg-background">
         {header}
         <StatusView
           icon="meal"
@@ -396,7 +389,7 @@ const MealPlanFormScreen: React.FC<MealPlanFormScreenProps> = ({
     {
       key: 'calories',
       label: t('mealPlans.caloriesLabel', { defaultValue: 'Calories' }),
-      unit: 'kcal',
+      unit: energyUnitLabel(energyUnit, t),
       color: caloriesColor,
     },
     {
@@ -450,10 +443,13 @@ const MealPlanFormScreen: React.FC<MealPlanFormScreenProps> = ({
             </View>
             {assignment.nutrition ? (
               <Text className="text-xs text-text-secondary mt-1">
-                {t('mealPlans.nutritionLine', {
+                {t('mealPlans.nutritionLineWithUnit', {
                   defaultValue:
-                    '{{calories}} kcal · {{protein}} g P · {{carbs}} g C · {{fat}} g F',
-                  calories: formatNutritionValue(totals.calories),
+                    '{{calories}} {{unit}} · {{protein}} g P · {{carbs}} g C · {{fat}} g F',
+                  calories: formatNutritionValue(
+                    energyFromKcal(totals.calories, energyUnit)
+                  ),
+                  unit: energyUnitLabel(energyUnit, t),
                   protein: formatNutritionValue(totals.protein),
                   carbs: formatNutritionValue(totals.carbs),
                   fat: formatNutritionValue(totals.fat),
@@ -525,10 +521,7 @@ const MealPlanFormScreen: React.FC<MealPlanFormScreenProps> = ({
   };
 
   return (
-    <View
-      className="flex-1 bg-background"
-      style={!usesNativeHeader ? { paddingTop: insets.top } : undefined}
-    >
+    <View className="flex-1 bg-background">
       {header}
       <KeyboardAwareScrollView
         className="flex-1"
@@ -648,7 +641,11 @@ const MealPlanFormScreen: React.FC<MealPlanFormScreenProps> = ({
 
         <View className="bg-surface rounded-xl px-3 py-4 mt-4 flex-row border border-border-subtle">
           {nutritionStats.map((stat) => {
-            const value = formatNutritionValue(dayTotals[stat.key]);
+            const value = formatNutritionValue(
+              stat.key === 'calories'
+                ? energyFromKcal(dayTotals.calories, energyUnit)
+                : dayTotals[stat.key]
+            );
             return (
               <NutritionStat
                 key={stat.key}
@@ -720,21 +717,27 @@ const MealPlanFormScreen: React.FC<MealPlanFormScreenProps> = ({
                   </Text>
                 </View>
                 <Text className="text-sm font-semibold text-text-secondary">
-                  {t('mealPlans.caloriesValue', {
-                    defaultValue: '{{value}} kcal',
-                    value: formatNutritionValue(sectionTotals.calories),
+                  {t('mealPlans.caloriesValueWithUnit', {
+                    defaultValue: '{{value}} {{unit}}',
+                    value: formatNutritionValue(
+                      energyFromKcal(sectionTotals.calories, energyUnit)
+                    ),
+                    unit: energyUnitLabel(energyUnit, t),
                   })}
                 </Text>
               </View>
               <Text
                 className="text-xs text-text-secondary mt-1"
                 accessibilityLabel={t(
-                  'mealPlans.mealTypeNutritionAccessibility',
+                  'mealPlans.mealTypeNutritionAccessibilityWithUnit',
                   {
                     defaultValue:
-                      '{{mealType}} total {{calories}} kcal, {{protein}} g protein, {{carbs}} g carbs, {{fat}} g fat',
+                      '{{mealType}} total {{calories}} {{unit}}, {{protein}} g protein, {{carbs}} g carbs, {{fat}} g fat',
                     mealType: mealTypeLabel,
-                    calories: formatNutritionValue(sectionTotals.calories),
+                    calories: formatNutritionValue(
+                      energyFromKcal(sectionTotals.calories, energyUnit)
+                    ),
+                    unit: energyUnitLabel(energyUnit, t),
                     protein: formatNutritionValue(sectionTotals.protein),
                     carbs: formatNutritionValue(sectionTotals.carbs),
                     fat: formatNutritionValue(sectionTotals.fat),

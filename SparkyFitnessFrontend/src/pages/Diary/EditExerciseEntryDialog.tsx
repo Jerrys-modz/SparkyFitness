@@ -1,4 +1,5 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo } from 'react';
+import { useOnChange } from '@/hooks/useOnChange';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -88,6 +89,7 @@ import {
   toHourMinute,
   userHourMinute,
 } from '@workspace/shared';
+import { kcalFromEnergyInput, shownEnergyInput } from '@/utils/energyInput';
 interface EditExerciseEntryDialogProps {
   entry: ExerciseEntry;
   open: boolean;
@@ -280,8 +282,18 @@ const EditExerciseEntryDialog = ({
   onSave,
 }: EditExerciseEntryDialogProps) => {
   const { t } = useTranslation();
-  const { loggingLevel, weightUnit, distanceUnit, convertDistance, timezone } =
-    usePreferences();
+  const {
+    loggingLevel,
+    weightUnit,
+    distanceUnit,
+    convertDistance,
+    timezone,
+    energyUnit,
+    getEnergyUnitString,
+  } = usePreferences();
+  // Energy fields keep kcal in state and show the account's unit
+  // (`shownEnergyInput` / `kcalFromEnergyInput`).
+  const energyLabel = getEnergyUnitString(energyUnit);
 
   const modality = resolveExerciseModality(
     entry.exercise_snapshot?.modality,
@@ -517,85 +529,85 @@ const EditExerciseEntryDialog = ({
   // the dialog stays open; without this guard, that refetch re-runs the
   // whole seeding block below and overwrites any field the user has already
   // typed into but not yet saved.
-  const hasSeededRef = useRef(false);
-  useEffect(() => {
-    if (!open) {
-      hasSeededRef.current = false;
-      return;
-    }
-  }, [open]);
+  const [hasSeeded, setHasSeeded] = useState(false);
+  useOnChange([open], () => {
+    if (!open) setHasSeeded(false);
+  });
 
-  useEffect(() => {
-    if (!open || hasSeededRef.current || !activityDataFetched) return;
-    hasSeededRef.current = true;
-    const extracted = extractTelemetry(entry, activityData);
-    if (extracted.maxHeartRate !== '')
-      setMaxHeartRateInput(extracted.maxHeartRate);
-    if (extracted.avgRespiration !== '')
-      setAvgRespirationInput(extracted.avgRespiration);
-    if (extracted.maxRespiration !== '')
-      setMaxRespirationInput(extracted.maxRespiration);
-    if (extracted.avgSpeedMps !== '')
-      setAvgSpeedMpsInput(extracted.avgSpeedMps);
-    if (extracted.maxSpeedMps !== '')
-      setMaxSpeedMpsInput(extracted.maxSpeedMps);
-    if (extracted.avgCadence !== '') setAvgCadenceInput(extracted.avgCadence);
-    if (extracted.maxCadence !== '') setMaxCadenceInput(extracted.maxCadence);
-    if (extracted.avgPowerWatts !== '')
-      setAvgPowerWattsInput(extracted.avgPowerWatts);
-    if (extracted.maxPowerWatts !== '')
-      setMaxPowerWattsInput(extracted.maxPowerWatts);
-    if (extracted.elevationGain !== '')
-      setElevationGainInput(extracted.elevationGain);
-    if (extracted.elevationLoss !== '')
-      setElevationLossInput(extracted.elevationLoss);
-    if (extracted.floorsClimbed !== '')
-      setFloorsClimbedInput(extracted.floorsClimbed);
-    if (extracted.strokeCount !== '')
-      setStrokeCountInput(extracted.strokeCount);
-    if (extracted.trainingLoad !== '')
-      setTrainingLoadInput(extracted.trainingLoad);
-    if (extracted.aerobicEffect !== '')
-      setAerobicEffectInput(extracted.aerobicEffect);
-    if (extracted.anaerobicEffect !== '')
-      setAnaerobicEffectInput(extracted.anaerobicEffect);
-    if (extracted.vo2Max !== '') setVo2MaxInput(extracted.vo2Max);
-    if (extracted.avgTemp !== '') setTempCelsiusInput(extracted.avgTemp);
-    if (extracted.weatherCondition)
-      setWeatherCondInput(extracted.weatherCondition);
-    if (extracted.gearName) setGearNameInput(extracted.gearName);
-    if (extracted.steps !== '') setStepsInput(extracted.steps);
-    if (extracted.waterEstimated !== '')
-      setWaterEstimatedInput(extracted.waterEstimated);
-    if (extracted.movingTime !== '') setMovingTimeInput(extracted.movingTime);
-    if (extracted.elapsedTime !== '')
-      setElapsedTimeInput(extracted.elapsedTime);
-    if (extracted.activeCalories !== '')
-      setActiveCaloriesInput(extracted.activeCalories);
-    if (extracted.restingCalories !== '')
-      setRestingCaloriesInput(extracted.restingCalories);
-    if (extracted.groundContact !== '')
-      setGroundContactInput(extracted.groundContact);
-    if (extracted.verticalOscillation !== '')
-      setVerticalOscillationInput(extracted.verticalOscillation);
-    if (extracted.strideLength !== '')
-      setStrideLengthInput(extracted.strideLength);
-    if (extracted.normPower !== '') setNormPowerInput(extracted.normPower);
-    if (extracted.tss !== '') setTssInput(extracted.tss);
-    if (extracted.minElevation !== '')
-      setMinElevationInput(extracted.minElevation);
-    if (extracted.maxElevation !== '')
-      setMaxElevationInput(extracted.maxElevation);
-    if (extracted.avgMovingSpeed !== '')
-      setAvgMovingSpeedInput(extracted.avgMovingSpeed);
-    if (extracted.weatherTemp !== '')
-      setWeatherTempInput(extracted.weatherTemp);
-    if (extracted.windSpeed !== '') setWindSpeedInput(extracted.windSpeed);
-    if (extracted.humidity !== '') setHumidityInput(extracted.humidity);
-    if (entry.duration_minutes != null && entry.duration_minutes > 0) {
-      setDurationInput(seedDurationInput(entry));
+  useOnChange(
+    [open, hasSeeded, entry, activityData, activityDataFetched],
+    () => {
+      if (!open || hasSeeded || !activityDataFetched) return;
+      setHasSeeded(true);
+      const extracted = extractTelemetry(entry, activityData);
+      if (extracted.maxHeartRate !== '')
+        setMaxHeartRateInput(extracted.maxHeartRate);
+      if (extracted.avgRespiration !== '')
+        setAvgRespirationInput(extracted.avgRespiration);
+      if (extracted.maxRespiration !== '')
+        setMaxRespirationInput(extracted.maxRespiration);
+      if (extracted.avgSpeedMps !== '')
+        setAvgSpeedMpsInput(extracted.avgSpeedMps);
+      if (extracted.maxSpeedMps !== '')
+        setMaxSpeedMpsInput(extracted.maxSpeedMps);
+      if (extracted.avgCadence !== '') setAvgCadenceInput(extracted.avgCadence);
+      if (extracted.maxCadence !== '') setMaxCadenceInput(extracted.maxCadence);
+      if (extracted.avgPowerWatts !== '')
+        setAvgPowerWattsInput(extracted.avgPowerWatts);
+      if (extracted.maxPowerWatts !== '')
+        setMaxPowerWattsInput(extracted.maxPowerWatts);
+      if (extracted.elevationGain !== '')
+        setElevationGainInput(extracted.elevationGain);
+      if (extracted.elevationLoss !== '')
+        setElevationLossInput(extracted.elevationLoss);
+      if (extracted.floorsClimbed !== '')
+        setFloorsClimbedInput(extracted.floorsClimbed);
+      if (extracted.strokeCount !== '')
+        setStrokeCountInput(extracted.strokeCount);
+      if (extracted.trainingLoad !== '')
+        setTrainingLoadInput(extracted.trainingLoad);
+      if (extracted.aerobicEffect !== '')
+        setAerobicEffectInput(extracted.aerobicEffect);
+      if (extracted.anaerobicEffect !== '')
+        setAnaerobicEffectInput(extracted.anaerobicEffect);
+      if (extracted.vo2Max !== '') setVo2MaxInput(extracted.vo2Max);
+      if (extracted.avgTemp !== '') setTempCelsiusInput(extracted.avgTemp);
+      if (extracted.weatherCondition)
+        setWeatherCondInput(extracted.weatherCondition);
+      if (extracted.gearName) setGearNameInput(extracted.gearName);
+      if (extracted.steps !== '') setStepsInput(extracted.steps);
+      if (extracted.waterEstimated !== '')
+        setWaterEstimatedInput(extracted.waterEstimated);
+      if (extracted.movingTime !== '') setMovingTimeInput(extracted.movingTime);
+      if (extracted.elapsedTime !== '')
+        setElapsedTimeInput(extracted.elapsedTime);
+      if (extracted.activeCalories !== '')
+        setActiveCaloriesInput(extracted.activeCalories);
+      if (extracted.restingCalories !== '')
+        setRestingCaloriesInput(extracted.restingCalories);
+      if (extracted.groundContact !== '')
+        setGroundContactInput(extracted.groundContact);
+      if (extracted.verticalOscillation !== '')
+        setVerticalOscillationInput(extracted.verticalOscillation);
+      if (extracted.strideLength !== '')
+        setStrideLengthInput(extracted.strideLength);
+      if (extracted.normPower !== '') setNormPowerInput(extracted.normPower);
+      if (extracted.tss !== '') setTssInput(extracted.tss);
+      if (extracted.minElevation !== '')
+        setMinElevationInput(extracted.minElevation);
+      if (extracted.maxElevation !== '')
+        setMaxElevationInput(extracted.maxElevation);
+      if (extracted.avgMovingSpeed !== '')
+        setAvgMovingSpeedInput(extracted.avgMovingSpeed);
+      if (extracted.weatherTemp !== '')
+        setWeatherTempInput(extracted.weatherTemp);
+      if (extracted.windSpeed !== '') setWindSpeedInput(extracted.windSpeed);
+      if (extracted.humidity !== '') setHumidityInput(extracted.humidity);
+      if (entry.duration_minutes != null && entry.duration_minutes > 0) {
+        setDurationInput(seedDurationInput(entry));
+      }
     }
-  }, [open, entry, activityData, activityDataFetched]);
+  );
 
   const { mutateAsync: updateExerciseEntry, isPending: loading } =
     useUpdateExerciseEntryMutation();
@@ -660,6 +672,9 @@ const EditExerciseEntryDialog = ({
     setSets((prev) => {
       const lastSet = prev[prev.length - 1] ?? {
         ...defaultSetForModality(modality),
+        notes: null,
+        is_pr: false,
+        completed_at: null,
         _dndId: uuidv4(),
       };
       return [
@@ -814,6 +829,12 @@ const EditExerciseEntryDialog = ({
           sets: sets.map(({ _dndId, ...set }) => ({
             ...set,
             weight: set.weight ?? null,
+            reps: set.reps ?? null,
+            rest_time: set.rest_time ?? null,
+            duration: set.duration ?? null,
+            rpe: set.rpe ?? null,
+            rir: set.rir ?? null,
+            distance: set.distance ?? null,
             ...(cardioSetValues ?? {}),
           })),
           imageFile,
@@ -1176,18 +1197,22 @@ const EditExerciseEntryDialog = ({
                 <div className="space-y-1.5">
                   <Label htmlFor="calories-burned" className="text-sm">
                     {t(
-                      'exercise.editExerciseEntryDialog.caloriesBurnedOptionalLabel',
-                      'Calories burned (optional)'
+                      'exercise.editExerciseEntryDialog.caloriesBurnedOptionalWithUnit',
+                      'Calories burned ({{unit}}, optional)',
+                      { unit: energyLabel }
                     )}
                   </Label>
                   <div className="relative">
                     <Input
                       id="calories-burned"
                       type="number"
-                      value={caloriesBurnedInput}
+                      value={shownEnergyInput(caloriesBurnedInput, energyUnit)}
                       onChange={(e) =>
                         setCaloriesBurnedInput(
-                          e.target.value === '' ? '' : Number(e.target.value)
+                          kcalFromEnergyInput(
+                            e.target.value === '' ? '' : Number(e.target.value),
+                            energyUnit
+                          )
                         )
                       }
                       placeholder={t(
@@ -1217,8 +1242,9 @@ const EditExerciseEntryDialog = ({
               <div className="space-y-1.5">
                 <Label htmlFor="calories-applied" className="text-sm">
                   {t(
-                    'exercise.editExerciseEntryDialog.caloriesAppliedLabel',
-                    'Calories counted in daily total (optional)'
+                    'exercise.editExerciseEntryDialog.caloriesAppliedWithUnit',
+                    'Calories counted in daily total ({{unit}}, optional)',
+                    { unit: energyLabel }
                   )}
                 </Label>
                 <div className="relative">
@@ -1226,11 +1252,14 @@ const EditExerciseEntryDialog = ({
                     id="calories-applied"
                     type="number"
                     min={0}
-                    value={caloriesAppliedInput}
+                    value={shownEnergyInput(caloriesAppliedInput, energyUnit)}
                     disabled={Boolean(entry.calorie_link_id)}
                     onChange={(e) =>
                       setCaloriesAppliedInput(
-                        e.target.value === '' ? '' : Number(e.target.value)
+                        kcalFromEnergyInput(
+                          e.target.value === '' ? '' : Number(e.target.value),
+                          energyUnit
+                        )
                       )
                     }
                     placeholder={t(
@@ -1888,16 +1917,25 @@ const EditExerciseEntryDialog = ({
                     <div>
                       <Label className="text-xs">
                         {t(
-                          'diary.editExerciseEntryDialog.activeCaloriesKcal',
-                          'Active Calories (kcal)'
+                          'diary.editExerciseEntryDialog.activeCaloriesWithUnit',
+                          'Active Calories ({{unit}})',
+                          { unit: energyLabel }
                         )}
                       </Label>
                       <Input
                         type="number"
-                        value={activeCaloriesInput}
+                        value={shownEnergyInput(
+                          activeCaloriesInput,
+                          energyUnit
+                        )}
                         onChange={(e) =>
                           setActiveCaloriesInput(
-                            e.target.value === '' ? '' : Number(e.target.value)
+                            kcalFromEnergyInput(
+                              e.target.value === ''
+                                ? ''
+                                : Number(e.target.value),
+                              energyUnit
+                            )
                           )
                         }
                         placeholder="e.g. 350"
@@ -1907,16 +1945,25 @@ const EditExerciseEntryDialog = ({
                     <div>
                       <Label className="text-xs">
                         {t(
-                          'diary.editExerciseEntryDialog.restingCaloriesKcal',
-                          'Resting Calories (kcal)'
+                          'diary.editExerciseEntryDialog.restingCaloriesWithUnit',
+                          'Resting Calories ({{unit}})',
+                          { unit: energyLabel }
                         )}
                       </Label>
                       <Input
                         type="number"
-                        value={restingCaloriesInput}
+                        value={shownEnergyInput(
+                          restingCaloriesInput,
+                          energyUnit
+                        )}
                         onChange={(e) =>
                           setRestingCaloriesInput(
-                            e.target.value === '' ? '' : Number(e.target.value)
+                            kcalFromEnergyInput(
+                              e.target.value === ''
+                                ? ''
+                                : Number(e.target.value),
+                              energyUnit
+                            )
                           )
                         }
                         placeholder="e.g. 45"
