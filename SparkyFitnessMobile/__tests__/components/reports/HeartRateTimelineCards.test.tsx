@@ -11,6 +11,9 @@ jest.mock('../../../src/hooks/useHeartRateTimelines', () => ({
   useHeartRateDayTimeline: (...args: unknown[]) => mockDayTimeline(...args),
   useHeartRateDailyAverages: (...args: unknown[]) => mockDailyAverages(...args),
 }));
+jest.mock('../../../src/hooks/useHeartRateZones', () => ({
+  useHeartRateZones: () => ({ zones: undefined }),
+}));
 jest.mock('../../../src/utils/dateUtils', () => ({
   ...jest.requireActual('../../../src/utils/dateUtils'),
   getTodayDate: () => '2026-10-20',

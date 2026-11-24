@@ -9,7 +9,10 @@ const mockDailyAverages = jest.fn();
 jest.mock('../../../src/hooks/useHeartRateTimelines', () => ({
   useHeartRateDailyAverages: (...args: unknown[]) => mockDailyAverages(...args),
 }));
-jest.mock('../../../src/components/charts/LineSeriesMark', () => ({
+jest.mock('../../../src/hooks/useHeartRateZones', () => ({
+  useHeartRateZones: () => ({ zones: undefined }),
+}));
+jest.mock('../../../src/components/charts/HeartRateZoneLine', () => ({
   __esModule: true,
   default: () => null,
 }));

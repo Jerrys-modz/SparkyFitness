@@ -10,7 +10,7 @@ import {
 import { DailyExerciseEntry } from '@/types/reports';
 import { samplesForDay } from '@/utils/healthMetricSamples';
 import { dayStringToMs, msToDayString } from '@/utils/heartRateWindow';
-import { zoneGradientStops } from '@/utils/heartRateZoneBands';
+import { zoneGradientStops } from '@workspace/shared';
 import { formatTimeOfDayString } from '@/utils/timeFormatters';
 import { useTranslation } from 'react-i18next';
 import type { HeartRateWindow } from './useHeartRateWindow';
