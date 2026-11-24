@@ -77,8 +77,8 @@ describe('optional features registry', () => {
     ]);
   });
 
-  it('names the GLP-1 check-in categories for medications', () => {
-    expect(FEATURE_CUSTOM_CATEGORIES.medications).toEqual([
+  it('names the hunger and cravings check-in categories for appetite', () => {
+    expect(FEATURE_CUSTOM_CATEGORIES.appetite).toEqual([
       'GLP Hunger',
       'GLP Food Noise',
       'GLP Fullness',

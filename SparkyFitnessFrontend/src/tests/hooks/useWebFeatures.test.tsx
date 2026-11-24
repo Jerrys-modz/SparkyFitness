@@ -189,12 +189,9 @@ describe('useWebFeatures', () => {
       await waitFor(() =>
         expect(client.getQueryState(['featureChoices'])?.status).toBe('success')
       );
-      const { isEnabled, isShown, hiddenCustomCategories } =
-        result.current.features;
+      const { isEnabled, isShown } = result.current.features;
       expect(isEnabled('medications')).toBe(expected);
       expect(isShown('medications')).toBe(expected);
-      // The GLP-1 check-in answers hide only while it is off on purpose.
-      expect(hiddenCustomCategories.has('GLP Hunger')).toBe(!expected);
     }
   );
 

@@ -127,7 +127,7 @@ describe('FeatureSettings', () => {
       screen.getAllByText(
         'Only this website. The mobile app has its own switch.'
       )
-    ).toHaveLength(2);
+    ).toHaveLength(3);
   });
 
   it('lists hunger and cravings, on by default, and turns it off on this website', () => {
