@@ -119,7 +119,7 @@ async function getOverview(userId: string, today: string, date?: string) {
     }
   }
 
-  const bpValue = await pregnancyRepository.getLatestBpCustomMeasurement(
+  const bpValue = await pregnancyRepository.getLatestBloodPressure(
     userId,
     targetDate
   );

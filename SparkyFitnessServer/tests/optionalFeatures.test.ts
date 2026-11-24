@@ -28,10 +28,11 @@ function keys(count: number, value: boolean | null = true) {
 }
 
 describe('optional features registry', () => {
-  it('lists cycle, stored in cycle_settings, and lab results, chosen per app', () => {
-    expect(FEATURE_KEYS).toEqual(['cycle', 'labResults']);
+  it('lists cycle, stored in cycle_settings, and lab results and blood pressure, chosen per app', () => {
+    expect(FEATURE_KEYS).toEqual(['cycle', 'labResults', 'bloodPressure']);
     expect(featureStorage('cycle')).toBe('cycleSettings');
     expect(featureStorage('labResults')).toBe('choices');
+    expect(featureStorage('bloodPressure')).toBe('choices');
   });
 
   it('keeps choices for the website and the mobile app', () => {
@@ -41,6 +42,7 @@ describe('optional features registry', () => {
   it('recognises only its own keys', () => {
     expect(isFeatureKey('cycle')).toBe(true);
     expect(isFeatureKey('labResults')).toBe(true);
+    expect(isFeatureKey('bloodPressure')).toBe(true);
     expect(isFeatureKey('notAFeature')).toBe(false);
     // Inherited object members are not features.
     expect(isFeatureKey('toString')).toBe(false);
