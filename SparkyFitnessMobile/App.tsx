@@ -20,7 +20,7 @@ import { FoodImageSourceProvider } from './src/components/FoodImageSourceProvide
 import { LightboxProvider } from './src/components/LightboxProvider';
 import { Uniwind, useUniwind, useCSSVariable } from 'uniwind';
 
-import { queryClient, serverConnectionQueryKey, serverConfigsQueryKey, useSyncHealthData, useServerConnection, drainQuickActionNavigation, useControlRouteHandoff, useQuickActions, useWatchCheckInBridge, useWatchFastingBridge, useWatchPlanSync, useWatchRecordingBridge, useWatchSetTargetsSync, useWatchWorkoutBridge, useWatchWorkoutEdit, useWatchRunBridge, useWatchRouteBridge, usePreferences } from './src/hooks';
+import { queryClient, serverConnectionQueryKey, serverConfigsQueryKey, useSyncHealthData, useServerConnection, drainQuickActionNavigation, useControlRouteHandoff, useQuickActions, useWatchCheckInBridge, useWatchFastingBridge, useWatchPlanSync, useWatchRecordingBridge, useWatchSetTargetsSync, useWatchWorkoutBridge, usePhoneHeartRate, useWatchWorkoutEdit, useWatchRunBridge, useWatchRouteBridge, usePreferences } from './src/hooks';
 import { useCycleSheetLabel } from './src/hooks/useAddMenuItemLabel';
 import { useAddMenuItemAvailable } from './src/hooks/useAddMenuItemAvailable';
 import { configureRunLiveActivity } from './src/services/runLiveActivity';
@@ -31,6 +31,7 @@ import {
   type StartLiveWorkoutNavigation,
 } from './src/hooks/useStartLiveWorkout';
 import WatchConnectivity from './modules/watch-connectivity';
+import { useWatchConnectivity } from './src/hooks/useWatchConnectivity';
 import { useAppStartup } from './src/hooks/useAppStartup';
 import { useOfflineUploads } from './src/hooks/useOfflineUploads';
 import { useAppBootstrap } from './src/hooks/useAppBootstrap';
@@ -371,6 +372,10 @@ function WatchWorkoutGate() {
   );
   useWatchPlanSync(watchSupported);
   useWatchWorkoutEdit(watchSupported);
+  // Headphone heart rate (AirPods Pro 3) comes through a workout session on
+  // the phone; with a watch paired, the watch owns the workout's heart rate.
+  const { isPaired: watchPaired } = useWatchConnectivity();
+  usePhoneHeartRate(!watchPaired);
   return null;
 }
 
