@@ -636,6 +636,8 @@ export const exerciseEntryResponseSchema = z.object({
   shoe_id: z.string().nullable().optional(),
   /** Calories the daily balance counts instead of `calories_burned`; null counts the estimate. */
   calories_applied: z.number().nullable().optional(),
+  /** The person left this run out of the estimated VO2 max. */
+  exclude_from_vo2_estimate: z.boolean().optional(),
   /** Shared by the two sides of a calorie link; null when not linked. */
   calorie_link_id: z.string().nullable().optional(),
   calorie_link_resolution: calorieLinkResolutionSchema.nullable().optional(),
@@ -1006,6 +1008,16 @@ export const setExerciseEntryEffortRequestSchema = z
     rating: z.number().int().min(1).max(10),
   })
   .strict();
+
+/** Leaves one run out of the estimated VO2 max, or puts it back. */
+export const setExerciseEntryVo2EstimateRequestSchema = z
+  .object({
+    excluded: z.boolean(),
+  })
+  .strict();
+export type SetExerciseEntryVo2EstimateRequest = z.infer<
+  typeof setExerciseEntryVo2EstimateRequestSchema
+>;
 export type SetCalorieLinkRequest = z.infer<typeof setCalorieLinkRequestSchema>;
 export type SetCalorieLinkResponse = z.infer<
   typeof setCalorieLinkResponseSchema

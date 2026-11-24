@@ -1409,6 +1409,11 @@
       "bmrMeasured": "BMR: {{bmr}} {{energyUnit}} (Measured)",
       "bmrAlgorithm": "BMR: {{bmr}} {{energyUnit}} (Algorithm)"
     },
+    "vo2Estimate": {
+      "include": "Use in VO₂ max estimate",
+      "hint": "Turn off for a race, a trail run or a run with a bad heart rate reading. It still counts as a run everywhere else.",
+      "saveError": "Failed to update the VO2 max estimate."
+    },
     "calorieLink": {
       "action": "Link a synced workout",
       "badge": "Linked",

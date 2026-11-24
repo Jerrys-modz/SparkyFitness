@@ -5072,6 +5072,11 @@
       "deleteWorkout": "Delete Workout"
     }
   },
+  "vo2Estimate": {
+    "include": "Use in VO2 max estimate",
+    "hint": "Turn off for a race, a trail run or a run with a bad heart rate reading. It still counts as a run everywhere else.",
+    "saveFailed": "Failed to update the VO2 max estimate"
+  },
   "calorieLink": {
     "action": "Link a synced workout",
     "linked": "Linked to a synced workout",

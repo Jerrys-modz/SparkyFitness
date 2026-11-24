@@ -46,7 +46,12 @@ import {
   activityDetailsOptions as fetchActivityDetailsOptions,
   useActivityDetailsQuery,
 } from '@/hooks/Exercises/useExercises';
-import { useUpdateExerciseEntryMutation } from '@/hooks/Exercises/useExerciseEntries';
+import {
+  useSetVo2EstimateMutation,
+  useUpdateExerciseEntryMutation,
+} from '@/hooks/Exercises/useExerciseEntries';
+import { classifyActivitySport } from '@workspace/shared';
+import { Switch } from '@/components/ui/switch';
 import {
   DndContext,
   closestCenter,
@@ -300,6 +305,15 @@ const EditExerciseEntryDialog = ({
     entry.exercise_snapshot?.category
   );
   const isCardio = modality === 'duration_distance';
+  const detail = entry.activity_details?.[0];
+  const isRun =
+    classifyActivitySport({
+      exerciseName: entry.exercise_snapshot?.name,
+      category: entry.exercise_snapshot?.category,
+      notes: entry.notes,
+      providerName: detail?.provider_name,
+      detailData: detail?.detail_data,
+    }).sport === 'running';
 
   // Laps/GPS only exist for cardio (duration_distance) entries; skip the request
   // entirely for strength-set edits instead of firing two calls that always come back
@@ -612,6 +626,11 @@ const EditExerciseEntryDialog = ({
   const { mutateAsync: updateExerciseEntry, isPending: loading } =
     useUpdateExerciseEntryMutation();
   const { mutateAsync: assignShoe } = useAssignShoeMutation();
+  const { mutate: setVo2Estimate, isPending: vo2EstimatePending } =
+    useSetVo2EstimateMutation();
+  const [excludeFromVo2, setExcludeFromVo2] = useState(
+    entry.exclude_from_vo2_estimate === true
+  );
   const queryClient = useQueryClient();
 
   const handleCopyRawData = async () => {
@@ -1021,6 +1040,34 @@ const EditExerciseEntryDialog = ({
                 id="exercise-entry-shoe"
                 value={shoeId}
                 onChange={setShoeId}
+              />
+            </div>
+          )}
+
+          {isCardio && isRun && (
+            <div className="flex items-center justify-between gap-3 rounded-md border border-border/60 p-3">
+              <div className="space-y-0.5">
+                <Label htmlFor="exercise-entry-vo2-estimate">
+                  {t('exercise.vo2Estimate.include', 'Use in VO₂ max estimate')}
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  {t(
+                    'exercise.vo2Estimate.hint',
+                    'Turn off for a race, a trail run or a run with a bad heart rate reading. It still counts as a run everywhere else.'
+                  )}
+                </p>
+              </div>
+              <Switch
+                id="exercise-entry-vo2-estimate"
+                checked={!excludeFromVo2}
+                disabled={vo2EstimatePending}
+                onCheckedChange={(include) => {
+                  setExcludeFromVo2(!include);
+                  setVo2Estimate(
+                    { entryId: entry.id, excluded: !include },
+                    { onError: () => setExcludeFromVo2(include) }
+                  );
+                }}
               />
             </div>
           )}
