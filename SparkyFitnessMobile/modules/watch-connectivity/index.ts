@@ -263,12 +263,6 @@ export interface WatchContextPayload {
   runDrinkIntervalMin?: number | null;
   runDrinkMl?: number | null;
   /**
-   * The wearer's five heart-rate zone floors in bpm, zone 1 first, for the
-   * zone bar on the watch's walk, run and ride screens. Missing keeps the
-   * watch's last value; the watch draws no bar until it has them.
-   */
-  runHeartRateZoneFloors?: number[] | null;
-  /**
    * The lowest bpm of heart rate zones 1 to 5 (five ascending numbers), from
    * the person's own resolved zones. The new workout view colours the live
    * heart rate by the zone it falls in. Missing keeps the watch's last value;

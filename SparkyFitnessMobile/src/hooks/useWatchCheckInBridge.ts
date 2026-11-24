@@ -965,9 +965,6 @@ export function useWatchCheckInBridge(enabled: boolean): void {
               runPaceMaxSecondsPerKm: recording.paceBand.maxSecondsPerKm,
             }
           : {}),
-        ...(heartRateZoneFloors
-          ? { runHeartRateZoneFloors: heartRateZoneFloors }
-          : {}),
         ...watchFuelingContext(fuelingPreference),
         runPlans,
         ...(heartRateZoneFloors ? { heartRateZoneFloors } : {}),

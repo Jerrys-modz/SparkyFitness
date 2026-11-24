@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { TFunction } from 'i18next';
 import {
   customProgramId,
   findProgram,
@@ -125,9 +124,9 @@ const TrainingProgramPicker = ({
                     ))}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {versionHint(
-                      t,
-                      versions.map((v) => v.workoutsPerWeek)
+                    {t(
+                      'trainingPrograms.picker.runsPerWeekHint',
+                      'A fourth run adds a short easy run, so the long run is a smaller share of your week.'
                     )}
                   </p>
                 </div>
