@@ -1040,12 +1040,10 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
   // The page's note field flushes its draft on unmount, after the menu state is
   // already null; keep the last id so that final commit still reaches the set.
   const [lastSetOptionsId, setLastSetOptionsId] = useState('');
-  if (setTypeMenu != null && setTypeMenu.setId !== lastSetOptionsId) {
-    setLastSetOptionsId(setTypeMenu.setId);
-  }
   const handlePressSetType = useCallback(
     (setId: string, anchor: AnchorRect) => {
       setSetTypeMenu({ setId, anchor });
+      setLastSetOptionsId(setId);
     },
     []
   );
@@ -1132,8 +1130,13 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
     enabled: focusMode,
     onFinish: handleCompleteSet,
   });
+  // The focus view logs a set from the active-set card, so its bar only shows
+  // while a rest runs or for a timed hold's Start hold.
+  const focusBarIdle = focusMode && !restRunning && hold.setId == null;
   const restBarVisible =
-    (restRunning || activeSetId != null) && hold.phase === 'idle';
+    (restRunning || activeSetId != null) &&
+    hold.phase === 'idle' &&
+    !focusBarIdle;
   const scrollContentStyle = useMemo(() => {
     const restBarPadding = usesGlassRestBar
       ? REST_BAR_GLASS_CLEARANCE + insets.bottom
@@ -1513,6 +1516,7 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
             keyboardBottomOffset={keyboardBottomOffset}
             onSwap={handleSwapExercise}
             onPressOverflow={handlePressOverflow}
+            onAddExercise={handleAddExercise}
             onSeeAlternatives={handleReplaceExercise}
             onCompleteSet={handleCompleteSet}
             onUncomplete={handleUncomplete}

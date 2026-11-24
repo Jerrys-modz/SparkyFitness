@@ -155,7 +155,7 @@ The training calendar and the Load by Sport card colour each sport group with it
 
 ### AMOLED differences
 
-AMOLED uses the Dark values for 54 of the 67 color tokens. Only these 13 change:
+AMOLED uses the Dark values for 63 of the 76 color tokens. Only these 13 change:
 
 | Token                    | AMOLED hex             | Dark hex |
 | ------------------------ | ---------------------- | -------- |

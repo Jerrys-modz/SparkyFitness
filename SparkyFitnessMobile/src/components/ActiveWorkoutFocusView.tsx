@@ -14,8 +14,8 @@ import {
   View,
   type LayoutChangeEvent,
   type StyleProp,
-  type ViewStyle,
   type ViewInstance,
+  type ViewStyle,
 } from 'react-native';
 import {
   KeyboardAwareScrollView,
@@ -141,6 +141,8 @@ interface Props extends SetEditorProps, HistoryProps {
   hold: FocusHold;
   getImageSource: GetImageSource;
   onPressOverflow: (entryId: string) => void;
+  /** Adds an exercise; the strip ends with an Add tile. */
+  onAddExercise?: () => void;
   /** The quick change for a busy machine, as on the Now card. */
   onSwap: (entryId: string) => void;
   /** Opens the rest picker for an exercise's sets. */
@@ -450,7 +452,7 @@ const FocusExercisePage = React.memo(function FocusExercisePage({
     'h-7 flex-row items-center gap-1.5 rounded-full bg-raised px-2.5';
   const nameText = (
     <Text
-      className={`${mediaMode === 'expanded' ? 'flex-1 text-2xl' : 'text-[22px]'} font-bold text-text-primary`}
+      className="text-2xl font-bold text-text-primary"
       accessibilityRole="header"
     >
       {name}
@@ -464,11 +466,9 @@ const FocusExercisePage = React.memo(function FocusExercisePage({
         defaultValue: 'Swap {{name}}',
         name,
       })}
-      className="h-11 items-center justify-center rounded-full bg-raised px-4 active:opacity-70"
+      className="h-11 w-11 items-center justify-center rounded-full bg-raised active:opacity-70"
     >
-      <Text className="text-[15px] font-semibold text-text-primary">
-        {t('activeWorkout.now.swap', { defaultValue: 'Swap' })}
-      </Text>
+      <Icon name="swap-horizontal" size={22} color={textPrimary} />
     </Pressable>
   );
   const moreButton = (
@@ -484,27 +484,46 @@ const FocusExercisePage = React.memo(function FocusExercisePage({
       <Icon name="ellipsis-horizontal" size={22} color={textPrimary} />
     </Pressable>
   );
-  // Beside the thumbnail, or alone for an exercise without pictures: the name,
-  // the plan under it, then Swap and the menu.
-  const sideTitle = (
-    <View className="min-w-0 flex-1 gap-1">
-      {nameText}
-      {planText != null && (
-        <Text
-          className="text-[15px] text-text-secondary"
-          style={{ fontVariant: ['tabular-nums'] }}
-        >
-          {planText}
+  const bestChip =
+    bestDisplay != null ? (
+      <View
+        className={`${tagClass} self-start`}
+        accessibilityLabel={t('activeWorkout.exercise.best', {
+          defaultValue: 'Best {{value}}',
+          value: bestText,
+        })}
+      >
+        <Text className="text-[13px] font-semibold text-text-secondary">
+          {t('activeWorkout.focus.bestLabel', { defaultValue: 'Best' })}
         </Text>
-      )}
-      <View className="mt-1 flex-row items-center gap-2">
+        <Text
+          className="text-[13px] font-bold"
+          style={{
+            color: bestIsPr ? prColor : accent,
+            fontVariant: ['tabular-nums'],
+          }}
+        >
+          {bestText}
+        </Text>
+      </View>
+    ) : null;
+  // Under the large picture, beside the thumbnail, or alone for an exercise
+  // without pictures: the name with the Best chip under it, left-aligned, and
+  // Swap and the menu on the right.
+  const sideTitle = (
+    <View className="min-w-0 flex-row items-start gap-2">
+      <View className="min-w-0 flex-1 gap-1.5">
+        {nameText}
+        {bestChip}
+      </View>
+      <View className="flex-row items-center gap-2">
         {swapButton}
         {moreButton}
       </View>
     </View>
   );
 
-  const hasTags = muscle !== '' || equipment !== '' || bestDisplay != null;
+  const hasTags = muscle !== '' || equipment !== '';
   const showMetaRow = hasTags || liveBpm != null;
   const restChip = !cardioForm && (
     <RestPeriodChip
@@ -517,10 +536,7 @@ const FocusExercisePage = React.memo(function FocusExercisePage({
       }
     />
   );
-  const contextText =
-    mediaMode === 'expanded'
-      ? [planText, lastTimeText].filter(Boolean).join(' · ')
-      : (lastTimeText ?? '');
+  const contextText = [planText, lastTimeText].filter(Boolean).join(' · ');
   const plateSetId = useMemo(() => {
     const sets = exercise.sets;
     return String(
@@ -536,41 +552,32 @@ const FocusExercisePage = React.memo(function FocusExercisePage({
     setEditorProps.completedSetIds,
   ]);
 
-  if (hold.phase !== 'idle' && hold.entryId === exercise.id) {
-    const setIndex = exercise.sets.findIndex(
-      (set) => String(set.id) === hold.setId
-    );
-    const subtitle = [
-      equipment,
-      t('activeWorkout.focus.hold.setOf', {
-        defaultValue: 'Set {{number}}/{{total}}',
-        number: setIndex + 1,
-        total: exercise.sets.length,
-      }),
-    ]
-      .filter((part) => part !== '')
-      .join(' · ');
-    return (
-      <FocusHoldPanel
-        hold={hold}
-        name={name}
-        subtitle={subtitle}
-        heartRate={
-          liveBpm != null ? (
-            <ExerciseHeartRateChip
-              text={String(liveBpm)}
-              color={zoneColor ?? heartRateColor}
-              valueColor={zoneColor ?? undefined}
-              accessibilityLabel={t('activeWorkout.exercise.liveHeartRateFor', {
-                defaultValue: 'Current heart rate for {{name}}',
-                name,
-              })}
-            />
-          ) : undefined
-        }
-      />
-    );
-  }
+  // A timed hold draws its card in the table where the held set sits; the
+  // header, the plates and the other sets stay around it.
+  const holdHere = hold.phase !== 'idle' && hold.entryId === exercise.id;
+  const holdCard = holdHere ? (
+    <FocusHoldPanel
+      hold={hold}
+      setLabel={t('activeWorkout.focus.hold.setNumber', {
+        defaultValue: 'Set {{number}}',
+        number:
+          exercise.sets.findIndex((set) => String(set.id) === hold.setId) + 1,
+      })}
+      heartRate={
+        liveBpm != null ? (
+          <ExerciseHeartRateChip
+            text={String(liveBpm)}
+            color={zoneColor ?? heartRateColor}
+            valueColor={zoneColor ?? undefined}
+            accessibilityLabel={t('activeWorkout.exercise.liveHeartRateFor', {
+              defaultValue: 'Current heart rate for {{name}}',
+              name,
+            })}
+          />
+        ) : undefined
+      }
+    />
+  ) : undefined;
 
   return (
     <FocusScrollTargetContext.Provider value={scrollTargets}>
@@ -594,13 +601,7 @@ const FocusExercisePage = React.memo(function FocusExercisePage({
           >
             {sideTitle}
           </ActiveWorkoutFocusMedia>
-          {mediaMode === 'expanded' && (
-            <View className="flex-row items-center gap-2">
-              {nameText}
-              {swapButton}
-              {moreButton}
-            </View>
-          )}
+          {mediaMode === 'expanded' && sideTitle}
           {mediaMode === 'none' && sideTitle}
         </View>
 
@@ -617,28 +618,6 @@ const FocusExercisePage = React.memo(function FocusExercisePage({
               <View className={tagClass}>
                 <Text className="text-[13px] font-semibold text-text-secondary">
                   {equipment}
-                </Text>
-              </View>
-            )}
-            {bestDisplay != null && (
-              <View
-                className={tagClass}
-                accessibilityLabel={t('activeWorkout.exercise.best', {
-                  defaultValue: 'Best {{value}}',
-                  value: bestText,
-                })}
-              >
-                <Text className="text-[13px] font-semibold text-text-secondary">
-                  {t('activeWorkout.focus.bestLabel', { defaultValue: 'Best' })}
-                </Text>
-                <Text
-                  className="text-[13px] font-bold"
-                  style={{
-                    color: bestIsPr ? prColor : accent,
-                    fontVariant: ['tabular-nums'],
-                  }}
-                >
-                  {bestText}
                 </Text>
               </View>
             )}
@@ -735,6 +714,8 @@ const FocusExercisePage = React.memo(function FocusExercisePage({
           weightUnit={weightUnit}
           assumedSetValues={assumedSetValues}
           previousSets={previousSets}
+          holdSetId={holdHere ? hold.setId : null}
+          holdCard={holdCard}
           {...setEditorProps}
         />
       </View>
@@ -786,6 +767,7 @@ function ActiveWorkoutFocusView({
   hold,
   getImageSource,
   onPressOverflow,
+  onAddExercise,
   onSwap,
   onSeeAlternatives,
   sessionId,
@@ -940,11 +922,11 @@ function ActiveWorkoutFocusView({
   // The visible part of the scroll view: its height less what the footer
   // covers (the content's bottom padding), so a set can be scrolled above it.
   const viewportRef = useRef<ScrollViewport>({ height: 0, bottomInset: 0 });
-  const scrollBottomInset =
+  const footerInset =
     Number(StyleSheet.flatten(scrollContentStyle)?.paddingBottom) || 0;
   useLayoutEffect(() => {
-    viewportRef.current.bottomInset = scrollBottomInset;
-  }, [scrollBottomInset]);
+    viewportRef.current.bottomInset = footerInset;
+  }, [footerInset]);
   const handleScrollLayout = useCallback((e: LayoutChangeEvent) => {
     viewportRef.current.height = e.nativeEvent.layout.height;
   }, []);
@@ -959,9 +941,11 @@ function ActiveWorkoutFocusView({
         exercises={exercises}
         completedSetIds={completedSetIds}
         selectedId={exercise.id}
+        activeId={activeExerciseId}
         supersetBorders={supersetBorders}
         getImageSource={getImageSource}
         onSelect={handleSelectChip}
+        onAdd={onAddExercise}
       />
       <KeyboardAwareScrollView
         ref={scrollRef}

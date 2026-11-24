@@ -113,7 +113,7 @@ jest.mock('../../src/components/ActiveWorkoutFocusSets', () => {
   const { Text } = require('react-native');
   return {
     __esModule: true,
-    default: function FocusSetsMock({ exercise, previousSets }: any) {
+    default: function FocusSetsMock({ exercise, previousSets, holdCard }: any) {
       // The real card / rest card attach this ref; fake a measured position.
       const { useContext } = require('react');
       const {
@@ -136,6 +136,7 @@ jest.mock('../../src/components/ActiveWorkoutFocusSets', () => {
       return (
         <>
           <Text testID="focus-sets">{`sets:${exercise.id}`}</Text>
+          {holdCard}
           <Text testID="focus-previous-sets">
             {JSON.stringify(previousSets?.map((p: any) => p?.weight ?? null))}
           </Text>
@@ -252,7 +253,7 @@ describe('ActiveWorkoutFocusView', () => {
     expect(screen.getByTestId('focus-sets').props.children).toBe('sets:b');
   });
 
-  it('names the planned hold length once in the hold page subtitle', () => {
+  it('keeps the exercise page around a timed hold and draws the hold card in its table', () => {
     render(
       viewElement('a', {
         hold: {
@@ -265,8 +266,10 @@ describe('ActiveWorkoutFocusView', () => {
         },
       })
     );
-    expect(screen.getByText(/Set 1\/2 · 13s$/)).toBeTruthy();
-    expect(screen.queryByText(/13s · 13s/)).toBeNull();
+    expect(shownName()).toBe('Bench Press');
+    expect(screen.getByTestId('focus-hold-panel')).toBeTruthy();
+    expect(screen.getByText(/^Set 1 · Holding$/)).toBeTruthy();
+    expect(screen.getByText('Plan 13s')).toBeTruthy();
   });
 
   it('opens on the first exercise when nothing is active', () => {
@@ -604,7 +607,7 @@ describe('ActiveWorkoutFocusView', () => {
     });
   });
 
-  it('puts the plan under the name when there are no pictures, and Swap and the menu beside the name when there are', () => {
+  it('keeps Swap and the menu beside the name with and without pictures', () => {
     const { rerender } = render(viewElement('a'));
     // No pictures: the preview stays collapsed and the title block stands alone.
     expect(screen.getAllByLabelText('Swap Bench Press').length).toBeGreaterThan(
@@ -645,8 +648,7 @@ describe('ActiveWorkoutFocusView', () => {
       },
     });
     render(viewElement('a'));
-    expect(screen.getByText('Plan 2 × 12')).toBeTruthy();
-    expect(screen.getByText('Last time 40×7, 35×9')).toBeTruthy();
+    expect(screen.getByText('Plan 2 × 12 · Last time 40×7, 35×9')).toBeTruthy();
   });
 
   it("passes last session's sets to the set editor, warm-ups paired with warm-ups", () => {
@@ -682,7 +684,7 @@ describe('ActiveWorkoutFocusView', () => {
       },
     });
     render(viewElement('a'));
-    expect(screen.getByText('Last time 42.5×5')).toBeTruthy();
+    expect(screen.getByText(/Last time 42.5×5/)).toBeTruthy();
 
     try {
       await act(async () => {
