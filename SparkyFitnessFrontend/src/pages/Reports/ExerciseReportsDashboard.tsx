@@ -15,6 +15,7 @@ import TrainingConsistencyCard from './TrainingConsistencyCard';
 import FitnessFatigueCard from './FitnessFatigueCard';
 import RunEstimatesCard from './RunEstimatesCard';
 import StrengthVolumeCard from './StrengthVolumeCard';
+import Vo2MaxTrendCard from './Vo2MaxTrendCard';
 import MuscleGroupRecoveryTracker from './MuscleGroupRecoveryTracker';
 import { PrProgressionChart } from './PrProgressionChart';
 import ExerciseVarietyScore from './ExerciseVarietyScore';
@@ -62,6 +63,7 @@ import {
   queryExerciseActivities,
 } from '@/hooks/Reports/useExerciseStats';
 import {
+  addDays,
   predictRaceTimes,
   runningEfforts,
   todayInZone,
@@ -69,6 +71,8 @@ import {
   type ExerciseProgressResponse,
 } from '@workspace/shared';
 import { useRunningTrends } from '@/hooks/Reports/useRunningTrends';
+import { useDailyHealthMetrics } from '@/hooks/useGenericHealth';
+import { useProfileQuery } from '@/hooks/Settings/useProfile';
 import { RunningTrendsCard } from '@/components/ExerciseCharts/RunningTrendsCard';
 import { FitnessTestsCard } from '@/components/ExerciseCharts/FitnessTestsCard';
 import { useFitnessTests } from '@/hooks/Exercises/useFitnessTests';
@@ -187,6 +191,13 @@ const ExerciseReportsDashboard = ({
   const { data: trainingConsistency } = useTrainingConsistency(activeUserId);
   const { data: fitnessFatigue } = useFitnessFatigue(activeUserId);
   const { data: runEstimates } = useRunEstimates(activeUserId);
+  const { data: profile } = useProfileQuery(activeUserId ?? undefined);
+  // The report's dates, or the last year when it has none.
+  const { data: dailyMetrics } = useDailyHealthMetrics(
+    startDate ?? addDays(heatmapToday, -364),
+    endDate ?? heatmapToday,
+    activeUserId ?? undefined
+  );
 
   const { data: strengthVolume } = useStrengthVolume(activeUserId);
 
@@ -883,6 +894,11 @@ const ExerciseReportsDashboard = ({
           <CardioPRBadgesWidget prData={prMatrix} viewMode={viewMode} />
           <FitnessFatigueCard data={fitnessFatigue} />
           <RunEstimatesCard data={runEstimates} />
+          <Vo2MaxTrendCard
+            metrics={dailyMetrics}
+            profile={profile}
+            today={heatmapToday}
+          />
           <TrainingConsistencyCard data={trainingConsistency} />
           <StrengthVolumeCard data={strengthVolume} />
         </div>

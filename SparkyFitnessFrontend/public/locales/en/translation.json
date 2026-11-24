@@ -10481,6 +10481,24 @@
     "powerBasis_one": "Average of {{count}} run in the last 4 weeks",
     "powerBasis_other": "Average of {{count}} runs in the last 4 weeks"
   },
+  "vo2MaxTrend": {
+    "title": "VO₂ max",
+    "subtitle": "Readings from your watch or health source. The rating and fitness age compare you with the general population and are not medical advice.",
+    "unit": "ml/kg/min",
+    "ratingFor": "For your age and sex",
+    "noRating": "Add your date of birth and sex (male or female) in your profile for a rating. Ratings cover ages 20 to 79.",
+    "fitnessAge": "Fitness age (estimate)",
+    "fitnessAgeYounger": "{{age}} or younger",
+    "fitnessAgeOlder": "{{age}} or older",
+    "change": "Change over the dates shown",
+    "rating": {
+      "poor": "Poor",
+      "fair": "Fair",
+      "good": "Good",
+      "excellent": "Excellent",
+      "superior": "Superior"
+    }
+  },
   "shoes": {
     "title": "Shoes",
     "subtitle": "Keep track of the mileage on each pair of running shoes.",
