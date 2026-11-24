@@ -33,31 +33,41 @@ ALTER TABLE vitals_entries
 -- source into vitals_entries. The custom measurements are left in place. A
 -- row stamped at the start of its day (an app that sent only the day) is
 -- skipped, since its time of day is not known. Re-running adds nothing.
+WITH readings AS (
+    -- custom_measurements.value is text, so read it as a number only where it is one.
+    SELECT
+        m.user_id,
+        m.entry_date,
+        m.entry_timestamp,
+        m.source,
+        lower(c.name) AS category,
+        CASE WHEN m.value ~ '^[0-9]+(\.[0-9]+)?$' THEN m.value::numeric END AS reading
+    FROM custom_measurements m
+    JOIN custom_categories c ON c.id = m.category_id
+    WHERE lower(c.name) IN ('blood_pressure_systolic', 'blood_pressure_diastolic')
+)
 INSERT INTO vitals_entries
     (user_id, entry_date, timestamp, systolic_mmhg, diastolic_mmhg, source_provider)
 SELECT
     s.user_id,
     s.entry_date,
     s.entry_timestamp,
-    s.value,
-    d.value,
+    s.reading,
+    d.reading,
     CASE
         WHEN lower(regexp_replace(btrim(s.source), '[\s-]+', '_', 'g')) = 'healthconnect'
             THEN 'health_connect'
         ELSE lower(regexp_replace(btrim(s.source), '[\s-]+', '_', 'g'))
     END
-FROM custom_measurements s
-JOIN custom_categories sc
-    ON sc.id = s.category_id AND lower(sc.name) = 'blood_pressure_systolic'
-JOIN custom_categories dc
-    ON dc.user_id = s.user_id AND lower(dc.name) = 'blood_pressure_diastolic'
-JOIN custom_measurements d
-    ON d.category_id = dc.id
-   AND d.user_id = s.user_id
+FROM readings s
+JOIN readings d
+    ON d.user_id = s.user_id
    AND d.entry_timestamp = s.entry_timestamp
    AND d.source = s.source
-WHERE s.value BETWEEN 30 AND 300
-  AND d.value BETWEEN 10 AND 200
-  AND s.value > d.value
+   AND d.category = 'blood_pressure_diastolic'
+WHERE s.category = 'blood_pressure_systolic'
+  AND s.reading BETWEEN 30 AND 300
+  AND d.reading BETWEEN 10 AND 200
+  AND s.reading > d.reading
   AND s.entry_timestamp <> (s.entry_date::timestamp AT TIME ZONE 'UTC')
 ON CONFLICT (user_id, source_provider, timestamp) DO NOTHING;
