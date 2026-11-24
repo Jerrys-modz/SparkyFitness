@@ -27,6 +27,7 @@ import fastingRepository from '../../models/fastingRepository.js';
 import fastingAutoCalculationService from '../../services/fastingAutoCalculationService.js';
 import sleepRepository from '../../models/sleepRepository.js';
 import * as oralCareService from '../../services/oralCareService.js';
+import * as bloodPressureService from '../../services/bloodPressureService.js';
 import { ERRORS, formatZodError } from './errors.js';
 import { normalizeActionArgs } from './dates.js';
 import {
@@ -111,6 +112,8 @@ const VALID_ACTIONS = [
   'get_biometrics_history',
   'get_custom_metrics_history',
   'get_oral_care_summary',
+  'log_blood_pressure',
+  'get_blood_pressure_summary',
 ];
 
 // Optional inputs and nullable DB columns are treated alike: absent.
@@ -279,7 +282,9 @@ Actions:
 - get_fasting_status() — returns the currently active fasting session if any
 - get_biometrics_history(start_date?, end_date?) — returns standard measurement history
 - get_custom_metrics_history(start_date?, end_date?, category_name?) — custom metric values by day, newest first; category_name keeps one metric (if several share that display name, the reply lists their stored names)
-- get_oral_care_summary(start_date?, end_date?) — brushing per day against the daily goal, other oral care (flossing, mouthwash, ...) and the streak; defaults to the last 7 days. A brush logged in Sparky that a synced toothbrush also recorded counts once`,
+- get_oral_care_summary(start_date?, end_date?) — brushing per day against the daily goal, other oral care (flossing, mouthwash, ...) and the streak; defaults to the last 7 days. A brush logged in Sparky that a synced toothbrush also recorded counts once
+- log_blood_pressure(systolic_mmhg, diastolic_mmhg, pulse_bpm?, arm?:"left"|"right", body_position?:"sitting"|"standing"|"lying"|"reclining", notes?, taken_at?:ISO8601, entry_date?) — one reading in mmHg, taken now unless taken_at (or entry_date, which uses noon) says otherwise
+- get_blood_pressure_summary(start_date?, end_date?) — readings with their category, the average, morning and evening averages, the highest and lowest and a home average (first day left out, needs 5 days); defaults to the last 30 days. Information only, not a diagnosis: never diagnose, and suggest talking to a clinician about concerning readings`,
       inputSchema: manageCheckinInput,
       execute: async (rawArgs) => {
         const normalized = normalizeActionArgs(
@@ -302,6 +307,12 @@ Actions:
               args.wake_time !== undefined
             ) {
               return 'log_sleep';
+            }
+            if (
+              args.systolic_mmhg !== undefined ||
+              args.diastolic_mmhg !== undefined
+            ) {
+              return 'log_blood_pressure';
             }
             if (
               args.start_time !== undefined ||
@@ -1021,6 +1032,90 @@ Actions:
                 current_streak_days: history.streak,
                 best_streak_days: history.best_streak,
                 days: history.days,
+              });
+            }
+
+            case 'log_blood_pressure': {
+              const at = args.taken_at
+                ? new Date(args.taken_at)
+                : args.entry_date
+                  ? instantForDay(args.entry_date, tz)
+                  : new Date();
+              if (args.diastolic_mmhg >= args.systolic_mmhg) {
+                return ERRORS.VALIDATION(
+                  'Systolic must be higher than diastolic.'
+                );
+              }
+              const logged = await bloodPressureService.logBloodPressure(
+                userId,
+                actorUserIdFor(userId),
+                tz,
+                at,
+                {
+                  systolic_mmhg: args.systolic_mmhg,
+                  diastolic_mmhg: args.diastolic_mmhg,
+                  pulse_bpm: args.pulse_bpm,
+                  arm: args.arm,
+                  body_position: args.body_position,
+                  note: args.notes || undefined,
+                }
+              );
+              if (logged.status === 'duplicate') {
+                return ERRORS.VALIDATION(
+                  'A blood pressure reading already exists at this exact time.'
+                );
+              }
+              const { reading } = logged;
+              return formatConfirmation(
+                `Blood pressure ${reading.systolic}/${reading.diastolic} mmHg logged for ${reading.date} at ${formatClock(reading.timestamp, tz)} (${reading.category}).`
+              );
+            }
+
+            case 'get_blood_pressure_summary': {
+              const endDate = args.end_date || todayInZone(tz);
+              const startDate = args.start_date || addDays(endDate, -29);
+              if (startDate > endDate) {
+                return ERRORS.VALIDATION(
+                  'start_date must not be after end_date.'
+                );
+              }
+              const range = await bloodPressureService.getBloodPressureRange(
+                userId,
+                actorUserIdFor(userId),
+                startDate,
+                endDate,
+                tz
+              );
+              return formatJsonResult({
+                start_date: startDate,
+                end_date: endDate,
+                disclaimer:
+                  'Information only, not a diagnosis. Categories follow the AHA/ACC adult thresholds.',
+                reading_count: range.readings.length,
+                average: range.summary.overall,
+                morning_average: range.summary.morning,
+                evening_average: range.summary.evening,
+                highest: range.summary.highest,
+                lowest: range.summary.lowest,
+                home_average: range.home
+                  ? {
+                      ...range.home.average,
+                      days_used: range.home.daysUsed,
+                      at_or_above_135_85: range.home.atOrAboveHomeThreshold,
+                    }
+                  : null,
+                readings: range.readings.map((r) => ({
+                  date: r.date,
+                  time: formatClock(r.timestamp, tz),
+                  systolic: r.systolic,
+                  diastolic: r.diastolic,
+                  pulse: r.pulse,
+                  category: r.category,
+                  arm: r.arm,
+                  body_position: r.bodyPosition,
+                  note: r.note,
+                  source: r.source,
+                })),
               });
             }
 
