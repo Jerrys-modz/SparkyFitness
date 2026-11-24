@@ -21,6 +21,7 @@ export { useMeasurements } from './useMeasurements';
 // the build over.
 export { useWatchCheckInBridge } from './useWatchCheckInBridge';
 export { useWatchWorkoutBridge } from './useWatchWorkoutBridge';
+export { usePhoneHeartRate } from './usePhoneHeartRate';
 export { useWatchSetTargetsSync } from './useWatchSetTargetsSync';
 export { useWatchRecordingBridge } from './useWatchRecordingBridge';
 export { useWatchRunBridge } from './useWatchRunBridge';
