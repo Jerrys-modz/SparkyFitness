@@ -48,7 +48,7 @@ describe('BloodPressureAddScreen', () => {
     const { getByLabelText, getByText, getByRole } = renderScreen();
     fireEvent.changeText(getByLabelText('Systolic'), '122');
     fireEvent.changeText(getByLabelText('Diastolic'), '79');
-    fireEvent.press(getByText('left'));
+    fireEvent.press(getByText('Left arm'));
     fireEvent.press(getByRole('button', { name: 'Save' }));
     await waitFor(() => expect(createAsync).toHaveBeenCalled());
     expect(createAsync).toHaveBeenCalledWith(
