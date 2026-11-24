@@ -25,11 +25,14 @@ import {
   Camera,
   HeartPulse,
   Sparkles,
+  Gauge,
 } from 'lucide-react';
 import Tooth from '@/components/icons/Tooth';
 import { useTranslation } from 'react-i18next';
 import { MindfulnessSection } from './MindfulnessSection';
 import { OralCareSection } from './OralCareSection';
+import { BloodPressureSection } from './BloodPressureSection';
+import { useWebFeatures } from '@/hooks/Settings/useWebFeatures';
 
 const CheckIn = () => {
   const { user } = useAuth();
@@ -101,7 +104,13 @@ const CheckIn = () => {
     }
   };
 
-  const activeTab = searchParams.get('tab') || 'measurements';
+  const { isEnabled } = useWebFeatures();
+  const bloodPressureOn = isEnabled('bloodPressure');
+  const requestedTab = searchParams.get('tab') || 'measurements';
+  const activeTab =
+    requestedTab === 'bloodPressure' && !bloodPressureOn
+      ? 'measurements'
+      : requestedTab;
 
   const handleTabChange = (value: string) => {
     setSearchParams((prev) => {
@@ -141,6 +150,15 @@ const CheckIn = () => {
                 label: t('checkIn.tabs.oralCare', 'Oral care'),
                 icon: Tooth,
               },
+              ...(bloodPressureOn
+                ? [
+                    {
+                      id: 'bloodPressure',
+                      label: t('checkIn.tabs.bloodPressure', 'Blood pressure'),
+                      icon: Gauge,
+                    },
+                  ]
+                : []),
               {
                 id: 'sleep',
                 label: t('checkIn.tabs.sleep', 'Sleep'),
@@ -293,6 +311,15 @@ const CheckIn = () => {
         <TabsContent value="oralCare" className="focus-visible:outline-none">
           <OralCareSection selectedDate={selectedDate} />
         </TabsContent>
+
+        {bloodPressureOn && (
+          <TabsContent
+            value="bloodPressure"
+            className="focus-visible:outline-none"
+          >
+            <BloodPressureSection selectedDate={selectedDate} />
+          </TabsContent>
+        )}
 
         <TabsContent value="sleep" className="focus-visible:outline-none">
           <SleepEntrySection key={selectedDate} selectedDate={selectedDate} />

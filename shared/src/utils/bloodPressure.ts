@@ -64,7 +64,7 @@ export function classifyBloodPressure(
   const d = BLOOD_PRESSURE_CATEGORIES.indexOf(
     diastolicCategory(reading.diastolic)
   );
-  return BLOOD_PRESSURE_CATEGORIES[Math.max(s, d)];
+  return BLOOD_PRESSURE_CATEGORIES[Math.max(s, d)] ?? 'normal';
 }
 
 const mean = (values: number[]): number =>
@@ -111,6 +111,15 @@ export function summarizeBloodPressure(
   );
   const lowest = byPressure[0];
   const highest = byPressure[byPressure.length - 1];
+  if (!lowest || !highest) {
+    return {
+      overall: null,
+      morning: null,
+      evening: null,
+      highest: null,
+      lowest: null,
+    };
+  }
   return {
     overall: averageBloodPressure(readings),
     morning: averageBloodPressure(readings.filter((r) => r.hour < 12)),

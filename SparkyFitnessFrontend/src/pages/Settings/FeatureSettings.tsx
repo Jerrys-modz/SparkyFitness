@@ -1,7 +1,7 @@
 import type { ReactElement } from 'react';
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
-import { ToggleRight, type LucideIcon } from 'lucide-react';
+import { Gauge, ToggleRight, type LucideIcon } from 'lucide-react';
 import {
   FEATURE_GROUPS,
   FEATURE_KEYS,
@@ -192,6 +192,21 @@ function LabResultsFeatureRow() {
   );
 }
 
+function BloodPressureFeatureRow() {
+  const { t } = useTranslation();
+  return (
+    <ChoiceFeatureRow
+      feature="bloodPressure"
+      icon={Gauge}
+      label={choiceFeatureLabel(t, 'bloodPressure')}
+      description={t(
+        'settings.features.bloodPressure.description',
+        'Log blood pressure readings and follow the trend in Check-In.'
+      )}
+    />
+  );
+}
+
 /** One row per feature. A new registry key needs its own row here. */
 function FeatureRow({ feature }: { feature: FeatureKey }): ReactElement {
   switch (feature) {
@@ -199,6 +214,8 @@ function FeatureRow({ feature }: { feature: FeatureKey }): ReactElement {
       return <CycleFeatureRow />;
     case 'labResults':
       return <LabResultsFeatureRow />;
+    case 'bloodPressure':
+      return <BloodPressureFeatureRow />;
   }
 }
 
