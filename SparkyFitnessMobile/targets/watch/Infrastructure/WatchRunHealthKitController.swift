@@ -124,10 +124,6 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
     /// so Health, the phone and the watch all agree.
     private var selfWrittenDistance = false
     private var liveDataSource: HKLiveWorkoutDataSource?
-    /// The wearer's body weight, from the phone's check-in data, set by the run
-    /// store before a run starts. Only used to estimate energy for an indoor
-    /// run whose system energy came back empty (`estimatedEnergySample`).
-    var bodyWeightKg: Double?
     /// Pedometer distance since the run began, paused stretches left out.
     private var pedometerDistance = 0.0
     private var lastPedometerDistance: Double?
@@ -735,19 +731,10 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
                 }
             }
         }
-        let proceed: () -> Void = {
-            if let sample {
-                self.addDistance(sample, to: builder, completion: finish)
-            } else {
-                finish(false)
-            }
-        }
-        if let energy = estimatedEnergySample(for: current, meters: meters, builder: builder) {
-            // Best effort: a workout that will not take the estimate still
-            // saves, as before.
-            builder.add([energy]) { _, _ in proceed() }
+        if let sample {
+            addDistance(sample, to: builder, completion: finish)
         } else {
-            proceed()
+            finish(false)
         }
     }
 
@@ -897,32 +884,6 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
             quantity: HKQuantity(unit: .meter(), doubleValue: meters),
             start: start,
             end: end
-        )
-    }
-
-    /// Active energy for an indoor run Apple's collection gave none for. With
-    /// the system's distance collection off (`selfWrittenDistance`), the watch
-    /// can finish a run with no energy at all, so the workout would show 0 kcal
-    /// in Health. This is the usual running and walking estimate: kilocalories
-    /// per kilogram per kilometre. Nil without a weight, a distance or a run
-    /// that wrote its own distance.
-    private func estimatedEnergySample(
-        for held: HeldWorkout,
-        meters: Double,
-        builder: HKLiveWorkoutBuilder
-    ) -> HKQuantitySample? {
-        guard held.selfWritten, meters >= 1, let weight = bodyWeightKg, weight > 0 else { return nil }
-        let collected = builder.statistics(for: Self.energyType)?
-            .sumQuantity()?.doubleValue(for: .kilocalorie()) ?? 0
-        guard collected < 1 else { return nil }
-        let perKgPerKm = runKind == .walk ? 0.75 : 1.036
-        let kcal = weight * (meters / 1000) * perKgPerKm
-        guard kcal >= 1 else { return nil }
-        return HKQuantitySample(
-            type: Self.energyType,
-            quantity: HKQuantity(unit: .kilocalorie(), doubleValue: kcal),
-            start: held.start,
-            end: held.end
         )
     }
 

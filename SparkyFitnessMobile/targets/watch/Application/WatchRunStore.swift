@@ -277,7 +277,6 @@ final class WatchRunStore: ObservableObject {
         cuedSplits = 0
         lastSplitElapsed = 0
         phase = .running
-        healthKit.bodyWeightKg = CheckInStore.shared.seedWeightKg
         healthKit.requestAuthorization { [weak self] in
             Task { @MainActor in
                 guard let self, self.phase == .running else { return }
