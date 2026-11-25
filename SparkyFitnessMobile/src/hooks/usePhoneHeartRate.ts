@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import LiveHeartRateModule from '../../modules/live-heart-rate';
 import { useActiveWorkoutStore } from '../stores/activeWorkoutStore';
 import { useLiveHeartRateStore } from '../stores/liveHeartRateStore';
@@ -26,10 +26,18 @@ export function currentExerciseEntryId(state: {
  * Live heart rate from the phone itself, for headphones with a sensor (AirPods
  * Pro 3). While a workout is live the phone runs a workout session, which is
  * what makes iOS hand it the headphones' readings, and each reading goes to the
- * same store the watch feeds. Does nothing when a watch is paired (the watch
+ * same store the watch feeds, and to `onSample` so the workout's upload buffer
+ * keeps it. Does nothing when a watch is paired (the watch
  * owns the workout's heart rate), on Android, or before iOS 26.
  */
-export function usePhoneHeartRate(enabled: boolean): void {
+export function usePhoneHeartRate(
+  enabled: boolean,
+  onSample?: (sessionId: string, sample: { t: string; bpm: number }) => void
+): void {
+  const onSampleRef = useRef(onSample);
+  useEffect(() => {
+    onSampleRef.current = onSample;
+  });
   useEffect(() => {
     const native = LiveHeartRateModule;
     if (!enabled || !native || !native.isAvailable()) return;
@@ -77,6 +85,10 @@ export function usePhoneHeartRate(enabled: boolean): void {
         exerciseEntryId,
         bpm: Math.round(reading.bpm),
         at: reading.at,
+      });
+      onSampleRef.current?.(state.sessionId, {
+        t: new Date(reading.at).toISOString(),
+        bpm: Math.round(reading.bpm),
       });
     });
     // iOS ended the session itself (another app took the sensor, say). Allow
