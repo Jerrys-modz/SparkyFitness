@@ -6,6 +6,7 @@ import {
 } from '../../src/hooks/usePhoneHeartRate';
 import { useActiveWorkoutStore } from '../../src/stores/activeWorkoutStore';
 import { useLiveHeartRateStore } from '../../src/stores/liveHeartRateStore';
+import { useWatchRunLiveStore } from '../../src/stores/watchRunLiveStore';
 
 type Listener = (payload: never) => void;
 const mockListeners = new Map<string, Listener>();
@@ -55,6 +56,7 @@ describe('usePhoneHeartRate', () => {
     mockListeners.clear();
     mockNative.isAvailable.mockReturnValue(true);
     useLiveHeartRateStore.setState({ reading: null });
+    useWatchRunLiveStore.setState({ run: null, pending: null } as never);
     useActiveWorkoutStore.setState({
       sessionId: null,
       activeSetId: null,
@@ -73,6 +75,31 @@ describe('usePhoneHeartRate', () => {
 
     await act(async () => {
       useActiveWorkoutStore.setState({ sessionId: null } as never);
+    });
+    expect(mockNative.stop).toHaveBeenCalledTimes(1);
+  });
+
+  it('never runs beside a run the watch is recording', async () => {
+    renderHook(() => usePhoneHeartRate(false));
+    useWatchRunLiveStore.setState({
+      run: { runId: 'r1', status: 'running' },
+    } as never);
+    await act(async () => {
+      useActiveWorkoutStore.setState({ sessionId: 's1' } as never);
+    });
+    expect(mockNative.start).not.toHaveBeenCalled();
+  });
+
+  it('closes a session already open when a watch run starts', async () => {
+    renderHook(() => usePhoneHeartRate(false));
+    await act(async () => {
+      useActiveWorkoutStore.setState({ sessionId: 's1' } as never);
+    });
+    expect(mockNative.start).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      useWatchRunLiveStore.setState({
+        pending: { requestId: 'q1' },
+      } as never);
     });
     expect(mockNative.stop).toHaveBeenCalledTimes(1);
   });

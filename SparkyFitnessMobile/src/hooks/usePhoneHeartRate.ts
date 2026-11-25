@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import LiveHeartRateModule from '../../modules/live-heart-rate';
 import { useActiveWorkoutStore } from '../stores/activeWorkoutStore';
 import { useLiveHeartRateStore } from '../stores/liveHeartRateStore';
+import { useWatchRunLiveStore } from '../stores/watchRunLiveStore';
 import { addLog } from '../services/LogService';
 
 /** How long a paired watch has to be heard before the phone steps in. */
@@ -26,6 +27,16 @@ export function currentExerciseEntryId(state: {
 }
 
 /**
+ * Whether the watch is recording (or about to start) a run or walk. The watch
+ * owns that workout's session and its energy; a second workout session on the
+ * phone at the same time must not run beside it.
+ */
+function watchRunBusy(): boolean {
+  const { run, pending } = useWatchRunLiveStore.getState();
+  return run != null || pending != null;
+}
+
+/**
  * Live heart rate from the phone itself, for headphones with a sensor (AirPods
  * Pro 3). While a workout is live the phone runs a workout session, which is
  * what makes iOS hand it the headphones' readings, and each reading goes to the
@@ -33,7 +44,8 @@ export function currentExerciseEntryId(state: {
  * keeps it. With no watch paired it starts with the workout. With a watch
  * paired the watch owns the workout's heart rate: the phone waits
  * `WATCH_SILENT_GRACE_MS` and starts only if the watch has sent nothing (left
- * at home, not worn), then hands back the moment the watch is heard. Does
+ * at home, not worn), then hands back the moment the watch is heard. It never
+ * runs while the watch is recording a run or walk. Does
  * nothing on Android or before iOS 26.
  */
 export function usePhoneHeartRate(
@@ -57,7 +69,7 @@ export function usePhoneHeartRate(
     let graceTimer: ReturnType<typeof setTimeout> | undefined;
 
     const begin = (): void => {
-      if (running || watchHeard) return;
+      if (running || watchHeard || watchRunBusy()) return;
       running = true;
       const mine = ++generation;
       native
@@ -148,9 +160,18 @@ export function usePhoneHeartRate(
       end();
     });
 
+    // A run or walk on the watch starts (or is requested): the phone's session
+    // closes and does not start beside it.
+    const unsubscribeRun = useWatchRunLiveStore.subscribe(() => {
+      if (!watchRunBusy()) return;
+      clearGrace();
+      end();
+    });
+
     return () => {
       unsubscribe();
       unsubscribeWatch();
+      unsubscribeRun();
       clearGrace();
       readingSub.remove();
       stoppedSub.remove();
