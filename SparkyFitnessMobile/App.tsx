@@ -396,9 +396,9 @@ function WatchWorkoutGate() {
   useWatchPlanSync(watchSupported);
   useWatchWorkoutEdit(watchSupported);
   // Headphone heart rate (AirPods Pro 3) comes through a workout session on
-  // the phone; with a watch paired, the watch owns the workout's heart rate.
+  // the phone. With a watch paired it only steps in when the watch is silent.
   const { isPaired: watchPaired } = useWatchConnectivity();
-  usePhoneHeartRate(!watchPaired, ingestPhoneHeartRate);
+  usePhoneHeartRate(watchPaired, ingestPhoneHeartRate);
   return null;
 }
 
