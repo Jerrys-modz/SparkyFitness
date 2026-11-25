@@ -8,7 +8,7 @@ AirPods Pro 3 can measure your heart rate. SparkyFitness reads it during a live 
 - AirPods Pro 3 connected to the phone.
 - A live workout started in the app.
 
-Nothing is switched on in Settings. The phone starts listening when a live workout starts.
+Turn on **Headphone heart rate** in Settings → Workout Settings. It is off by default, and the row only appears on a phone that can use it. Once it is on, the phone starts listening when a live workout starts.
 
 ## With a watch
 

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import LiveHeartRateModule from '../../modules/live-heart-rate';
 import { useActiveWorkoutStore } from '../stores/activeWorkoutStore';
+import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import { useLiveHeartRateStore } from '../stores/liveHeartRateStore';
 import { addLog } from '../services/LogService';
 import {
@@ -57,13 +58,14 @@ export function usePhoneHeartRate(
   watchPaired: boolean,
   onSample?: (sessionId: string, sample: { t: string; bpm: number }) => void
 ): void {
+  const enabled = useAppPreferencesStore((s) => s.phoneHeartRateEnabled);
   const onSampleRef = useRef(onSample);
   useEffect(() => {
     onSampleRef.current = onSample;
   });
   useEffect(() => {
     const native = LiveHeartRateModule;
-    if (!native || !native.isAvailable()) return;
+    if (!enabled || !native || !native.isAvailable()) return;
 
     let running = false;
     // Each start/stop pair gets a token so a slow start that finishes after
@@ -192,5 +194,5 @@ export function usePhoneHeartRate(
       stoppedSub.remove();
       end();
     };
-  }, [watchPaired]);
+  }, [watchPaired, enabled]);
 }
