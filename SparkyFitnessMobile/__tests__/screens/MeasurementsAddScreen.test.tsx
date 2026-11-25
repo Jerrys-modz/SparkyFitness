@@ -807,7 +807,7 @@ describe('MeasurementsAddScreen — custom measurements', () => {
     expect(screen.queryByText('Menstrual flow')).toBeNull();
   });
 
-  test('leaves out the GLP-1 check-in categories only while Medications is turned off on purpose', () => {
+  test('leaves out the GLP-1 check-in categories only while Hunger and cravings is turned off on purpose', () => {
     setCustomCategories([
       customCategory({ id: 'c1', name: 'Energy', measurement_type: '' }),
       customCategory({
@@ -826,7 +826,7 @@ describe('MeasurementsAddScreen — custom measurements', () => {
 
     // Turned off in this app.
     mockHiddenCategories = hiddenFeatureCustomCategories('mobile', {
-      choices: { mobile: { medications: false } },
+      choices: { mobile: { appetite: false } },
       cycleEnabled: null,
     });
     rerenderScreen(screen);

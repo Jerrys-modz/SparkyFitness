@@ -205,6 +205,8 @@ describe('FeatureSettingsScreen', () => {
       'feature-row-cycle',
       'feature-row-medications',
       'feature-row-labResults',
+      'feature-row-bloodPressure',
+      'feature-row-appetite',
     ]);
   });
 
@@ -248,9 +250,10 @@ describe('FeatureSettingsScreen', () => {
     expect(screen.getByTestId('feature-switch-labResults').props.disabled).toBe(
       true
     );
-    // One under each switch that reads the choices: medications, lab results.
+    // One under each switch that reads the choices: medications, lab results,
+    // blood pressure, hunger and cravings.
     const retries = screen.getAllByText('Retry');
-    expect(retries).toHaveLength(2);
+    expect(retries).toHaveLength(4);
     fireEvent.press(retries[1]);
     expect(mockReloadChoices).toHaveBeenCalledTimes(1);
   });
