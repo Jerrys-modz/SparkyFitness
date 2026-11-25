@@ -10,12 +10,16 @@ import ServingAdjustSheet, {
 import CopyMealSheet, {
   type CopyMealSheetRef,
 } from '../components/CopyMealSheet';
+import ConvertToMealSheet, {
+  type ConvertToMealSheetRef,
+} from '../components/ConvertToMealSheet';
 import SwipeableFoodRow from '../components/SwipeableFoodRow';
 import StatusView from '../components/StatusView';
 import ServerGate from '../components/ServerGate';
 import { useActiveWorkoutBarPadding } from '../components/ActiveWorkoutBar';
 import { useDailySummary, useServerConnection, useMealTypes } from '../hooks';
 import { useCopyFoodEntries } from '../hooks/useCopyFoodEntries';
+import { useCreateMealFromDiary } from '../hooks/useCreateMealFromDiary';
 import { usePreferences } from '../hooks/usePreferences';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { formatDateLabel } from '../utils/dateUtils';
@@ -47,6 +51,7 @@ const MealTypeDetailScreen: React.FC<MealTypeDetailScreenProps> = ({
   const activeWorkoutBarPadding = useActiveWorkoutBarPadding('stack');
   const servingSheetRef = useRef<ServingAdjustSheetRef>(null);
   const copySheetRef = useRef<CopyMealSheetRef>(null);
+  const convertSheetRef = useRef<ConvertToMealSheetRef>(null);
   const accentColor = useCSSVariable('--color-accent-primary') as string;
 
   const { isConnected } = useServerConnection();
@@ -115,6 +120,10 @@ const MealTypeDetailScreen: React.FC<MealTypeDetailScreenProps> = ({
   // nothing). Only offer copy for concrete meal types.
   const canCopy =
     isConnected && entries.length > 0 && mealTypeName.toLowerCase() !== 'other';
+
+  const { createMeal, isPending: isConverting } = useCreateMealFromDiary({
+    onSuccess: () => convertSheetRef.current?.dismiss(),
+  });
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -294,6 +303,23 @@ const MealTypeDetailScreen: React.FC<MealTypeDetailScreenProps> = ({
             },
           ]
         : []),
+      ...(canCopy
+        ? [
+            {
+              kind: 'icon' as const,
+              sfSymbol: 'square.and.arrow.down',
+              ionicon: 'bookmark-outline',
+              role: 'secondary' as const,
+              onPress: () =>
+                convertSheetRef.current?.present(date, mealTypeName, label),
+              accessibilityLabel: t(
+                'mealTypeDetail.accessibility.convertToMeal',
+                { defaultValue: 'Save as meal' }
+              ),
+              identifier: 'meal-type-detail-convert',
+            },
+          ]
+        : []),
     ],
   });
 
@@ -311,6 +337,11 @@ const MealTypeDetailScreen: React.FC<MealTypeDetailScreenProps> = ({
         ref={copySheetRef}
         isPending={isCopying}
         onCopy={(payload) => copyMeal(payload)}
+      />
+      <ConvertToMealSheet
+        ref={convertSheetRef}
+        isPending={isConverting}
+        onConvert={createMeal}
       />
     </View>
   );
