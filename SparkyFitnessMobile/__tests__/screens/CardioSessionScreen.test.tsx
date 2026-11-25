@@ -126,6 +126,11 @@ jest.mock('../../src/components/exerciseStats/PaceChart', () => {
   };
 });
 
+const mockEnergyRepair = jest.fn();
+jest.mock('../../src/hooks/useWorkoutEnergyRepair', () => ({
+  useWorkoutEnergyRepair: () => mockEnergyRepair(),
+}));
+
 const mockDetail = useCardioSessionDetail as jest.MockedFunction<
   typeof useCardioSessionDetail
 >;
@@ -177,6 +182,41 @@ const props = (session = SESSION) =>
 describe('CardioSessionScreen', () => {
   beforeAll(async () => {
     await initializeI18n('en');
+  });
+
+  beforeEach(() => {
+    mockEnergyRepair.mockReturnValue({
+      visible: false,
+      kcal: 0,
+      busy: false,
+      repair: jest.fn(),
+    });
+  });
+
+  it('offers to fix calories only when Apple Health has none for the workout', async () => {
+    mockDetail.mockReturnValue(detail());
+    mockEnergyRepair.mockReturnValue({
+      visible: false,
+      kcal: 0,
+      busy: false,
+      repair: jest.fn(),
+    });
+    const hidden = render(<CardioSessionScreen {...props()} />);
+    expect(hidden.queryByTestId('fix-calories')).toBeNull();
+    hidden.unmount();
+
+    const repair = jest.fn(() => Promise.resolve(true));
+    mockEnergyRepair.mockReturnValue({
+      visible: true,
+      kcal: 415.4,
+      busy: false,
+      repair,
+    });
+    const shown = render(<CardioSessionScreen {...props()} />);
+    expect(shown.getByText('Fix calories in Apple Health')).toBeTruthy();
+    expect(shown.getByText(/adds 415 kcal over its time/)).toBeTruthy();
+    fireEvent.press(shown.getByTestId('fix-calories'));
+    expect(repair).toHaveBeenCalledTimes(1);
   });
 
   it('draws pace over distance for a route with enough movement', () => {

@@ -36,6 +36,7 @@ import RunningDynamicsCard from '../components/exerciseStats/RunningDynamicsCard
 import ProgramWorkoutBadge from '../components/recording/ProgramWorkoutBadge';
 import FitnessTestBadge from '../components/recording/FitnessTestBadge';
 import ShoePickerCard from '../components/ShoePickerCard';
+import { useWorkoutEnergyRepair } from '../hooks/useWorkoutEnergyRepair';
 import type { RootStackScreenProps } from '../types/navigation';
 import { useEnergyUnit } from '../hooks/useEnergyUnit';
 
@@ -84,6 +85,26 @@ const CardioSessionScreen: React.FC<CardioSessionScreenProps> = ({
   });
 
   const detail = useCardioSessionDetail(session.id, session.entryDate);
+  const energyRepair = useWorkoutEnergyRepair(diaryEntry);
+  const fixCalories = () => {
+    void energyRepair.repair().then((saved) => {
+      Toast.show(
+        saved
+          ? {
+              type: 'success',
+              text1: t('exerciseStatistics.cardio.fixCaloriesDone', {
+                defaultValue: 'Calories added to Apple Health',
+              }),
+            }
+          : {
+              type: 'error',
+              text1: t('exerciseStatistics.cardio.fixCaloriesFailed', {
+                defaultValue: 'Could not add calories to Apple Health',
+              }),
+            }
+      );
+    });
+  };
   const temperatureUnit = useTemperatureUnit();
   const energyUnit = useEnergyUnit();
   const stats = sessionStats(
@@ -221,6 +242,28 @@ const CardioSessionScreen: React.FC<CardioSessionScreenProps> = ({
             defaultValue: 'Share as image',
           })}
         </Button>
+        {energyRepair.visible ? (
+          <View className="mb-4">
+            <Button
+              variant="secondary"
+              className="py-3 items-center"
+              testID="fix-calories"
+              loading={energyRepair.busy}
+              onPress={fixCalories}
+            >
+              {t('exerciseStatistics.cardio.fixCalories', {
+                defaultValue: 'Fix calories in Apple Health',
+              })}
+            </Button>
+            <Text className="text-text-secondary text-xs mt-1.5 px-1">
+              {t('exerciseStatistics.cardio.fixCaloriesHint', {
+                defaultValue:
+                  'Apple Health has no calories for this workout. This adds {{kcal}} kcal over its time, which counts in your daily Active Energy; the workout page may still show none.',
+                kcal: Math.round(energyRepair.kcal),
+              })}
+            </Text>
+          </View>
+        ) : null}
         <ShoePickerCard exerciseEntryId={session.id} />
 
         {/* A duration-only workout (a jump rope) has no distance, so no route. */}

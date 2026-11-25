@@ -8247,7 +8247,11 @@
       "exportGpxFailed": "Could not export the route",
       "shareImage": "Share as image",
       "effort": "Effort",
-      "caloriesWithUnit": "{{value}} {{unit}}"
+      "caloriesWithUnit": "{{value}} {{unit}}",
+      "fixCalories": "Fix calories in Apple Health",
+      "fixCaloriesHint": "Apple Health has no calories for this workout. This adds {{kcal}} kcal over its time, which counts in your daily Active Energy; the workout page may still show none.",
+      "fixCaloriesDone": "Calories added to Apple Health",
+      "fixCaloriesFailed": "Could not add calories to Apple Health"
     },
     "load": {
       "title": "Training Load",
