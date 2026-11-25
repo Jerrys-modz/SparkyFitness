@@ -1,6 +1,7 @@
 import {
+  deleteObjects,
   queryQuantitySamples,
-  saveQuantitySample,
+  saveWorkoutSample,
 } from '@kingstinct/react-native-healthkit';
 import {
   loadHealthPreference,
@@ -27,6 +28,9 @@ const entry = {
   entry_time: '06:31:00',
   record_timezone: 'UTC',
   duration_minutes: 33,
+  name: 'Running',
+  category: 'Cardio',
+  exercise_snapshot: { name: 'Running', category: 'Cardio' },
   active_calories: null,
   calories_applied: null,
   calories_burned: 415,
@@ -94,8 +98,20 @@ describe('needsEnergyRepair', () => {
     await expect(needsEnergyRepair(plan)).resolves.toBe(false);
   });
 
+  it('ignores the bare sample an earlier version wrote', async () => {
+    (queryQuantitySamples as jest.Mock).mockResolvedValue([
+      {
+        quantity: 415,
+        metadata: {
+          [EXERCISE_WRITEBACK_METADATA_KEY]: 'sparky-energy-repair-run-1',
+        },
+      },
+    ]);
+    await expect(needsEnergyRepair(plan)).resolves.toBe(true);
+  });
+
   it('is false once the entry was repaired', async () => {
-    store['workoutEnergyRepaired:run-1'] = true;
+    store['workoutEnergyRepairedAsWorkout:run-1'] = true;
     (queryQuantitySamples as jest.Mock).mockResolvedValue([]);
     await expect(needsEnergyRepair(plan)).resolves.toBe(false);
   });
@@ -104,31 +120,49 @@ describe('needsEnergyRepair', () => {
 describe('repairWorkoutEnergy', () => {
   const plan = planEnergyRepair(entry, 'UTC')!;
 
-  it('writes one marked energy sample over the run and remembers it', async () => {
+  it('saves a marked workout with the energy over the run and remembers it', async () => {
     await expect(repairWorkoutEnergy(plan)).resolves.toBe(true);
-    expect(saveQuantitySample).toHaveBeenCalledWith(
-      'HKQuantityTypeIdentifierActiveEnergyBurned',
-      'kcal',
-      415,
-      plan.start,
-      plan.end,
+    const [, quantities, start, end, , metadata] = (
+      saveWorkoutSample as jest.Mock
+    ).mock.calls[0];
+    expect(start).toEqual(plan.start);
+    expect(end).toEqual(plan.end);
+    expect(quantities).toEqual([
       expect.objectContaining({
-        [EXERCISE_WRITEBACK_METADATA_KEY]: 'sparky-energy-repair-run-1',
-      })
+        quantityType: 'HKQuantityTypeIdentifierActiveEnergyBurned',
+        unit: 'kcal',
+        quantity: 415,
+      }),
+    ]);
+    expect(metadata[EXERCISE_WRITEBACK_METADATA_KEY]).toBe(
+      'sparky-energy-repair-run-1'
     );
-    expect(store['workoutEnergyRepaired:run-1']).toBe(true);
+    expect(store['workoutEnergyRepairedAsWorkout:run-1']).toBe(true);
     expect(store.writebackExerciseFilterOwn).toBe(true);
+  });
+
+  it('removes the bare energy sample an earlier version wrote first', async () => {
+    await repairWorkoutEnergy(plan);
+    expect(deleteObjects).toHaveBeenCalledWith(
+      'HKQuantityTypeIdentifierActiveEnergyBurned',
+      {
+        metadata: {
+          withMetadataKey: EXERCISE_WRITEBACK_METADATA_KEY,
+          value: 'sparky-energy-repair-run-1',
+        },
+      }
+    );
   });
 
   it('never writes twice for one entry', async () => {
     await repairWorkoutEnergy(plan);
     await repairWorkoutEnergy(plan);
-    expect(saveQuantitySample).toHaveBeenCalledTimes(1);
+    expect(saveWorkoutSample).toHaveBeenCalledTimes(1);
   });
 
   it('reports a failed save and leaves the entry open', async () => {
-    (saveQuantitySample as jest.Mock).mockResolvedValueOnce(undefined);
+    (saveWorkoutSample as jest.Mock).mockResolvedValueOnce(undefined);
     await expect(repairWorkoutEnergy(plan)).resolves.toBe(false);
-    expect(store['workoutEnergyRepaired:run-1']).toBeUndefined();
+    expect(store['workoutEnergyRepairedAsWorkout:run-1']).toBeUndefined();
   });
 });

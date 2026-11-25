@@ -1,28 +1,38 @@
 import { Platform } from 'react-native';
 import {
+  deleteObjects,
   queryQuantitySamples,
   requestAuthorization,
-  saveQuantitySample,
+  saveWorkoutSample,
 } from '@kingstinct/react-native-healthkit';
 import {
+  resolveHealthActivityType,
   workoutClockWindow,
   type IndividualSessionResponse,
 } from '@workspace/shared';
 import { addLog } from '../LogService';
-import { entryActiveKcal } from '../shared/exerciseWritebackPlan';
+import {
+  entryActiveKcal,
+  type WorkoutWrite,
+} from '../shared/exerciseWritebackPlan';
 import { getDeviceTimezone } from '../../utils/dateUtils';
 import { EXERCISE_WRITEBACK_METADATA_KEY } from './dataTransformation';
-import { EXERCISE_FILTER_OWN_PREF } from './exerciseWriteback';
+import {
+  EXERCISE_FILTER_OWN_PREF,
+  WORKOUT_TYPE,
+  buildWorkoutSave,
+} from './exerciseWriteback';
 import { loadHealthPreference, saveHealthPreference } from './preferences';
 
 // Fix calories in Apple Health. A workout the watch saved with no active energy
 // (the watch counted none) cannot be edited, and HealthKit has no call to add
-// energy to a workout another source saved. What can be written is one active
-// energy sample over the workout's time span: it counts in Health's daily
-// Active Energy, and the Fitness app's day totals, though the workout's own page
-// may still show none. The sample carries the write-back marker, so Sparky's own
-// daily totals leave it out (the diary already counts the exercise) and a full
-// write-back removal deletes it.
+// energy to a workout another source saved. So the repair saves a workout of
+// our own over the same time, with the entry's energy attached, like exercise
+// write-back does: Apple counts the energy of a workout an app saves in the
+// Move ring and the day's Active Energy, which a bare energy sample does not
+// give. It shows as a second workout next to the watch's. Everything written
+// carries the write-back marker, so Sparky's own daily totals leave it out (the
+// diary already counts the exercise) and a full write-back removal deletes it.
 
 const ACTIVE_ENERGY = 'HKQuantityTypeIdentifierActiveEnergyBurned' as const;
 
@@ -32,13 +42,19 @@ export const MIN_RECORDED_KCAL = 1;
 export interface EnergyRepairPlan {
   /** The diary entry the energy belongs to. */
   entryId: string;
+  title: string;
+  activityType: WorkoutWrite['activityType'];
   start: Date;
   end: Date;
   kcal: number;
 }
 
+// v2: the first version wrote a bare energy sample, which the Move ring ignores.
 const repairedKey = (entryId: string): string =>
-  `workoutEnergyRepaired:${entryId}`;
+  `workoutEnergyRepairedAsWorkout:${entryId}`;
+const repairKey = (entryId: string): string =>
+  `sparky-energy-repair-${entryId}`;
+const OLD_REPAIR_KEY_PREFIX = 'sparky-energy-repair-';
 
 /**
  * What to write for a diary run or walk: the entry's active energy over the
@@ -56,6 +72,9 @@ export const planEnergyRepair = (
     | 'calories_applied'
     | 'calories_burned'
     | 'resting_calories'
+    | 'exercise_snapshot'
+    | 'name'
+    | 'category'
   >,
   timezone: string = getDeviceTimezone(),
   bmrKcalPerDay: number | null = null
@@ -72,8 +91,16 @@ export const planEnergyRepair = (
   if (!window || window.endMs <= window.startMs) return null;
   const kcal = entryActiveKcal(entry, bmrKcalPerDay);
   if (kcal == null || kcal < MIN_RECORDED_KCAL) return null;
+  const title = entry.exercise_snapshot?.name ?? entry.name ?? '';
   return {
     entryId: String(entry.id),
+    title,
+    activityType: resolveHealthActivityType({
+      health_activity_type: entry.exercise_snapshot?.health_activity_type,
+      name: title,
+      category: entry.exercise_snapshot?.category ?? entry.category ?? null,
+      modality: entry.exercise_snapshot?.modality ?? null,
+    }),
     start: new Date(window.startMs),
     end: new Date(window.endMs),
     kcal: Math.round(kcal * 10) / 10,
@@ -100,10 +127,17 @@ export const needsEnergyRepair = async (
       unit: 'kcal',
       filter: { date: { startDate: plan.start, endDate: plan.end } },
     });
-    const recorded = (Array.isArray(samples) ? samples : []).reduce(
-      (sum, sample) => sum + (Number(sample.quantity) || 0),
-      0
-    );
+    // A bare sample an earlier version wrote does not count as recorded.
+    const recorded = (Array.isArray(samples) ? samples : [])
+      .filter((sample) => {
+        const marker = (
+          sample.metadata as Record<string, unknown> | undefined
+        )?.[EXERCISE_WRITEBACK_METADATA_KEY];
+        return !(
+          typeof marker === 'string' && marker.startsWith(OLD_REPAIR_KEY_PREFIX)
+        );
+      })
+      .reduce((sum, sample) => sum + (Number(sample.quantity) || 0), 0);
     return recorded < MIN_RECORDED_KCAL;
   } catch (error) {
     addLog(
@@ -123,27 +157,47 @@ export const repairWorkoutEnergy = async (
     if (await loadHealthPreference<boolean>(repairedKey(plan.entryId))) {
       return true;
     }
-    // Asks only when sharing energy was never decided; a refusal throws below.
+    // Asks only when sharing was never decided; a refusal throws below.
     await requestAuthorization({
-      toShare: [ACTIVE_ENERGY],
-      toRead: [ACTIVE_ENERGY],
+      toShare: [ACTIVE_ENERGY, WORKOUT_TYPE],
+      toRead: [ACTIVE_ENERGY, WORKOUT_TYPE],
     });
-    // Set before saving: the sample must already be left out of Sparky's own
-    // daily totals when it lands.
+    // The first version wrote a bare energy sample; the workout replaces it.
+    await deleteObjects(ACTIVE_ENERGY, {
+      metadata: {
+        withMetadataKey: EXERCISE_WRITEBACK_METADATA_KEY,
+        value: repairKey(plan.entryId),
+      },
+    }).catch(() => 0);
+    // Set before saving: the workout's energy must already be left out of
+    // Sparky's own daily totals when it lands.
     await saveHealthPreference(EXERCISE_FILTER_OWN_PREF, true);
-    const saved = await saveQuantitySample(
-      ACTIVE_ENERGY,
-      'kcal',
-      plan.kcal,
-      plan.start,
-      plan.end,
+    const save = buildWorkoutSave(
       {
-        [EXERCISE_WRITEBACK_METADATA_KEY]: `sparky-energy-repair-${plan.entryId}`,
-        SparkyEnergyRepair: plan.entryId,
-      }
+        key: repairKey(plan.entryId),
+        kind: 'individual',
+        title: plan.title,
+        activityType: plan.activityType,
+        start: plan.start,
+        end: plan.end,
+        activeKcal: plan.kcal,
+        distanceMeters: null,
+        summary: '',
+        sets: [],
+      },
+      1,
+      getDeviceTimezone()
+    );
+    const saved = await saveWorkoutSample(
+      save.activityType as Parameters<typeof saveWorkoutSample>[0],
+      save.quantities,
+      save.start,
+      save.end,
+      undefined,
+      save.metadata
     );
     if (!saved) {
-      addLog('[EnergyRepair] Apple Health did not save the energy', 'WARNING');
+      addLog('[EnergyRepair] Apple Health did not save the workout', 'WARNING');
       return false;
     }
     await saveHealthPreference(repairedKey(plan.entryId), true);

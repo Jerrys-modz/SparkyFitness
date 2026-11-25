@@ -93,7 +93,7 @@ const CardioSessionScreen: React.FC<CardioSessionScreenProps> = ({
           ? {
               type: 'success',
               text1: t('exerciseStatistics.cardio.fixCaloriesDone', {
-                defaultValue: 'Calories added to Apple Health',
+                defaultValue: 'Workout with calories added to Apple Health',
               }),
             }
           : {
@@ -258,7 +258,7 @@ const CardioSessionScreen: React.FC<CardioSessionScreenProps> = ({
             <Text className="text-text-secondary text-xs mt-1.5 px-1">
               {t('exerciseStatistics.cardio.fixCaloriesHint', {
                 defaultValue:
-                  'Apple Health has no calories for this workout. This adds {{kcal}} kcal over its time, which counts in your daily Active Energy; the workout page may still show none.',
+                  "Apple Health has no calories for this workout. This adds a {{kcal}} kcal workout over the same time, so it counts toward your Move ring. It shows as a second workout next to the watch's.",
                 kcal: Math.round(energyRepair.kcal),
               })}
             </Text>

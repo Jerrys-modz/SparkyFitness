@@ -214,7 +214,9 @@ describe('CardioSessionScreen', () => {
     });
     const shown = render(<CardioSessionScreen {...props()} />);
     expect(shown.getByText('Fix calories in Apple Health')).toBeTruthy();
-    expect(shown.getByText(/adds 415 kcal over its time/)).toBeTruthy();
+    expect(
+      shown.getByText(/adds a 415 kcal workout over the same time/)
+    ).toBeTruthy();
     fireEvent.press(shown.getByTestId('fix-calories'));
     expect(repair).toHaveBeenCalledTimes(1);
   });
