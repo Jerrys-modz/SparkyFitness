@@ -564,7 +564,11 @@
       "addSetLabel": "Add set",
       "heartRateFor": "Average heart rate for {{name}}",
       "liveHeartRateFor": "Current heart rate for {{name}}",
-      "heartRateUnit": "bpm"
+      "heartRateUnit": "bpm",
+      "heartRateSource": {
+        "watch": "Apple Watch",
+        "headphones": "Headphones"
+      }
     },
     "nextSet": "Next Set",
     "now": {
@@ -1525,6 +1529,9 @@
     "duckMusic": "Lower music during cues",
     "duckMusicSubtitle": "Briefly turn down music from other apps while a workout beep or spoken cue plays.",
     "duckMusicAccessibility": "Lower music during cues",
+    "headphoneHeartRate": "Headphone heart rate",
+    "headphoneHeartRateSubtitle": "Show heart rate from AirPods Pro 3 during a strength workout. Opens a workout session on your iPhone; with an Apple Watch paired it only starts if the watch sends nothing.",
+    "headphoneHeartRateAccessibility": "Headphone heart rate",
     "warmupCalculator": "Warm-up calculator",
     "warmupCalculatorSubtitle": "The ramp, and the weights it rounds to, for warm-up sets you add to an exercise.",
     "treadmillStride": "Treadmill & stride",

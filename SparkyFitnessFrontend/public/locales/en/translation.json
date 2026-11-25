@@ -1947,6 +1947,10 @@
     "effort": "Effort",
     "effortOutOf": "{{rating}}/10",
     "effortValue": "Effort {{rating}}/10",
+    "heartRateSource": {
+      "watch": "Apple Watch",
+      "headphones": "Headphones"
+    },
     "sessionStatus": {
       "planned": "Planned",
       "in_progress": "In Progress",

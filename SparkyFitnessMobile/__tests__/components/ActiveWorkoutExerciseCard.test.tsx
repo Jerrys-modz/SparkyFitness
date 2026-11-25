@@ -128,8 +128,12 @@ jest.mock('../../src/hooks/useExerciseStats', () => ({
 const mockUseLiveHeartRate = jest.fn(
   (_entryId: string | null): number | null => null
 );
+const mockLiveReadingSource = jest.fn((): 'phone' | undefined => undefined);
 jest.mock('../../src/stores/liveHeartRateStore', () => ({
   useLiveHeartRate: (entryId: string | null) => mockUseLiveHeartRate(entryId),
+  useLiveHeartRateStore: (
+    select: (state: { reading: { source?: 'phone' } | null }) => unknown
+  ) => select({ reading: { source: mockLiveReadingSource() } }),
 }));
 
 jest.mock('../../src/stores/activeWorkoutStore', () => {
@@ -652,7 +656,7 @@ describe('ActiveWorkoutExerciseCard', () => {
       );
       try {
         const live = renderCard(true, { mode: 'live' });
-        expect(live.getByText('137 bpm')).toBeTruthy();
+        expect(live.getByText('137 bpm · Apple Watch')).toBeTruthy();
         expect(
           live.getByLabelText('Current heart rate for Bench Press')
         ).toBeTruthy();
@@ -664,6 +668,48 @@ describe('ActiveWorkoutExerciseCard', () => {
       } finally {
         mockUseLiveHeartRate.mockImplementation(() => null);
       }
+    });
+
+    it('labels a live reading the phone measured as coming from headphones', () => {
+      mockUseLiveHeartRate.mockImplementation((entryId) =>
+        entryId === 'ex-uuid-1' ? 118 : null
+      );
+      mockLiveReadingSource.mockReturnValue('phone');
+      try {
+        const live = renderCard(true, { mode: 'live' });
+        expect(live.getByText('118 bpm · Headphones')).toBeTruthy();
+      } finally {
+        mockUseLiveHeartRate.mockImplementation(() => null);
+        mockLiveReadingSource.mockReturnValue(undefined);
+      }
+    });
+
+    it('says where a saved heart rate came from, and says nothing when unknown', () => {
+      const watch = renderCard(true, {
+        mode: 'view',
+        exercise: makeExercise({
+          avg_heart_rate: 140,
+          max_heart_rate: 140,
+          hr_source: 'watch',
+        }),
+      });
+      expect(watch.getByText('140 bpm · Apple Watch')).toBeTruthy();
+
+      const headphones = renderCard(true, {
+        mode: 'view',
+        exercise: makeExercise({
+          avg_heart_rate: 131,
+          max_heart_rate: 131,
+          hr_source: 'headphones',
+        }),
+      });
+      expect(headphones.getByText('131 bpm · Headphones')).toBeTruthy();
+
+      const unknown = renderCard(true, {
+        mode: 'view',
+        exercise: makeExercise({ avg_heart_rate: 120, max_heart_rate: 120 }),
+      });
+      expect(unknown.getByText('120 bpm')).toBeTruthy();
     });
 
     it('shows a lone figure when max matches the average', () => {

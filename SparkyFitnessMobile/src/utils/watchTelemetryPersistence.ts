@@ -6,6 +6,7 @@ import {
   aesEncryptAsync,
 } from 'expo-crypto';
 import * as SecureStore from 'expo-secure-store';
+import type { HeartRateSource } from '@workspace/shared';
 import { addLog } from '../services/LogService';
 import { deleteWatchRunsForConfig } from '../services/watchRunQueue';
 import WatchConnectivity, {
@@ -174,6 +175,11 @@ export interface WatchTelemetrySessionState {
     | null;
   /** Exercise the zone group is posted on. The server clears the others. */
   appleZoneEntryId?: string | null;
+  /**
+   * What measured the heart rate in this session: the watch, or headphones
+   * read through the phone. The latest source to add readings wins.
+   */
+  hrSource?: HeartRateSource | null;
 }
 
 interface PersistedSession {
@@ -188,6 +194,7 @@ interface PersistedSession {
   attribution: WatchTelemetryAttribution | null;
   appleZones?: WatchTelemetrySessionState['appleZones'];
   appleZoneEntryId?: string | null;
+  hrSource?: HeartRateSource | null;
 }
 
 function toPersisted(session: WatchTelemetrySessionState): PersistedSession {
@@ -203,6 +210,7 @@ function toPersisted(session: WatchTelemetrySessionState): PersistedSession {
     attribution: session.attribution,
     appleZones: session.appleZones ?? null,
     appleZoneEntryId: session.appleZoneEntryId ?? null,
+    hrSource: session.hrSource ?? null,
   };
 }
 
@@ -278,6 +286,10 @@ function fromPersisted(
   next.appleZoneEntryId =
     typeof session.appleZoneEntryId === 'string'
       ? session.appleZoneEntryId
+      : null;
+  next.hrSource =
+    session.hrSource === 'watch' || session.hrSource === 'headphones'
+      ? session.hrSource
       : null;
   return next;
 }
@@ -379,6 +391,7 @@ export function mergeWatchTelemetry(
     if (target.entryDate == null) target.entryDate = incoming.entryDate;
     if (target.endedAt == null) target.endedAt = incoming.endedAt;
     if (target.attribution == null) target.attribution = incoming.attribution;
+    if (target.hrSource == null) target.hrSource = incoming.hrSource ?? null;
     if (incoming.unposted && (created || empty || mergedNewTelemetry)) {
       target.unposted = true;
       shouldFlush = true;

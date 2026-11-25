@@ -33,6 +33,7 @@ export const exerciseEntriesSchema = z.object({
   images: z.string().nullable(),
   distance: z.number().nullable(),
   avg_heart_rate: z.number().nullable(),
+  hr_source: z.string().nullable().optional(),
   exercise_preset_entry_id: z.string().nullable(),
   sort_order: z.number().nullable(),
   superset_group: z.number().nullable(),

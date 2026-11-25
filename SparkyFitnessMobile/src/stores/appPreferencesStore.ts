@@ -158,6 +158,7 @@ export const PREFERENCE_DEFAULTS = {
   restTimerSoundEnabled: true,
   restChimeThroughSilent: false,
   duckMusicDuringCues: false,
+  phoneHeartRateEnabled: false,
   workoutKeepAwakeEnabled: false,
   focusNextSetOnRestEnd: true,
   plannedValuesAsPlaceholders: false,
@@ -284,6 +285,13 @@ export type AppPreferencesData = {
    * (#1560). Off by default: cues normally mix over music untouched.
    */
   duckMusicDuringCues: boolean;
+  /**
+   * Read heart rate from headphones with a sensor (AirPods Pro 3) through a
+   * workout session on the iPhone during a live strength workout. Off by
+   * default: it opens a HealthKit workout session, so it is the person's
+   * choice (Settings > Workout Settings).
+   */
+  phoneHeartRateEnabled: boolean;
   workoutKeepAwakeEnabled: boolean;
   /**
    * When a rest runs out on its own, put the cursor in the next set's first
@@ -447,6 +455,7 @@ export interface AppPreferencesState extends AppPreferencesData {
   setRestTimerSoundEnabled: (value: boolean) => void;
   setRestChimeThroughSilent: (value: boolean) => void;
   setDuckMusicDuringCues: (value: boolean) => void;
+  setPhoneHeartRateEnabled: (value: boolean) => void;
   setWorkoutKeepAwakeEnabled: (value: boolean) => void;
   setFocusNextSetOnRestEnd: (value: boolean) => void;
   setPlannedValuesAsPlaceholders: (value: boolean) => void;
@@ -652,6 +661,8 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
       setRestChimeThroughSilent: (value) =>
         set({ restChimeThroughSilent: value }),
       setDuckMusicDuringCues: (value) => set({ duckMusicDuringCues: value }),
+      setPhoneHeartRateEnabled: (value) =>
+        set({ phoneHeartRateEnabled: value }),
       setWorkoutKeepAwakeEnabled: (value) =>
         set({ workoutKeepAwakeEnabled: value }),
       setFocusNextSetOnRestEnd: (value) =>
@@ -887,6 +898,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         restTimerSoundEnabled: state.restTimerSoundEnabled,
         restChimeThroughSilent: state.restChimeThroughSilent,
         duckMusicDuringCues: state.duckMusicDuringCues,
+        phoneHeartRateEnabled: state.phoneHeartRateEnabled,
         workoutKeepAwakeEnabled: state.workoutKeepAwakeEnabled,
         focusNextSetOnRestEnd: state.focusNextSetOnRestEnd,
         plannedValuesAsPlaceholders: state.plannedValuesAsPlaceholders,

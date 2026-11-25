@@ -69,7 +69,10 @@ import {
   useLiveProgression,
 } from '../hooks/useLiveExerciseCoaching';
 import type { ExerciseProgressionPatch } from '../hooks/draftExercisesSlice';
-import { useLiveHeartRate } from '../stores/liveHeartRateStore';
+import {
+  useLiveHeartRate,
+  useLiveHeartRateStore,
+} from '../stores/liveHeartRateStore';
 import { useActiveWorkoutStore } from '../stores/activeWorkoutStore';
 import AdaptiveSuggestionBanner from './AdaptiveSuggestionBanner';
 import ProgressionHintBanner from './ProgressionHintBanner';
@@ -561,6 +564,27 @@ function ActiveWorkoutExerciseCard({
   // During a live workout, the newest reading the watch sent for this
   // exercise instead; the saved average only exists once the workout is.
   const liveBpm = useLiveHeartRate(isLive ? String(exercise.id) : null);
+  // What measured it, when known: a live reading says so itself (the phone's
+  // own reading is marked, the watch's is not); a saved one carries the entry's
+  // `hr_source`, which stays empty for synced and older workouts.
+  const liveHeartRateSource = useLiveHeartRateStore((s) =>
+    s.reading?.source === 'phone' ? 'headphones' : 'watch'
+  );
+  const heartRateSource = readOnly
+    ? (exercise.hr_source ?? null)
+    : liveBpm != null
+      ? liveHeartRateSource
+      : null;
+  const heartRateSourceLabel =
+    heartRateSource === 'watch'
+      ? t('activeWorkout.exercise.heartRateSource.watch', {
+          defaultValue: 'Apple Watch',
+        })
+      : heartRateSource === 'headphones'
+        ? t('activeWorkout.exercise.heartRateSource.headphones', {
+            defaultValue: 'Headphones',
+          })
+        : null;
   const heartRateText = (() => {
     if (!readOnly) return liveBpm != null ? String(liveBpm) : null;
     const avg = exercise.avg_heart_rate;
@@ -1349,6 +1373,7 @@ function ActiveWorkoutExerciseCard({
                   {t('activeWorkout.exercise.heartRateUnit', {
                     defaultValue: 'bpm',
                   })}
+                  {heartRateSourceLabel != null && ` · ${heartRateSourceLabel}`}
                 </Text>
               </View>
             )}
