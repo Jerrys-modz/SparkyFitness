@@ -41,106 +41,169 @@ struct CardioLiveLayout<Banner: View>: View {
     /// grey when fixes stop coming; nil hides them (indoors, or a recording
     /// whose GPS is on the phone).
     var signal: ((Date) -> GpsSignal)?
+    /// The wearer's heart-rate zones and the current reading, for the zone bar
+    /// between the clock and the tiles. No zones (the phone has not said) draws
+    /// no bar.
+    var zones: WatchHeartRateZones?
+    var heartRate: Double?
     /// A plan's current step, under the clock. Gets the same moment as the clock.
     @ViewBuilder let banner: (Date) -> Banner
 
+    /// Blue while it goes, orange while paused: the set screen's pill, tile and
+    /// button colours all come from this one tint.
+    private var tint: SetTint {
+        status == nil ? .blue : SetTint(r: 1, g: 159 / 255, b: 10 / 255)
+    }
+
     var body: some View {
-        // Fits a 41 mm screen with a plan step showing, buttons included: the
-        // sizes below leave the bottom row clear of the rounded corners. The
+        // Fits a 41 mm screen with a plan step showing, buttons included. The
         // scroll is only a fallback for larger text sizes.
         ScrollView {
-            VStack(spacing: WatchStyle.s(4)) {
+            VStack(spacing: WatchStyle.m(6)) {
                 header
                 TimelineView(.periodic(from: .now, by: 1)) { context in
-                    VStack(spacing: WatchStyle.s(4)) {
+                    VStack(spacing: WatchStyle.m(4)) {
                         Text(RecordingState.clock(elapsed(context.date)))
-                            .font(.system(size: WatchStyle.s(28), weight: .semibold, design: .rounded))
+                            .font(.system(size: WatchStyle.num(34), weight: WatchStyle.numWeight))
                             .monospacedDigit()
-                            .foregroundStyle(status == nil ? Color.white : Color.secondary)
+                            .foregroundStyle(status == nil ? tint.light : Color.secondary)
                             .lineLimit(1)
                             .minimumScaleFactor(0.6)
                             .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.leading, WatchStyle.m(4))
+                        Text(title)
+                            .font(.system(size: WatchStyle.m(20), weight: .semibold))
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.leading, WatchStyle.m(4))
+                            .accessibilityAddTraits(.isHeader)
                         banner(context.date)
                     }
                 }
-                HStack(spacing: WatchStyle.s(4)) {
+                if let zones {
+                    ZoneBar(zones: zones, heartRate: heartRate)
+                }
+                HStack(spacing: WatchStyle.m(6)) {
                     ForEach(stats) { stat in
                         tile(stat)
                     }
                 }
-                HStack(spacing: WatchStyle.s(4)) {
-                    ForEach(controls) { control in
-                        SquircleButton(
-                            systemImage: control.systemImage,
-                            prominent: control.prominent,
-                            tint: control.tint,
-                            height: 36,
-                            action: control.action
-                        )
-                        .disabled(control.disabled)
-                        .accessibilityLabel(control.accessibilityLabel)
-                    }
-                }
-                .padding(.top, WatchStyle.s(2))
+                controlRow
             }
-            .padding(.horizontal, WatchStyle.s(4))
+            .padding(.horizontal, WatchStyle.side)
             // Room under the buttons for the screen's rounded corners.
-            .padding(.bottom, WatchStyle.s(6))
+            .padding(.bottom, WatchStyle.bottom)
         }
+        .environment(\.setTint, tint)
         .scrollBounceBehavior(.basedOnSize)
         .scrollIndicators(.hidden)
     }
 
-    /// The activity, small like the strength header. While paused the state
-    /// takes the title's place in orange (the glyph still says walk or run),
-    /// so the line never has to hold both and lose its end under the clock.
+    /// The set screen's pill in the clock's row: the activity's glyph in a
+    /// circle, and while paused the state beside it, so the line never has to
+    /// hold the title as well and lose its end under the clock.
     private var header: some View {
         HStack(alignment: .center, spacing: WatchStyle.s(5)) {
-            Image(systemName: systemImage)
-                .font(.system(size: WatchStyle.s(14), weight: .semibold))
-                .foregroundStyle(status == nil ? Color.green : Color.orange)
-            Text(status ?? title)
-                .font(.system(size: WatchStyle.s(14), weight: .semibold))
-                .foregroundStyle(status == nil ? Color.secondary : Color.orange)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .accessibilityLabel(status.map { String(localized: "watch.run.titleWithStatus", defaultValue: "\(title), \($0)") } ?? title)
+            HStack(spacing: WatchStyle.m(7)) {
+                ZStack {
+                    Circle().fill(tint.pillIcon)
+                    Image(systemName: systemImage)
+                        .font(.system(size: WatchStyle.m(16), weight: .semibold))
+                }
+                .frame(width: WatchStyle.m(34), height: WatchStyle.m(34))
+                if let status {
+                    Text(status)
+                        .font(.system(size: WatchStyle.m(17), weight: .semibold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                }
+            }
+            .foregroundStyle(tint.color)
+            .padding(.leading, WatchStyle.m(4))
+            .padding(.trailing, status == nil ? WatchStyle.m(4) : WatchStyle.m(13))
+            .frame(height: WatchStyle.m(42))
+            .background(tint.pill, in: Capsule())
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(status.map { String(localized: "watch.run.titleWithStatus", defaultValue: "\(title), \($0)") } ?? title)
+            Spacer(minLength: 0)
             if let signal {
                 TimelineView(.periodic(from: .now, by: 5)) { context in
                     GpsSignalBars(signal: signal(context.date))
                 }
             }
-            // The system clock sits over the top right; keep the title out
-            // from under it.
-            Color.clear.frame(width: WatchStyle.s(48), height: 1)
+            // The system clock sits over the top right; keep the pill and the
+            // signal out from under it.
+            Color.clear.frame(width: WatchStyle.s(40), height: 1)
         }
+        .padding(.top, WatchStyle.m(4))
     }
 
+    /// A reading in the set screen's value tile: the unit small above, the
+    /// value large in the tile's colour.
     private func tile(_ stat: CardioStat) -> some View {
-        VStack(spacing: 0) {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(stat.unit)
+                .font(.system(size: WatchStyle.m(12), weight: .semibold))
+                .foregroundStyle(tint.color)
+                .lineLimit(1)
             HStack(spacing: 2) {
                 if let systemImage = stat.systemImage {
                     Image(systemName: systemImage)
-                        .font(.system(size: WatchStyle.s(11), weight: .bold))
+                        .font(.system(size: WatchStyle.m(14), weight: .bold))
                 }
                 Text(stat.value)
-                    .font(.system(size: WatchStyle.s(17), weight: .bold, design: .rounded))
+                    .font(.system(size: WatchStyle.num(24), weight: WatchStyle.numWeight))
                     .monospacedDigit()
             }
             .foregroundStyle(stat.tint)
             .lineLimit(1)
             .minimumScaleFactor(0.55)
-            Text(stat.unit)
-                .font(.system(size: WatchStyle.s(10), weight: .medium))
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
         }
-        .padding(.horizontal, 2)
-        .frame(maxWidth: .infinity)
-        .frame(height: WatchStyle.s(36))
-        .background(WatchStyle.fill, in: RoundedRectangle(cornerRadius: WatchStyle.s(12), style: .continuous))
+        .padding(.horizontal, WatchStyle.m(8))
+        .padding(.vertical, WatchStyle.m(4))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(tint.tile, in: RoundedRectangle(cornerRadius: WatchStyle.m(18), style: .continuous))
         .accessibilityElement(children: .combine)
+    }
+
+    /// Round buttons at the left, as the set screen's edit-previous one, and the
+    /// main action (pause or resume) as the wide capsule at the right, worded
+    /// like Log set.
+    private var controlRow: some View {
+        HStack(spacing: WatchStyle.m(6)) {
+            ForEach(controls.filter { !$0.prominent }) { control in
+                Button(action: Haptics.tapping(control.action)) {
+                    Image(systemName: control.systemImage)
+                        .font(.system(size: WatchStyle.m(17), weight: .semibold))
+                        .foregroundStyle(control.tint ?? Color.white.opacity(0.75))
+                        .frame(width: WatchStyle.m(44), height: WatchStyle.m(44))
+                        .background(WatchStyle.surface, in: Circle())
+                        .opacity(control.disabled ? 0.35 : 1)
+                        .contentShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .disabled(control.disabled)
+                .accessibilityLabel(control.accessibilityLabel)
+            }
+            ForEach(controls.filter { $0.prominent }) { control in
+                Button(action: Haptics.tapping(control.action)) {
+                    Text(control.accessibilityLabel)
+                        .font(.system(size: WatchStyle.m(18), weight: .bold))
+                        .foregroundStyle(Color.black)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: WatchStyle.m(44))
+                        .background(tint.color, in: Capsule())
+                        .opacity(control.disabled ? 0.35 : 1)
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .disabled(control.disabled)
+            }
+        }
     }
 }
 
