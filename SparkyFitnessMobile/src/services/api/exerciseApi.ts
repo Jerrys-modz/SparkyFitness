@@ -657,15 +657,29 @@ export const clearCalorieLink = async (entryId: string): Promise<void> => {
  */
 export const setExerciseEntryDistance = async (
   id: string,
-  distanceKm: number
+  distanceKm: number,
+  beltSpeedMps?: number
 ): Promise<void> => {
-  return apiFetch<void>({
-    endpoint: `/api/exercise-entries/${encodeURIComponent(id)}/distance`,
-    serviceName: 'Exercise API',
-    operation: 'set exercise entry distance',
-    method: 'POST',
-    body: { distance_km: distanceKm },
-  });
+  const send = (body: { distance_km: number; belt_speed_mps?: number }) =>
+    apiFetch<void>({
+      endpoint: `/api/exercise-entries/${encodeURIComponent(id)}/distance`,
+      serviceName: 'Exercise API',
+      operation: 'set exercise entry distance',
+      method: 'POST',
+      body,
+    });
+  if (beltSpeedMps == null) return send({ distance_km: distanceKm });
+  // The run block's belt speed: it keeps its belt distance and the walking
+  // takes the rest. A server from before it rejects the unknown field, so the
+  // distance is sent again without it and every row is scaled alike there.
+  try {
+    return await send({
+      distance_km: distanceKm,
+      belt_speed_mps: beltSpeedMps,
+    });
+  } catch {
+    return send({ distance_km: distanceKm });
+  }
 };
 
 /**

@@ -113,4 +113,79 @@ describe('setExerciseEntryDistance', () => {
     ).rejects.toMatchObject({ status: 404 });
     expect(getClient).not.toHaveBeenCalled();
   });
+
+  describe('with a belt speed for the run block', () => {
+    const MPH = 0.44704;
+    const belt = 5 * MPH;
+    // 5 min of slow walking, 20 of running, 5 of walking, a row every 12 s.
+    const points: [number, number][] = [];
+    (() => {
+      let t = 0;
+      let m = 0;
+      for (const [seconds, speed] of [
+        [300, 0.97],
+        [1200, belt * 1.067],
+        [300, 0.97],
+      ] as const) {
+        for (let e = 0; e < seconds; e += 12) {
+          t += 12;
+          m += 12 * speed;
+          points.push([t, Math.round(m * 100) / 100]);
+        }
+      }
+    })();
+    const seriesAnswer = async (sql: string) =>
+      sql.includes('SELECT points FROM exercise_entry_distance_series')
+        ? { rows: [{ points }] }
+        : answer(sql);
+
+    it('writes a series where the run block keeps its belt distance', async () => {
+      client.query.mockImplementation(seriesAnswer);
+      const total = belt * 1200 + 2.7 * MPH * 600;
+      await setExerciseEntryDistance(userId, 'actor-1', entryId, {
+        distance_km: total / 1000,
+        belt_speed_mps: belt,
+      });
+      const write = client.query.mock.calls.find((call) =>
+        String(call[0]).includes('SET points = $2::jsonb')
+      );
+      expect(write).toBeDefined();
+      const written = JSON.parse(String(write![1][1])) as [number, number][];
+      expect(written).toHaveLength(points.length);
+      expect(written.at(-1)![1]).toBeCloseTo(total, -1);
+      // The uniform scaling statement is not used.
+      expect(
+        sqlOf().some((s) => s.includes('jsonb_array_elements(points)'))
+      ).toBe(false);
+    });
+
+    it('falls back to scaling every row when the series cannot be split', async () => {
+      client.query.mockImplementation(async (sql: string) =>
+        sql.includes('SELECT points FROM exercise_entry_distance_series')
+          ? { rows: [{ points: points.slice(0, 3) }] }
+          : answer(sql)
+      );
+      await setExerciseEntryDistance(userId, 'actor-1', entryId, {
+        distance_km: 5,
+        belt_speed_mps: belt,
+      });
+      expect(
+        sqlOf().some((s) => s.includes('jsonb_array_elements(points)'))
+      ).toBe(true);
+      expect(sqlOf().some((s) => s.includes('SET points = $2::jsonb'))).toBe(
+        false
+      );
+    });
+
+    it('does not read the series when no belt speed is given', async () => {
+      await setExerciseEntryDistance(userId, 'actor-1', entryId, {
+        distance_km: 5,
+      });
+      expect(
+        sqlOf().some((s) =>
+          s.includes('SELECT points FROM exercise_entry_distance_series')
+        )
+      ).toBe(false);
+    });
+  });
 });

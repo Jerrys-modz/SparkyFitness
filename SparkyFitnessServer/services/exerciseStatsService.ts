@@ -33,7 +33,6 @@ import {
 import {
   aboveSpeedCeiling,
   bestSplitSeconds,
-  samplesFromDistanceSeries,
   samplesFromGpsPoints,
 } from '../utils/bestSplit.js';
 import type { SplitSample } from '../utils/bestSplit.js';
@@ -130,7 +129,6 @@ interface PrCandidateRow {
   detail_data: unknown;
   exercise_source_id: string | null;
   has_gps_track?: boolean;
-  has_distance_series?: boolean;
   /** Identifies the stored track revision, for the split cache. */
   track_version?: string | null;
 }
@@ -784,17 +782,9 @@ async function getPersonalRecordMatrix(
                WHERE g.exercise_entry_id = ee.id
                  AND pg_column_size(g.points) > ${EMPTY_JSONB_ARRAY_MAX_BYTES}
              ) AS has_gps_track,
-             EXISTS (
-               SELECT 1 FROM public.exercise_entry_distance_series ds
-               WHERE ds.exercise_entry_id = ee.id
-                 AND pg_column_size(ds.points) > ${EMPTY_JSONB_ARRAY_MAX_BYTES}
-             ) AS has_distance_series,
              COALESCE((SELECT g.updated_at::text || ':' || pg_column_size(g.points)
                 FROM public.exercise_entry_gps_points g
-               WHERE g.exercise_entry_id = ee.id), '') || '/' ||
-             COALESCE((SELECT ds.updated_at::text || ':' || pg_column_size(ds.points)
-                FROM public.exercise_entry_distance_series ds
-               WHERE ds.exercise_entry_id = ee.id), '') AS track_version
+               WHERE g.exercise_entry_id = ee.id), '') AS track_version
       FROM public.exercise_entries ee
       LEFT JOIN public.exercises x ON x.id = ee.exercise_id
       LEFT JOIN LATERAL (
@@ -854,9 +844,7 @@ async function getPersonalRecordMatrix(
     const misses: typeof classified = [];
     for (const item of classified) {
       const { row, sportGroup } = item;
-      if (row.has_gps_track !== true && row.has_distance_series !== true) {
-        continue;
-      }
+      if (row.has_gps_track !== true) continue;
       const id = String(row.id);
       const cacheKey = `${id}:${sportGroup}:${row.track_version ?? ''}`;
       cacheKeys.set(id, cacheKey);
@@ -875,7 +863,6 @@ async function getPersonalRecordMatrix(
         ])
       );
       const gpsById = new Map<string, SplitSample[]>();
-      const seriesById = new Map<string, SplitSample[]>();
       if (batch.some(({ row }) => row.has_gps_track === true)) {
         const gpsResult = await client.query(
           `SELECT exercise_entry_id, points
@@ -892,39 +879,18 @@ async function getPersonalRecordMatrix(
           if (samples) gpsById.set(id, samples);
         }
       }
-      // An indoor run has a distance series instead of a track. It is read for
-      // every activity that has one, not only those without a usable track: a
-      // track that stops short of a standard can still be covered by the series.
-      if (batch.some(({ row }) => row.has_distance_series === true)) {
-        const seriesResult = await client.query(
-          `SELECT exercise_entry_id, points
-           FROM public.exercise_entry_distance_series
-           WHERE exercise_entry_id = ANY($1::uuid[])`,
-          [ids]
-        );
-        for (const row of seriesResult.rows as SqlRow[]) {
-          const samples = samplesFromDistanceSeries(
-            row.points as [number, number][]
-          );
-          if (samples) seriesById.set(String(row.exercise_entry_id), samples);
-        }
-      }
       for (const id of ids) {
         const gps = gpsById.get(id);
-        const series = seriesById.get(id);
-        if (!gps && !series) continue;
+        if (!gps) continue;
         const ceiling = speedCeilingById.get(id);
-        // The track decides a standard when it yields a split; the series only
-        // answers the standards the track does not cover, or covers faster
-        // than the sport allows.
+        // Only a GPS track is measured: an indoor run's distance series is a
+        // pedometer estimate stamped on arrival, so it would give a split faster
+        // than the run was.
         const splits: Record<string, number | null> = {};
         for (const [stdKey, standardKm] of Object.entries(
           STANDARD_DISTANCE_KM
         )) {
-          const meters = standardKm * 1000;
-          splits[stdKey] =
-            (gps ? bestSplitSeconds(gps, meters, ceiling) : null) ??
-            (series ? bestSplitSeconds(series, meters, ceiling) : null);
+          splits[stdKey] = bestSplitSeconds(gps, standardKm * 1000, ceiling);
         }
         splitsById.set(id, splits);
         const cacheKey = cacheKeys.get(id);

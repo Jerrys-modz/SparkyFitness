@@ -408,3 +408,4 @@ export {
 export * from './schemas/api/Chat.api.zod.ts';
 
 export * from './utils/chatTools.ts';
+export * from './utils/indoorRunWalkSplit.ts';

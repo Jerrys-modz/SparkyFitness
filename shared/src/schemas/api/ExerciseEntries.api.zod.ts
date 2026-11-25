@@ -921,6 +921,11 @@ export type ExerciseEntrySetRequest = z.infer<
 export const setExerciseEntryDistanceRequestSchema = z
   .object({
     distance_km: z.number().positive().max(1000),
+    // The belt speed of the run block, when the run mixed walking and running.
+    // With it the run block keeps its belt distance and the rest of
+    // `distance_km` goes to the walking, instead of every row being scaled
+    // alike. Optional: older apps omit it.
+    belt_speed_mps: z.number().min(1.7).max(10).optional(),
   })
   .strict();
 export type SetExerciseEntryDistanceRequest = z.infer<

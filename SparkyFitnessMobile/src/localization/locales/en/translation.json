@@ -9101,7 +9101,11 @@
     "distanceFailed": "Could not save the distance.",
     "heartRate": "Heart rate",
     "treadmillCorrected": "Machine showed {{shown}} {{unit}}; saved as {{saved}} {{unit}} with your treadmill correction.",
-    "treadmillCorrectionOn": "Your {{percent}} treadmill correction is taken off the figure you enter."
+    "treadmillCorrectionOn": "Your {{percent}} treadmill correction is taken off the figure you enter.",
+    "beltPaceHint": "If part of the run was walking, enter the belt pace of the run. That part keeps its pace and the walking takes the rest of the distance.",
+    "beltPaceInvalid": "Enter the belt pace as minutes and seconds, like 12:00.",
+    "beltPaceA11y": "Belt pace of the run in minutes per {{unit}}",
+    "beltPaceUnit": "/ {{unit}}"
   },
   "runPrograms": {
     "startWhenTitle": "Start {{name}}",

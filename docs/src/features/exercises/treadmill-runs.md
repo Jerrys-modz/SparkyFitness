@@ -6,13 +6,13 @@ A treadmill has no GPS route, so the distance of an indoor walk or run comes fro
 
 ## Where the distance comes from
 
-| How you recorded it | The distance is | Corrected for the treadmill? |
-| --- | --- | --- |
-| Indoor on the phone, left as filled in | Steps counted by the phone times your stride | No. It is the phone's own measurement. |
-| Indoor on the phone, typed from the display | What you typed | Yes, if the correction is on |
-| Indoor on the watch, Keep watch distance | The watch's motion estimate | No |
-| Indoor on the watch, typed on the wrist | What you typed | Yes, if the correction is on |
-| Summary screen, **Treadmill distance** card | What you typed | Yes, if the correction is on |
+| How you recorded it                         | The distance is                              | Corrected for the treadmill?           |
+| ------------------------------------------- | -------------------------------------------- | -------------------------------------- |
+| Indoor on the phone, left as filled in      | Steps counted by the phone times your stride | No. It is the phone's own measurement. |
+| Indoor on the phone, typed from the display | What you typed                               | Yes, if the correction is on           |
+| Indoor on the watch, Keep watch distance    | The watch's motion estimate                  | No                                     |
+| Indoor on the watch, typed on the wrist     | What you typed                               | Yes, if the correction is on           |
+| Summary screen, **Treadmill distance** card | What you typed                               | Yes, if the correction is on           |
 
 A correction is applied once, when a figure is read from the display. It is never applied on top of a distance that already came from steps or from the watch.
 
@@ -45,6 +45,12 @@ The correction divides the display figure by one plus the percent, so a display 
 When you finish a watch treadmill run and keep the watch's distance instead of typing the treadmill's, the watch's own estimate is used. It guesses from your arm swing, and the guess can be off by a steady amount. Each time you do enter what the treadmill showed after a watch run, the app works out how far off the watch was (against the corrected distance, if your treadmill is set as off), and the watch applies that to its next treadmill run. This is automatic, and walks and runs are learned separately.
 
 **Watch's own estimate** shows how much the watch's distance is raised or lowered (for example "Raised by 9.6%") and how many runs it was learned from. **Reset** forgets it, and the watch goes back to its own estimate. Runs already saved are not changed.
+
+### A run that mixed walking and running
+
+A watch measures a treadmill run from its steps, and that estimate is not off by the same share at every speed: slow walking tends to read short and a steady run tends to read long. Typing the machine's total fixes the total, but if every row is scaled alike the run block can still come out too fast and the walking too slow.
+
+On the summary screen, the **Treadmill distance** card has a second field for a run with a warmup or cooldown: enter the belt pace of the run, like `12:00`. The part of the run at that pace keeps it, and the walking takes the rest of the distance you typed. The pace chart follows. The watch's run factor then learns from the run block alone, so the walking's error does not teach it. Leave the field empty and every row is scaled alike, as before. If the run cannot be split sensibly (no walking in it, a total smaller than the run block, or a belt that is a walking pace), the same fallback applies.
 
 ## Cadence and stride on a watch run
 
