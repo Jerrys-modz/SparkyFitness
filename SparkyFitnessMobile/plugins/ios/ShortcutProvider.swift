@@ -35,5 +35,35 @@ struct SparkyFitnessShortcuts: AppShortcutsProvider {
             shortTitle: "Log weight",
             systemImageName: "scalemass"
         )
+        AppShortcut(
+            intent: LogMealIntent(),
+            phrases: ["Log \(\.$meal) in \(.applicationName)"],
+            shortTitle: "Log meal",
+            systemImageName: "fork.knife"
+        )
+        AppShortcut(
+            intent: OpenWorkoutPresetIntent(),
+            phrases: ["Open \(\.$workout) in \(.applicationName)"],
+            shortTitle: "Open workout",
+            systemImageName: "figure.strengthtraining.traditional"
+        )
+        AppShortcut(
+            intent: CaloriesLeftIntent(),
+            phrases: [
+                "How many calories do I have left in \(.applicationName)",
+                "Calories left in \(.applicationName)",
+            ],
+            shortTitle: "Calories left",
+            systemImageName: "flame"
+        )
+        AppShortcut(
+            intent: MacrosTodayIntent(),
+            phrases: [
+                "How much protein have I had in \(.applicationName)",
+                "My macros today in \(.applicationName)",
+            ],
+            shortTitle: "Macros today",
+            systemImageName: "chart.pie"
+        )
     }
 }
