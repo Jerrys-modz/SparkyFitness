@@ -56,6 +56,7 @@ import {
   type WatchTelemetrySessionState,
 } from '../utils/watchTelemetryPersistence';
 import { getActiveServerConfigId } from '../services/storage';
+import { currentExerciseEntryId } from './usePhoneHeartRate';
 
 type SessionTelemetry = WatchTelemetrySessionState;
 
@@ -78,6 +79,9 @@ const RESTORE_RETRY_DELAYS_MS = [2_000, 10_000, 30_000, 60_000, 300_000];
 // How long restore waits for the workout store to load before going on
 // without it. zustand never reports a load that failed as finished.
 const HYDRATION_WAIT_MS = 10_000;
+// Least time between saves of the buffer while the phone's own heart-rate
+// readings arrive.
+const PHONE_HEART_RATE_PERSIST_MS = 30_000;
 
 function createSessionTelemetry(entryDate: string | null): SessionTelemetry {
   return {
@@ -309,7 +313,17 @@ export function useWatchWorkoutBridge(
     celebration: WorkoutCelebration | null,
     sessionId: string
   ) => void
-): void {
+): {
+  /**
+   * Adds one reading measured by the phone itself (headphones with a sensor)
+   * to the live workout's upload buffer, so it is posted with the workout the
+   * way the watch's readings are.
+   */
+  ingestPhoneHeartRate: (
+    sessionId: string,
+    sample: { t: string; bpm: number }
+  ) => void;
+} {
   const sessionsRef = useRef<Map<string, SessionTelemetry>>(new Map());
   // Sessions the wearer discarded on the watch. A restore that was still
   // loading, or a flush already walking its snapshot, must not bring their
@@ -1163,6 +1177,43 @@ export function useWatchWorkoutBridge(
     []
   );
 
+  // The phone's own readings share the watch's buffer, upload and restore
+  // path: they are stored per exercise entry on the live session, posted when
+  // the workout ends (or the server comes back) and kept on disk meanwhile.
+  // The buffer is written at most every `PHONE_HEART_RATE_PERSIST_MS`, since a
+  // reading arrives every few seconds and each write rewrites it whole.
+  const lastPhonePersistRef = useRef(0);
+  const ingestPhoneHeartRate = useCallback(
+    (sessionId: string, sample: { t: string; bpm: number }): void => {
+      // Before restore has merged the saved buffer, or with no account to
+      // file it under, a write would replace what is already stored.
+      if (!restoredRef.current || !ownerRef.current) return;
+      const live = useActiveWorkoutStore.getState();
+      if (live.sessionId !== sessionId) return;
+      if (discardedSessionsRef.current.has(sessionId)) return;
+      const exerciseEntryId = currentExerciseEntryId(live);
+      if (exerciseEntryId == null) return;
+      let session = sessionsRef.current.get(sessionId);
+      if (session == null) {
+        session = createSessionTelemetry(entryDateOf(live.session));
+        sessionsRef.current.set(sessionId, session);
+      }
+      const existing = session.samples.get(exerciseEntryId) ?? [];
+      if (existing.some((candidate) => candidate.t === sample.t)) return;
+      session.samples.set(exerciseEntryId, existing.concat(sample));
+      session.unposted = true;
+      syncPendingRef.current();
+      const now = Date.now();
+      if (now - lastPhonePersistRef.current >= PHONE_HEART_RATE_PERSIST_MS) {
+        lastPhonePersistRef.current = now;
+        void writeWatchTelemetry(sessionsRef.current, ownerRef.current).catch(
+          () => undefined
+        );
+      }
+    },
+    []
+  );
+
   const handlersRef = useRef({
     handleSetCompleted,
     handleSetUncompleted,
@@ -1609,4 +1660,6 @@ export function useWatchWorkoutBridge(
       }
     });
   }, [enabled, pruneSessions]);
+
+  return { ingestPhoneHeartRate };
 }

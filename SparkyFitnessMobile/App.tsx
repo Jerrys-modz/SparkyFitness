@@ -370,7 +370,7 @@ function WatchWorkoutGate() {
     []
   );
   const { startLiveWorkout } = useStartLiveWorkout(watchStartNavigation);
-  useWatchWorkoutBridge(
+  const { ingestPhoneHeartRate } = useWatchWorkoutBridge(
     watchSupported,
     isServerConnected,
     setTelemetryPending,
@@ -398,7 +398,7 @@ function WatchWorkoutGate() {
   // Headphone heart rate (AirPods Pro 3) comes through a workout session on
   // the phone; with a watch paired, the watch owns the workout's heart rate.
   const { isPaired: watchPaired } = useWatchConnectivity();
-  usePhoneHeartRate(!watchPaired);
+  usePhoneHeartRate(!watchPaired, ingestPhoneHeartRate);
   return null;
 }
 

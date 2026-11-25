@@ -1111,6 +1111,51 @@ describe('useWatchWorkoutBridge', () => {
     expect(getStore().sessionId).toBeNull();
   });
 
+  it("buffers the phone's own heart-rate readings and attaches them when the workout ends", async () => {
+    const { result } = renderHook(() => useWatchWorkoutBridge(true));
+    act(() => {
+      getStore().startWorkout(makeSession());
+    });
+    // Let the saved buffer restore: readings are only kept once it has.
+    for (let i = 0; i < 5; i += 1) {
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+    }
+
+    act(() => {
+      result.current.ingestPhoneHeartRate('session-1', {
+        t: '2026-09-17T10:00:00.000Z',
+        bpm: 120,
+      });
+      result.current.ingestPhoneHeartRate('session-1', {
+        t: '2026-09-17T10:00:05.000Z',
+        bpm: 124,
+      });
+      // The same reading twice, and one for another session, are not kept.
+      result.current.ingestPhoneHeartRate('session-1', {
+        t: '2026-09-17T10:00:05.000Z',
+        bpm: 124,
+      });
+      result.current.ingestPhoneHeartRate('other-session', {
+        t: '2026-09-17T10:00:10.000Z',
+        bpm: 200,
+      });
+    });
+
+    await act(async () => {
+      fire('onWorkoutStop', { sessionId: 'session-1' });
+      await Promise.resolve();
+    });
+
+    expect(mockAttachTelemetry).toHaveBeenCalledWith('ex-uuid-1', {
+      hrSamples: [
+        { t: '2026-09-17T10:00:00.000Z', bpm: 120 },
+        { t: '2026-09-17T10:00:05.000Z', bpm: 124 },
+      ],
+    });
+  });
+
   it("puts the newest sample of a live batch on screen, not an ended workout's", async () => {
     renderHook(() => useWatchWorkoutBridge(true));
     act(() => {

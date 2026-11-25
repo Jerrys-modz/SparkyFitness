@@ -99,6 +99,28 @@ describe('usePhoneHeartRate', () => {
     });
   });
 
+  it('hands each reading to the upload buffer with an ISO time', async () => {
+    const onSample = jest.fn();
+    renderHook(() => usePhoneHeartRate(true, onSample));
+    await act(async () => {
+      useActiveWorkoutStore.setState({
+        sessionId: 's1',
+        activeSetId: '1',
+        session,
+      } as never);
+    });
+    act(() => {
+      (mockListeners.get('onHeartRate') as Listener)({
+        bpm: 120.2,
+        at: Date.UTC(2026, 10, 25, 10, 0, 0),
+      } as never);
+    });
+    expect(onSample).toHaveBeenCalledWith('s1', {
+      t: '2026-11-25T10:00:00.000Z',
+      bpm: 120,
+    });
+  });
+
   it('does nothing when disabled (a watch is paired)', async () => {
     renderHook(() => usePhoneHeartRate(false));
     await act(async () => {
