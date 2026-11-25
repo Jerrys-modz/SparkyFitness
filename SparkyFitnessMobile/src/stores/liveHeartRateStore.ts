@@ -19,6 +19,8 @@ export interface LiveHeartRateReading {
   bpm: number;
   /** When the watch measured it, epoch ms. */
   at: number;
+  /** Set when the phone itself measured it (headphones), not the watch. */
+  source?: 'phone';
 }
 
 interface LiveHeartRateState {
