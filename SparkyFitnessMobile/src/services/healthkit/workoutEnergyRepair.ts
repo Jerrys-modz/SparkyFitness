@@ -6,7 +6,6 @@ import {
   saveWorkoutSample,
 } from '@kingstinct/react-native-healthkit';
 import {
-  resolveHealthActivityType,
   workoutClockWindow,
   type IndividualSessionResponse,
 } from '@workspace/shared';
@@ -74,7 +73,6 @@ export const planEnergyRepair = (
     | 'resting_calories'
     | 'exercise_snapshot'
     | 'name'
-    | 'category'
   >,
   timezone: string = getDeviceTimezone(),
   bmrKcalPerDay: number | null = null
@@ -95,12 +93,9 @@ export const planEnergyRepair = (
   return {
     entryId: String(entry.id),
     title,
-    activityType: resolveHealthActivityType({
-      health_activity_type: entry.exercise_snapshot?.health_activity_type,
-      name: title,
-      category: entry.exercise_snapshot?.category ?? entry.category ?? null,
-      modality: entry.exercise_snapshot?.modality ?? null,
-    }),
+    // Whatever it was, the repair workout is a plain one: it only carries the
+    // energy, so it does not claim a sport the watch never measured.
+    activityType: 'other',
     start: new Date(window.startMs),
     end: new Date(window.endMs),
     kcal: Math.round(kcal * 10) / 10,

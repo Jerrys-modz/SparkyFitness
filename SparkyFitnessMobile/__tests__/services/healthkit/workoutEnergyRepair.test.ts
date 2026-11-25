@@ -61,6 +61,10 @@ describe('planEnergyRepair', () => {
     expect(plan?.kcal).toBe(415);
   });
 
+  it('is always a plain Other workout, whatever the entry was', () => {
+    expect(planEnergyRepair(entry, 'UTC')?.activityType).toBe('other');
+  });
+
   it('takes the resting share off a Sparky estimate', () => {
     const plan = planEnergyRepair(
       { ...(entry as object), resting_calories: 40 } as never,
