@@ -15,6 +15,7 @@ import GuidedWorkoutSettingsSection from '../components/GuidedWorkoutSettingsSec
 import { useActiveWorkoutBarPadding } from '../components/ActiveWorkoutBar';
 import SegmentedControl from '../components/SegmentedControl';
 import Switch from '../components/ui/Switch';
+import LiveHeartRateModule from '../../modules/live-heart-rate';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import { useScreenHeader } from '../hooks/useScreenHeader';
@@ -71,6 +72,12 @@ const WorkoutSettingsScreen: React.FC<WorkoutSettingsScreenProps> = ({
   );
   const setDuckMusicDuringCues = useAppPreferencesStore(
     (s) => s.setDuckMusicDuringCues
+  );
+  const phoneHeartRateEnabled = useAppPreferencesStore(
+    (s) => s.phoneHeartRateEnabled
+  );
+  const setPhoneHeartRateEnabled = useAppPreferencesStore(
+    (s) => s.setPhoneHeartRateEnabled
   );
   const setRestTimerSoundEnabled = useAppPreferencesStore(
     (s) => s.setRestTimerSoundEnabled
@@ -221,6 +228,29 @@ const WorkoutSettingsScreen: React.FC<WorkoutSettingsScreenProps> = ({
             />
           }
         />
+
+        {LiveHeartRateModule?.isAvailable() ? (
+          <SettingsRow
+            title={t('workoutSettings.headphoneHeartRate', {
+              defaultValue: 'Headphone heart rate',
+            })}
+            subtitle={t('workoutSettings.headphoneHeartRateSubtitle', {
+              defaultValue:
+                'Show heart rate from AirPods Pro 3 during a strength workout. Opens a workout session on your iPhone; with an Apple Watch paired it only starts if the watch sends nothing.',
+            })}
+            subtitleNumberOfLines={0}
+            rightAccessory={
+              <Switch
+                value={phoneHeartRateEnabled}
+                onValueChange={setPhoneHeartRateEnabled}
+                accessibilityLabel={t(
+                  'workoutSettings.headphoneHeartRateAccessibility',
+                  { defaultValue: 'Headphone heart rate' }
+                )}
+              />
+            }
+          />
+        ) : null}
 
         <SettingsRow
           title={t('workoutSettings.keepAwake', {

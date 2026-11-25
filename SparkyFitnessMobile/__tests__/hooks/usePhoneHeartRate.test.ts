@@ -6,6 +6,7 @@ import {
 } from '../../src/hooks/usePhoneHeartRate';
 import { useActiveWorkoutStore } from '../../src/stores/activeWorkoutStore';
 import { useLiveHeartRateStore } from '../../src/stores/liveHeartRateStore';
+import { useAppPreferencesStore } from '../../src/stores/appPreferencesStore';
 import { useWatchRunLiveStore } from '../../src/stores/watchRunLiveStore';
 
 type Listener = (payload: never) => void;
@@ -56,6 +57,7 @@ describe('usePhoneHeartRate', () => {
     mockListeners.clear();
     mockNative.isAvailable.mockReturnValue(true);
     useLiveHeartRateStore.setState({ reading: null });
+    useAppPreferencesStore.setState({ phoneHeartRateEnabled: true });
     useActiveWorkoutStore.setState({
       sessionId: null,
       activeSetId: null,
@@ -229,6 +231,15 @@ describe('usePhoneHeartRate', () => {
       });
       expect(mockNative.start).toHaveBeenCalledTimes(2);
     });
+  });
+
+  it('does nothing until the person turns it on', async () => {
+    useAppPreferencesStore.setState({ phoneHeartRateEnabled: false });
+    renderHook(() => usePhoneHeartRate(false));
+    await act(async () => {
+      useActiveWorkoutStore.setState({ sessionId: 's1' } as never);
+    });
+    expect(mockNative.start).not.toHaveBeenCalled();
   });
 
   it('does nothing where the OS cannot run a session', async () => {
