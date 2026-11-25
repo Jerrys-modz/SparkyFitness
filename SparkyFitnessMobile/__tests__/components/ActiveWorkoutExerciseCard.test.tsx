@@ -703,7 +703,7 @@ describe('ActiveWorkoutExerciseCard', () => {
       );
       try {
         const live = renderCard(true, { mode: 'live' });
-        const text = live.getByText('137 bpm');
+        const text = live.getByText('137 bpm · Apple Watch');
         expect(StyleSheet.flatten(text.props.style).color).toBe('#22c55e');
 
         const view = renderCard(true, {
