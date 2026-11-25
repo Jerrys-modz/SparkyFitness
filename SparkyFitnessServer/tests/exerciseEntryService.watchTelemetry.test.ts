@@ -115,6 +115,41 @@ describe('attachWatchTelemetryToExerciseEntry', () => {
     expect(zones[0].zone_lower_bpm).toBe(133);
   });
 
+  it('stores what measured the heart rate, only with a series', async () => {
+    await attachWatchTelemetryToExerciseEntry(
+      userId,
+      userId,
+      entryId,
+      series(150),
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      'headphones'
+    );
+    await attachWatchTelemetryToExerciseEntry(
+      userId,
+      userId,
+      entryId,
+      undefined,
+      120,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      'headphones'
+    );
+
+    const calls = vi.mocked(
+      exerciseEntryRepository.applyWatchTelemetryAtomically
+    ).mock.calls;
+    expect(calls[0][3]).toMatchObject({ hr_source: 'headphones' });
+    expect(calls[1][3]).not.toHaveProperty('hr_source');
+  });
+
   it('writes measured calories with no series at all', async () => {
     await attachWatchTelemetryToExerciseEntry(
       userId,

@@ -77,6 +77,8 @@ describe('POST /exercise-entries/:id/watch-telemetry', () => {
       undefined,
       undefined,
       undefined,
+      undefined,
+      undefined,
       undefined
     );
   });
@@ -136,6 +138,8 @@ describe('POST /exercise-entries/:id/watch-telemetry', () => {
       undefined,
       undefined,
       undefined,
+      undefined,
+      undefined,
       undefined
     );
   });
@@ -154,6 +158,8 @@ describe('POST /exercise-entries/:id/watch-telemetry', () => {
       ENTRY_ID,
       undefined,
       42,
+      undefined,
+      undefined,
       undefined,
       undefined,
       undefined,
@@ -178,8 +184,44 @@ describe('POST /exercise-entries/:id/watch-telemetry', () => {
       12.5,
       undefined,
       undefined,
+      undefined,
+      undefined,
       undefined
     );
+  });
+
+  it('forwards what measured the heart rate', async () => {
+    const hrSamples = [
+      { t: '2026-09-17T10:00:00.000Z', bpm: 120 },
+      { t: '2026-09-17T10:00:05.000Z', bpm: 124 },
+    ];
+
+    await request(app)
+      .post(`/exercise-entries/${ENTRY_ID}/watch-telemetry`)
+      .send({ hrSamples, hrSource: 'headphones' })
+      .expect(204);
+
+    const call = vi.mocked(
+      exerciseEntryService.attachWatchTelemetryToExerciseEntry
+    ).mock.calls[0];
+    expect(call[3]).toEqual(hrSamples);
+    expect(call[10]).toBe('headphones');
+  });
+
+  it('rejects a heart-rate source the server does not know', async () => {
+    await request(app)
+      .post(`/exercise-entries/${ENTRY_ID}/watch-telemetry`)
+      .send({
+        hrSamples: [
+          { t: '2026-09-17T10:00:00.000Z', bpm: 120 },
+          { t: '2026-09-17T10:00:05.000Z', bpm: 124 },
+        ],
+        hrSource: 'chest-strap',
+      })
+      .expect(400);
+    expect(
+      exerciseEntryService.attachWatchTelemetryToExerciseEntry
+    ).not.toHaveBeenCalled();
   });
 
   it('forwards a stride length on its own, and null to clear it', async () => {
@@ -204,6 +246,8 @@ describe('POST /exercise-entries/:id/watch-telemetry', () => {
       undefined,
       undefined,
       101.5,
+      undefined,
+      undefined,
       undefined,
     ]);
     expect(calls[1][7]).toBeNull();

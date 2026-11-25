@@ -597,7 +597,11 @@
       "addSetLabel": "Add set",
       "heartRateFor": "Average heart rate for {{name}}",
       "liveHeartRateFor": "Current heart rate for {{name}}",
-      "heartRateUnit": "bpm"
+      "heartRateUnit": "bpm",
+      "heartRateSource": {
+        "watch": "Apple Watch",
+        "headphones": "Headphones"
+      }
     },
     "nextSet": "Next Set",
     "now": {

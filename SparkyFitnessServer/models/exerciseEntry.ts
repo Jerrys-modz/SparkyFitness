@@ -6,6 +6,7 @@ import {
   isAppLoggedWorkoutSource,
   type ExerciseEntryHrZonesInitializer,
   type ExercisePresetEntries,
+  type HeartRateSource,
   type WorkoutSessionStatusSet,
   classifyActivitySport,
 } from '@workspace/shared';
@@ -489,6 +490,8 @@ export interface WatchTelemetryFields {
   stride_length_cm?: number | null;
   /** Average cadence in steps per minute; null clears it. */
   avg_cadence?: number | null;
+  /** What measured the heart rate: 'watch' or 'headphones'. */
+  hr_source?: HeartRateSource | null;
 }
 
 /**

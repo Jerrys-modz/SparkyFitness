@@ -8,6 +8,7 @@ import { workoutFormatSchema } from './WorkoutPresets.api.zod.ts';
 import { gpsTrackPointSchema } from '../database/ExerciseEntryGpsPoints.zod.ts';
 import { CALORIE_LINK_RESOLUTIONS } from '../../utils/exerciseCalorieLink.ts';
 import { WORKOUT_SESSION_STATUSES } from '../../constants/exercise.ts';
+import { heartRateSourceSchema } from '../../constants/heartRateSource.ts';
 
 export const calorieLinkResolutionSchema = z.enum(CALORIE_LINK_RESOLUTIONS);
 
@@ -452,6 +453,12 @@ export const attachExerciseEntryWatchTelemetryRequestSchema = z
      * reached Apple Health gets its cadence filled in afterwards.
      */
     avgCadence: z.number().positive().max(400).nullable().optional(),
+    /**
+     * What measured `hrSamples`: the paired watch or headphones read through
+     * the phone. Stored with the entry so the app can say where the heart
+     * rate came from. Only written together with `hrSamples`.
+     */
+    hrSource: heartRateSourceSchema.optional(),
   })
   .strict()
   .refine(
@@ -586,6 +593,8 @@ export const exerciseEntryResponseSchema = z.object({
   notes: z.string().nullable(),
   distance: z.number().nullable(),
   avg_heart_rate: z.number().nullable(),
+  /** What measured the heart rate of a live workout; null when unknown. */
+  hr_source: heartRateSourceSchema.nullish(),
   source: z.string().nullable(),
   image_url: z.string().nullable().optional(),
   exercise_preset_entry_id: z.string().nullable().optional(),

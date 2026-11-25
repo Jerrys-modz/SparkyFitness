@@ -14,6 +14,8 @@ interface ExerciseHeartRateChipProps {
   valueColor?: string;
   /** Draws the readout as a tag (the focus view's meta row) with a bold number. */
   pill?: boolean;
+  /** What measured it, e.g. "Apple Watch"; left out when unknown. */
+  sourceLabel?: string | null;
 }
 
 /**
@@ -27,6 +29,7 @@ function ExerciseHeartRateChip({
   color,
   valueColor,
   pill = false,
+  sourceLabel = null,
 }: ExerciseHeartRateChipProps) {
   const { t } = useTranslation();
   return (
@@ -62,6 +65,7 @@ function ExerciseHeartRateChip({
           text
         )}{' '}
         {t('activeWorkout.exercise.heartRateUnit', { defaultValue: 'bpm' })}
+        {sourceLabel != null && ` · ${sourceLabel}`}
       </Text>
     </View>
   );

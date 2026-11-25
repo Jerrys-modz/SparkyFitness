@@ -193,6 +193,7 @@ export default defineConfig({
             { text: 'Progression & Per-Set Ramp', link: '/features/exercises/progression-and-per-set-ramp' },
             { text: 'Bodyweight Exercises', link: '/features/exercises/bodyweight-exercises' },
             { text: 'Workout Effort', link: '/features/exercises/workout-effort' },
+            { text: 'Headphone Heart Rate', link: '/features/exercises/headphone-heart-rate' },
             { text: 'Adaptive Coaching', link: '/features/exercises/adaptive-coaching' },
             { text: 'Training Consistency', link: '/features/exercises/training-consistency' },
             { text: 'Weekly Muscle Volume & Deload', link: '/features/exercises/weekly-muscle-volume' },

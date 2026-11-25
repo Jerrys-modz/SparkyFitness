@@ -8,6 +8,7 @@ import type {
   ExerciseRecentSessionSet,
   EntryExerciseSnapshotResponse,
   ExerciseSessionResponse,
+  HeartRateSource,
   PresetSessionExerciseRequest,
   PresetSessionResponse,
   ProgressionEvaluationResult,
@@ -877,6 +878,8 @@ export interface WorkoutCardExercise {
    */
   avg_heart_rate?: number | null;
   max_heart_rate?: number | null;
+  /** What measured the heart rate, for a live workout's entry; null when unknown. */
+  hr_source?: HeartRateSource | null;
   exercise_snapshot: {
     name?: string | null;
     category?: string | null;

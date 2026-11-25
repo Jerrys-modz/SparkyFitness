@@ -172,6 +172,7 @@ export * from './constants/webTabs.ts';
 export * from './features/optionalFeatures.ts';
 export * from './utils/appetiteCheckIn.ts';
 export * from './constants/exercise.ts';
+export * from './constants/heartRateSource.ts';
 export * from './constants/exerciseTaxonomy.ts';
 export * from './constants/healthActivityTypes.ts';
 export * from './constants/healthConnectSegments.ts';

@@ -1103,6 +1103,7 @@ describe('useWatchWorkoutBridge', () => {
     });
 
     expect(mockAttachTelemetry).toHaveBeenCalledWith('ex-uuid-1', {
+      hrSource: 'watch',
       hrSamples: [
         { t: '2026-09-17T10:00:00.000Z', bpm: 120 },
         { t: '2026-09-17T10:00:10.000Z', bpm: 128 },
@@ -1149,6 +1150,7 @@ describe('useWatchWorkoutBridge', () => {
     });
 
     expect(mockAttachTelemetry).toHaveBeenCalledWith('ex-uuid-1', {
+      hrSource: 'headphones',
       hrSamples: [
         { t: '2026-09-17T10:00:00.000Z', bpm: 120 },
         { t: '2026-09-17T10:00:05.000Z', bpm: 124 },
@@ -1309,6 +1311,7 @@ describe('useWatchWorkoutBridge', () => {
       false
     );
     expect(mockAttachTelemetry).toHaveBeenCalledWith('ex-uuid-1', {
+      hrSource: 'watch',
       hrSamples: [
         { t: '2026-09-17T10:00:00.000Z', bpm: 120 },
         { t: '2026-09-17T10:00:10.000Z', bpm: 128 },
@@ -1412,6 +1415,7 @@ describe('useWatchWorkoutBridge', () => {
     expect(mockAttachTelemetry).toHaveBeenCalledWith(
       'ex-uuid-2',
       expect.objectContaining({
+        hrSource: 'watch',
         hrSamples: [
           { t: '2026-09-17T10:04:00.000Z', bpm: 140 },
           { t: '2026-09-17T10:05:00.000Z', bpm: 144 },
@@ -1538,6 +1542,7 @@ describe('useWatchWorkoutBridge', () => {
     });
 
     expect(mockAttachTelemetry).toHaveBeenCalledWith('ex-uuid-1', {
+      hrSource: 'watch',
       hrSamples: [
         { t: '2026-09-17T10:00:00.000Z', bpm: 120 },
         { t: '2026-09-17T10:00:10.000Z', bpm: 128 },
@@ -1686,6 +1691,7 @@ describe('useWatchWorkoutBridge', () => {
     // the workout's figures with its last minute's.
     expect(mockAttachTelemetry).toHaveBeenCalledTimes(2);
     expect(mockAttachTelemetry).toHaveBeenLastCalledWith('ex-uuid-1', {
+      hrSource: 'watch',
       hrSamples: [
         { t: '2026-09-17T10:00:00.000Z', bpm: 120 },
         { t: '2026-09-17T10:00:10.000Z', bpm: 128 },
@@ -1725,6 +1731,7 @@ describe('useWatchWorkoutBridge', () => {
     });
 
     expect(mockAttachTelemetry).toHaveBeenCalledWith('ex-uuid-1', {
+      hrSource: 'watch',
       hrSamples: [
         { t: '2026-09-17T10:00:00.000Z', bpm: 118 },
         { t: '2026-09-17T10:00:10.000Z', bpm: 124 },
@@ -1781,6 +1788,7 @@ describe('useWatchWorkoutBridge', () => {
     });
 
     expect(mockAttachTelemetry).toHaveBeenCalledWith('ex-uuid-1', {
+      hrSource: 'watch',
       hrSamples: [
         { t: '2026-09-17T10:00:00.000Z', bpm: 120 },
         { t: '2026-09-17T10:00:10.000Z', bpm: 128 },
@@ -1824,6 +1832,7 @@ describe('useWatchWorkoutBridge', () => {
     // Samples still merge (timestamp-deduped); energy is refused without a
     // clientId because transferUserInfo can redeliver the same delta.
     expect(mockAttachTelemetry).toHaveBeenCalledWith('ex-uuid-1', {
+      hrSource: 'watch',
       hrSamples: [
         { t: '2026-09-17T10:00:00.000Z', bpm: 120 },
         { t: '2026-09-17T10:00:10.000Z', bpm: 128 },
@@ -1869,6 +1878,7 @@ describe('useWatchWorkoutBridge', () => {
     });
     expect(mockAttachTelemetry).toHaveBeenCalledTimes(1);
     expect(mockAttachTelemetry).toHaveBeenCalledWith('ex-uuid-1', {
+      hrSource: 'watch',
       hrSamples: [
         { t: '2026-09-17T10:00:00.000Z', bpm: 120 },
         { t: '2026-09-17T10:00:10.000Z', bpm: 128 },
@@ -1965,6 +1975,7 @@ describe('useWatchWorkoutBridge across sessions, failures and watch finishes', (
     });
 
     expect(mockAttachTelemetry).toHaveBeenCalledWith('ex-uuid-1', {
+      hrSource: 'watch',
       hrSamples: twoSamples,
       activeEnergyKcal: 12,
     });
@@ -2242,6 +2253,7 @@ describe('useWatchWorkoutBridge across sessions, failures and watch finishes', (
     renderHook(() => useWatchWorkoutBridge(true, true));
     await waitFor(() => {
       expect(mockAttachTelemetry).toHaveBeenCalledWith('ex-uuid-1', {
+        hrSource: 'watch',
         hrSamples: [
           { t: '2026-09-17T10:00:00.000Z', bpm: 120 },
           { t: '2026-09-17T10:00:10.000Z', bpm: 128 },

@@ -688,6 +688,7 @@ export function useWatchWorkoutBridge(
         );
         if (added.length > 0) {
           session.samples.set(exerciseEntryId, existing.concat(added));
+          session.hrSource = 'watch';
           session.unposted = true;
         }
       }
@@ -897,6 +898,9 @@ export function useWatchWorkoutBridge(
         try {
           await attachExerciseEntryWatchTelemetry(exerciseEntryId, {
             ...(hrSamples ? { hrSamples } : {}),
+            ...(hrSamples && session.hrSource
+              ? { hrSource: session.hrSource }
+              : {}),
             ...(kcal != null ? { activeEnergyKcal: kcal } : {}),
             ...(durationMinutes != null ? { durationMinutes } : {}),
             ...(appleZones ? { appleZones } : {}),
@@ -1201,6 +1205,7 @@ export function useWatchWorkoutBridge(
       const existing = session.samples.get(exerciseEntryId) ?? [];
       if (existing.some((candidate) => candidate.t === sample.t)) return;
       session.samples.set(exerciseEntryId, existing.concat(sample));
+      session.hrSource = 'headphones';
       session.unposted = true;
       syncPendingRef.current();
       const now = Date.now();

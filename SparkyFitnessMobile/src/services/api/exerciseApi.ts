@@ -43,6 +43,7 @@ import type {
   SetCalorieLinkRequest,
   SetCalorieLinkResponse,
   Pagination,
+  HeartRateSource,
 } from '@workspace/shared';
 
 /** The user's own previously logged workout locations, most recent first. */
@@ -777,6 +778,8 @@ export const attachExerciseEntryWatchTelemetry = async (
   exerciseEntryId: string,
   telemetry: {
     hrSamples?: HeartRateSamplePayload[];
+    /** What measured `hrSamples`: the watch, or headphones read by the phone. */
+    hrSource?: HeartRateSource;
     activeEnergyKcal?: number;
     /** Minutes the watch spent on this exercise. Replaces a zero duration. */
     durationMinutes?: number;

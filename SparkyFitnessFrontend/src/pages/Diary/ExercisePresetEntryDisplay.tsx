@@ -239,6 +239,26 @@ const ExercisePresetEntryDisplay: React.FC<ExercisePresetEntryDisplayProps> = ({
       : 0;
   })();
 
+  // What measured the heart rate, when the app recorded it during a live
+  // workout (synced workouts carry no source). Both are named if a workout
+  // used the watch for some exercises and headphones for others.
+  const hrSourceLabel = (() => {
+    const sources = new Set(
+      (presetEntry.exercises ?? [])
+        .filter((ex) => ex.avg_heart_rate && ex.hr_source)
+        .map((ex) => ex.hr_source)
+    );
+    const labels = [
+      sources.has('watch')
+        ? t('exerciseCard.heartRateSource.watch', 'Apple Watch')
+        : null,
+      sources.has('headphones')
+        ? t('exerciseCard.heartRateSource.headphones', 'Headphones')
+        : null,
+    ].filter((label): label is string => label != null);
+    return labels.length > 0 ? labels.join(' + ') : undefined;
+  })();
+
   // A strength session stores the person's rating on every exercise, so any
   // one that has it speaks for the session.
   const effort = (() => {
@@ -517,6 +537,7 @@ const ExercisePresetEntryDisplay: React.FC<ExercisePresetEntryDisplayProps> = ({
                 icon={<Activity className="w-3 h-3" />}
                 value={avgHR > 0 ? String(avgHR) : '—'}
                 label={t('common.avgHrUnit', 'Avg HR')}
+                sublabel={avgHR > 0 ? hrSourceLabel : undefined}
                 color="text-rose-500 dark:text-rose-400"
               />
               {effort != null && (
@@ -590,8 +611,10 @@ const StatCell: React.FC<{
   icon: React.ReactNode;
   value: string;
   label: string;
+  /** Smaller line under the label, such as where a figure came from. */
+  sublabel?: string;
   color: string;
-}> = ({ icon, value, label, color }) => (
+}> = ({ icon, value, label, sublabel, color }) => (
   <div className="flex flex-col items-center justify-center py-2.5 px-1 gap-0.5">
     <span className={`${color} flex items-center gap-1`}>
       {icon}
@@ -602,6 +625,11 @@ const StatCell: React.FC<{
     <span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wide font-medium">
       {label}
     </span>
+    {sublabel && (
+      <span className="text-[10px] text-gray-400 dark:text-gray-500 text-center leading-tight">
+        {sublabel}
+      </span>
+    )}
   </div>
 );
 
