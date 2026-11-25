@@ -6,6 +6,7 @@ import {
 } from '../../src/hooks/usePhoneHeartRate';
 import { useActiveWorkoutStore } from '../../src/stores/activeWorkoutStore';
 import { useLiveHeartRateStore } from '../../src/stores/liveHeartRateStore';
+import { useWatchRunLiveStore } from '../../src/stores/watchRunLiveStore';
 
 type Listener = (payload: never) => void;
 const mockListeners = new Map<string, Listener>();
@@ -196,6 +197,37 @@ describe('usePhoneHeartRate', () => {
       });
       expect(useLiveHeartRateStore.getState().reading?.source).toBe('phone');
       expect(mockNative.stop).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('beside a run or walk', () => {
+    afterEach(() => useWatchRunLiveStore.setState({ run: null } as never));
+
+    it('never starts while a watch run is live', async () => {
+      useWatchRunLiveStore.setState({ run: { id: 'run-1' } } as never);
+      renderHook(() => usePhoneHeartRate(false));
+      await act(async () => {
+        useActiveWorkoutStore.setState({ sessionId: 's1' } as never);
+      });
+      expect(mockNative.start).not.toHaveBeenCalled();
+    });
+
+    it('stands down when a run starts, and returns when it ends', async () => {
+      renderHook(() => usePhoneHeartRate(false));
+      await act(async () => {
+        useActiveWorkoutStore.setState({ sessionId: 's1' } as never);
+      });
+      expect(mockNative.start).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        useWatchRunLiveStore.setState({ run: { id: 'run-1' } } as never);
+      });
+      expect(mockNative.stop).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        useWatchRunLiveStore.setState({ run: null } as never);
+      });
+      expect(mockNative.start).toHaveBeenCalledTimes(2);
     });
   });
 

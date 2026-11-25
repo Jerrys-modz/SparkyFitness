@@ -3,6 +3,23 @@ import LiveHeartRateModule from '../../modules/live-heart-rate';
 import { useActiveWorkoutStore } from '../stores/activeWorkoutStore';
 import { useLiveHeartRateStore } from '../stores/liveHeartRateStore';
 import { addLog } from '../services/LogService';
+import {
+  getGpsRecordingSnapshot,
+  subscribeGpsRecording,
+} from '../services/gpsRecordingService';
+import { useWatchRunLiveStore } from '../stores/watchRunLiveStore';
+
+/**
+ * A run or walk is being recorded (on the phone with GPS, or on the watch).
+ * Those own the heart rate and energy sensors, and a second workout session on
+ * the phone must never run beside them, so the headphone session stands down.
+ */
+function anotherRecordingActive(): boolean {
+  return (
+    getGpsRecordingSnapshot().session != null ||
+    useWatchRunLiveStore.getState().run != null
+  );
+}
 
 /** How long a paired watch has to be heard before the phone steps in. */
 export const WATCH_SILENT_GRACE_MS = 30_000;
@@ -57,7 +74,7 @@ export function usePhoneHeartRate(
     let graceTimer: ReturnType<typeof setTimeout> | undefined;
 
     const begin = (): void => {
-      if (running || watchHeard) return;
+      if (running || watchHeard || anotherRecordingActive()) return;
       running = true;
       const mine = ++generation;
       native
@@ -132,6 +149,23 @@ export function usePhoneHeartRate(
     const unsubscribe = useActiveWorkoutStore.subscribe((state, previous) => {
       if (state.sessionId !== previous.sessionId) sync(state.sessionId);
     });
+    // A run or walk starting takes the sensors from the phone's session; when
+    // it is over, a workout that is still live gets its session back.
+    let blocked = anotherRecordingActive();
+    const reevaluate = (): void => {
+      const now = anotherRecordingActive();
+      if (now === blocked) return;
+      blocked = now;
+      if (blocked) {
+        clearGrace();
+        end();
+        return;
+      }
+      const sessionId = useActiveWorkoutStore.getState().sessionId;
+      if (sessionId != null) sync(sessionId);
+    };
+    const unsubscribeGps = subscribeGpsRecording(reevaluate);
+    const unsubscribeRun = useWatchRunLiveStore.subscribe(reevaluate);
     // The watch sent a reading for this workout: it owns heart rate, so the
     // phone's session (if it had started) closes and none starts later.
     const unsubscribeWatch = useLiveHeartRateStore.subscribe((state) => {
@@ -151,6 +185,8 @@ export function usePhoneHeartRate(
     return () => {
       unsubscribe();
       unsubscribeWatch();
+      unsubscribeGps();
+      unsubscribeRun();
       clearGrace();
       readingSub.remove();
       stoppedSub.remove();
