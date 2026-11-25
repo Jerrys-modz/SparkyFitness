@@ -1000,7 +1000,9 @@ router.post('/:id/watch-telemetry', authenticate, async (req, res, next) => {
       parsed.data.durationMinutes,
       parsed.data.appleZones,
       parsed.data.strideLengthCm,
-      parsed.data.avgCadence
+      parsed.data.avgCadence,
+      undefined,
+      parsed.data.hrSource
     );
     res.status(204).send();
   } catch (error) {

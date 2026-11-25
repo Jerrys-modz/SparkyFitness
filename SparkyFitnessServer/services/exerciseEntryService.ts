@@ -15,6 +15,7 @@ import {
   type AttachExerciseEntryLapsRequest,
   type AttachExerciseEntryDistanceSeriesRequest,
   type HeartRateSampleRequest,
+  type HeartRateSource,
   type SetExerciseEntryDistanceRequest,
   type SetExerciseEntryEffortRequest,
 } from '@workspace/shared';
@@ -287,7 +288,8 @@ async function attachWatchTelemetryToExerciseEntry(
   appleZones?: unknown,
   strideLengthCm?: number | null,
   avgCadence?: number | null,
-  seriesSource = 'SparkyFitness Watch'
+  seriesSource = 'SparkyFitness Watch',
+  hrSource?: HeartRateSource
 ): Promise<void> {
   // Fail closed: family/delegate diary *read* can SELECT another user's
   // entry via RLS, but this route must not 204 after an UPDATE that
@@ -316,6 +318,7 @@ async function attachWatchTelemetryToExerciseEntry(
     fields.max_heart_rate = Math.round(
       bpmValues.reduce((max, bpm) => (bpm > max ? bpm : max), -Infinity)
     );
+    if (hrSource) fields.hr_source = hrSource;
     const observedMs = hrSamples
       .map((sample) => Date.parse(sample.t))
       .filter((ms) => Number.isFinite(ms))
