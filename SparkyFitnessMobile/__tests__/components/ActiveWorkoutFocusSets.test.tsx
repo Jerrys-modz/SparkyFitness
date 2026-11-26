@@ -567,6 +567,7 @@ describe('ActiveWorkoutFocusSets', () => {
 
   it('marks a set done on one side with L or R after its number', () => {
     const { getByText } = renderSets({
+      completedSetIds: { '101': 1, '102': 2, '103': 3 },
       sets: [
         makeSet({ side: 'left' }),
         makeSet({ id: 102, set_number: 2, side: 'right' }),
@@ -582,6 +583,7 @@ describe('ActiveWorkoutFocusSets', () => {
     const { getByText } = renderSets({
       metricColumn: 'volume',
       loadConvention: 'per_side',
+      completedSetIds: { '101': 1, '102': 2 },
       sets: [
         makeSet({ weight: 20, reps: 10 }),
         makeSet({ id: 102, set_number: 2, weight: 20, reps: 10, side: 'left' }),
