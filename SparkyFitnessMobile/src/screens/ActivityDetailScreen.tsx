@@ -65,6 +65,7 @@ import {
 } from '@workspace/shared';
 import { useEnergyUnit } from '../hooks/useEnergyUnit';
 import { energyUnitLabel } from '../utils/energyUnit';
+import { heartRateSourceLabel } from '../utils/heartRateSourceLabel';
 import { useEnergyInputText } from '../hooks/useEnergyInputText';
 
 type Props = RootStackScreenProps<'ActivityDetail'>;
@@ -469,15 +470,25 @@ const ActivityDetailScreen: React.FC<Props> = ({ navigation, route }) => {
       });
     }
     if (isEditing || session.avg_heart_rate != null) {
+      const heartRateSource = heartRateSourceLabel(t, session.hr_source);
       stats.push({
         value: isEditing
           ? formState.avgHeartRate || '-'
           : session.avg_heart_rate != null
             ? formatLocalizedNumber(session.avg_heart_rate)
             : '-',
-        label: t('activityDetail.stats.avgHeartRate', {
-          defaultValue: 'Avg Heart Rate',
-        }),
+        label: isEditing
+          ? t('activityDetail.stats.avgHeartRate', {
+              defaultValue: 'Avg Heart Rate',
+            })
+          : heartRateSource != null
+            ? t('activityDetail.stats.avgHeartRateFrom', {
+                defaultValue: 'Avg Heart Rate · {{source}}',
+                source: heartRateSource,
+              })
+            : t('activityDetail.stats.avgHeartRate', {
+                defaultValue: 'Avg Heart Rate',
+              }),
         editKey: 'avgHeartRate',
         editSuffix: 'bpm',
         keyboardType: 'numeric',

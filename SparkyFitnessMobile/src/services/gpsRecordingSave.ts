@@ -342,6 +342,7 @@ async function attachWatchHeartRate(
               t: new Date(sample.t).toISOString(),
               bpm: sample.bpm,
             })),
+            hrSource: 'watch' as const,
           }
         : {}),
       ...(appleZones ? { appleZones } : {}),

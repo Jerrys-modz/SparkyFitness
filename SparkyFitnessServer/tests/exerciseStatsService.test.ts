@@ -418,6 +418,67 @@ describe('exerciseStatsService', () => {
       );
     });
 
+    it('carries what measured the heart rate, and nothing for an unknown value', async () => {
+      mockClient.query.mockResolvedValueOnce({ rows: [{ count: '3' }] });
+      mockClient.query.mockResolvedValueOnce({
+        rows: [
+          {
+            id: 'entry-watch',
+            user_id: 'user-123',
+            exercise_name: 'Running',
+            entry_date: new Date('2026-11-26'),
+            duration_minutes: 30,
+            calories_burned: 300,
+            avg_heart_rate: 150,
+            hr_source: 'watch',
+            source: 'manual',
+          },
+          {
+            id: 'entry-headphones',
+            user_id: 'user-123',
+            exercise_name: 'Running',
+            entry_date: new Date('2026-11-25'),
+            duration_minutes: 30,
+            calories_burned: 300,
+            avg_heart_rate: 140,
+            hr_source: 'headphones',
+            source: 'manual',
+          },
+          {
+            id: 'entry-synced',
+            user_id: 'user-123',
+            exercise_name: 'Running',
+            entry_date: new Date('2026-11-24'),
+            duration_minutes: 30,
+            calories_burned: 300,
+            avg_heart_rate: 130,
+            hr_source: null,
+            source: 'Garmin',
+          },
+        ],
+      });
+
+      const res = await exerciseStatsService.queryExerciseActivities(
+        'user-123',
+        {
+          page: 1,
+          pageSize: 10,
+          sortBy: 'entry_date',
+          sortOrder: 'desc',
+          unitSystem: 'metric',
+        }
+      );
+
+      expect(res.items.map((item) => item.hrSource)).toEqual([
+        'watch',
+        'headphones',
+        null,
+      ]);
+      expect(String(mockClient.query.mock.calls[1]?.[0])).toContain(
+        'hr_source'
+      );
+    });
+
     it('does not treat a crunch or a strength session as cardio', async () => {
       mockClient.query.mockResolvedValueOnce({ rows: [{ count: '0' }] });
       mockClient.query.mockResolvedValueOnce({ rows: [] });

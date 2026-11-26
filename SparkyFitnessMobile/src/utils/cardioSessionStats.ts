@@ -7,6 +7,7 @@ import {
 } from '@workspace/shared';
 import { formatLocalizedNumber } from '../localization';
 import { energyUnitLabel, formatEnergyNumber } from './energyUnit';
+import { heartRateSourceLabel } from './heartRateSourceLabel';
 
 const FEET_PER_METER = 3.28084;
 
@@ -205,11 +206,17 @@ export function sessionStats(
     });
   }
   if (session.avgHeartRate != null && session.avgHeartRate > 0) {
+    const heartRateSource = heartRateSourceLabel(t, session.hrSource);
     stats.push({
       key: 'hr',
-      label: t('exerciseStatistics.cardio.avgHeartRate', {
-        defaultValue: 'Avg heart rate',
-      }),
+      label: heartRateSource
+        ? t('exerciseStatistics.cardio.avgHeartRateFrom', {
+            defaultValue: 'Avg heart rate · {{source}}',
+            source: heartRateSource,
+          })
+        : t('exerciseStatistics.cardio.avgHeartRate', {
+            defaultValue: 'Avg heart rate',
+          }),
       value: bpmText(t, session.avgHeartRate),
     });
   }

@@ -4696,6 +4696,7 @@
       "calories": "Calories",
       "energy": "Energy",
       "avgHeartRate": "Avg HR",
+      "avgHeartRateFrom": "Avg HR · {{source}}",
       "maxHeartRate": "Max HR",
       "effort": "Effort"
     },
@@ -4763,6 +4764,7 @@
       "calories": "Calories",
       "distance": "Distance",
       "avgHeartRate": "Avg Heart Rate",
+      "avgHeartRateFrom": "Avg Heart Rate · {{source}}",
       "caloriesCounted": "Counted in daily total",
       "steps": "Steps",
       "pace": "Pace",
@@ -4837,6 +4839,7 @@
       "sets": "Sets",
       "calories": "Calories",
       "avgHeartRate": "Avg HR",
+      "avgHeartRateFrom": "Avg HR · {{source}}",
       "maxHeartRate": "Max HR",
       "distance": "Distance",
       "averageRpe": "Average RPE"
@@ -7610,6 +7613,7 @@
       "duration": "Duration",
       "pace": "Pace",
       "avgHeartRate": "Avg heart rate",
+      "avgHeartRateFrom": "Avg heart rate · {{source}}",
       "caloriesLabel": "Calories",
       "route": "Route",
       "routeA11y": "Route of this workout, from the green dot to the red ring",
