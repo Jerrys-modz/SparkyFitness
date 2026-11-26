@@ -163,7 +163,7 @@ describe('POST /mcp', () => {
 
     expect(res.status).toBe(200);
     const tools = res.body.result.tools;
-    expect(tools).toHaveLength(58);
+    expect(tools).toHaveLength(59);
     expect(tools.map((t: { name: string }) => t.name).sort()).toEqual(
       EXPECTED_TOOL_NAMES
     );
@@ -518,7 +518,7 @@ describe('POST /mcp', () => {
 
     expect(res.status).toBe(200);
     const names = res.body.result.tools.map((t: { name: string }) => t.name);
-    expect(res.body.result.tools).toHaveLength(58);
+    expect(res.body.result.tools).toHaveLength(59);
     for (const devTool of DEV_TOOL_NAMES) {
       expect(names).not.toContain(devTool);
     }
@@ -536,7 +536,7 @@ describe('POST /mcp', () => {
 
     expect(res.status).toBe(200);
     const names = res.body.result.tools.map((t: { name: string }) => t.name);
-    expect(res.body.result.tools).toHaveLength(63);
+    expect(res.body.result.tools).toHaveLength(64);
     for (const devTool of DEV_TOOL_NAMES) {
       expect(names).toContain(devTool);
     }
@@ -554,7 +554,7 @@ describe('POST /mcp', () => {
 
     expect(res.status).toBe(200);
     const names = res.body.result.tools.map((t: { name: string }) => t.name);
-    expect(res.body.result.tools).toHaveLength(58);
+    expect(res.body.result.tools).toHaveLength(59);
     for (const devTool of DEV_TOOL_NAMES) {
       expect(names).not.toContain(devTool);
     }
