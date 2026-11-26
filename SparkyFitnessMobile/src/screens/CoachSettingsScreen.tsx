@@ -1,8 +1,10 @@
 import { formatDateTime } from '../utils/fasting';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAppLocale } from '../localization';
+import { formatDate } from '../utils/dateUtils';
 import {
   COACH_DIET_TYPES,
   COACH_TONES,
@@ -23,12 +25,14 @@ import { useActiveWorkoutBarPadding } from '../components/ActiveWorkoutBar';
 import { useReminderTimeRows } from '../components/ReminderTimeRows';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { usePreferences } from '../hooks/usePreferences';
+import { useProfile } from '../hooks/useProfile';
 import {
   useCheckInNow,
   useCoachesAvailable,
   useCoachSettings,
   useUpdateBuiltinCoach,
   useUpdateCoachProfile,
+  useUpdateCustomCoach,
 } from '../hooks/useCoaches';
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
@@ -49,13 +53,16 @@ export default function CoachSettingsScreen({
 }: RootStackScreenProps<'CoachSettings'>) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  const appLocale = useAppLocale();
   const usesNativeHeader = useNativeIOSHeadersActive();
   const activeWorkoutBarPadding = useActiveWorkoutBarPadding('stack');
   const { preferences } = usePreferences();
+  const { profile: userProfile } = useProfile();
   const available = useCoachesAvailable();
   const { data, isLoading, refetch } = useCoachSettings();
   const updateProfile = useUpdateCoachProfile();
   const updateBuiltin = useUpdateBuiltinCoach();
+  const updateCustom = useUpdateCustomCoach();
   const checkIn = useCheckInNow();
   const coachNotifications = useAppPreferencesStore(
     (s) => s.coachNotificationsEnabled
@@ -71,6 +78,25 @@ export default function CoachSettingsScreen({
   const [avoidDraft, setAvoid] = useState<string>();
   const [preferDraft, setPrefer] = useState<string>();
   const [notesDraft, setNotes] = useState<string>();
+  const [timesDraft, setTimesDraft] = useState<string[]>();
+
+  // Discard drafts when the active account identity changes.
+  const activeUserId = userProfile?.id;
+  const activeUserRef = useRef(activeUserId);
+  useEffect(() => {
+    if (
+      activeUserRef.current &&
+      activeUserId &&
+      activeUserRef.current !== activeUserId
+    ) {
+      setAvoid(undefined);
+      setPrefer(undefined);
+      setNotes(undefined);
+      setTimesDraft(undefined);
+    }
+    activeUserRef.current = activeUserId;
+  }, [activeUserId]);
+
   const avoid = avoidDraft ?? profile?.foods_avoid ?? '';
   const prefer = preferDraft ?? profile?.foods_prefer ?? '';
   const notes = notesDraft ?? profile?.notes ?? '';
@@ -82,9 +108,17 @@ export default function CoachSettingsScreen({
   });
 
   const timeRows = useReminderTimeRows({
-    times: profile?.checkin_times ?? [],
-    onChangeTimes: (times) =>
-      updateProfile.mutate({ checkin_times: normalizeCheckinTimes(times) }),
+    times: timesDraft ?? profile?.checkin_times ?? [],
+    onChangeTimes: (times) => {
+      const normalized = normalizeCheckinTimes(times);
+      setTimesDraft(normalized);
+      updateProfile.mutate(
+        { checkin_times: normalized },
+        {
+          onSettled: () => setTimesDraft(undefined),
+        }
+      );
+    },
     maxTimes: MAX_COACH_CHECKIN_TIMES,
     timeFormat: preferences?.time_format,
     labels: {
@@ -109,17 +143,20 @@ export default function CoachSettingsScreen({
   });
 
   const saveAboutMe = useCallback(() => {
+    const submittedAvoid = avoid;
+    const submittedPrefer = prefer;
+    const submittedNotes = notes;
     updateProfile.mutate(
       {
-        foods_avoid: avoid.trim() || null,
-        foods_prefer: prefer.trim() || null,
-        notes: notes.trim() || null,
+        foods_avoid: submittedAvoid.trim() || null,
+        foods_prefer: submittedPrefer.trim() || null,
+        notes: submittedNotes.trim() || null,
       },
       {
         onSuccess: () => {
-          setAvoid(undefined);
-          setPrefer(undefined);
-          setNotes(undefined);
+          setAvoid((cur) => (cur === submittedAvoid ? undefined : cur));
+          setPrefer((cur) => (cur === submittedPrefer ? undefined : cur));
+          setNotes((cur) => (cur === submittedNotes ? undefined : cur));
         },
       }
     );
@@ -191,6 +228,8 @@ export default function CoachSettingsScreen({
   const switchCoach = (coach: CoachView, enabled: boolean) => {
     if (coach.builtin_key) {
       updateBuiltin.mutate({ key: coach.builtin_key, body: { enabled } });
+    } else if (coach.id) {
+      updateCustom.mutate({ id: coach.id, body: { enabled } });
     }
   };
 
@@ -318,7 +357,9 @@ export default function CoachSettingsScreen({
                         <Switch
                           accessibilityLabel={name}
                           value={coach.enabled}
-                          disabled={!coach.builtin_key}
+                          disabled={
+                            updateBuiltin.isPending || updateCustom.isPending
+                          }
                           onValueChange={(on) => switchCoach(coach, on)}
                         />
                       }
@@ -367,7 +408,7 @@ export default function CoachSettingsScreen({
                   <SettingsRow
                     title={t('coaches.pause.until', {
                       defaultValue: 'Paused until {{date}}.',
-                      date: profile.paused_until,
+                      date: formatDate(profile.paused_until, appLocale),
                     })}
                     onPress={() =>
                       updateProfile.mutate({
@@ -470,6 +511,7 @@ export default function CoachSettingsScreen({
                   <FormInput
                     value={avoid}
                     maxLength={500}
+                    editable={!updateProfile.isPending}
                     onChangeText={setAvoid}
                   />
                   <Text className="text-text-secondary text-sm">
@@ -480,6 +522,7 @@ export default function CoachSettingsScreen({
                   <FormInput
                     value={prefer}
                     maxLength={500}
+                    editable={!updateProfile.isPending}
                     onChangeText={setPrefer}
                   />
                   <Text className="text-text-secondary text-sm">
@@ -491,6 +534,7 @@ export default function CoachSettingsScreen({
                     value={notes}
                     maxLength={1000}
                     multiline
+                    editable={!updateProfile.isPending}
                     onChangeText={setNotes}
                   />
                   {data.allergens.length > 0 && (
@@ -501,7 +545,11 @@ export default function CoachSettingsScreen({
                       })}
                     </Text>
                   )}
-                  <Button variant="secondary" onPress={saveAboutMe}>
+                  <Button
+                    variant="secondary"
+                    disabled={updateProfile.isPending}
+                    onPress={saveAboutMe}
+                  >
                     {t('common.save', { defaultValue: 'Save' })}
                   </Button>
                 </View>
