@@ -1,3 +1,4 @@
+import { LOG_LOCKED_OPACITY, useFocusLogLocked } from './focusLogLock';
 import React, {
   useCallback,
   useEffect,
@@ -24,6 +25,7 @@ import { TableCellInput } from './FocusSetCells';
 import {
   SetCellInput,
   SetSwipeDeleteAction,
+  SwipeRevealedDelete,
   type SetInputField,
   type SetRowAccessoryHandle,
 } from './SetRowChrome';
@@ -167,6 +169,8 @@ export type { SetRowAccessoryHandle } from './SetRowChrome';
 
 interface ActiveWorkoutSetRowProps {
   set: WorkoutCardSet;
+  /** Focus view: an earlier set that is open again can be logged during a rest. */
+  reLogAllowed?: boolean;
   /**
    * The owning exercise's resolved modality (see `resolveSnapshotModality`):
    * it decides which value cells the row renders — weight+reps, reps only, or
@@ -275,7 +279,7 @@ interface ActiveWorkoutSetRowProps {
   ) => void;
   onAddSet?: (entryId: string) => void;
   /**
-   * The focus view's table look (Phone-OtherTypes board): 44 pt rounded value
+   * The focus view's table look (Phone-OtherTypes board): 34 pt rounded value
    * cells like the stepper rows' instead of the list's flat ones. Same inputs,
    * drafts and handlers.
    */
@@ -324,6 +328,7 @@ function FocusCellInput({
 
 function ActiveWorkoutSetRow({
   set,
+  reLogAllowed = false,
   modality = 'weight_reps',
   loadConvention,
   bodyWeightKg = null,
@@ -1093,6 +1098,7 @@ function ActiveWorkoutSetRow({
 
   // The focus table's check cell: a 44 pt rounded chip, accent once logged
   // (like the stepper rows'), a muted tick while it still waits.
+  const logLocked = useFocusLogLocked() && !reLogAllowed;
   const focusCheckCell = (
     done: boolean,
     onPress: () => void,
@@ -1100,15 +1106,20 @@ function ActiveWorkoutSetRow({
   ) => (
     <Pressable
       onPress={onPress}
+      disabled={logLocked && !done}
+      accessibilityState={{ disabled: logLocked && !done }}
       hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
       accessibilityRole="button"
       accessibilityLabel={label}
-      className={`h-11 w-11 items-center justify-center rounded-[14px] active:opacity-80 ${done ? '' : 'bg-raised'}`}
-      style={done ? { backgroundColor: accentPrimary } : undefined}
+      className={`h-[34px] w-[34px] items-center justify-center rounded-[12px] active:opacity-80 ${done ? '' : 'bg-raised'}`}
+      style={{
+        ...(done ? { backgroundColor: accentPrimary } : null),
+        ...(logLocked && !done ? { opacity: LOG_LOCKED_OPACITY } : null),
+      }}
     >
       <Icon
         name="checkmark"
-        size={20}
+        size={17}
         color={done ? '#ffffff' : textMuted}
         weight="bold"
       />
@@ -1431,7 +1442,8 @@ function ActiveWorkoutSetRow({
     stopwatchStartedAt != null
       ? Math.max(0, Math.floor((stopwatchNowMs - stopwatchStartedAt) / 1000))
       : 0;
-  const showStopwatch = isLive && !readOnly && state !== 'done';
+  // The focus view runs timed holds from its own Ready card and panel.
+  const showStopwatch = isLive && !readOnly && state !== 'done' && !focusLook;
 
   const handleToggleStopwatch = useCallback(() => {
     const store = useActiveWorkoutStore.getState();
@@ -1614,7 +1626,9 @@ function ActiveWorkoutSetRow({
           </Text>
         )}
       </View>
-      <View className={focusLook ? 'w-11 items-center' : 'w-10 items-center'}>
+      <View
+        className={focusLook ? 'w-[34px] items-center' : 'w-10 items-center'}
+      >
         {isEdit ? editLastCell : checkControl}
       </View>
     </Pressable>
@@ -1624,14 +1638,17 @@ function ActiveWorkoutSetRow({
 
   return (
     <ReanimatedSwipeable
-      renderRightActions={() => (
-        <SetSwipeDeleteAction
-          onPress={() => onDelete?.(setId)}
-          accessibilityLabel={t('activeWorkout.setRow.delete', {
-            defaultValue: 'Delete set {{setNumber}}',
-            setNumber: set.set_number,
-          })}
-        />
+      renderRightActions={(progress) => (
+        <SwipeRevealedDelete progress={progress}>
+          <SetSwipeDeleteAction
+            onPress={() => onDelete?.(setId)}
+            height={focusLook ? 34 : undefined}
+            accessibilityLabel={t('activeWorkout.setRow.delete', {
+              defaultValue: 'Delete set {{setNumber}}',
+              setNumber: set.set_number,
+            })}
+          />
+        </SwipeRevealedDelete>
       )}
       overshootRight={false}
       rightThreshold={40}
