@@ -49,6 +49,22 @@ async function getWeightsSince(
   }
 }
 
+// The newest `limit` weigh-ins, newest first, for the coaches' weight signal.
+async function getRecentWeights(userId: string, limit = 7) {
+  const client = await getClient(userId);
+  try {
+    const result = await client.query(
+      `SELECT weight, entry_date FROM check_in_measurements
+       WHERE user_id = $1 AND weight IS NOT NULL
+       ORDER BY entry_date DESC LIMIT $2`,
+      [userId, limit]
+    );
+    return result.rows;
+  } finally {
+    client.release();
+  }
+}
+
 // Distinct days with any food/exercise/check-in entry in the 7 days before
 // `today`, the caller's user-timezone day string.
 async function getWeeklyLoggedDayCount(
@@ -142,6 +158,7 @@ async function getTodayActivityCounts(
 export {
   getLastExerciseDate,
   getWeightsSince,
+  getRecentWeights,
   getWeeklyLoggedDayCount,
   getLoggedDates,
   getTodayActivityCounts,
@@ -149,6 +166,7 @@ export {
 export default {
   getLastExerciseDate,
   getWeightsSince,
+  getRecentWeights,
   getWeeklyLoggedDayCount,
   getLoggedDates,
   getTodayActivityCounts,
