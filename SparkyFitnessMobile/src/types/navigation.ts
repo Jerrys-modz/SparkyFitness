@@ -523,7 +523,8 @@ export type RootStackParamList = {
       }
     | undefined;
   SleepDetail: { entryId: string; day: string };
-  Chat: undefined;
+  /** `coachId` opens a coach's thread (#2013); omitted is the Sparky chat. */
+  Chat: { coachId?: string | null } | undefined;
   ChatSettings: undefined;
   Logs: undefined;
   Sync: undefined;
@@ -567,6 +568,7 @@ export type RootStackParamList = {
   AllergenSettings: undefined;
   DashboardSettings: undefined;
   HealthTrendsSettings: undefined;
+  CoachSettings: undefined;
   WatchSettings: undefined;
   WatchComplications: undefined;
   WatchComplicationEdit: { complicationId?: string } | undefined;

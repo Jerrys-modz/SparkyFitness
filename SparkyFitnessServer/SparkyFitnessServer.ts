@@ -121,6 +121,7 @@ import calorieMaintenancePeriodRoutesV2 from './routes/v2/calorieMaintenancePeri
 import workoutSplitRoutesV2 from './routes/v2/workoutSplitRoutes.js';
 import workoutProgramRoutesV2 from './routes/v2/workoutProgramRoutes.js';
 import dietPhaseRoutesV2 from './routes/v2/dietPhaseRoutes.js';
+import coachRoutesV2 from './routes/v2/coachRoutes.js';
 import shoeRoutesV2 from './routes/v2/shoeRoutes.js';
 import plateInventoryRoutesV2 from './routes/v2/plateInventoryRoutes.js';
 import actionTagRoutesV2 from './routes/v2/actionTagRoutes.js';
@@ -901,6 +902,7 @@ app.use(
 app.use('/api/v2/workout-splits', workoutSplitRoutesV2);
 app.use('/api/v2/workout-programs', workoutProgramRoutesV2);
 app.use('/api/v2/diet-phases', dietPhaseRoutesV2);
+app.use('/api/v2/coaches', coachRoutesV2);
 app.use('/api/v2/shoes', shoeRoutesV2);
 app.use('/api/v2/plate-inventory', plateInventoryRoutesV2);
 app.use('/api/v2/action-tags', actionTagRoutesV2);

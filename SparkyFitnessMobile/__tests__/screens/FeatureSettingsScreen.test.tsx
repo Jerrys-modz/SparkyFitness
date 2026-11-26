@@ -207,7 +207,18 @@ describe('FeatureSettingsScreen', () => {
       'feature-row-labResults',
       'feature-row-bloodPressure',
       'feature-row-appetite',
+      'feature-row-aiCoaches',
     ]);
+  });
+
+  it('turns coaches on in this app', () => {
+    renderScreen();
+    fireEvent(
+      screen.getByTestId('feature-switch-aiCoaches'),
+      'valueChange',
+      true
+    );
+    expect(mockSetFeatureOn).toHaveBeenCalledWith('aiCoaches', true);
   });
 
   it('turns medications off in this app', () => {
@@ -251,9 +262,9 @@ describe('FeatureSettingsScreen', () => {
       true
     );
     // One under each switch that reads the choices: medications, lab results,
-    // blood pressure, hunger and cravings.
+    // blood pressure, hunger and cravings, coaches.
     const retries = screen.getAllByText('Retry');
-    expect(retries).toHaveLength(4);
+    expect(retries).toHaveLength(5);
     fireEvent.press(retries[1]);
     expect(mockReloadChoices).toHaveBeenCalledTimes(1);
   });

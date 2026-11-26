@@ -103,6 +103,8 @@ export function choiceFeatureLabel(
       return webTabLabel(t, 'labs');
     case 'bloodPressure':
       return t('checkIn.tabs.bloodPressure', 'Blood pressure');
+    case 'aiCoaches':
+      return t('coaches.settings.title', 'Coaches');
   }
 }
 

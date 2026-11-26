@@ -128,7 +128,7 @@ describe('FeatureSettings', () => {
       screen.getAllByText(
         'Only this website. The mobile app has its own switch.'
       )
-    ).toHaveLength(4);
+    ).toHaveLength(5);
     expect(
       screen.getByRole('switch', { name: 'Blood pressure' })
     ).toBeChecked();
@@ -168,6 +168,16 @@ describe('FeatureSettings', () => {
     expect(mockSetFeatureOn).toHaveBeenLastCalledWith('medications', true);
   });
 
+  it('lists AI coaches under Wellbeing, for this website only, and turns them on', () => {
+    mockFeaturesOff = new Set<FeatureKey>(['aiCoaches']);
+    renderSettings();
+    expect(screen.getByText('Wellbeing')).toBeInTheDocument();
+    const toggle = screen.getByRole('switch', { name: 'Coaches' });
+    expect(toggle).not.toBeChecked();
+    fireEvent.click(toggle);
+    expect(mockSetFeatureOn).toHaveBeenCalledWith('aiCoaches', true);
+  });
+
   it('turns lab results off on this website', () => {
     renderSettings();
     fireEvent.click(screen.getByRole('switch', { name: 'Lab results' }));
@@ -200,7 +210,7 @@ describe('FeatureSettings', () => {
     expect(screen.getByRole('switch', { name: 'Medications' })).toBeDisabled();
     expect(
       screen.getAllByText('Update your SparkyFitness server to change this.')
-    ).toHaveLength(4);
+    ).toHaveLength(5);
     expect(
       screen.queryByRole('button', { name: 'Retry' })
     ).not.toBeInTheDocument();
@@ -212,7 +222,7 @@ describe('FeatureSettings', () => {
     expect(screen.getByRole('switch', { name: 'Lab results' })).toBeDisabled();
     expect(screen.getByRole('switch', { name: 'Medications' })).toBeDisabled();
     const retries = screen.getAllByRole('button', { name: 'Retry' });
-    expect(retries).toHaveLength(4);
+    expect(retries).toHaveLength(5);
     fireEvent.click(retries[0]!);
     expect(mockReloadChoices).toHaveBeenCalledTimes(1);
   });

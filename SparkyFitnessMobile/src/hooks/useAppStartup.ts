@@ -25,6 +25,7 @@ import { initFuelingNotificationResponses } from '../services/fuelingNotificatio
 import { initMealReminderNotificationResponses } from '../services/mealReminderNotificationHandler';
 import { initWeighInNotificationResponses } from '../services/weighInNotificationHandler';
 import { initChallengeNotificationResponses } from '../services/challengeNotificationHandler';
+import { initCoachNotificationResponses } from '../services/coachNotificationHandler';
 import { initMedicationNotificationActions } from '../services/medicationNotificationHandler';
 import { initSymptomNotificationActions } from '../services/symptomNotificationHandler';
 import { initWorkoutLiveActivity } from '../services/workoutLiveActivity';
@@ -89,6 +90,7 @@ export function useAppStartup({ shouldYieldObserverSync }: AppStartupArgs) {
     const stopWeighInResponses = initWeighInNotificationResponses();
     const stopSymptomActions = initSymptomNotificationActions();
     const stopChallengeResponses = initChallengeNotificationResponses();
+    const stopCoachResponses = initCoachNotificationResponses();
 
     // Keeps the iOS Live Activity or Android ongoing notification in sync
     // with the active-workout store.
@@ -194,6 +196,7 @@ export function useAppStartup({ shouldYieldObserverSync }: AppStartupArgs) {
       stopWeighInResponses();
       stopSymptomActions();
       stopChallengeResponses();
+      stopCoachResponses();
       if (Platform.OS === 'ios') {
         stopObservers();
       }

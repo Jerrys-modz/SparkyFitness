@@ -169,6 +169,8 @@ export const PREFERENCE_DEFAULTS = {
   macroAlertsEnabled: false,
   macroAlertRules: [] as MacroAlertRule[],
   oralCareRemindersEnabled: false,
+  coachNotificationsEnabled: true,
+  mutedCoachNotificationIds: [] as string[],
   oralCareReminderTimes: [...DEFAULT_ORAL_CARE_REMINDER_TIMES] as string[],
   weighInRemindersEnabled: false,
   weighInReminderTime: DEFAULT_WEIGH_IN_REMINDER_TIME as string,
@@ -289,6 +291,10 @@ export type AppPreferencesData = {
   macroAlertsEnabled: boolean;
   macroAlertRules: MacroAlertRule[];
   oralCareRemindersEnabled: boolean;
+  /** Phone notifications for AI coach messages (#2013). */
+  coachNotificationsEnabled: boolean;
+  /** Coaches whose messages do not notify; they still arrive in chat. */
+  mutedCoachNotificationIds: string[];
   oralCareReminderTimes: string[];
   weighInRemindersEnabled: boolean;
   /** `HH:MM`, device-local. */
@@ -498,6 +504,8 @@ export interface AppPreferencesState extends AppPreferencesData {
   setMacroAlertsEnabled: (enabled: boolean) => void;
   setMacroAlertRules: (rules: MacroAlertRule[]) => void;
   setOralCareRemindersEnabled: (enabled: boolean) => void;
+  setCoachNotificationsEnabled: (enabled: boolean) => void;
+  setCoachNotificationMuted: (coachId: string, muted: boolean) => void;
   setOralCareReminderTimes: (times: string[]) => void;
   setWeighInRemindersEnabled: (enabled: boolean) => void;
   setWeighInReminderTime: (time: string) => void;
@@ -712,6 +720,14 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         set({ macroAlertRules: normalizeMacroAlertRules(rules) }),
       setOralCareRemindersEnabled: (enabled) =>
         set({ oralCareRemindersEnabled: enabled }),
+      setCoachNotificationsEnabled: (enabled) =>
+        set({ coachNotificationsEnabled: enabled }),
+      setCoachNotificationMuted: (coachId, muted) =>
+        set((state) => ({
+          mutedCoachNotificationIds: muted
+            ? [...new Set([...state.mutedCoachNotificationIds, coachId])]
+            : state.mutedCoachNotificationIds.filter((id) => id !== coachId),
+        })),
       setOralCareReminderTimes: (times) =>
         set({ oralCareReminderTimes: normalizeOralCareReminderTimes(times) }),
       setWeighInRemindersEnabled: (enabled) =>
@@ -972,6 +988,8 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         macroAlertsEnabled: state.macroAlertsEnabled,
         macroAlertRules: state.macroAlertRules,
         oralCareRemindersEnabled: state.oralCareRemindersEnabled,
+        coachNotificationsEnabled: state.coachNotificationsEnabled,
+        mutedCoachNotificationIds: state.mutedCoachNotificationIds,
         oralCareReminderTimes: state.oralCareReminderTimes,
         weighInRemindersEnabled: state.weighInRemindersEnabled,
         weighInReminderTime: state.weighInReminderTime,
