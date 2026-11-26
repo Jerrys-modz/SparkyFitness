@@ -1024,7 +1024,7 @@ describe('useWatchCheckInBridge direct water sync ack coordination', () => {
 
   it('acknowledges direct medications and checkIn syncs only after refetches succeed', async () => {
     const today = getTodayDate();
-    const rangeStart = addDays(today, -13);
+    const rangeStart = addDays(today, -27);
     const invalidateSpy = jest
       .spyOn(queryClient, 'invalidateQueries')
       .mockResolvedValue(undefined);
