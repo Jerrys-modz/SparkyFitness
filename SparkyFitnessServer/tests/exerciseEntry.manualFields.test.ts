@@ -338,6 +338,32 @@ describe('manual_fields on exercise entry writes', () => {
     expect(column('manual_fields')).toEqual(['distance']);
   });
 
+  it('clears the heart-rate source when the average is changed to another value', async () => {
+    await exerciseEntryDb._createExerciseEntryWithClient(
+      mockClient as unknown as PoolClient,
+      'user-1',
+      {
+        exercise_id: 'ex-1',
+        entry_date: '2026-10-09',
+        source_id: 'hc-run-1',
+        duration_minutes: 66,
+        calories_burned: 500,
+        distance: 5.57,
+      },
+      'user-1',
+      'Health Connect'
+    );
+    const sql = mockClient.query.mock.calls
+      .map((call: unknown[]) => call[0])
+      .find(
+        (text: unknown): text is string =>
+          typeof text === 'string' && /UPDATE exercise_entries SET/i.test(text)
+      );
+    expect(sql).toMatch(
+      /hr_source = CASE\s+WHEN avg_heart_rate IS DISTINCT FROM \$9 THEN NULL\s+ELSE hr_source\s+END/
+    );
+  });
+
   it('a re-sent workout without manual fields updates everything', async () => {
     mockClient.query.mockImplementation((sql: string) => {
       if (/SELECT id FROM exercise_entries WHERE user_id/i.test(sql)) {

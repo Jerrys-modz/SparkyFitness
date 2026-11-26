@@ -347,6 +347,24 @@ describe('filterStaleWatchTelemetryFields', () => {
     expect(fields).toEqual({});
   });
 
+  it('does not let a snapshot that was not stored relabel the heart rate', async () => {
+    const { filterStaleWatchTelemetryFields } =
+      await import('../models/exerciseEntry.js');
+    const stale = filterStaleWatchTelemetryFields(
+      { max_heart_rate: 178 },
+      { avg_heart_rate: 150, max_heart_rate: 150, hr_source: 'headphones' }
+    );
+    expect(stale.skipHr).toBe(true);
+    expect(stale.fields).not.toHaveProperty('hr_source');
+
+    const kept = filterStaleWatchTelemetryFields(
+      { max_heart_rate: 140 },
+      { avg_heart_rate: 150, max_heart_rate: 178, hr_source: 'headphones' }
+    );
+    expect(kept.skipHr).toBe(false);
+    expect(kept.fields.hr_source).toBe('headphones');
+  });
+
   it('keeps a newer max and measured calories', async () => {
     const { filterStaleWatchTelemetryFields } =
       await import('../models/exerciseEntry.js');

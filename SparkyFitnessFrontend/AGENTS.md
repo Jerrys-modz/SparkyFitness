@@ -3,6 +3,7 @@
 _Last updated: 2026-11-24_
 
 _Last updated: 2026-11-25_
+_Last updated: 2026-11-26_
 
 SparkyFitness Frontend is the React web app for the SparkyFitness monorepo. Use this file as the primary guide for work inside `SparkyFitnessFrontend/`.
 

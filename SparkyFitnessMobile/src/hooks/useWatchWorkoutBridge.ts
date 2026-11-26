@@ -95,6 +95,7 @@ function createSessionTelemetry(entryDate: string | null): SessionTelemetry {
     unposted: false,
     endedAt: null,
     attribution: null,
+    hrSources: new Map(),
   };
 }
 
@@ -689,7 +690,7 @@ export function useWatchWorkoutBridge(
         );
         if (added.length > 0) {
           session.samples.set(exerciseEntryId, existing.concat(added));
-          session.hrSource = 'watch';
+          session.hrSources.set(exerciseEntryId, 'watch');
           session.unposted = true;
         }
       }
@@ -904,8 +905,8 @@ export function useWatchWorkoutBridge(
         try {
           await attachExerciseEntryWatchTelemetry(exerciseEntryId, {
             ...(hrSamples ? { hrSamples } : {}),
-            ...(hrSamples && session.hrSource
-              ? { hrSource: session.hrSource }
+            ...(hrSamples && session.hrSources.has(exerciseEntryId)
+              ? { hrSource: session.hrSources.get(exerciseEntryId) }
               : {}),
             ...(kcal != null ? { activeEnergyKcal: kcal } : {}),
             ...(durationMinutes != null ? { durationMinutes } : {}),
@@ -1201,17 +1202,42 @@ export function useWatchWorkoutBridge(
       const live = useActiveWorkoutStore.getState();
       if (live.sessionId !== sessionId) return;
       if (discardedSessionsRef.current.has(sessionId)) return;
-      const exerciseEntryId = currentExerciseEntryId(live);
-      if (exerciseEntryId == null) return;
+      const tagged =
+        currentExerciseEntryId(live) ??
+        (live.session?.exercises?.[0]
+          ? String(live.session.exercises[0].id)
+          : null);
+      if (tagged == null) return;
       let session = sessionsRef.current.get(sessionId);
       if (session == null) {
         session = createSessionTelemetry(entryDateOf(live.session));
         sessionsRef.current.set(sessionId, session);
       }
-      const existing = session.samples.get(exerciseEntryId) ?? [];
-      if (existing.some((candidate) => candidate.t === sample.t)) return;
-      session.samples.set(exerciseEntryId, existing.concat(sample));
-      session.hrSource = 'headphones';
+      // A reading can reach here long after it was taken (the phone locks
+      // between sets), so the exercise comes from when it was measured, by the
+      // same timeline the watch's batches use, not from the set that is active
+      // now.
+      const attributed = attributeWatchBatch({
+        samples: [sample],
+        taggedExerciseEntryId: tagged,
+        steps: attributionSteps(live),
+        completedAtBySetId: live.completedSetIds,
+        startedAt: live.startedAt,
+        activeSetId: live.activeSetId,
+        now: Date.now(),
+      });
+      let added = false;
+      for (const [exerciseEntryId, incoming] of attributed.samplesByExercise) {
+        const existing = session.samples.get(exerciseEntryId) ?? [];
+        const fresh = incoming.filter(
+          (candidate) => !existing.some((have) => have.t === candidate.t)
+        );
+        if (fresh.length === 0) continue;
+        session.samples.set(exerciseEntryId, existing.concat(fresh));
+        session.hrSources.set(exerciseEntryId, 'headphones');
+        added = true;
+      }
+      if (!added) return;
       session.unposted = true;
       syncPendingRef.current();
       const now = Date.now();

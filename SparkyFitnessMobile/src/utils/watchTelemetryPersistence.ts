@@ -176,10 +176,11 @@ export interface WatchTelemetrySessionState {
   /** Exercise the zone group is posted on. The server clears the others. */
   appleZoneEntryId?: string | null;
   /**
-   * What measured the heart rate in this session: the watch, or headphones
-   * read through the phone. The latest source to add readings wins.
+   * What measured the heart rate of each exercise entry: the watch, or
+   * headphones read through the phone. The latest source to add readings to an
+   * entry wins for that entry.
    */
-  hrSource?: HeartRateSource | null;
+  hrSources: Map<string, HeartRateSource>;
 }
 
 interface PersistedSession {
@@ -194,7 +195,7 @@ interface PersistedSession {
   attribution: WatchTelemetryAttribution | null;
   appleZones?: WatchTelemetrySessionState['appleZones'];
   appleZoneEntryId?: string | null;
-  hrSource?: HeartRateSource | null;
+  hrSources?: [string, HeartRateSource][];
 }
 
 function toPersisted(session: WatchTelemetrySessionState): PersistedSession {
@@ -210,7 +211,7 @@ function toPersisted(session: WatchTelemetrySessionState): PersistedSession {
     attribution: session.attribution,
     appleZones: session.appleZones ?? null,
     appleZoneEntryId: session.appleZoneEntryId ?? null,
-    hrSource: session.hrSource ?? null,
+    hrSources: [...session.hrSources.entries()],
   };
 }
 
@@ -287,10 +288,14 @@ function fromPersisted(
     typeof session.appleZoneEntryId === 'string'
       ? session.appleZoneEntryId
       : null;
-  next.hrSource =
-    session.hrSource === 'watch' || session.hrSource === 'headphones'
-      ? session.hrSource
-      : null;
+  next.hrSources = new Map(
+    (Array.isArray(session.hrSources) ? session.hrSources : []).filter(
+      (entry): entry is [string, HeartRateSource] =>
+        Array.isArray(entry) &&
+        typeof entry[0] === 'string' &&
+        (entry[1] === 'watch' || entry[1] === 'headphones')
+    )
+  );
   return next;
 }
 
@@ -391,7 +396,11 @@ export function mergeWatchTelemetry(
     if (target.entryDate == null) target.entryDate = incoming.entryDate;
     if (target.endedAt == null) target.endedAt = incoming.endedAt;
     if (target.attribution == null) target.attribution = incoming.attribution;
-    if (target.hrSource == null) target.hrSource = incoming.hrSource ?? null;
+    for (const [exerciseEntryId, source] of incoming.hrSources) {
+      if (!target.hrSources.has(exerciseEntryId)) {
+        target.hrSources.set(exerciseEntryId, source);
+      }
+    }
     if (incoming.unposted && (created || empty || mergedNewTelemetry)) {
       target.unposted = true;
       shouldFlush = true;

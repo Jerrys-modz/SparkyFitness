@@ -16,6 +16,11 @@ import HealthKit
 public class LiveHeartRateModule: Module {
     #if compiler(>=6.2)
     private var controller: AnyObject?
+    // A start is awaiting HealthKit. Only one may be in flight, and a stop that
+    // arrives meanwhile is remembered, so a session can never be left running
+    // that nothing holds a reference to. All of this runs on the main queue.
+    private var starting = false
+    private var stopRequested = false
     #endif
 
     public func definition() -> ModuleDefinition {
@@ -37,15 +42,23 @@ public class LiveHeartRateModule: Module {
         AsyncFunction("start") { () -> Bool in
             #if compiler(>=6.2)
             if #available(iOS 26.0, *) {
-                if self.controller != nil { return false }
+                if self.controller != nil || self.starting { return false }
+                self.starting = true
+                self.stopRequested = false
+                defer { self.starting = false }
                 let controller = self.makeController()
                 guard await controller.start() else { return false }
+                if self.stopRequested {
+                    // Stopped while HealthKit was still starting: end it now.
+                    await controller.stop()
+                    return false
+                }
                 self.controller = controller
                 return true
             }
             #endif
             return false
-        }
+        }.runOnQueue(.main)
 
         // Adopts the session iOS kept running when the app was killed during a
         // workout. True when one was taken over (or one is already running);
@@ -54,6 +67,9 @@ public class LiveHeartRateModule: Module {
             #if compiler(>=6.2)
             if #available(iOS 26.0, *) {
                 if self.controller != nil { return true }
+                if self.starting { return false }
+                self.starting = true
+                defer { self.starting = false }
                 let controller = self.makeController()
                 guard await controller.recover() else { return false }
                 self.controller = controller
@@ -61,7 +77,7 @@ public class LiveHeartRateModule: Module {
             }
             #endif
             return false
-        }
+        }.runOnQueue(.main)
 
         // Readings collected since the last call, oldest first. The phone
         // usually locks between sets, so JS may have missed some live events.
@@ -77,12 +93,14 @@ public class LiveHeartRateModule: Module {
         AsyncFunction("stop") { () -> Void in
             #if compiler(>=6.2)
             if #available(iOS 26.0, *) {
+                // A start still waiting on HealthKit ends itself once it lands.
+                if self.starting { self.stopRequested = true }
                 let running = self.controller as? LiveHeartRateController
                 self.controller = nil
                 await running?.stop()
             }
             #endif
-        }
+        }.runOnQueue(.main)
 
         OnDestroy {
             #if compiler(>=6.2)
@@ -102,8 +120,12 @@ public class LiveHeartRateModule: Module {
                 self?.sendEvent("onHeartRate", ["bpm": bpm, "at": at])
             },
             onStopped: { [weak self] in
-                self?.controller = nil
-                self?.sendEvent("onStopped", [:])
+                // HealthKit calls back on its own queue; the module's state
+                // lives on the main one.
+                DispatchQueue.main.async {
+                    self?.controller = nil
+                    self?.sendEvent("onStopped", [:])
+                }
             }
         )
     }

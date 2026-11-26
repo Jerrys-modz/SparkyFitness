@@ -1162,6 +1162,103 @@ describe('useWatchWorkoutBridge', () => {
     });
   });
 
+  it("files the phone's readings under the exercise they were taken in, and each exercise keeps its own source", async () => {
+    const { result } = renderHook(() => useWatchWorkoutBridge(true));
+    act(() => {
+      getStore().startWorkout(
+        makeSession({
+          exercises: [
+            {
+              ...makeSession().exercises[0],
+              id: 'ex-uuid-1',
+              sets: [
+                {
+                  id: 101,
+                  set_number: 1,
+                  set_type: 'normal',
+                  reps: 10,
+                  weight: 60,
+                },
+              ],
+            } as any,
+            {
+              ...makeSession().exercises[0],
+              id: 'ex-uuid-2',
+              exercise_id: 'ex-2',
+              sets: [
+                {
+                  id: 201,
+                  set_number: 1,
+                  set_type: 'normal',
+                  reps: 8,
+                  weight: 40,
+                },
+              ],
+            } as any,
+          ],
+        })
+      );
+      useActiveWorkoutStore.setState({
+        startedAt: Date.parse('2026-09-17T10:00:00.000Z'),
+      });
+      getStore().completeSet('101', Date.parse('2026-09-17T10:03:00.000Z'));
+    });
+    for (let i = 0; i < 5; i += 1) {
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+    }
+
+    // The second exercise is the active one now, but these two readings were
+    // taken during the first (a phone that was locked caught up late).
+    act(() => {
+      result.current.ingestPhoneHeartRate('session-1', {
+        t: '2026-09-17T10:01:00.000Z',
+        bpm: 120,
+      });
+      result.current.ingestPhoneHeartRate('session-1', {
+        t: '2026-09-17T10:01:10.000Z',
+        bpm: 122,
+      });
+      // The watch measured the second exercise.
+      fire('onHeartRateBatch', {
+        clientId: 'wrist-1',
+        sessionId: 'session-1',
+        exerciseEntryId: 'ex-uuid-2',
+        samples: [
+          { t: '2026-09-17T10:04:00.000Z', bpm: 140 },
+          { t: '2026-09-17T10:04:10.000Z', bpm: 142 },
+        ],
+      });
+    });
+
+    await act(async () => {
+      fire('onWorkoutStop', { sessionId: 'session-1' });
+      await Promise.resolve();
+    });
+
+    expect(mockAttachTelemetry).toHaveBeenCalledWith(
+      'ex-uuid-1',
+      expect.objectContaining({
+        hrSource: 'headphones',
+        hrSamples: [
+          { t: '2026-09-17T10:01:00.000Z', bpm: 120 },
+          { t: '2026-09-17T10:01:10.000Z', bpm: 122 },
+        ],
+      })
+    );
+    expect(mockAttachTelemetry).toHaveBeenCalledWith(
+      'ex-uuid-2',
+      expect.objectContaining({
+        hrSource: 'watch',
+        hrSamples: [
+          { t: '2026-09-17T10:04:00.000Z', bpm: 140 },
+          { t: '2026-09-17T10:04:10.000Z', bpm: 142 },
+        ],
+      })
+    );
+  });
+
   it("puts the newest sample of a live batch on screen, not an ended workout's", async () => {
     renderHook(() => useWatchWorkoutBridge(true));
     act(() => {
@@ -2247,6 +2344,7 @@ describe('useWatchWorkoutBridge across sessions, failures and watch finishes', (
           durations: new Map(),
           durationFromTimeline: false,
           handledBatchClientIds: new Set(),
+          hrSources: new Map(),
           entryDate: null,
           unposted: false,
           endedAt: null,
@@ -2333,6 +2431,7 @@ describe('useWatchWorkoutBridge across sessions, failures and watch finishes', (
       durations: new Map(),
       durationFromTimeline: false,
       handledBatchClientIds: new Set(),
+      hrSources: new Map(),
       entryDate: '2026-09-17',
       unposted: true,
       endedAt: 1_000,
@@ -2429,6 +2528,7 @@ describe('useWatchWorkoutBridge across sessions, failures and watch finishes', (
         durations: new Map(),
         durationFromTimeline: false,
         handledBatchClientIds: new Set(),
+        hrSources: new Map(),
         entryDate: null,
         unposted: false,
         endedAt: null,
@@ -2536,6 +2636,7 @@ describe('useWatchWorkoutBridge across sessions, failures and watch finishes', (
       durations: new Map(),
       durationFromTimeline: false,
       handledBatchClientIds: new Set(['hr-earlier']),
+      hrSources: new Map(),
       entryDate: '2026-09-17',
       unposted: true,
       endedAt: null,
@@ -2708,6 +2809,7 @@ describe('useWatchWorkoutBridge across sessions, failures and watch finishes', (
       durations: new Map(),
       durationFromTimeline: false,
       handledBatchClientIds: new Set(['hr-old']),
+      hrSources: new Map(),
       entryDate: '2026-09-17',
       unposted: true,
       endedAt: Date.now(),
@@ -2772,6 +2874,7 @@ describe('useWatchWorkoutBridge across sessions, failures and watch finishes', (
       durations: new Map(),
       durationFromTimeline: false,
       handledBatchClientIds: new Set(['hr-old']),
+      hrSources: new Map(),
       entryDate: '2026-09-17',
       unposted: true,
       endedAt: Date.now(),
@@ -2838,6 +2941,7 @@ describe('useWatchWorkoutBridge across sessions, failures and watch finishes', (
       durations: new Map(),
       durationFromTimeline: false,
       handledBatchClientIds: new Set(['hr-old']),
+      hrSources: new Map(),
       entryDate: '2026-09-17',
       unposted: true,
       endedAt: Date.now(),
@@ -2875,6 +2979,7 @@ describe('useWatchWorkoutBridge across sessions, failures and watch finishes', (
       durations: new Map(),
       durationFromTimeline: false,
       handledBatchClientIds: new Set(['hr-old']),
+      hrSources: new Map(),
       entryDate: '2026-09-17',
       unposted: true,
       endedAt: Date.now(),
@@ -2929,6 +3034,7 @@ describe('useWatchWorkoutBridge across sessions, failures and watch finishes', (
       durations: new Map(),
       durationFromTimeline: false,
       handledBatchClientIds: new Set(['hr-old']),
+      hrSources: new Map(),
       entryDate: '2026-09-17',
       unposted: true,
       endedAt: Date.now(),
@@ -3018,6 +3124,7 @@ describe('useWatchWorkoutBridge across sessions, failures and watch finishes', (
         durations: new Map(),
         durationFromTimeline: false,
         handledBatchClientIds: new Set<string>(),
+        hrSources: new Map(),
         entryDate: null,
         unposted: false,
         endedAt: null,

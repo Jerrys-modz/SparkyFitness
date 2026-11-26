@@ -572,6 +572,9 @@ export function filterStaleWatchTelemetryFields(
     delete next.avg_heart_rate;
     delete next.max_heart_rate;
     delete next.watch_telemetry_observed_at;
+    // The label says what measured the stored heart rate. A snapshot that
+    // was not stored must not relabel the one that was.
+    delete next.hr_source;
   }
   const storedCalories = Number(entry.active_calories);
   if (
@@ -999,6 +1002,12 @@ async function _updateExerciseEntryWithClient(
       image_url = $7,
       distance = $8,
       avg_heart_rate = $9,
+      -- The label says what measured the stored heart rate; a different
+      -- number typed in by hand is not that measurement.
+      hr_source = CASE
+        WHEN avg_heart_rate IS DISTINCT FROM $9 THEN NULL
+        ELSE hr_source
+      END,
       updated_by_user_id = $10,
       exercise_name = $11,
       calories_per_hour = $12,
