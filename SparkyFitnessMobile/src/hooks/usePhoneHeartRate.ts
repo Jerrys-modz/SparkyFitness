@@ -3,7 +3,10 @@ import { AppState } from 'react-native';
 import LiveHeartRateModule from '../../modules/live-heart-rate';
 import { useActiveWorkoutStore } from '../stores/activeWorkoutStore';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
-import { useLiveHeartRateStore } from '../stores/liveHeartRateStore';
+import {
+  LIVE_HEART_RATE_MAX_AGE_MS,
+  useLiveHeartRateStore,
+} from '../stores/liveHeartRateStore';
 import { addLog } from '../services/LogService';
 import {
   getGpsRecordingSnapshot,
@@ -32,6 +35,8 @@ function anotherRecordingActive(): boolean {
 export const WATCH_SILENT_GRACE_MS = 45_000;
 /** How often the live workout re-checks who should be measuring. */
 const SOURCE_CHECK_MS = 10_000;
+/** Refusals in a row (Health access denied, no session allowed) before giving up for the workout. */
+const MAX_START_FAILURES = 3;
 
 /**
  * The exercise entry the live workout is on: the one that holds the active
@@ -91,6 +96,8 @@ export function usePhoneHeartRate(
     // When the watch last gave a reading for the live workout (its time, not
     // when it arrived), or null when it has not.
     let lastWatchAt: number | null = null;
+    // Starts that came back false in a row; reset when a workout begins.
+    let failedStarts = 0;
     let sourceTimer: ReturnType<typeof setInterval> | undefined;
     let graceTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -98,17 +105,34 @@ export function usePhoneHeartRate(
       lastWatchAt != null && Date.now() - lastWatchAt < WATCH_SILENT_GRACE_MS;
 
     const begin = (): void => {
-      if (!ready || running || watchActive() || anotherRecordingActive())
+      if (
+        !ready ||
+        running ||
+        failedStarts >= MAX_START_FAILURES ||
+        watchActive() ||
+        anotherRecordingActive()
+      ) {
         return;
+      }
       running = true;
       const mine = ++generation;
       native
         .start()
         .then((started) => {
           if (!started) {
-            if (mine === generation) running = false;
+            // A start that was cancelled by an end() is not a refusal.
+            if (mine !== generation) return;
+            running = false;
+            failedStarts += 1;
+            if (failedStarts === 1) {
+              addLog(
+                'Phone heart-rate session was not started (Health access refused or no session allowed)',
+                'WARNING'
+              );
+            }
             return;
           }
+          failedStarts = 0;
           if (mine !== generation) void native.stop().catch(() => undefined);
         })
         .catch((error: unknown) => {
@@ -129,15 +153,21 @@ export function usePhoneHeartRate(
       const state = useActiveWorkoutStore.getState();
       if (state.sessionId == null || watchActive()) return;
       if (!(reading.bpm > 0) || !Number.isFinite(reading.at)) return;
+      // The live chip only shows a fresh reading: one caught up after the
+      // phone was locked belongs to the past and goes to the upload buffer.
       const exerciseEntryId = currentExerciseEntryId(state);
-      if (exerciseEntryId == null) return;
-      useLiveHeartRateStore.getState().record({
-        sessionId: state.sessionId,
-        exerciseEntryId,
-        bpm: Math.round(reading.bpm),
-        at: reading.at,
-        source: 'phone',
-      });
+      if (
+        exerciseEntryId != null &&
+        Date.now() - reading.at <= LIVE_HEART_RATE_MAX_AGE_MS
+      ) {
+        useLiveHeartRateStore.getState().record({
+          sessionId: state.sessionId,
+          exerciseEntryId,
+          bpm: Math.round(reading.bpm),
+          at: reading.at,
+          source: 'phone',
+        });
+      }
       onSampleRef.current?.(state.sessionId, {
         t: new Date(reading.at).toISOString(),
         bpm: Math.round(reading.bpm),
@@ -178,6 +208,7 @@ export function usePhoneHeartRate(
     const sync = (sessionId: string | null): void => {
       clearTimers();
       lastWatchAt = null;
+      failedStarts = 0;
       if (sessionId == null) {
         end();
         return;

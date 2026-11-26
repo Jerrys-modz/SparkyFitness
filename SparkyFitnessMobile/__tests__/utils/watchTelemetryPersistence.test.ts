@@ -31,6 +31,7 @@ function create(entryDate: string | null): WatchTelemetrySessionState {
     durations: new Map(),
     durationFromTimeline: false,
     handledBatchClientIds: new Set(),
+    hrSources: new Map(),
     entryDate,
     unposted: false,
     endedAt: null,
@@ -61,6 +62,7 @@ describe('watchTelemetryPersistence', () => {
           ]),
           energy: new Map([['ex-1', 12.5]]),
           handledBatchClientIds: new Set(['batch-1']),
+          hrSources: new Map(),
           unposted: true,
           endedAt: 1000,
         }),
@@ -103,6 +105,7 @@ describe('watchTelemetryPersistence', () => {
             ],
           ]),
           handledBatchClientIds: new Set(['batch-1']),
+          hrSources: new Map(),
           unposted: true,
         }),
       ],
@@ -204,6 +207,7 @@ describe('watchTelemetryPersistence', () => {
         session({
           energy: new Map([['ex-1', 4]]),
           handledBatchClientIds: new Set(['batch-new']),
+          hrSources: new Map(),
         }),
       ],
     ]);
@@ -213,6 +217,7 @@ describe('watchTelemetryPersistence', () => {
         session({
           energy: new Map([['ex-1', 9]]),
           handledBatchClientIds: new Set(['batch-old']),
+          hrSources: new Map(),
           unposted: true,
         }),
       ],
@@ -229,6 +234,7 @@ describe('watchTelemetryPersistence', () => {
         session({
           energy: new Map([['ex-1', 4]]),
           handledBatchClientIds: new Set(['batch-shared']),
+          hrSources: new Map(),
         }),
       ],
     ]);
@@ -238,6 +244,7 @@ describe('watchTelemetryPersistence', () => {
         session({
           energy: new Map([['ex-1', 9]]),
           handledBatchClientIds: new Set(['batch-old', 'batch-shared']),
+          hrSources: new Map(),
         }),
       ],
     ]);

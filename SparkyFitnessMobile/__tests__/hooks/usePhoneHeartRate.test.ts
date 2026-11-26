@@ -55,12 +55,19 @@ describe('currentExerciseEntryId', () => {
 });
 
 describe('usePhoneHeartRate', () => {
+  let appStateSpy: jest.SpyInstance;
+  afterEach(() => appStateSpy.mockRestore());
+
   beforeEach(() => {
     jest.clearAllMocks();
     mockListeners.clear();
     mockNative.isAvailable.mockReturnValue(true);
     useLiveHeartRateStore.setState({ reading: null });
     useAppPreferencesStore.setState({ phoneHeartRateEnabled: true });
+    // The foreground listener is a no-op unless a test captures it.
+    appStateSpy = jest
+      .spyOn(AppState, 'addEventListener')
+      .mockImplementation((() => ({ remove: jest.fn() })) as never);
     useActiveWorkoutStore.setState({
       sessionId: null,
       activeSetId: null,
@@ -92,17 +99,18 @@ describe('usePhoneHeartRate', () => {
         session,
       } as never);
     });
+    const at = Date.now();
     act(() => {
       (mockListeners.get('onHeartRate') as Listener)({
         bpm: 131.6,
-        at: 1000,
+        at,
       } as never);
     });
     expect(useLiveHeartRateStore.getState().reading).toEqual({
       sessionId: 's1',
       exerciseEntryId: 'entry-b',
       bpm: 132,
-      at: 1000,
+      at,
       source: 'phone',
     });
   });
@@ -250,7 +258,7 @@ describe('usePhoneHeartRate', () => {
       act(() => {
         (mockListeners.get('onHeartRate') as Listener)({
           bpm: 100,
-          at: 5,
+          at: Date.now(),
         } as never);
       });
       expect(useLiveHeartRateStore.getState().reading?.source).toBe('phone');
@@ -319,37 +327,82 @@ describe('usePhoneHeartRate', () => {
 
     it('catches up on readings taken while JS was not running', async () => {
       let onAppState: ((state: string) => void) | undefined;
-      const spy = jest.spyOn(AppState, 'addEventListener').mockImplementation(((
+      appStateSpy.mockImplementation(((
         _event: string,
         handler: (s: string) => void
       ) => {
         onAppState = handler;
         return { remove: jest.fn() };
       }) as never);
-      try {
-        renderHook(() => usePhoneHeartRate(false));
-        await act(async () => {
-          useActiveWorkoutStore.setState({
-            sessionId: 's1',
-            activeSetId: '1',
-            session,
-          } as never);
-        });
-        mockNative.drain.mockReturnValueOnce([
-          { bpm: 118, at: 1000 },
-          { bpm: 121, at: 2000 },
-        ]);
-        expect(onAppState).toBeDefined();
-        act(() => onAppState?.('active'));
-        expect(useLiveHeartRateStore.getState().reading).toMatchObject({
-          bpm: 121,
-          at: 2000,
-          source: 'phone',
-        });
-      } finally {
-        spy.mockRestore();
-      }
+      renderHook(() => usePhoneHeartRate(false));
+      await act(async () => {
+        useActiveWorkoutStore.setState({
+          sessionId: 's1',
+          activeSetId: '1',
+          session,
+        } as never);
+      });
+      const now = Date.now();
+      mockNative.drain.mockReturnValueOnce([
+        { bpm: 118, at: now - 2000 },
+        { bpm: 121, at: now - 1000 },
+      ]);
+      expect(onAppState).toBeDefined();
+      act(() => onAppState?.('active'));
+      expect(useLiveHeartRateStore.getState().reading).toMatchObject({
+        bpm: 121,
+        at: now - 1000,
+        source: 'phone',
+      });
     });
+  });
+
+  it('sends an old reading to the upload buffer but keeps it off the live chip', async () => {
+    const onSample = jest.fn();
+    renderHook(() => usePhoneHeartRate(false, onSample));
+    await act(async () => {
+      useActiveWorkoutStore.setState({
+        sessionId: 's1',
+        activeSetId: '1',
+        session,
+      } as never);
+    });
+    const old = Date.now() - 10 * 60_000;
+    act(() => {
+      (mockListeners.get('onHeartRate') as Listener)({
+        bpm: 118,
+        at: old,
+      } as never);
+    });
+    expect(onSample).toHaveBeenCalledWith('s1', {
+      t: new Date(old).toISOString(),
+      bpm: 118,
+    });
+    expect(useLiveHeartRateStore.getState().reading).toBeNull();
+  });
+
+  it('stops asking after Health refuses the session a few times', async () => {
+    jest.useFakeTimers();
+    try {
+      mockNative.start.mockResolvedValue(false);
+      renderHook(() => usePhoneHeartRate(false));
+      await act(async () => {
+        await Promise.resolve();
+      });
+      await act(async () => {
+        useActiveWorkoutStore.setState({ sessionId: 's1' } as never);
+      });
+      // One check at a time, so each refused start settles before the next.
+      for (let i = 0; i < 8; i += 1) {
+        await act(async () => {
+          jest.advanceTimersByTime(10_000);
+        });
+      }
+      expect(mockNative.start).toHaveBeenCalledTimes(3);
+    } finally {
+      mockNative.start.mockResolvedValue(true);
+      jest.useRealTimers();
+    }
   });
 
   it('does nothing until the person turns it on', async () => {
