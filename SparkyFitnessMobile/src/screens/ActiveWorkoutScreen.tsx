@@ -942,26 +942,6 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
     }
     return null;
   }, [setTypeMenu, session]);
-  const setSideCurrent = useMemo(() => {
-    if (setTypeMenu == null || session == null) return null;
-    for (const exercise of session.exercises) {
-      const set = exercise.sets.find((s) => String(s.id) === setTypeMenu.setId);
-      if (set) return set.side ?? null;
-    }
-    return null;
-  }, [setTypeMenu, session]);
-  // Side items only on a one-sided exercise, or one with a side already set.
-  const setSideAllowed = useMemo(() => {
-    if (setTypeMenu == null || session == null) return false;
-    const exercise = session.exercises.find((e) =>
-      e.sets.some((s) => String(s.id) === setTypeMenu.setId)
-    );
-    return (
-      exercise != null &&
-      (exercise.exercise_snapshot?.load_convention === 'per_side' ||
-        exercise.sets.some((s) => s.side))
-    );
-  }, [setTypeMenu, session]);
 
   const { handleDiscard } = useActiveWorkoutDiscard({
     sessionId,
