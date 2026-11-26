@@ -52,6 +52,7 @@ enum ComplicationPublisher {
             "proteinGoalComplication",
             "carbsGoalComplication",
             "fatGoalComplication",
+            CalorieGoal.kind,
         ]
     }
 
@@ -199,7 +200,7 @@ enum ComplicationPublisher {
                 fatGoal: goals.fatGrams?.goal
             ),
             forKey: Energy.key,
-            reloading: Energy.kinds + [CalorieGoal.kind]
+            reloading: Energy.kinds + [CalorieGoal.kind, Custom.kind]
         )
     }
 
@@ -286,7 +287,7 @@ enum ComplicationPublisher {
                 progress: max(0, min(1, waterProgress))
             ),
             forKey: Water.key,
-            reloading: [Water.kind]
+            reloading: [Water.kind, Custom.kind]
         )
     }
 
@@ -296,7 +297,7 @@ enum ComplicationPublisher {
         write(
             StepsSnapshotPayload(date: day, count: max(0, steps), goal: max(1, goal)),
             forKey: Steps.key,
-            reloading: [Steps.kind]
+            reloading: [Steps.kind, Custom.kind]
         )
     }
 

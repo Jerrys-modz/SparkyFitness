@@ -7,6 +7,7 @@ import measurementRepository from '../models/measurementRepository.js';
 import userRepository from '../models/userRepository.js';
 import preferenceRepository from '../models/preferenceRepository.js';
 import * as genericHealthRepository from '../models/genericHealthRepository.js';
+import nutrientGoalPreferenceService from '../services/nutrientGoalPreferenceService.js';
 
 // No diet phases: the calorie maths is exactly as without the feature.
 vi.mock('../services/dietPhaseService.js', () => ({
@@ -330,4 +331,34 @@ test('dashboard step calories use weight and height known on the requested date'
     'user1',
     '2026-06-13'
   );
+});
+
+describe('getDashboardStats calorie goal direction', () => {
+  test('passes through that the calorie direction is only the default', async () => {
+    vi.mocked(
+      nutrientGoalPreferenceService.getEffectiveGoalTypes
+    ).mockResolvedValueOnce({
+      calories: { goalType: 'minimum', isDefault: true },
+    });
+    const stats = await getDashboardStats('user1', '2026-06-13', false);
+
+    expect(
+      nutrientGoalPreferenceService.getEffectiveGoalTypes
+    ).toHaveBeenCalledWith('user1', { markDefaults: true });
+    expect(stats.calorieGoalType).toEqual({
+      goalType: 'minimum',
+      targetMin: undefined,
+      targetMax: undefined,
+      isDefault: true,
+    });
+  });
+
+  test('leaves a chosen direction unmarked', async () => {
+    vi.mocked(
+      nutrientGoalPreferenceService.getEffectiveGoalTypes
+    ).mockResolvedValueOnce({ calories: { goalType: 'maximum' } });
+    const stats = await getDashboardStats('user1', '2026-06-13', false);
+
+    expect(stats.calorieGoalType).not.toHaveProperty('isDefault');
+  });
 });

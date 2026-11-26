@@ -69,7 +69,9 @@ async function getDashboardStats(
       userRepository.getUserProfile(userId),
       preferenceRepository.getUserPreferences(userId),
       loadCalorieRuleTimeline(userId, date, date),
-      nutrientGoalPreferenceService.getEffectiveGoalTypes(userId),
+      nutrientGoalPreferenceService.getEffectiveGoalTypes(userId, {
+        markDefaults: true,
+      }),
       includeCheckin
         ? measurementRepository.getLatestCheckInMeasurementsOnOrBeforeDate(
             userId,
@@ -162,6 +164,7 @@ async function getDashboardStats(
             goalType: calorieGoalType.goalType,
             targetMin: calorieGoalType.targetMin,
             targetMax: calorieGoalType.targetMax,
+            ...(calorieGoalType.isDefault ? { isDefault: true } : {}),
           }
         : undefined,
     };
