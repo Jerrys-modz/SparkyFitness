@@ -1,3 +1,4 @@
+import { AppState } from 'react-native';
 import { renderHook, act } from '@testing-library/react-native';
 import {
   WATCH_SILENT_GRACE_MS,
@@ -15,6 +16,8 @@ const mockNative = {
   isAvailable: jest.fn(() => true),
   start: jest.fn(() => Promise.resolve(true)),
   stop: jest.fn(() => Promise.resolve()),
+  recover: jest.fn(() => Promise.resolve(false)),
+  drain: jest.fn((): { bpm: number; at: number }[] => []),
   addListener: jest.fn((name: string, listener: Listener) => {
     mockListeners.set(name, listener);
     return { remove: jest.fn(() => mockListeners.delete(name)) };
@@ -132,6 +135,10 @@ describe('usePhoneHeartRate', () => {
 
     it('steps in only after the watch has stayed silent', async () => {
       renderHook(() => usePhoneHeartRate(true));
+      // Let the start-up check for a session left by a killed app finish.
+      await act(async () => {
+        await Promise.resolve();
+      });
       await act(async () => {
         useActiveWorkoutStore.setState({ sessionId: 's1' } as never);
       });
@@ -145,6 +152,10 @@ describe('usePhoneHeartRate', () => {
 
     it('never starts when the watch is heard within the wait', async () => {
       renderHook(() => usePhoneHeartRate(true));
+      // Let the start-up check for a session left by a killed app finish.
+      await act(async () => {
+        await Promise.resolve();
+      });
       await act(async () => {
         useActiveWorkoutStore.setState({ sessionId: 's1' } as never);
       });
@@ -153,17 +164,21 @@ describe('usePhoneHeartRate', () => {
           sessionId: 's1',
           exerciseEntryId: 'entry-a',
           bpm: 110,
-          at: 1,
+          at: Date.now(),
         });
       });
       await act(async () => {
-        jest.advanceTimersByTime(WATCH_SILENT_GRACE_MS * 2);
+        jest.advanceTimersByTime(WATCH_SILENT_GRACE_MS - 15_000);
       });
       expect(mockNative.start).not.toHaveBeenCalled();
     });
 
     it('hands back to the watch once it is heard', async () => {
       renderHook(() => usePhoneHeartRate(true));
+      // Let the start-up check for a session left by a killed app finish.
+      await act(async () => {
+        await Promise.resolve();
+      });
       await act(async () => {
         useActiveWorkoutStore.setState({ sessionId: 's1' } as never);
         jest.advanceTimersByTime(WATCH_SILENT_GRACE_MS);
@@ -175,7 +190,44 @@ describe('usePhoneHeartRate', () => {
           sessionId: 's1',
           exerciseEntryId: 'entry-a',
           bpm: 110,
-          at: 2,
+          at: Date.now(),
+        });
+      });
+      expect(mockNative.stop).toHaveBeenCalledTimes(1);
+    });
+
+    it('takes the headphones back when the watch goes quiet mid-workout', async () => {
+      renderHook(() => usePhoneHeartRate(true));
+      // Let the start-up check for a session left by a killed app finish.
+      await act(async () => {
+        await Promise.resolve();
+      });
+      await act(async () => {
+        useActiveWorkoutStore.setState({ sessionId: 's1' } as never);
+      });
+      act(() => {
+        useLiveHeartRateStore.getState().record({
+          sessionId: 's1',
+          exerciseEntryId: 'entry-a',
+          bpm: 110,
+          at: Date.now(),
+        });
+      });
+      expect(mockNative.start).not.toHaveBeenCalled();
+
+      // The watch stays quiet past the wait: the next check starts the phone.
+      await act(async () => {
+        jest.advanceTimersByTime(WATCH_SILENT_GRACE_MS + 10_000);
+      });
+      expect(mockNative.start).toHaveBeenCalledTimes(1);
+
+      // And the watch is heard again: it takes the workout back.
+      await act(async () => {
+        useLiveHeartRateStore.getState().record({
+          sessionId: 's1',
+          exerciseEntryId: 'entry-a',
+          bpm: 112,
+          at: Date.now(),
         });
       });
       expect(mockNative.stop).toHaveBeenCalledTimes(1);
@@ -183,6 +235,10 @@ describe('usePhoneHeartRate', () => {
 
     it("does not mistake the phone's own reading for the watch", async () => {
       renderHook(() => usePhoneHeartRate(true));
+      // Let the start-up check for a session left by a killed app finish.
+      await act(async () => {
+        await Promise.resolve();
+      });
       await act(async () => {
         useActiveWorkoutStore.setState({
           sessionId: 's1',
@@ -230,6 +286,69 @@ describe('usePhoneHeartRate', () => {
         useWatchRunLiveStore.setState({ run: null } as never);
       });
       expect(mockNative.start).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('after the app was killed or the phone locked', () => {
+    it('takes over a session iOS kept running and does not start a second', async () => {
+      mockNative.recover.mockResolvedValueOnce(true);
+      useActiveWorkoutStore.setState({ sessionId: 's1' } as never);
+      renderHook(() => usePhoneHeartRate(false));
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(mockNative.recover).toHaveBeenCalledTimes(1);
+      expect(mockNative.start).not.toHaveBeenCalled();
+
+      // The workout ending closes the adopted session.
+      await act(async () => {
+        useActiveWorkoutStore.setState({ sessionId: null } as never);
+      });
+      expect(mockNative.stop).toHaveBeenCalledTimes(1);
+    });
+
+    it('ends a recovered session when no workout is live any more', async () => {
+      mockNative.recover.mockResolvedValueOnce(true);
+      renderHook(() => usePhoneHeartRate(false));
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(mockNative.stop).toHaveBeenCalledTimes(1);
+      expect(mockNative.start).not.toHaveBeenCalled();
+    });
+
+    it('catches up on readings taken while JS was not running', async () => {
+      let onAppState: ((state: string) => void) | undefined;
+      const spy = jest.spyOn(AppState, 'addEventListener').mockImplementation(((
+        _event: string,
+        handler: (s: string) => void
+      ) => {
+        onAppState = handler;
+        return { remove: jest.fn() };
+      }) as never);
+      try {
+        renderHook(() => usePhoneHeartRate(false));
+        await act(async () => {
+          useActiveWorkoutStore.setState({
+            sessionId: 's1',
+            activeSetId: '1',
+            session,
+          } as never);
+        });
+        mockNative.drain.mockReturnValueOnce([
+          { bpm: 118, at: 1000 },
+          { bpm: 121, at: 2000 },
+        ]);
+        expect(onAppState).toBeDefined();
+        act(() => onAppState?.('active'));
+        expect(useLiveHeartRateStore.getState().reading).toMatchObject({
+          bpm: 121,
+          at: 2000,
+          source: 'phone',
+        });
+      } finally {
+        spy.mockRestore();
+      }
     });
   });
 

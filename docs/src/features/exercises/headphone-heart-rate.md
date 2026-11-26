@@ -12,13 +12,18 @@ Turn on **Headphone heart rate** in Settings → Workout Settings. It is off by 
 
 ## With a watch
 
-If an Apple Watch is paired, the watch measures your heart rate as before. The phone waits 30 seconds for the watch. If the watch has sent nothing by then (you left it at home, or it is not on your wrist), the phone uses your AirPods instead. If the watch starts sending later, the phone stops and the watch takes over.
+The phone and the watch share the job, and whichever has recent readings is used. If an Apple Watch is paired, the watch measures your heart rate as before. If it has sent nothing for about 45 seconds (you left it at home, took it off, or it is out of range), the phone uses your AirPods instead. When the watch starts sending again, it takes over and the phone stops. Apple chooses between a watch and AirPods by how accurate the last 5 minutes were, which the app cannot see, so SparkyFitness goes by which one is giving readings.
 
 ## What you see
 
 - The current heart rate shows on the exercise you are on, as it does with a watch.
 - When the workout is saved, each exercise carries its average and maximum heart rate and time in each [heart rate zone](/features/exercises/heart-rate-zones).
 - Under the heart rate, a label says where it came from: **Apple Watch** or **Headphones**. It shows on a strength workout's exercises, on a run or walk recorded with the watch (the **Avg heart rate** tile reads "Avg heart rate · Apple Watch"), and on the activity screen. Workouts synced from Apple Health, Garmin and other sources show no label, because the app cannot tell what measured them. Runs and workouts saved before this label existed show none either, and nothing is added to them afterwards.
+
+## When the phone locks or the app closes
+
+- **Locked phone:** your phone usually locks between sets. The readings keep being taken and are caught up when you unlock it, so the workout still has them. The first time a workout session starts, iOS may show a prompt saying workout data will be available to the app while the phone is locked. Allow it.
+- **App closed:** if the app is closed or restarted during a workout, it picks the heart-rate session back up when you open it again, and ends it if the workout is already over.
 
 ## Good to know
 

@@ -7,6 +7,12 @@ import HealthKit
 // sends each new reading to JS. The workout itself is thrown away on stop: the
 // app writes its own workouts to Health, and keeping this one would add a
 // second copy. Older toolchains compile this with `isAvailable` false.
+//
+// Two things keep it working across the phone's life: every reading is also
+// kept natively until JS asks for it (`drain`), because the phone usually
+// locks between sets and JS may not run then; and `recover` adopts a session
+// iOS kept alive when the app was killed mid-workout (Apple's crash recovery),
+// which needs its live data source and delegates set up again.
 public class LiveHeartRateModule: Module {
     #if compiler(>=6.2)
     private var controller: AnyObject?
@@ -32,21 +38,40 @@ public class LiveHeartRateModule: Module {
             #if compiler(>=6.2)
             if #available(iOS 26.0, *) {
                 if self.controller != nil { return false }
-                let controller = LiveHeartRateController(
-                    onReading: { [weak self] bpm, at in
-                        self?.sendEvent("onHeartRate", ["bpm": bpm, "at": at])
-                    },
-                    onStopped: { [weak self] in
-                        self?.controller = nil
-                        self?.sendEvent("onStopped", [:])
-                    }
-                )
+                let controller = self.makeController()
                 guard await controller.start() else { return false }
                 self.controller = controller
                 return true
             }
             #endif
             return false
+        }
+
+        // Adopts the session iOS kept running when the app was killed during a
+        // workout. True when one was taken over (or one is already running);
+        // false when there was nothing to recover.
+        AsyncFunction("recover") { () -> Bool in
+            #if compiler(>=6.2)
+            if #available(iOS 26.0, *) {
+                if self.controller != nil { return true }
+                let controller = self.makeController()
+                guard await controller.recover() else { return false }
+                self.controller = controller
+                return true
+            }
+            #endif
+            return false
+        }
+
+        // Readings collected since the last call, oldest first. The phone
+        // usually locks between sets, so JS may have missed some live events.
+        Function("drain") { () -> [[String: Double]] in
+            #if compiler(>=6.2)
+            if #available(iOS 26.0, *) {
+                return (self.controller as? LiveHeartRateController)?.drain() ?? []
+            }
+            #endif
+            return []
         }
 
         AsyncFunction("stop") { () -> Void in
@@ -68,6 +93,21 @@ public class LiveHeartRateModule: Module {
             #endif
         }
     }
+
+    #if compiler(>=6.2)
+    @available(iOS 26.0, *)
+    private func makeController() -> LiveHeartRateController {
+        return LiveHeartRateController(
+            onReading: { [weak self] bpm, at in
+                self?.sendEvent("onHeartRate", ["bpm": bpm, "at": at])
+            },
+            onStopped: { [weak self] in
+                self?.controller = nil
+                self?.sendEvent("onStopped", [:])
+            }
+        )
+    }
+    #endif
 }
 
 #if compiler(>=6.2)
@@ -79,6 +119,11 @@ private final class LiveHeartRateController: NSObject, HKWorkoutSessionDelegate,
     private var session: HKWorkoutSession?
     private var builder: HKLiveWorkoutBuilder?
     private var lastEmitted: Double = 0
+    // Readings kept until JS drains them. Guarded by `lock`: the builder calls
+    // back on its own queue while JS drains from another.
+    private let lock = NSLock()
+    private var buffered: [[String: Double]] = []
+    private let maxBuffered = 5_000
 
     init(onReading: @escaping (Double, Double) -> Void, onStopped: @escaping () -> Void) {
         self.onReading = onReading
@@ -119,6 +164,37 @@ private final class LiveHeartRateController: NSObject, HKWorkoutSessionDelegate,
         }
     }
 
+    // Takes over a session iOS kept alive after the app was killed. The builder
+    // comes back in its earlier state but without a data source, so one is made
+    // again from the session's own configuration, and the delegates are reset.
+    func recover() async -> Bool {
+        guard HKHealthStore.isHealthDataAvailable() else { return false }
+        let recovered: HKWorkoutSession? = await withCheckedContinuation { continuation in
+            store.recoverActiveWorkoutSession { session, _ in
+                continuation.resume(returning: session)
+            }
+        }
+        guard let recovered else { return false }
+        let builder = recovered.associatedWorkoutBuilder()
+        builder.dataSource = HKLiveWorkoutDataSource(
+            healthStore: store,
+            workoutConfiguration: recovered.workoutConfiguration
+        )
+        recovered.delegate = self
+        builder.delegate = self
+        self.session = recovered
+        self.builder = builder
+        return true
+    }
+
+    func drain() -> [[String: Double]] {
+        lock.lock()
+        defer { lock.unlock() }
+        let out = buffered
+        buffered = []
+        return out
+    }
+
     func stop() async {
         guard let session, let builder else { return }
         self.session = nil
@@ -149,6 +225,12 @@ private final class LiveHeartRateController: NSObject, HKWorkoutSessionDelegate,
         let at = interval.end.timeIntervalSince1970 * 1000
         guard bpm > 0, at > lastEmitted else { return }
         lastEmitted = at
+        lock.lock()
+        buffered.append(["bpm": bpm, "at": at])
+        if buffered.count > maxBuffered {
+            buffered.removeFirst(buffered.count - maxBuffered)
+        }
+        lock.unlock()
         onReading(bpm, at)
     }
 

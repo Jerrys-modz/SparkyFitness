@@ -17,6 +17,17 @@ declare class LiveHeartRateModuleType extends NativeModule<LiveHeartRateEvents> 
   isAvailable(): boolean;
   /** Opens the session. False when it could not start or one is running. */
   start(): Promise<boolean>;
+  /**
+   * Takes over a session iOS kept running when the app was killed mid-workout.
+   * True when one was adopted (or one is already running), false when there
+   * was nothing to recover.
+   */
+  recover(): Promise<boolean>;
+  /**
+   * Readings collected since the last call, oldest first. The phone usually
+   * locks between sets, so JS can miss live events; this catches up.
+   */
+  drain(): LiveHeartRateReading[];
   /** Ends the session and drops the workout it recorded. */
   stop(): Promise<void>;
 }

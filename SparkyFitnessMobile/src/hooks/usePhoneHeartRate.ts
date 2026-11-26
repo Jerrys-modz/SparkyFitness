@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { AppState } from 'react-native';
 import LiveHeartRateModule from '../../modules/live-heart-rate';
 import { useActiveWorkoutStore } from '../stores/activeWorkoutStore';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
@@ -22,8 +23,15 @@ function anotherRecordingActive(): boolean {
   );
 }
 
-/** How long a paired watch has to be heard before the phone steps in. */
-export const WATCH_SILENT_GRACE_MS = 30_000;
+/**
+ * How long the watch can go without a reading before the phone's headphones
+ * take over, and how long a reading counts as the watch still being on. Live
+ * readings arrive every few seconds and a queued batch's newest sample is under
+ * a minute old, so this rides out a late batch without leaving a gap.
+ */
+export const WATCH_SILENT_GRACE_MS = 45_000;
+/** How often the live workout re-checks who should be measuring. */
+const SOURCE_CHECK_MS = 10_000;
 
 /**
  * The exercise entry the live workout is on: the one that holds the active
@@ -48,11 +56,16 @@ export function currentExerciseEntryId(state: {
  * Pro 3). While a workout is live the phone runs a workout session, which is
  * what makes iOS hand it the headphones' readings, and each reading goes to the
  * same store the watch feeds, and to `onSample` so the workout's upload buffer
- * keeps it. With no watch paired it starts with the workout. With a watch
- * paired the watch owns the workout's heart rate: the phone waits
- * `WATCH_SILENT_GRACE_MS` and starts only if the watch has sent nothing (left
- * at home, not worn), then hands back the moment the watch is heard. Does
- * nothing on Android or before iOS 26.
+ * keeps it.
+ *
+ * Like Apple's own apps, it uses whichever device has recent readings: with no
+ * watch paired the phone measures from the start; with a watch it measures only
+ * while the watch has been silent for `WATCH_SILENT_GRACE_MS` (left at home,
+ * taken off, out of range), and hands back the moment the watch is heard. Apple
+ * ranks sources by how accurate the last 5 minutes were, which the app cannot
+ * see, so "recent readings" stands in for it. The phone's session survives a
+ * kill (`recover`) and its readings are kept natively (`drain`) for when the
+ * phone locks. Does nothing on Android or before iOS 26.
  */
 export function usePhoneHeartRate(
   watchPaired: boolean,
@@ -68,15 +81,25 @@ export function usePhoneHeartRate(
     if (!enabled || !native || !native.isAvailable()) return;
 
     let running = false;
+    let cancelled = false;
+    // False until a session left by a killed app has been adopted or ruled
+    // out, so a fresh one is never started beside it.
+    let ready = false;
     // Each start/stop pair gets a token so a slow start that finishes after
     // the workout ended closes itself instead of leaving a session open.
     let generation = 0;
-    // A reading from the watch for the live workout: it owns heart rate.
-    let watchHeard = false;
+    // When the watch last gave a reading for the live workout (its time, not
+    // when it arrived), or null when it has not.
+    let lastWatchAt: number | null = null;
+    let sourceTimer: ReturnType<typeof setInterval> | undefined;
     let graceTimer: ReturnType<typeof setTimeout> | undefined;
 
+    const watchActive = (): boolean =>
+      lastWatchAt != null && Date.now() - lastWatchAt < WATCH_SILENT_GRACE_MS;
+
     const begin = (): void => {
-      if (running || watchHeard || anotherRecordingActive()) return;
+      if (!ready || running || watchActive() || anotherRecordingActive())
+        return;
       running = true;
       const mine = ++generation;
       native
@@ -102,9 +125,9 @@ export function usePhoneHeartRate(
       void native.stop().catch(() => undefined);
     };
 
-    const readingSub = native.addListener('onHeartRate', (reading) => {
+    const handleReading = (reading: { bpm: number; at: number }): void => {
       const state = useActiveWorkoutStore.getState();
-      if (state.sessionId == null || watchHeard) return;
+      if (state.sessionId == null || watchActive()) return;
       if (!(reading.bpm > 0) || !Number.isFinite(reading.at)) return;
       const exerciseEntryId = currentExerciseEntryId(state);
       if (exerciseEntryId == null) return;
@@ -119,35 +142,58 @@ export function usePhoneHeartRate(
         t: new Date(reading.at).toISOString(),
         bpm: Math.round(reading.bpm),
       });
-    });
+    };
+    // Readings the phone took while JS was not running (it locks between sets).
+    // Already-seen ones are dropped by the store and the upload buffer.
+    const drainReadings = (): void => {
+      if (!running) return;
+      try {
+        for (const reading of native.drain()) handleReading(reading);
+      } catch {
+        // A failed catch-up costs nothing: the next one retries.
+      }
+    };
+
+    const readingSub = native.addListener('onHeartRate', handleReading);
     // iOS ended the session itself (another app took the sensor, say). Allow
-    // a fresh start the next time the workout store changes.
+    // a fresh start on the next check.
     const stoppedSub = native.addListener('onStopped', () => {
       running = false;
       generation += 1;
     });
 
-    const clearGrace = (): void => {
+    const clearTimers = (): void => {
       if (graceTimer) clearTimeout(graceTimer);
       graceTimer = undefined;
+      if (sourceTimer) clearInterval(sourceTimer);
+      sourceTimer = undefined;
+    };
+    // Who should be measuring right now: the phone only while the watch is not.
+    const check = (): void => {
+      if (useActiveWorkoutStore.getState().sessionId == null) return;
+      if (anotherRecordingActive() || watchActive()) end();
+      else begin();
+      drainReadings();
     };
     const sync = (sessionId: string | null): void => {
-      clearGrace();
-      watchHeard = false;
+      clearTimers();
+      lastWatchAt = null;
       if (sessionId == null) {
         end();
         return;
       }
-      if (!watchPaired) {
-        begin();
-        return;
+      // With a watch paired it gets a head start; the phone steps in only if it
+      // stays silent.
+      if (!watchPaired) begin();
+      else {
+        graceTimer = setTimeout(() => {
+          graceTimer = undefined;
+          check();
+        }, WATCH_SILENT_GRACE_MS);
       }
-      graceTimer = setTimeout(() => {
-        graceTimer = undefined;
-        if (useActiveWorkoutStore.getState().sessionId === sessionId) begin();
-      }, WATCH_SILENT_GRACE_MS);
+      sourceTimer = setInterval(check, SOURCE_CHECK_MS);
     };
-    sync(useActiveWorkoutStore.getState().sessionId);
+
     const unsubscribe = useActiveWorkoutStore.subscribe((state, previous) => {
       if (state.sessionId !== previous.sessionId) sync(state.sessionId);
     });
@@ -158,18 +204,12 @@ export function usePhoneHeartRate(
       const now = anotherRecordingActive();
       if (now === blocked) return;
       blocked = now;
-      if (blocked) {
-        clearGrace();
-        end();
-        return;
-      }
-      const sessionId = useActiveWorkoutStore.getState().sessionId;
-      if (sessionId != null) sync(sessionId);
+      check();
     };
     const unsubscribeGps = subscribeGpsRecording(reevaluate);
     const unsubscribeRun = useWatchRunLiveStore.subscribe(reevaluate);
-    // The watch sent a reading for this workout: it owns heart rate, so the
-    // phone's session (if it had started) closes and none starts later.
+    // The watch gave a reading for this workout: remember when it measured it.
+    // The phone's session closes on the next check if that stays recent.
     const unsubscribeWatch = useLiveHeartRateStore.subscribe((state) => {
       const reading = state.reading;
       if (
@@ -179,17 +219,48 @@ export function usePhoneHeartRate(
       ) {
         return;
       }
-      watchHeard = true;
-      clearGrace();
-      end();
+      lastWatchAt = Math.max(lastWatchAt ?? 0, reading.at);
+      if (watchActive()) end();
+    });
+    // Back from a locked phone: catch up on what was measured meanwhile.
+    const appStateSub = AppState.addEventListener('change', (next) => {
+      if (next === 'active') check();
     });
 
+    // A phone session iOS kept alive through a kill is taken over if a workout
+    // is still live, and ended if not, before anything new starts.
+    void (async () => {
+      try {
+        const recovered = await native.recover();
+        if (cancelled) {
+          if (recovered) await native.stop();
+          return;
+        }
+        if (recovered) {
+          if (useActiveWorkoutStore.getState().sessionId != null) {
+            running = true;
+          } else {
+            await native.stop();
+          }
+        }
+      } catch (error) {
+        addLog('Phone heart-rate session recovery failed', 'WARNING', [
+          String(error),
+        ]);
+      }
+      if (cancelled) return;
+      ready = true;
+      sync(useActiveWorkoutStore.getState().sessionId);
+    })();
+
     return () => {
+      cancelled = true;
       unsubscribe();
       unsubscribeWatch();
       unsubscribeGps();
       unsubscribeRun();
-      clearGrace();
+      appStateSub.remove();
+      clearTimers();
       readingSub.remove();
       stoppedSub.remove();
       end();
