@@ -16,6 +16,7 @@ import type {
   EnergyUnit,
 } from '@workspace/shared';
 import {
+  HEART_RATE_SOURCES,
   NO_ADAPTIVE_ADJUSTMENT,
   adaptiveWeightStepKg,
   applyAdaptiveLoadFactorKg,
@@ -3032,6 +3033,11 @@ export function buildPresetUpdateExercises(
 export interface WorkoutHeartRateSummary {
   avgBpm: number;
   maxBpm: number | null;
+  /**
+   * What measured the heart rate of the exercises that carry one, watch first.
+   * Empty when the app does not know (synced and older workouts).
+   */
+  sources: HeartRateSource[];
 }
 
 /**
@@ -3051,6 +3057,7 @@ export function summarizeWorkoutHeartRate(
   exercises: readonly {
     avg_heart_rate?: number | null;
     max_heart_rate?: number | null;
+    hr_source?: HeartRateSource | null;
     duration_minutes?: number | string | null;
   }[]
 ): WorkoutHeartRateSummary | null {
@@ -3079,9 +3086,14 @@ export function summarizeWorkoutHeartRate(
     .map((exercise) => exercise.max_heart_rate)
     .filter((value): value is number => value != null && value > 0);
 
+  const sources = HEART_RATE_SOURCES.filter((source) =>
+    withHr.some((exercise) => exercise.hr_source === source)
+  );
+
   return {
     avgBpm,
     maxBpm: maxValues.length > 0 ? Math.max(...maxValues) : null,
+    sources,
   };
 }
 

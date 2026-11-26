@@ -205,7 +205,7 @@ async function attachTelemetry(
     return;
   try {
     await attachExerciseEntryWatchTelemetry(entryId, {
-      ...(hrSamples ? { hrSamples } : {}),
+      ...(hrSamples ? { hrSamples, hrSource: 'watch' as const } : {}),
       ...(activeEnergyKcal !== undefined ? { activeEnergyKcal } : {}),
       ...(payload.appleZones ? { appleZones: payload.appleZones } : {}),
     });

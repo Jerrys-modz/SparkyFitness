@@ -18,7 +18,7 @@ If an Apple Watch is paired, the watch measures your heart rate as before. The p
 
 - The current heart rate shows on the exercise you are on, as it does with a watch.
 - When the workout is saved, each exercise carries its average and maximum heart rate and time in each [heart rate zone](/features/exercises/heart-rate-zones).
-- Under the heart rate, a label says where it came from: **Apple Watch** or **Headphones**. Workouts synced from Apple Health, Garmin and other sources, and entries from before this label existed, show no label, because the app cannot tell what measured them.
+- Under the heart rate, a label says where it came from: **Apple Watch** or **Headphones**. It shows on a strength workout's exercises, on a run or walk recorded with the watch (the **Avg heart rate** tile reads "Avg heart rate · Apple Watch"), and on the activity screen. Workouts synced from Apple Health, Garmin and other sources show no label, because the app cannot tell what measured them. Runs and workouts saved before this label existed show none either, and nothing is added to them afterwards.
 
 ## Good to know
 

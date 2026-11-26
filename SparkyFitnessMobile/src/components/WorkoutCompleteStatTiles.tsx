@@ -22,6 +22,7 @@ import {
 import { RPE_TONE_VARS } from './ActiveWorkoutSetRow';
 import { energyUnitLabel, formatEnergyNumber } from '../utils/energyUnit';
 import { useEnergyUnit } from '../hooks/useEnergyUnit';
+import { heartRateSourcesLabel } from '../utils/heartRateSourceLabel';
 
 interface WorkoutCompleteStatTilesProps {
   durationMinutes: number;
@@ -132,6 +133,7 @@ export default function WorkoutCompleteStatTiles({
 }: WorkoutCompleteStatTilesProps) {
   const { t } = useTranslation();
   const energyUnit = useEnergyUnit();
+  const heartRateSource = heartRateSourcesLabel(t, heartRate?.sources ?? []);
   const rpeTone = averageRpe != null ? getRpeTone(averageRpe) : null;
   const rpeToneColor = String(useCSSVariable(RPE_TONE_VARS[rpeTone ?? 'easy']));
   const [heartRateColor, activeEnergyColor] = useCSSVariable([
@@ -220,9 +222,16 @@ export default function WorkoutCompleteStatTiles({
           <StatTile
             icon="heart-rate"
             iconColor={heartRateColor}
-            label={t('workoutComplete.stats.avgHeartRate', {
-              defaultValue: 'Avg HR',
-            })}
+            label={
+              heartRateSource
+                ? t('workoutComplete.stats.avgHeartRateFrom', {
+                    defaultValue: 'Avg HR · {{source}}',
+                    source: heartRateSource,
+                  })
+                : t('workoutComplete.stats.avgHeartRate', {
+                    defaultValue: 'Avg HR',
+                  })
+            }
           >
             <StatValue
               value={formatLocalizedNumber(Math.round(heartRate.avgBpm))}

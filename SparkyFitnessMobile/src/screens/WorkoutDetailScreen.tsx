@@ -78,6 +78,7 @@ import CalendarSheet, {
 } from '../components/CalendarSheet';
 import { normalizeDate, formatDate, formatDateLabel } from '../utils/dateUtils';
 import { parseDecimalInput } from '../utils/numericInput';
+import { heartRateSourcesLabel } from '../utils/heartRateSourceLabel';
 import { useBodyWeightKg } from '../hooks/useBodyWeightKg';
 import { weightFromKg } from '../utils/unitConversions';
 import Toast from 'react-native-toast-message';
@@ -926,11 +927,17 @@ const WorkoutDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     // from the saved session even while editing.
     const heartRate = summarizeWorkoutHeartRate(session.exercises);
     if (heartRate) {
+      const heartRateSource = heartRateSourcesLabel(t, heartRate.sources);
       summaryItems.push({
         value: formatLocalizedNumber(Math.round(heartRate.avgBpm)),
-        label: t('workoutDetail.summary.avgHeartRate', {
-          defaultValue: 'Avg HR',
-        }),
+        label: heartRateSource
+          ? t('workoutDetail.summary.avgHeartRateFrom', {
+              defaultValue: 'Avg HR · {{source}}',
+              source: heartRateSource,
+            })
+          : t('workoutDetail.summary.avgHeartRate', {
+              defaultValue: 'Avg HR',
+            }),
         icon: { name: 'heart-rate', color: heartRateColor },
       });
     }

@@ -304,6 +304,7 @@ describe('saveRecordedActivity', () => {
         { t: new Date(T0).toISOString(), bpm: 120 },
         { t: new Date(T0 + 30_000).toISOString(), bpm: 130 },
       ],
+      hrSource: 'watch',
     });
   });
 

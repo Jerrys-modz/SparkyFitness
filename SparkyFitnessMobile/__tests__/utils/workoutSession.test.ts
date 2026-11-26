@@ -7272,6 +7272,30 @@ describe('summarizeWorkoutHeartRate', () => {
   });
 });
 
+describe('summarizeWorkoutHeartRate sources', () => {
+  it('lists what measured the heart rate, watch first, once each', () => {
+    const summary = summarizeWorkoutHeartRate([
+      { avg_heart_rate: 120, duration_minutes: 10, hr_source: 'headphones' },
+      { avg_heart_rate: 130, duration_minutes: 10, hr_source: 'watch' },
+      { avg_heart_rate: 125, duration_minutes: 10, hr_source: 'headphones' },
+    ]);
+    expect(summary?.sources).toEqual(['watch', 'headphones']);
+  });
+
+  it('is empty when the source is unknown, and ignores exercises with no heart rate', () => {
+    expect(
+      summarizeWorkoutHeartRate([{ avg_heart_rate: 120, duration_minutes: 10 }])
+        ?.sources
+    ).toEqual([]);
+    expect(
+      summarizeWorkoutHeartRate([
+        { avg_heart_rate: 120, duration_minutes: 10 },
+        { avg_heart_rate: null, duration_minutes: 10, hr_source: 'watch' },
+      ])?.sources
+    ).toEqual([]);
+  });
+});
+
 describe('firstSetInputField', () => {
   it('focuses the first value cell for each modality', () => {
     expect(firstSetInputField('weight_reps')).toBe('weight');

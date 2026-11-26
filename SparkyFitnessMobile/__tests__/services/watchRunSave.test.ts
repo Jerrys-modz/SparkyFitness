@@ -79,6 +79,7 @@ test('logs the entry, route and telemetry from the watch figures', async () => {
   expect(attachExerciseEntryGpsTrack).toHaveBeenCalledTimes(1);
   expect(attachExerciseEntryWatchTelemetry).toHaveBeenCalledWith('e1', {
     hrSamples: expect.any(Array),
+    hrSource: 'watch',
     activeEnergyKcal: 210,
   });
 });

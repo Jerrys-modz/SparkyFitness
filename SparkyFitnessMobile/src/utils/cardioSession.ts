@@ -353,6 +353,7 @@ export function cardioSessionFromDiaryEntry(
     formattedPace: null,
     caloriesBurned: session.calories_burned,
     avgHeartRate: session.avg_heart_rate,
+    hrSource: session.hr_source ?? null,
     floorsClimbed: floors > 0 ? floors : null,
     elevationGainMeters: elevationGain > 0 ? elevationGain : null,
     weatherTempCelsius: weatherTemp,

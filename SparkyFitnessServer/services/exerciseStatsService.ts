@@ -699,7 +699,7 @@ async function queryExerciseActivities(
     const itemsSql = `
       SELECT
         id, user_id, exercise_name, category, entry_date, entry_time,
-        duration_minutes, distance, avg_heart_rate, calories_burned, source, notes,
+        duration_minutes, distance, avg_heart_rate, hr_source, calories_burned, source, notes,
         floors_climbed, elevation_gain_meters, workout_effort,
         avg_cadence, stride_length_cm, modality,
         weather_temp_celsius, weather_condition,
@@ -756,6 +756,10 @@ async function queryExerciseActivities(
           avgHeartRate: row.avg_heart_rate
             ? Math.round(parseFloat(String(row.avg_heart_rate)))
             : null,
+          hrSource:
+            row.hr_source === 'watch' || row.hr_source === 'headphones'
+              ? row.hr_source
+              : null,
           floorsClimbed: positiveOrNull(row.floors_climbed, 0),
           elevationGainMeters: positiveOrNull(row.elevation_gain_meters, 1),
           avgCadence: positiveOrNull(row.avg_cadence, 0),

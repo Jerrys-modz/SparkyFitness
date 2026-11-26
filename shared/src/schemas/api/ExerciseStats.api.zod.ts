@@ -5,6 +5,7 @@ import {
   SPORT_CONFIDENCES,
 } from '../../utils/activitySport.ts';
 import { exerciseModalitySchema } from './Exercises.api.zod.ts';
+import { heartRateSourceSchema } from '../../constants/heartRateSource.ts';
 
 /** Canonical sport, named after the ANT+/FIT SDK `sport` enum. */
 export const activitySportSchema = z.enum(ACTIVITY_SPORTS);
@@ -162,6 +163,8 @@ export const exerciseActivityQueryItemSchema = z.object({
   formattedPace: z.string().nullable(), // e.g. "5:12 /km" or "8:22 /mi"
   caloriesBurned: z.number(),
   avgHeartRate: z.number().nullable(),
+  /** What measured the heart rate of a live workout; null when unknown. */
+  hrSource: heartRateSourceSchema.nullable().optional(),
   // Optional because a self-hosted deployment can pair a newer client with a
   // server that predates these fields: an older response simply lacks them.
   /** Floors (flights of stairs) climbed, e.g. on a stair stepper. */

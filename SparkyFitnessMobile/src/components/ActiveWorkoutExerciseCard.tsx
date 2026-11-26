@@ -75,6 +75,7 @@ import {
   useLiveHeartRate,
   useLiveHeartRateStore,
 } from '../stores/liveHeartRateStore';
+import { heartRateSourceLabel as heartRateSourceLabelFor } from '../utils/heartRateSourceLabel';
 import { useActiveWorkoutStore } from '../stores/activeWorkoutStore';
 import AdaptiveSuggestionBanner from './AdaptiveSuggestionBanner';
 import ProgressionHintBanner from './ProgressionHintBanner';
@@ -579,16 +580,7 @@ function ActiveWorkoutExerciseCard({
     : liveBpm != null
       ? liveHeartRateSource
       : null;
-  const heartRateSourceLabel =
-    heartRateSource === 'watch'
-      ? t('activeWorkout.exercise.heartRateSource.watch', {
-          defaultValue: 'Apple Watch',
-        })
-      : heartRateSource === 'headphones'
-        ? t('activeWorkout.exercise.heartRateSource.headphones', {
-            defaultValue: 'Headphones',
-          })
-        : null;
+  const heartRateSourceLabel = heartRateSourceLabelFor(t, heartRateSource);
   const heartRateText = (() => {
     if (!readOnly) return liveBpm != null ? String(liveBpm) : null;
     const avg = exercise.avg_heart_rate;
