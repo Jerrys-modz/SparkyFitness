@@ -4,6 +4,7 @@ import EditExerciseEntryDialog from '@/pages/Diary/EditExerciseEntryDialog';
 import type { ExerciseEntry } from '@/types/exercises';
 
 const mockUpdateExerciseEntry = jest.fn();
+const mockSetVo2Estimate = jest.fn();
 
 // The published uuid build is ESM-only and ts-jest doesn't transform
 // node_modules; the dialogs only need unique dnd keys.
@@ -50,6 +51,10 @@ jest.mock('@/utils/logging', () => ({
 jest.mock('@/hooks/Exercises/useExerciseEntries', () => ({
   useUpdateExerciseEntryMutation: () => ({
     mutateAsync: mockUpdateExerciseEntry,
+    isPending: false,
+  }),
+  useSetVo2EstimateMutation: () => ({
+    mutate: mockSetVo2Estimate,
     isPending: false,
   }),
   exerciseDetailsOptions: (exerciseId: string) => ({
@@ -537,5 +542,56 @@ describe('EditExerciseEntryDialog calories after changing sets', () => {
     const { data } = await saveEntry();
     expect(data.duration_minutes).toBe(45);
     expect(data.calories_burned).toBeUndefined();
+  });
+});
+
+describe('EditExerciseEntryDialog VO2 max estimate switch', () => {
+  const renderEntry = (overrides?: Partial<ExerciseEntry>) =>
+    render(
+      <EditExerciseEntryDialog
+        entry={makeEntry(overrides)}
+        open
+        onOpenChange={() => {}}
+        onSave={() => {}}
+      />
+    );
+
+  beforeEach(() => {
+    mockSetVo2Estimate.mockClear();
+  });
+
+  it('is on for a run and leaves it out when switched off', () => {
+    renderEntry();
+    const toggle = screen.getByRole('switch', {
+      name: 'Use in VO₂ max estimate',
+    });
+    expect(toggle).toBeChecked();
+    fireEvent.click(toggle);
+    expect(mockSetVo2Estimate).toHaveBeenCalledWith(
+      { entryId: 'entry-1', excluded: true },
+      expect.any(Object)
+    );
+    expect(toggle).not.toBeChecked();
+  });
+
+  it('shows a run that was left out as off', () => {
+    renderEntry({ exclude_from_vo2_estimate: true });
+    expect(
+      screen.getByRole('switch', { name: 'Use in VO₂ max estimate' })
+    ).not.toBeChecked();
+  });
+
+  it('is not shown for a ride', () => {
+    renderEntry({
+      exercise_snapshot: {
+        id: 'ex-2',
+        name: 'Road Cycling',
+        category: 'Cardio',
+        modality: 'duration_distance',
+      },
+    } as Partial<ExerciseEntry>);
+    expect(
+      screen.queryByRole('switch', { name: 'Use in VO₂ max estimate' })
+    ).not.toBeInTheDocument();
   });
 });

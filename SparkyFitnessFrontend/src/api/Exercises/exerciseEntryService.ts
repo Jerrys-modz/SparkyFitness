@@ -45,6 +45,21 @@ export const setCalorieLink = async (
   );
 };
 
+/** Leaves one run out of the estimated VO2 max, or puts it back. */
+export const setExerciseEntryVo2Estimate = async (
+  entryId: string,
+  excluded: boolean
+): Promise<void> => {
+  await apiCall(
+    `/exercise-entries/${encodeURIComponent(entryId)}/vo2-estimate`,
+    {
+      method: 'POST',
+      body: { excluded },
+      headers: { 'Content-Type': 'application/json' },
+    }
+  );
+};
+
 export const clearCalorieLink = async (entryId: string): Promise<void> => {
   await apiCall(
     `/exercise-entries/${encodeURIComponent(entryId)}/calorie-link`,

@@ -65,6 +65,17 @@ jest.mock('../../src/components/ShoePickerCard', () => ({
   __esModule: true,
   default: () => null,
 }));
+// The VO2 estimate switch reads the entry and saves through its own mutation;
+// it has its own tests. This stub shows whether the screen offered it for a run.
+jest.mock('../../src/components/Vo2EstimateForEntry', () => {
+  const { Text } = require('react-native');
+  return {
+    __esModule: true,
+    default: ({ isRun }: { isRun: boolean }) => (
+      <Text testID="vo2-estimate-for-entry">{String(isRun)}</Text>
+    ),
+  };
+});
 // The chart draws with Skia; its data handling is covered by the hook tests.
 jest.mock('../../src/components/exerciseStats/HeartRateChart', () => {
   const { View } = require('react-native');
@@ -151,6 +162,33 @@ describe('CardioSessionScreen', () => {
     expect(screen.getAllByText('Pace').length).toBeGreaterThan(1);
     expect(screen.getByTestId('pace-chart')).toBeTruthy();
     expect(screen.getByText('Best 4:10 /km')).toBeTruthy();
+  });
+
+  it('offers the VO2 max estimate switch for a run', () => {
+    mockDetail.mockReturnValue(detail());
+    const screen = render(
+      <CardioSessionScreen
+        {...props({ ...SESSION, exerciseName: 'Running' } as typeof SESSION)}
+      />
+    );
+    expect(screen.getByTestId('vo2-estimate-for-entry').props.children).toBe(
+      'true'
+    );
+  });
+
+  it('does not offer it for a ride', () => {
+    mockDetail.mockReturnValue(detail());
+    const screen = render(
+      <CardioSessionScreen
+        {...props({
+          ...SESSION,
+          exerciseName: 'Road Cycling',
+        } as typeof SESSION)}
+      />
+    );
+    expect(screen.getByTestId('vo2-estimate-for-entry').props.children).toBe(
+      'false'
+    );
   });
 
   it('leaves out the pace card when the route is too short to read a pace from', () => {

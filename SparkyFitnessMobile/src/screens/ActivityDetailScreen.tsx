@@ -2,6 +2,7 @@ import React, { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { View, Text, TouchableOpacity } from 'react-native';
 import FadeView from '../components/FadeView';
+import Vo2EstimateCard from '../components/Vo2EstimateCard';
 import EditableSetList from '../components/EditableSetList';
 import LinkSyncedWorkoutSheet, {
   type LinkSyncedWorkoutSheetRef,
@@ -60,6 +61,7 @@ import type { WorkoutDraftSet } from '../types/drafts';
 import type { ExerciseEntrySetResponse } from '@workspace/shared';
 import {
   canEditGroupedWorkout,
+  classifyActivitySport,
   isCalorieLinkWorkoutSource,
   energyFromKcal,
 } from '@workspace/shared';
@@ -113,6 +115,17 @@ const ActivityDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const canLinkSynced =
     isCalorieLinkWorkoutSource(session.source) &&
     session.exercise_snapshot?.name !== 'Active Calories';
+
+  // Only a run feeds the estimated VO2 max, so only a run offers the switch.
+  const detail = session.activity_details?.[0];
+  const isRun =
+    classifyActivitySport({
+      exerciseName: session.exercise_snapshot?.name,
+      category: session.exercise_snapshot?.category,
+      notes: session.notes,
+      providerName: detail?.provider_name,
+      detailData: detail?.detail_data,
+    }).sport === 'running';
 
   const firstImage = session.exercise_snapshot?.images?.[0];
   const firstImageSource = firstImage ? getImageSource(firstImage) : null;
@@ -823,6 +836,21 @@ const ActivityDetailScreen: React.FC<Props> = ({ navigation, route }) => {
           <View className="mt-4">
             <ShoePickerCard exerciseEntryId={session.id} />
           </View>
+        )}
+
+        {!isEditing && isCardioModality(modality) && isRun && (
+          <Vo2EstimateCard
+            exerciseEntryId={session.id}
+            excluded={session.exclude_from_vo2_estimate === true}
+            onChanged={(excluded) => {
+              const updatedSession = {
+                ...session,
+                exclude_from_vo2_estimate: excluded,
+              };
+              syncExerciseSessionInCache(queryClient, updatedSession);
+              setSession(updatedSession);
+            }}
+          />
         )}
 
         {/* Sets section */}

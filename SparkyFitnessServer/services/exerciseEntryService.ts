@@ -17,6 +17,7 @@ import {
   type HeartRateSampleRequest,
   type SetExerciseEntryDistanceRequest,
   type SetExerciseEntryEffortRequest,
+  type SetExerciseEntryVo2EstimateRequest,
 } from '@workspace/shared';
 import { getClient } from '../db/poolManager.js';
 import { loadUserTimezone } from '../utils/timezoneLoader.js';
@@ -890,6 +891,40 @@ async function setExerciseEntryEffort(
   }
 }
 
+/**
+ * Leaves one run out of the estimated VO2 max, or puts it back. Only this entry
+ * changes. The column is not a telemetry column, so a later sync or edit of the
+ * entry keeps the choice.
+ */
+async function setExerciseEntryVo2Estimate(
+  userId: string,
+  actingUserId: string,
+  exerciseEntryId: string,
+  body: SetExerciseEntryVo2EstimateRequest
+): Promise<void> {
+  const ownerId = await exerciseEntryRepository.getExerciseEntryOwnerId(
+    exerciseEntryId,
+    userId
+  );
+  if (!ownerId || ownerId !== userId) {
+    const error = new Error('Exercise entry not found.');
+    // @ts-expect-error TS(2339): Property 'status' does not exist on type 'Error'.
+    error.status = 404;
+    throw error;
+  }
+  const client = await getClient(userId, actingUserId);
+  try {
+    await client.query(
+      `UPDATE exercise_entries
+          SET exclude_from_vo2_estimate = $2, updated_at = NOW()
+        WHERE id = $1 AND user_id = $3`,
+      [exerciseEntryId, body.excluded, userId]
+    );
+  } finally {
+    client.release();
+  }
+}
+
 export {
   importExerciseEntriesFromCsv,
   attachWatchTelemetryToExerciseEntry,
@@ -899,6 +934,7 @@ export {
   getExerciseEntryDistanceSeries,
   setExerciseEntryDistance,
   setExerciseEntryEffort,
+  setExerciseEntryVo2Estimate,
 };
 export default {
   importExerciseEntriesFromCsv,
@@ -909,4 +945,5 @@ export default {
   getExerciseEntryDistanceSeries,
   setExerciseEntryDistance,
   setExerciseEntryEffort,
+  setExerciseEntryVo2Estimate,
 };

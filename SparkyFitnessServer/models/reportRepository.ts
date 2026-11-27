@@ -1126,6 +1126,7 @@ interface RunCandidateRow {
   providerName: string | null;
   detailData: unknown;
   exerciseSourceId: string | null;
+  excludeFromVo2: boolean;
 }
 
 /**
@@ -1143,7 +1144,8 @@ async function getRunCandidates(
     const result = await client.query(
       `SELECT TO_CHAR(ee.entry_date, 'YYYY-MM-DD') AS day,
               ee.distance, ee.duration_minutes, ee.avg_heart_rate,
-              ee.elevation_gain_meters, ee.exercise_name, ee.category, ee.notes,
+              ee.elevation_gain_meters, ee.exclude_from_vo2_estimate,
+              ee.exercise_name, ee.category, ee.notes,
               d.provider_name, d.detail_data,
               x.source_id AS exercise_source_id
        FROM exercise_entries ee
@@ -1176,6 +1178,7 @@ async function getRunCandidates(
         provider_name: string | null;
         detail_data: unknown;
         exercise_source_id: string | null;
+        exclude_from_vo2_estimate: boolean | null;
       }) => ({
         day: row.day,
         distanceKm: Number(row.distance),
@@ -1188,6 +1191,7 @@ async function getRunCandidates(
         providerName: row.provider_name,
         detailData: row.detail_data,
         exerciseSourceId: row.exercise_source_id,
+        excludeFromVo2: row.exclude_from_vo2_estimate === true,
       })
     );
   } finally {

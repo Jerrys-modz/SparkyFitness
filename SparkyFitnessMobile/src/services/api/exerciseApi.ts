@@ -795,6 +795,23 @@ export const setExerciseEntryEffort = async (
 };
 
 /**
+ * Leaves one run out of the estimated VO2 max, or puts it back. Only that
+ * entry changes: it still counts as a run for distance, load and power.
+ */
+export const setExerciseEntryVo2Estimate = async (
+  exerciseEntryId: string,
+  excluded: boolean
+): Promise<void> => {
+  return apiFetch<void>({
+    endpoint: `/api/exercise-entries/${exerciseEntryId}/vo2-estimate`,
+    serviceName: 'Exercise API',
+    operation: 'set exercise entry VO2 estimate',
+    method: 'POST',
+    body: { excluded },
+  });
+};
+
+/**
  * Stores a GPS track recorded on the phone (and its per-km or per-mile
  * splits) against an exercise entry that already exists. The server derives
  * lap stats and the speed/elevation summary from the points; sending the same

@@ -14,6 +14,7 @@ import {
   fetchWorkoutLocations,
   fetchCalorieLinkSuggestions,
   setCalorieLink,
+  setExerciseEntryVo2Estimate,
   clearCalorieLink,
 } from '@/api/Exercises/exerciseEntryService';
 import { exerciseEntryKeys } from '@/api/keys/exercises';
@@ -296,6 +297,33 @@ export const useSetCalorieLinkMutation = () => {
       errorMessage: t(
         'exercise.calorieLink.linkError',
         'Failed to link the workouts.'
+      ),
+    },
+  });
+};
+
+/** The estimate and the report that shows it are rebuilt after a run is left out or put back. */
+export const useSetVo2EstimateMutation = () => {
+  const invalidate = useDiaryInvalidation();
+  const queryClient = useQueryClient();
+  const { t } = useTranslation();
+
+  return useMutation({
+    mutationFn: ({
+      entryId,
+      excluded,
+    }: {
+      entryId: string;
+      excluded: boolean;
+    }) => setExerciseEntryVo2Estimate(entryId, excluded),
+    onSuccess: () => {
+      invalidate();
+      queryClient.invalidateQueries({ queryKey: ['reports', 'runEstimates'] });
+    },
+    meta: {
+      errorMessage: t(
+        'exercise.vo2Estimate.saveError',
+        'Failed to update the VO2 max estimate.'
       ),
     },
   });
