@@ -66,6 +66,7 @@ vi.mock('../models/moodRepository.js', () => ({
 vi.mock('../config/logging.js', () => ({ log: vi.fn() }));
 
 import { getCoachSignals } from '../services/coachSignalService.js';
+import { addDays, instantToDay } from '@workspace/shared';
 
 const NOW = new Date('2026-11-25T18:05:00Z');
 const day = (offset: number) =>
@@ -199,10 +200,17 @@ describe('workouts', () => {
 });
 
 describe('sleep and load', () => {
+  /** One night per day, newest first, the newest ending `skip` days before
+   * NOW's day. */
+  const nights = (hours: number[], skip = 0) =>
+    hours.map((h, i) => ({
+      entry_date: addDays(instantToDay(NOW, 'UTC'), -(i + skip)),
+      wake_time: `${addDays(instantToDay(NOW, 'UTC'), -(i + skip))}T07:00:00Z`,
+      duration_in_seconds: h * 3600,
+      timeAsleepHours: h,
+    }));
   it('compares last night with the nights before it, in minutes', async () => {
-    mocks.getSleepHistory.mockResolvedValue(
-      [5, 7, 7, 7, 7].map((hours) => ({ timeAsleepHours: hours }))
-    );
+    mocks.getSleepHistory.mockResolvedValue(nights([5, 7, 7, 7, 7]));
     mocks.getTrainingLoad.mockResolvedValue({ ratio: 1.456 });
     const signals = await getCoachSignals('u1', 'UTC', NOW);
     expect(signals.sleep_minutes_vs_avg).toBe(-120);
@@ -210,13 +218,49 @@ describe('sleep and load', () => {
   });
 
   it('gives no comparison with fewer than four nights', async () => {
-    mocks.getSleepHistory.mockResolvedValue([
-      { timeAsleepHours: 5 },
-      { timeAsleepHours: 7 },
-    ]);
+    mocks.getSleepHistory.mockResolvedValue(nights([5, 7]));
     expect(
       (await getCoachSignals('u1', 'UTC', NOW)).sleep_minutes_vs_avg
     ).toBeNull();
+  });
+
+  it('gives no comparison while last night is not recorded yet', async () => {
+    // The newest night ended yesterday morning, not this morning.
+    mocks.getSleepHistory.mockResolvedValue(nights([5, 7, 7, 7, 7], 1));
+    expect(
+      (await getCoachSignals('u1', 'UTC', NOW)).sleep_minutes_vs_avg
+    ).toBeNull();
+  });
+
+  it('takes the night from its wake-up time, not the day it is dated', async () => {
+    // A manual entry is dated by its bedtime, the evening before.
+    const [last, ...before] = nights([5, 7, 7, 7, 7]);
+    mocks.getSleepHistory.mockResolvedValue([
+      { ...last, entry_date: '2026-11-24' },
+      ...before.map((night) => ({
+        ...night,
+        entry_date: addDays(night.entry_date, -1),
+      })),
+    ]);
+    expect((await getCoachSignals('u1', 'UTC', NOW)).sleep_minutes_vs_avg).toBe(
+      -120
+    );
+  });
+
+  it('reads a day’s main sleep, not a nap logged on the same day', async () => {
+    mocks.getSleepHistory.mockResolvedValue([
+      {
+        entry_date: '2026-11-25',
+        duration_in_seconds: 1800,
+        bedtime: '2026-11-25T13:00:00Z',
+        wake_time: '2026-11-25T13:30:00Z',
+        timeAsleepHours: 0.5,
+      },
+      ...nights([5, 7, 7, 7, 7]),
+    ]);
+    expect((await getCoachSignals('u1', 'UTC', NOW)).sleep_minutes_vs_avg).toBe(
+      -120
+    );
   });
 });
 

@@ -259,12 +259,49 @@ async function clearNudgesForDay(
 ): Promise<number> {
   const client = await getClient(userId);
   try {
-    const result = await client.query(
+    await client.query('BEGIN');
+    // The chat copies go with them, so no message is left in a coach's
+    // thread whose buttons point at a nudge that is gone.
+    const removed = await client.query(
       `DELETE FROM coach_nudges
-       WHERE user_id = $1 AND local_day = $2`,
+       WHERE user_id = $1 AND local_day = $2
+       RETURNING chat_message_id`,
       [userId, localDay]
     );
-    return result.rowCount ?? 0;
+    const chatIds = (removed.rows as { chat_message_id: string }[]).map(
+      (row) => row.chat_message_id
+    );
+    if (chatIds.length > 0) {
+      await client.query(
+        `DELETE FROM sparky_chat_history
+         WHERE user_id = $1 AND id = ANY($2::uuid[])`,
+        [userId, chatIds]
+      );
+    }
+    await client.query('COMMIT');
+    return removed.rowCount ?? 0;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+/** The last local day a message was sent because of this signal (for a
+ * record, the day it was celebrated), or null. */
+async function getLastDayWithSignal(
+  userId: string,
+  signal: string
+): Promise<string | null> {
+  const client = await getClient(userId);
+  try {
+    const result = await client.query(
+      `SELECT max(local_day)::text AS day FROM coach_nudges
+       WHERE user_id = $1 AND because @> $2::jsonb`,
+      [userId, JSON.stringify([{ signal }])]
+    );
+    return (result.rows[0] as { day: string | null } | undefined)?.day ?? null;
   } finally {
     client.release();
   }
@@ -853,6 +890,7 @@ export default {
   countNudgesForDay,
   clearNudgesForDay,
   getNudgeKeysForDay,
+  getLastDayWithSignal,
   getNudge,
   listNudgeStates,
   countWinsForDay,

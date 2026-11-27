@@ -6,6 +6,7 @@ import {
   isPassiveEntry,
   loggingStreak,
   localDateTimeToUtc,
+  mainSleepEntry,
   type CoachDirection,
   type CoachCyclePhase,
   COACH_CYCLE_PHASES,
@@ -158,20 +159,56 @@ async function workoutSignals(
   };
 }
 
+interface SleepHistoryNight {
+  entry_date?: string | null;
+  duration_in_seconds?: number | string | null;
+  bedtime?: string | Date | null;
+  wake_time?: string | Date | null;
+  timeAsleepHours?: unknown;
+  sleepDurationHours?: unknown;
+}
+
+/** Hours asleep per night, newest first, from the night that ended today
+ * back: one value per wake-up day (its main sleep, never a nap), and none at
+ * all when last night is not recorded yet, so an older night is never read
+ * as last night. Days are taken from the wake-up time in the person's zone,
+ * because sources date a night differently (a manual entry by its bedtime). */
+export function nightlySleepHours(
+  history: readonly SleepHistoryNight[],
+  today: string,
+  tz: string
+): number[] {
+  const byDay = new Map<string, SleepHistoryNight[]>();
+  for (const night of history) {
+    const wake = night.wake_time ? new Date(night.wake_time) : null;
+    const day =
+      wake && !Number.isNaN(wake.getTime())
+        ? instantToDay(wake, tz)
+        : night.entry_date?.slice(0, 10);
+    if (!day) continue;
+    byDay.set(day, [...(byDay.get(day) ?? []), night]);
+  }
+  const days = [...byDay.keys()].sort().reverse();
+  if (days[0] !== today) return [];
+  return days
+    .map((day) => {
+      const main = mainSleepEntry(byDay.get(day) ?? []);
+      return Number(main?.timeAsleepHours ?? main?.sleepDurationHours);
+    })
+    .filter((value) => Number.isFinite(value) && value > 0);
+}
+
 async function sleepAndLoad(
   userId: string,
-  tz: string
+  tz: string,
+  today: string
 ): Promise<CoachSignalSnapshot> {
   const [history, load] = await Promise.all([
     sleepScienceRepository.getSleepHistory(userId, 8, tz),
     reportService.getTrainingLoad(userId, userId),
   ]);
-  // Newest first, one per night. Last night against the nights before it.
-  const hours = (
-    history as { timeAsleepHours?: unknown; sleepDurationHours?: unknown }[]
-  )
-    .map((night) => Number(night.timeAsleepHours ?? night.sleepDurationHours))
-    .filter((value) => Number.isFinite(value) && value > 0);
+  // Last night against the nights before it.
+  const hours = nightlySleepHours(history as SleepHistoryNight[], today, tz);
   let sleepDiff: number | null = null;
   if (hours.length >= 4) {
     const [last, ...before] = hours;
@@ -414,7 +451,7 @@ export async function getCoachSignals(
     ...optional,
     settle('nutrition', userId, nutritionAndGoals(userId, today)),
     settle('workouts', userId, workoutSignals(userId, tz, today, now)),
-    settle('sleep', userId, sleepAndLoad(userId, tz)),
+    settle('sleep', userId, sleepAndLoad(userId, tz, today)),
     settle('weight', userId, weightSignal(userId)),
     settle('logging', userId, loggingSignals(userId, today)),
   ]);

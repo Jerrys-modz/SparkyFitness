@@ -26,6 +26,8 @@ One profile shared by every coach and by normal Sparky chat (while Coaches are o
 
 You don't have to wait for the next check-in time. In **Settings → Wellness → Coaches** (website) or **Settings → Coaches** (app), the **Check in now** section shows when the last check-in ran and has a **Check in now** button. It runs one check-in right away for the coaches you switched on, and tells you how many messages it sent, or why none: coaches are paused, none is switched on, today's limit is reached, or nothing matched your data today. It follows the same rules and daily limit as a scheduled check-in. The messages are in the coach's thread in the chat.
 
+On the website, **Clear today's messages** removes today's coach messages from the chat, with any suggestion or question in them, and starts today's count again from zero, so the coaches can speak again today. A change you already applied stays.
+
 ## The coaches
 
 | Coach | Looks at | Example |
@@ -39,7 +41,7 @@ You don't have to wait for the next check-in time. In **Settings → Wellness �
 | **Training** | Your lifts and your workout plan | Two lifts have stopped progressing; plan changes you can apply. |
 | **Habits** | One habit you pick | A gentle evening "did you do it?", and your streaks. |
 
-Open a coach's **When it speaks up** section to switch single rules off or change their numbers. **Would it speak right now?** checks today's data against the rules. It uses no AI and sends nothing. The weekly review and the training coach run on the weekday you choose.
+Open a coach's **When it speaks up** section to switch single rules off or change their numbers. **Would it speak right now?** checks today's data against the rules. It uses no AI and sends nothing. The weekly review and the training coach run on the weekday you choose, at the first check-in that runs that day; if the server missed your first check-in time, the next one takes its place.
 
 ### Your own coaches
 
@@ -89,3 +91,4 @@ Everything stays on your server. Only the wording of a message is sent to the AI
 - It already said that today.
 - Coaches are paused, or the Coaches feature is off in that app.
 - The check-in time passed while the server was down (more than an hour ago).
+- For sleep: last night is not in SparkyFitness yet. Coaches compare only a night that ended today, so let your phone or watch sync first.
