@@ -351,7 +351,7 @@ export async function createManualBloodPressure(
   }
 }
 
-export interface ManualBloodPressureUpdate {
+export interface BloodPressureUpdateInput {
   entry_date?: string;
   timestamp?: Date;
   systolic_mmhg?: number;
@@ -363,14 +363,17 @@ export interface ManualBloodPressureUpdate {
 }
 
 /**
- * Edits a reading the person logged by hand. Synced readings (Garmin, Withings,
- * Health Connect, ...) are rewritten by the next sync, so they are not editable.
+ * Edits a reading. A reading the person logged by hand can change in full. A
+ * synced one (Garmin, Withings, Health Connect, ...) keeps its measured values
+ * and time, since the next sync would write the original back; the context the
+ * person adds (arm, position, pulse, note) is not part of what a sync sends,
+ * so it stays.
  */
-export async function updateManualBloodPressure(
+export async function updateBloodPressure(
   id: string,
   userId: string,
   actingUserId: string,
-  changes: ManualBloodPressureUpdate
+  changes: BloodPressureUpdateInput
 ): Promise<BloodPressureWriteResult> {
   const client = await getClient(actingUserId);
   try {
@@ -387,7 +390,13 @@ export async function updateManualBloodPressure(
     };
     const stored = existing.rows[0];
     if (!stored) return { status: 'not_found' };
-    if (stored.source_provider !== MANUAL_VITALS_PROVIDER) {
+    if (
+      stored.source_provider !== MANUAL_VITALS_PROVIDER &&
+      (changes.systolic_mmhg !== undefined ||
+        changes.diastolic_mmhg !== undefined ||
+        changes.timestamp !== undefined ||
+        changes.entry_date !== undefined)
+    ) {
       return { status: 'not_editable' };
     }
     // The two values must still make sense together once the change is

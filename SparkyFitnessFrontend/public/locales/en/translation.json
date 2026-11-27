@@ -12235,6 +12235,7 @@
     "notSet": "Not set",
     "save": "Save reading",
     "futureTime": "The time cannot be in the future.",
+    "syncedEditNote": "This reading came from a device or health app. Its values and time stay as measured; you can add the arm, position, pulse and a note.",
     "trendTitle": "Trend",
     "disclaimer": "For your information only, not a diagnosis. Talk to a clinician about your readings.",
     "lastDays": "Last {{count}} days",

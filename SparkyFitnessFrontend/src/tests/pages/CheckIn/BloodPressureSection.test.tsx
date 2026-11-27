@@ -173,4 +173,26 @@ describe('BloodPressureSection', () => {
       screen.getByText('The time cannot be in the future.')
     ).toBeInTheDocument();
   });
+
+  it('lets a synced reading take a note but keeps its values and time', async () => {
+    api.fetchVitals.mockResolvedValue([
+      row({ id: 'sync', source_provider: 'healthkit' }),
+    ]);
+    updateBp.mockResolvedValue(row());
+    renderSection();
+    await screen.findAllByText('138/86');
+    fireEvent.click(screen.getAllByRole('button', { name: 'Edit' })[0]!);
+    expect(screen.getByLabelText('Systolic')).toBeDisabled();
+    expect(screen.getByLabelText('Diastolic')).toBeDisabled();
+    fireEvent.change(screen.getByLabelText('Note'), {
+      target: { value: 'after coffee' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+    await waitFor(() => expect(updateBp).toHaveBeenCalled());
+    const body = updateBp.mock.calls.at(-1)?.[1];
+    expect(body?.note).toBe('after coffee');
+    expect(body).not.toHaveProperty('systolic_mmhg');
+    expect(body).not.toHaveProperty('diastolic_mmhg');
+    expect(body).not.toHaveProperty('timestamp');
+  });
 });

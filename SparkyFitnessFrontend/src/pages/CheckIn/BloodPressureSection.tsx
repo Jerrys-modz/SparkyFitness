@@ -202,35 +202,45 @@ export const BloodPressureSection = ({
   const systolicValue = Number(form.systolic);
   const diastolicValue = Number(form.diastolic);
   const pulseValue = form.pulse.trim() === '' ? null : Number(form.pulse);
+  // A reading from a device keeps its values and time (the next sync would
+  // write them back); only the context the person adds can change.
+  const editingSynced =
+    editingId !== null && readings.some((r) => r.id === editingId && !r.manual);
   const formDate = editingId && editingDate ? editingDate : selectedDate;
   const formInstant = localDateTimeToUtc(`${formDate}T${form.time}`, timezone);
   const inFuture = isBloodPressureInFuture(formInstant);
-  const formValid =
-    !inFuture &&
-    form.systolic.trim() !== '' &&
-    form.diastolic.trim() !== '' &&
-    systolicValue >= 30 &&
-    systolicValue <= 300 &&
-    diastolicValue >= 10 &&
-    diastolicValue <= 200 &&
-    systolicValue > diastolicValue &&
-    (pulseValue === null || (pulseValue >= 20 && pulseValue <= 300));
+  const formValid = editingSynced
+    ? pulseValue === null || (pulseValue >= 20 && pulseValue <= 300)
+    : !inFuture &&
+      form.systolic.trim() !== '' &&
+      form.diastolic.trim() !== '' &&
+      systolicValue >= 30 &&
+      systolicValue <= 300 &&
+      diastolicValue >= 10 &&
+      diastolicValue <= 200 &&
+      systolicValue > diastolicValue &&
+      (pulseValue === null || (pulseValue >= 20 && pulseValue <= 300));
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     if (!formValid || isActingOnBehalf) return;
-    const timestamp = formInstant.toISOString();
-    const body = {
-      timestamp,
-      systolic_mmhg: systolicValue,
-      diastolic_mmhg: diastolicValue,
+    const context = {
       pulse_bpm: pulseValue,
       arm: form.arm === 'none' ? null : form.arm,
       body_position: form.bodyPosition === 'none' ? null : form.bodyPosition,
       note: form.note.trim() === '' ? null : form.note.trim(),
     };
+    const body = {
+      timestamp: formInstant.toISOString(),
+      systolic_mmhg: systolicValue,
+      diastolic_mmhg: diastolicValue,
+      ...context,
+    };
     if (editingId) {
-      await updateReading.mutateAsync({ id: editingId, body });
+      await updateReading.mutateAsync({
+        id: editingId,
+        body: editingSynced ? context : body,
+      });
     } else {
       await createReading.mutateAsync(body);
     }
@@ -319,6 +329,7 @@ export const BloodPressureSection = ({
                 <Input
                   id="bp-systolic"
                   inputMode="numeric"
+                  disabled={editingSynced}
                   value={form.systolic}
                   onChange={(e) =>
                     setForm({ ...form, systolic: e.target.value })
@@ -332,6 +343,7 @@ export const BloodPressureSection = ({
                 <Input
                   id="bp-diastolic"
                   inputMode="numeric"
+                  disabled={editingSynced}
                   value={form.diastolic}
                   onChange={(e) =>
                     setForm({ ...form, diastolic: e.target.value })
@@ -355,6 +367,7 @@ export const BloodPressureSection = ({
                 </Label>
                 <TimeInput
                   aria-labelledby="bp-time-label"
+                  disabled={editingSynced}
                   value={form.time}
                   onChange={(value) => setForm({ ...form, time: value })}
                 />
@@ -417,7 +430,15 @@ export const BloodPressureSection = ({
                   onChange={(e) => setForm({ ...form, note: e.target.value })}
                 />
               </div>
-              {inFuture && (
+              {editingSynced && (
+                <p className="col-span-2 text-xs text-muted-foreground md:col-span-4">
+                  {t(
+                    'bloodPressure.syncedEditNote',
+                    'This reading came from a device or health app. Its values and time stay as measured; you can add the arm, position, pulse and a note.'
+                  )}
+                </p>
+              )}
+              {!editingSynced && inFuture && (
                 <p className="col-span-2 text-xs text-destructive md:col-span-4">
                   {t(
                     'bloodPressure.futureTime',
@@ -629,16 +650,14 @@ export const BloodPressureSection = ({
                 </div>
                 {!isActingOnBehalf && (
                   <div className="flex gap-1">
-                    {reading.manual && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        aria-label={t('common.edit', 'Edit')}
-                        onClick={() => startEdit(reading)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                    )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={t('common.edit', 'Edit')}
+                      onClick={() => startEdit(reading)}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
                     <Button
                       variant="ghost"
                       size="icon"

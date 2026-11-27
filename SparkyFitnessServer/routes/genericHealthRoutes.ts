@@ -398,7 +398,8 @@ const postBloodPressureHandler: RequestHandler = async (req, res, next) => {
 
 /**
  * PUT /api/generic-health/vitals/blood-pressure/:id
- * Edits a reading logged by hand; synced readings are refused (409).
+ * Edits a reading. A synced reading takes only arm, position, pulse and note;
+ * changing its values or time is refused (409), as a sync would restore them.
  */
 const putBloodPressureHandler: RequestHandler = async (req, res, next) => {
   try {
@@ -426,7 +427,7 @@ const putBloodPressureHandler: RequestHandler = async (req, res, next) => {
       return;
     }
 
-    const result = await genericHealthRepo.updateManualBloodPressure(
+    const result = await genericHealthRepo.updateBloodPressure(
       id,
       userId,
       actorUserId,
@@ -454,9 +455,10 @@ const putBloodPressureHandler: RequestHandler = async (req, res, next) => {
       return;
     }
     if (result.status === 'not_editable') {
-      res
-        .status(409)
-        .json({ error: 'Synced readings cannot be edited; delete instead' });
+      res.status(409).json({
+        error:
+          'The values and time of a synced reading cannot be changed; only arm, position, pulse and note can',
+      });
       return;
     }
     if (result.status === 'duplicate') {

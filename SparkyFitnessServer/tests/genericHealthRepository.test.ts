@@ -488,7 +488,7 @@ describe('blood pressure repository rules', () => {
         },
       ],
     });
-    const result = await genericHealthRepo.updateManualBloodPressure(
+    const result = await genericHealthRepo.updateBloodPressure(
       'v1',
       'user-1',
       'user-1',
@@ -509,7 +509,7 @@ describe('blood pressure repository rules', () => {
         },
       ],
     });
-    const result = await genericHealthRepo.updateManualBloodPressure(
+    const result = await genericHealthRepo.updateBloodPressure(
       'v1',
       'user-1',
       'user-1',
@@ -530,7 +530,7 @@ describe('blood pressure repository rules', () => {
         ],
       })
       .mockResolvedValueOnce({ rows: [{ id: 'v1' }] });
-    const result = await genericHealthRepo.updateManualBloodPressure(
+    const result = await genericHealthRepo.updateBloodPressure(
       'v1',
       'user-1',
       'user-1',
@@ -585,5 +585,61 @@ describe('blood pressure repository rules', () => {
       new Date('2026-11-20T08:00:12Z'),
       30,
     ]);
+  });
+});
+
+describe('editing a synced blood pressure reading', () => {
+  const query = vi.fn();
+  const client = { query, release: vi.fn() };
+  const synced = {
+    rows: [
+      {
+        source_provider: 'healthkit',
+        systolic_mmhg: '126',
+        diastolic_mmhg: '88',
+      },
+    ],
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (getClient as ReturnType<typeof vi.fn>).mockResolvedValue(client);
+  });
+
+  it('lets the person add arm, position, pulse and a note', async () => {
+    query
+      .mockResolvedValueOnce(synced)
+      .mockResolvedValueOnce({ rows: [{ id: 'v1' }] });
+    const result = await genericHealthRepo.updateBloodPressure(
+      'v1',
+      'user-1',
+      'user-1',
+      { arm: 'left', body_position: 'sitting', pulse_bpm: 64, note: 'rested' }
+    );
+    expect(result.status).toBe('ok');
+    const sql = String(query.mock.calls[1]?.[0]);
+    expect(sql).toContain('arm = $4');
+    expect(sql).toContain('note = $6');
+    expect(sql).not.toContain('systolic_mmhg =');
+  });
+
+  it('keeps the measured values and the time of a synced reading', async () => {
+    for (const changes of [
+      { systolic_mmhg: 120 },
+      { diastolic_mmhg: 70 },
+      { timestamp: new Date('2026-11-20T08:00:00Z') },
+      { entry_date: '2026-11-20' },
+    ]) {
+      query.mockResolvedValueOnce(synced);
+      const result = await genericHealthRepo.updateBloodPressure(
+        'v1',
+        'user-1',
+        'user-1',
+        changes
+      );
+      expect(result.status).toBe('not_editable');
+    }
+    // Only the lookups ran; nothing was written.
+    expect(query).toHaveBeenCalledTimes(4);
   });
 });

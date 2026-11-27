@@ -171,9 +171,11 @@ export type RootStackParamList = {
   LabResultAdd: { marker?: string };
   BloodPressure: undefined;
   BloodPressureAdd: {
-    /** A reading logged by hand, to edit. */
+    /** A reading to edit. */
     reading?: {
       id: string;
+      /** From a device or health app: values and time stay, context can change. */
+      synced?: boolean;
       /** Epoch ms of the reading. */
       at: number;
       systolic: number;

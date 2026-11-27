@@ -13212,7 +13212,7 @@
     "homeBelow_one": "Home average over {{count}} day (first day left out) is below 135/85.",
     "homeBelow_other": "Home average over {{count}} days (first day left out) is below 135/85.",
     "homeNeedsDays": "The home average needs readings on at least 5 different days.",
-    "hint": "Tap a reading you logged to edit it. Press and hold any reading to delete it.",
+    "hint": "Tap a reading to edit it. Readings from a device or health app keep their values and time, and you can add the arm, position, pulse and a note. Press and hold a reading to delete it.",
     "disclaimer": "For your information only, not a diagnosis. Talk to a clinician about your readings.",
     "deleteTitle": "Delete this reading?",
     "deleteMessage": "A reading that came from a device can come back on the next sync.",
@@ -13229,6 +13229,8 @@
     "valuesInvalid": "Enter whole numbers in mmHg, with the systolic value above the diastolic one.",
     "pulseInvalid": "Enter a pulse between 20 and 300.",
     "dateFuture": "The date cannot be in the future.",
+    "timeFuture": "The time cannot be in the future.",
+    "syncedEditNote": "This reading came from a device or health app. Its values and time stay as measured; you can add the arm, position, pulse and a note.",
     "notePlaceholder": "Add a note (optional)",
     "categories": {
       "normal": "Normal",
