@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { View, Text, ScrollView, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
+import { classifyActivitySport } from '@workspace/shared';
 
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { useCardioSessionDetail } from '../hooks/useCardioSessionDetail';
@@ -37,6 +38,7 @@ import ProgramWorkoutBadge from '../components/recording/ProgramWorkoutBadge';
 import FitnessTestBadge from '../components/recording/FitnessTestBadge';
 import ShoePickerCard from '../components/ShoePickerCard';
 import { useWorkoutEnergyRepair } from '../hooks/useWorkoutEnergyRepair';
+import Vo2EstimateForEntry from '../components/Vo2EstimateForEntry';
 import type { RootStackScreenProps } from '../types/navigation';
 import { useEnergyUnit } from '../hooks/useEnergyUnit';
 
@@ -57,6 +59,13 @@ const CardioSessionScreen: React.FC<CardioSessionScreenProps> = ({
   route,
 }) => {
   const { session, distanceUnit, diaryEntry } = route.params;
+  // Only a run feeds the estimated VO2 max, so only a run offers its switch.
+  const isRun =
+    classifyActivitySport({
+      exerciseName: session.exerciseName,
+      category: session.category,
+      notes: session.notes,
+    }).sport === 'running';
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const activeWorkoutBarPadding = useActiveWorkoutBarPadding('stack');
@@ -265,6 +274,7 @@ const CardioSessionScreen: React.FC<CardioSessionScreenProps> = ({
           </View>
         ) : null}
         <ShoePickerCard exerciseEntryId={session.id} />
+        <Vo2EstimateForEntry exerciseEntryId={session.id} isRun={isRun} />
 
         {/* A duration-only workout (a jump rope) has no distance, so no route. */}
         {(session.modality ?? 'duration_distance') !== 'duration' ? (
