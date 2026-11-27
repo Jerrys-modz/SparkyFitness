@@ -60,7 +60,7 @@ Log blood pressure readings by hand and follow them over time. Readings that arr
 - **Category:** each reading shows a category (Normal, Elevated, Stage 1, Stage 2, Severe) from the AHA/ACC adult thresholds. When systolic and diastolic fall in different categories, the higher one is shown. This is information, not a diagnosis.
 - **Trend:** the last 7, 30 or 90 days, with the average, a morning average (before noon), an evening average (from 17:00) and a **home average**.
 - **Home average:** follows the usual home-monitoring approach: the first day of readings is left out and the rest averaged, and it needs readings on at least 5 different days. A home average at or above 135/85 is flagged, because the home cutoff is lower than the clinic one.
-- **Editing:** readings you logged by hand can be edited or deleted. Readings that came from a device can only be deleted, since the next sync would rewrite an edit; a deleted device reading can come back when it syncs again.
+- **Editing:** any reading can be edited or deleted. A reading you logged by hand can change in full. A reading that came from a device or health app keeps its values and time, because the next sync would write the originals back; you can add the arm, body position, pulse and a note to it, and those stay across syncs. A deleted device reading can come back when it syncs again.
 - **Family access:** a profile you view through Family Access shows the readings, but only the account owner can log them here.
 
 On the mobile app, open **Library → Blood pressure** for the same list, averages and trend, and use **+** to add a reading. Press and hold a reading to delete it.

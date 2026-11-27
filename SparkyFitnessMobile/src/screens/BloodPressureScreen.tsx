@@ -306,22 +306,20 @@ const BloodPressureScreen: React.FC<Props> = ({ navigation }) => {
                     return (
                       <Pressable
                         key={reading.id}
-                        onPress={
-                          reading.manual
-                            ? () =>
-                                navigation.navigate('BloodPressureAdd', {
-                                  reading: {
-                                    id: reading.id,
-                                    at: reading.at,
-                                    systolic: reading.systolic,
-                                    diastolic: reading.diastolic,
-                                    pulse: reading.pulse,
-                                    arm: reading.arm,
-                                    bodyPosition: reading.bodyPosition,
-                                    note: reading.note,
-                                  },
-                                })
-                            : undefined
+                        onPress={() =>
+                          navigation.navigate('BloodPressureAdd', {
+                            reading: {
+                              id: reading.id,
+                              synced: !reading.manual,
+                              at: reading.at,
+                              systolic: reading.systolic,
+                              diastolic: reading.diastolic,
+                              pulse: reading.pulse,
+                              arm: reading.arm,
+                              bodyPosition: reading.bodyPosition,
+                              note: reading.note,
+                            },
+                          })
                         }
                         onLongPress={() => confirmDelete(reading)}
                         className={`px-4 py-3 ${
@@ -352,7 +350,7 @@ const BloodPressureScreen: React.FC<Props> = ({ navigation }) => {
                 <Text className="text-xs text-text-muted">
                   {t('bloodPressure.hint', {
                     defaultValue:
-                      'Tap a reading you logged to edit it. Press and hold any reading to delete it.',
+                      'Tap a reading to edit it. Readings from a device or health app keep their values and time, and you can add the arm, position, pulse and a note. Press and hold a reading to delete it.',
                   })}
                 </Text>
                 <Text className="text-xs text-text-muted">

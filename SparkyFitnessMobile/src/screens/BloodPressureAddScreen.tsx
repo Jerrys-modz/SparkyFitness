@@ -75,6 +75,9 @@ const BloodPressureAddScreen: React.FC<Props> = ({ navigation, route }) => {
   const update = useUpdateBloodPressure();
 
   const editing = route.params?.reading ?? null;
+  // A reading from a device keeps its values and time (the next sync would
+  // write them back); only the context the person adds can change.
+  const editingSynced = editing?.synced === true;
   const timezone = getDeviceTimezone();
   const originalDate = editing ? instantToDay(editing.at, timezone) : null;
   const clock = (at: number | Date): string => {
@@ -122,34 +125,39 @@ const BloodPressureAddScreen: React.FC<Props> = ({ navigation, route }) => {
   const takenAt = localDateTimeToUtc(`${date}T${time}`, timezone);
   const timeValid = !isBloodPressureInFuture(takenAt);
   const saving = create.isPending || update.isPending;
-  const canSave =
-    valuesValid && pulseValid && dateValid && timeValid && !saving;
+  const canSave = editingSynced
+    ? pulseValid && !saving
+    : valuesValid && pulseValid && dateValid && timeValid && !saving;
 
   const handleSave = async () => {
-    if (!canSave || systolic === null || diastolic === null) return;
-    const body = {
-      systolic_mmhg: systolic,
-      diastolic_mmhg: diastolic,
+    if (!canSave) return;
+    const context = {
       pulse_bpm: pulse,
       arm,
       body_position: position,
       note: note.trim() === '' ? null : note.trim(),
     };
     try {
-      if (editing) {
+      if (editing && editingSynced) {
+        await update.mutateAsync({ id: editing.id, body: context });
+      } else if (editing && systolic !== null && diastolic !== null) {
         await update.mutateAsync({
           id: editing.id,
           body: {
-            ...body,
+            ...context,
+            systolic_mmhg: systolic,
+            diastolic_mmhg: diastolic,
             // Only a changed day or time moves the reading.
             ...(date !== originalDate || time !== originalTime
               ? { timestamp: takenAt.toISOString() }
               : {}),
           },
         });
-      } else {
+      } else if (systolic !== null && diastolic !== null) {
         await create.mutateAsync({
-          ...body,
+          ...context,
+          systolic_mmhg: systolic,
+          diastolic_mmhg: diastolic,
           timestamp: takenAt.toISOString(),
         });
       }
@@ -233,6 +241,7 @@ const BloodPressureAddScreen: React.FC<Props> = ({ navigation, route }) => {
             </Text>
             <TextInput
               value={systolicText}
+              editable={!editingSynced}
               onChangeText={setSystolicText}
               keyboardType="number-pad"
               placeholder="120"
@@ -249,6 +258,7 @@ const BloodPressureAddScreen: React.FC<Props> = ({ navigation, route }) => {
             </Text>
             <TextInput
               value={diastolicText}
+              editable={!editingSynced}
               onChangeText={setDiastolicText}
               keyboardType="number-pad"
               placeholder="80"
@@ -260,14 +270,25 @@ const BloodPressureAddScreen: React.FC<Props> = ({ navigation, route }) => {
             />
           </View>
         </View>
-        {systolicText !== '' && diastolicText !== '' && !valuesValid && (
-          <Text className="text-xs text-text-danger-subtle">
-            {t('bloodPressure.valuesInvalid', {
+        {editingSynced && (
+          <Text className="text-xs text-text-secondary">
+            {t('bloodPressure.syncedEditNote', {
               defaultValue:
-                'Enter whole numbers in mmHg, with the systolic value above the diastolic one.',
+                'This reading came from a device or health app. Its values and time stay as measured; you can add the arm, position, pulse and a note.',
             })}
           </Text>
         )}
+        {!editingSynced &&
+          systolicText !== '' &&
+          diastolicText !== '' &&
+          !valuesValid && (
+            <Text className="text-xs text-text-danger-subtle">
+              {t('bloodPressure.valuesInvalid', {
+                defaultValue:
+                  'Enter whole numbers in mmHg, with the systolic value above the diastolic one.',
+              })}
+            </Text>
+          )}
 
         <View className="gap-1.5">
           <Text className="text-text-secondary text-sm font-medium">
@@ -330,6 +351,7 @@ const BloodPressureAddScreen: React.FC<Props> = ({ navigation, route }) => {
           </Text>
           <TouchableOpacity
             onPress={() => calendarRef.current?.present()}
+            disabled={editingSynced}
             className="flex-row items-center px-3 py-2.5 rounded-lg border border-border-subtle bg-raised min-h-11"
             accessibilityRole="button"
             accessibilityLabel={t('bloodPressure.date', {
@@ -355,6 +377,7 @@ const BloodPressureAddScreen: React.FC<Props> = ({ navigation, route }) => {
           </Text>
           <TouchableOpacity
             onPress={() => timeSheetRef.current?.present()}
+            disabled={editingSynced}
             className="flex-row items-center px-3 py-2.5 rounded-lg border border-border-subtle bg-raised min-h-11"
             accessibilityRole="button"
             accessibilityLabel={t('bloodPressure.time', {

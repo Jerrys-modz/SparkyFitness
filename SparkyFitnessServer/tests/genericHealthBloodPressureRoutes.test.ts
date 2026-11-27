@@ -21,7 +21,7 @@ vi.mock('../utils/timezoneLoader.js', () => ({
 vi.mock('../models/workoutTelemetryRepository.js', () => ({}));
 vi.mock('../models/genericHealthRepository.js', () => ({
   createManualBloodPressure: vi.fn(),
-  updateManualBloodPressure: vi.fn(),
+  updateBloodPressure: vi.fn(),
   deleteBloodPressure: vi.fn(),
 }));
 
@@ -35,7 +35,7 @@ app.use('/api/generic-health', genericHealthRoutes);
 app.use(errorHandler);
 
 const create = vi.mocked(genericHealthRepo.createManualBloodPressure);
-const update = vi.mocked(genericHealthRepo.updateManualBloodPressure);
+const update = vi.mocked(genericHealthRepo.updateBloodPressure);
 const remove = vi.mocked(genericHealthRepo.deleteBloodPressure);
 const URL = '/api/generic-health/vitals/blood-pressure';
 

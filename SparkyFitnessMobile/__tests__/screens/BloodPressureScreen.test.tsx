@@ -88,34 +88,52 @@ describe('BloodPressureScreen', () => {
     expect(getAllByText(/Stage 1/).length).toBeGreaterThan(0);
   });
 
-  it('edits a manual reading and only offers delete for a synced one', () => {
+  it('opens any reading to edit, marking a synced one', () => {
     mockRange([
       reading({ id: 'v2', manual: false, at: 1, systolic: 150, diastolic: 95 }),
       reading(),
     ]);
-    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
     const navigate = (navigation as unknown as { navigate: jest.Mock })
       .navigate;
     const { getAllByText, getByText } = render(
       <BloodPressureScreen navigation={navigation} route={route} />
     );
 
-    // A synced reading cannot be edited, only deleted.
     fireEvent.press(getByText(/150\/95/));
-    expect(navigate).not.toHaveBeenCalled();
-    fireEvent(getByText(/150\/95/), 'longPress');
-    expect(alertSpy).toHaveBeenCalled();
+    expect(navigate).toHaveBeenCalledWith(
+      'BloodPressureAdd',
+      expect.objectContaining({
+        reading: expect.objectContaining({ id: 'v2', synced: true }),
+      })
+    );
 
     // The latest card shows the same numbers first; the list row is last.
     const matches = getAllByText(/138\/86/);
     const row = matches[matches.length - 1];
     if (!row) throw new Error('Expected the list row');
     fireEvent.press(row);
-    expect(navigate).toHaveBeenCalledWith(
+    expect(navigate).toHaveBeenLastCalledWith(
       'BloodPressureAdd',
       expect.objectContaining({
-        reading: expect.objectContaining({ id: 'v1', systolic: 138 }),
+        reading: expect.objectContaining({ id: 'v1', synced: false }),
       })
+    );
+  });
+
+  it('offers delete on long press for any reading', () => {
+    mockRange([reading({ manual: false })]);
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    const { getAllByText } = render(
+      <BloodPressureScreen navigation={navigation} route={route} />
+    );
+    const matches = getAllByText(/138\/86/);
+    const row = matches[matches.length - 1];
+    if (!row) throw new Error('Expected the list row');
+    fireEvent(row, 'longPress');
+    expect(alertSpy).toHaveBeenCalledWith(
+      'Delete this reading?',
+      expect.any(String),
+      expect.any(Array)
     );
   });
 

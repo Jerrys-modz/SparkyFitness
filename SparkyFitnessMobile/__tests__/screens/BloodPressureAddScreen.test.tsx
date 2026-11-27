@@ -130,4 +130,35 @@ describe('BloodPressureAddScreen', () => {
     renderScreen();
     expect(navigation.goBack).toHaveBeenCalled();
   });
+
+  it('lets a synced reading take context but keeps its values and time', async () => {
+    const { getByLabelText, getByText, getByRole } = renderScreen({
+      reading: {
+        id: 'v1',
+        synced: true,
+        at: Date.parse('2026-11-25T07:28:00Z'),
+        systolic: 126,
+        diastolic: 88,
+        pulse: null,
+        arm: null,
+        bodyPosition: null,
+        note: null,
+      },
+    });
+    expect(getByLabelText('Systolic').props.editable).toBe(false);
+    expect(getByLabelText('Diastolic').props.editable).toBe(false);
+    expect(getByText(/came from a device or health app/)).toBeTruthy();
+    fireEvent.press(getByText('Left arm'));
+    fireEvent.press(getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(updateAsync).toHaveBeenCalled());
+    const call = updateAsync.mock.calls[0]?.[0] as {
+      id: string;
+      body: Record<string, unknown>;
+    };
+    expect(call.id).toBe('v1');
+    expect(call.body.arm).toBe('left');
+    expect(call.body).not.toHaveProperty('systolic_mmhg');
+    expect(call.body).not.toHaveProperty('diastolic_mmhg');
+    expect(call.body).not.toHaveProperty('timestamp');
+  });
 });
