@@ -41,10 +41,14 @@ import AdaptiveSuggestionBanner from './AdaptiveSuggestionBanner';
 import ExerciseHeartRateChip from './ExerciseHeartRateChip';
 import FocusHoldPanel from './FocusHoldPanel';
 import FocusHoldReadyCard from './FocusHoldReadyCard';
+import { FocusLogLockContext, useFocusLogLocked } from './focusLogLock';
 import FocusAwayFrame from './FocusAwayFrame';
 import FocusExercisePreview from './FocusExercisePreview';
 import FocusNowBanner, { type FocusNowBannerInfo } from './FocusNowBanner';
-import FocusSupersetPage, { supersetPageSupports } from './FocusSupersetPage';
+import FocusSupersetPage, {
+  supersetPageSupports,
+  supersetRunSupports,
+} from './FocusSupersetPage';
 import FocusPlateStrip from './FocusPlateStrip';
 import WorkoutNotesField from './WorkoutNotesField';
 import type { AnchorRect } from './AnchoredMenu';
@@ -584,26 +588,35 @@ const FocusExercisePage = React.memo(function FocusExercisePage({
     plannedSetValues,
   ]);
   const readySetId = currentHoldSetId ?? otherHold?.setId ?? null;
+  const restLocked = useFocusLogLocked();
+  // The rest lock guards logging on the exercise the cursor is on, where the
+  // rest card says why. A hold started from another exercise's page is a
+  // deliberate out-of-order start, so its button stays live there.
   const holdReadyCard =
     readySetId != null ? (
-      <FocusHoldReadyCard
-        setLabel={t('activeWorkout.focus.hold.setNumber', {
-          defaultValue: 'Set {{number}}',
-          number:
-            exercise.sets.findIndex((set) => String(set.id) === readySetId) + 1,
-        })}
-        targetSec={
-          currentHoldSetId != null
-            ? hold.targetSec
-            : (otherHold?.targetSec ?? null)
-        }
-        onChangeSeconds={(seconds) => {
-          setEditorProps.onCommitField(readySetId, { duration: seconds });
-        }}
-        onStart={() =>
-          hold.start(currentHoldSetId != null ? undefined : readySetId)
-        }
-      />
+      <FocusLogLockContext.Provider
+        value={restLocked && currentHoldSetId != null}
+      >
+        <FocusHoldReadyCard
+          setLabel={t('activeWorkout.focus.hold.setNumber', {
+            defaultValue: 'Set {{number}}',
+            number:
+              exercise.sets.findIndex((set) => String(set.id) === readySetId) +
+              1,
+          })}
+          targetSec={
+            currentHoldSetId != null
+              ? hold.targetSec
+              : (otherHold?.targetSec ?? null)
+          }
+          onChangeSeconds={(seconds) => {
+            setEditorProps.onCommitField(readySetId, { duration: seconds });
+          }}
+          onStart={() =>
+            hold.start(currentHoldSetId != null ? undefined : readySetId)
+          }
+        />
+      </FocusLogLockContext.Provider>
     ) : undefined;
 
   return (
@@ -979,8 +992,7 @@ function ActiveWorkoutFocusView({
     run != null
       ? run.entryIds.flatMap((id) => exercises.find((e) => e.id === id) ?? [])
       : [];
-  const supersetEligible =
-    run != null && runMembers.every(supersetPageSupports);
+  const supersetEligible = run != null && runMembers.every(supersetRunSupports);
   // While a hold is running or counting down, every other exercise (a
   // superset page included) is a read-only preview, so nothing can be logged
   // off the held set.
@@ -1071,9 +1083,11 @@ function ActiveWorkoutFocusView({
                   sessionId={sessionId}
                   verifiedSourcePresetId={verifiedSourcePresetId}
                   weightUnit={weightUnit}
+                  hold={hold}
                   getImageSource={getImageSource}
                   onCompleteSet={setEditorProps.onCompleteSet}
                   onCommitField={setEditorProps.onCommitField}
+                  onAddSet={setEditorProps.onAddSet}
                   onPressOverflow={onPressOverflow}
                 />
               </AwayFrame>
