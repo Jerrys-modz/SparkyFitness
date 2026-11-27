@@ -11,6 +11,7 @@ import {
   entryTypeEnum,
   giIndexEnum,
   paginationSchema,
+  withDayNote,
 } from './common.js';
 
 // Freeform markdown note on a food or meal template. Shared by the strict
@@ -309,12 +310,35 @@ const createFoodSchema = z
       .describe(
         'Glycemic Index classification. Include only when supported by the source; omit when unknown.'
       ),
+    serving_size: z.coerce
+      .number()
+      .positive()
+      .optional()
+      .describe(
+        'Serving size the nutrients are for; needs serving_unit. If only serving_unit is given, it is 1 for count units and 100 otherwise. Without either serving field, quantity is the serving.'
+      ),
+    serving_unit: z
+      .string()
+      .min(1)
+      .max(50)
+      .optional()
+      .describe(
+        'Serving unit the nutrients are for. A leading count such as "4 pieces" is split into serving_size 4. Without serving_unit, unit is the serving unit.'
+      ),
     quantity: z.coerce
       .number()
       .min(0)
       .optional()
-      .describe('Default serving size value'),
-    unit: z.string().max(50).optional().describe('Default serving size unit'),
+      .describe(
+        'Amount logged when meal_type_id or meal_type is given (omit to log one serving). Without serving_unit it is also the serving the nutrients are for.'
+      ),
+    unit: z
+      .string()
+      .max(50)
+      .optional()
+      .describe(
+        'Unit of the amount logged; omitted, quantity counts servings. Without serving_unit it is also the serving unit.'
+      ),
     meal_type: mealTypeEnum
       .optional()
       .describe(
@@ -326,7 +350,7 @@ const createFoodSchema = z
         'Optional meal type UUID for automatic logging, including custom meal types'
       ),
     entry_date: optionalDateSchema.describe(
-      'Optional: Date for automatic log (YYYY-MM-DD)'
+      withDayNote('Optional: Date for automatic log (YYYY-MM-DD)')
     ),
     entry_time: optionalEntryTimeSchema,
     is_quick_food: quickFoodSchema,
@@ -402,7 +426,11 @@ const deleteEntrySchema = z
       ),
     entry_date: dateSchema
       .optional()
-      .describe('Diary date food_name is resolved against (defaults to today)'),
+      .describe(
+        withDayNote(
+          'Diary date food_name is resolved against (defaults to today)'
+        )
+      ),
     meal_type: mealTypeEnum
       .optional()
       .describe(
@@ -441,7 +469,11 @@ const updateEntrySchema = z
       ),
     entry_date: dateSchema
       .optional()
-      .describe('Diary date food_name is resolved against (defaults to today)'),
+      .describe(
+        withDayNote(
+          'Diary date food_name is resolved against (defaults to today)'
+        )
+      ),
     quantity: z.coerce.number().min(0).optional().describe('New amount'),
     unit: z
       .string()
@@ -613,10 +645,10 @@ const copyFromYesterdaySchema = z
   .object({
     action: z.literal('copy_from_yesterday'),
     target_date: optionalDateSchema.describe(
-      'Date to copy entries to (defaults to today)'
+      withDayNote('Date to copy entries to (defaults to today)')
     ),
     source_date: optionalDateSchema.describe(
-      'Date to copy entries from (defaults to yesterday)'
+      withDayNote('Date to copy entries from (defaults to yesterday)')
     ),
     meal_type_id: uuidSchema
       .optional()
@@ -703,15 +735,19 @@ const logWaterSchema = z
       .number()
       .min(0)
       .describe('Amount of water in milliliters'),
-    entry_date: dateSchema.describe('Date to log the water for'),
+    entry_date: dateSchema.describe(withDayNote('Date to log the water for')),
   })
   .strict();
 
 const getNutritionalSummarySchema = z
   .object({
     action: z.literal('get_nutritional_summary'),
-    start_date: dateSchema.describe('Start date for the summary range'),
-    end_date: dateSchema.describe('End date for the summary range'),
+    start_date: dateSchema.describe(
+      withDayNote('Start date for the summary range')
+    ),
+    end_date: dateSchema.describe(
+      withDayNote('End date for the summary range')
+    ),
   })
   .strict();
 
@@ -720,8 +756,10 @@ const getWaterHistorySchema = z
     action: z.literal('get_water_history'),
     start_date: dateSchema
       .optional()
-      .describe('Start date for the history range'),
-    end_date: dateSchema.optional().describe('End date for the history range'),
+      .describe(withDayNote('Start date for the history range')),
+    end_date: dateSchema
+      .optional()
+      .describe(withDayNote('End date for the history range')),
   })
   .strict();
 
@@ -823,13 +861,17 @@ export const manageFoodInput = z.object({
     .number()
     .min(0)
     .optional()
-    .describe('For update_food_variant: updated serving size value'),
+    .describe(
+      'For update_food_variant: updated serving size value. For create_food: the serving size the nutrients are for (> 0, needs serving_unit); quantity/unit then only give the amount logged.'
+    ),
   serving_unit: z
     .string()
     .min(1)
     .max(50)
     .optional()
-    .describe('For update_food_variant: updated serving unit'),
+    .describe(
+      'For update_food_variant: updated serving unit. For create_food: the serving unit the nutrients are for; a leading count such as "4 pieces" is split into serving_size 4, and without serving_size it is 1 for count units and 100 otherwise.'
+    ),
   brand: z
     .string()
     .max(200)
@@ -844,7 +886,7 @@ export const manageFoodInput = z.object({
     .min(0)
     .optional()
     .describe(
-      "Amount consumed (units defined by 'unit'). For create_food, also the serving the nutrients are for."
+      "Amount consumed (units defined by 'unit'). For create_food, the amount logged when meal_type_id or meal_type is given (omit to log one serving); the serving the nutrients are for is set by serving_size/serving_unit, falling back to quantity/unit when serving_unit is omitted."
     ),
   unit: z
     .string()
@@ -863,7 +905,9 @@ export const manageFoodInput = z.object({
     .describe(
       'Meal type UUID for logging or moving entries, including custom meal types'
     ),
-  entry_date: dateSchema.optional().describe('Date for the entry (YYYY-MM-DD)'),
+  entry_date: dateSchema
+    .optional()
+    .describe(withDayNote('Date for the entry (YYYY-MM-DD)')),
   entry_time: optionalEntryTimeSchema,
   is_quick_food: quickFoodSchema,
   meal_id: uuidSchema.optional().describe('Meal template UUID'),
@@ -970,9 +1014,11 @@ export const manageFoodInput = z.object({
     'Markdown reference note (for create_food / save_as_meal_template / set_food_notes; empty string clears it)'
   ),
   // copy_from_yesterday
-  target_date: optionalDateSchema.describe('Target date (defaults to today)'),
+  target_date: optionalDateSchema.describe(
+    withDayNote('Target date (defaults to today)')
+  ),
   source_date: optionalDateSchema.describe(
-    'Source date (defaults to yesterday)'
+    withDayNote('Source date (defaults to yesterday)')
   ),
   // water
   amount_ml: z.coerce
@@ -981,8 +1027,12 @@ export const manageFoodInput = z.object({
     .optional()
     .describe('Water amount in milliliters'),
   // range queries
-  start_date: dateSchema.optional().describe('Start date for range queries'),
-  end_date: dateSchema.optional().describe('End date for range queries'),
+  start_date: dateSchema
+    .optional()
+    .describe(withDayNote('Start date for range queries')),
+  end_date: dateSchema
+    .optional()
+    .describe(withDayNote('End date for range queries')),
   // explicit search provider
   provider_type: foodProviderTypeEnum
     .optional()

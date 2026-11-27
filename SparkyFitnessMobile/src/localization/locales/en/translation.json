@@ -1322,6 +1322,7 @@
     "quickAddDrinks": "Quick add",
     "logDrink": "Log {{drink}}",
     "perPress": "{{value}} {{unit}}",
+    "customAmount": "Custom amount",
     "logDrinkFailed": "Could not log that drink",
     "exerciseStatistics": "Statistics",
     "reportsLink": "Reports",
@@ -6993,7 +6994,9 @@
     "configureMobile": "Add a water container to start tracking hydration.",
     "defaultContainer": "Default",
     "queued": "Saved on this phone",
-    "queuedMessage": "It uploads when your server can be reached."
+    "queuedMessage": "It uploads when your server can be reached.",
+    "customAmountTitle": "Log a custom amount",
+    "logAmount": "Log"
   },
   "actionTags": {
     "waiting": {
