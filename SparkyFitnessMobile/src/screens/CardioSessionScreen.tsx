@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { View, Text, ScrollView, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
-import { classifyActivitySport } from '@workspace/shared';
 
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { useCardioSessionDetail } from '../hooks/useCardioSessionDetail';
@@ -59,13 +58,6 @@ const CardioSessionScreen: React.FC<CardioSessionScreenProps> = ({
   route,
 }) => {
   const { session, distanceUnit, diaryEntry } = route.params;
-  // Only a run feeds the estimated VO2 max, so only a run offers its switch.
-  const isRun =
-    classifyActivitySport({
-      exerciseName: session.exerciseName,
-      category: session.category,
-      notes: session.notes,
-    }).sport === 'running';
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const activeWorkoutBarPadding = useActiveWorkoutBarPadding('stack');
