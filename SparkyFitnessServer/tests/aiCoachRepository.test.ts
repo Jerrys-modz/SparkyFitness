@@ -86,3 +86,24 @@ describe('getLastDayWithSignal', () => {
     ]);
   });
 });
+
+describe('listOpenQuestions', () => {
+  it('asks for the day’s unanswered questions with their chat text', async () => {
+    mocks.client.query.mockResolvedValue({
+      rows: [
+        {
+          nudge_id: 'n1',
+          question: 'energy',
+          text: 'How is your energy today?',
+          created_at: new Date('2026-11-25T07:05:00Z'),
+        },
+      ],
+    });
+    const rows = await aiCoachRepository.listOpenQuestions('u1', '2026-11-25');
+    expect(rows[0]?.created_at).toBe('2026-11-25T07:05:00.000Z');
+    const [sql, params] = mocks.client.query.mock.calls[0] ?? [];
+    expect(String(sql)).toContain('n.answered_at IS NULL');
+    expect(String(sql)).toContain('n.question IS NOT NULL');
+    expect(params).toEqual(['u1', '2026-11-25']);
+  });
+});

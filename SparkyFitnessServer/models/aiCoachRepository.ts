@@ -450,6 +450,33 @@ async function listUnreadMessages(userId: string, since: Date | null) {
   }
 }
 
+/** Questions asked on this local day and not answered yet, newest first,
+ * with the text the chat shows. */
+async function listOpenQuestions(userId: string, localDay: string) {
+  const client = await getClient(userId);
+  try {
+    const result = await client.query(
+      `SELECT n.id AS nudge_id, n.coach_id, c.name AS coach_name, c.builtin_key,
+              n.question, h.content AS text, n.created_at
+       FROM coach_nudges n
+       JOIN user_coaches c ON c.id = n.coach_id AND c.user_id = n.user_id
+       JOIN sparky_chat_history h ON h.id = n.chat_message_id AND h.user_id = n.user_id
+       WHERE n.user_id = $1 AND n.local_day = $2
+         AND n.question IS NOT NULL AND n.answered_at IS NULL
+       ORDER BY n.created_at DESC LIMIT 10`,
+      [userId, localDay]
+    );
+    return result.rows.map(
+      (row: { created_at: Date } & Record<string, unknown>) => ({
+        ...row,
+        created_at: row.created_at.toISOString(),
+      })
+    );
+  } finally {
+    client.release();
+  }
+}
+
 async function markRead(userId: string, coachId: string): Promise<void> {
   const client = await getClient(userId);
   try {
@@ -906,6 +933,7 @@ export default {
   insertNudgeWithChatMessage,
   getUnreadCounts,
   listUnreadMessages,
+  listOpenQuestions,
   markRead,
   markAllRead,
   getCoachById,

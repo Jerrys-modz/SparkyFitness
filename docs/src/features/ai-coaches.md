@@ -77,6 +77,16 @@ If you use cycle tracking, coaches take your phase into account in how they word
 
 When a coach writes, the app shows a **notification**; tapping it opens that coach's thread. The app checks for new messages in its background sync, so on iPhone, where the system decides when background tasks run, a message can arrive a little after the check-in time. Opening the app always shows it. Turn notifications off, or per coach, in **Settings → Coaches**. Messages never pass through any outside push service.
 
+### Siri and Shortcuts (iPhone)
+
+Once you have signed in to a server in the app, you can ask Siri:
+
+- **"Check in with my coaches in SparkyFitness"** runs a check-in now, like the **Check in now** button, and reads out what your coaches say (or why they have nothing to say).
+- **"Read my coach messages in SparkyFitness"** reads out up to three unread messages and tells you how many more are in the app. A coach's thread counts as read once you have heard all of its messages.
+- **"Answer my coach in SparkyFitness"** answers today's quick question. Siri asks it in the coach's words: say a number from 1 to 5 for energy, mood or focus, or yes or not yet for a habit. The answer is saved as it is from the chat.
+
+They are also in the Shortcuts app, so you can put them in an automation or on the Action button. Because they speak about your health, they only run while your iPhone is unlocked. Siri speaks them in English for now.
+
 ## AI provider
 
 Coaches use **your own AI provider** (your key, or your local model) to word a message, and only when a rule matches, so a quiet day costs nothing. Without a provider, or if it fails, you get a short fixed message instead. You can still read it, but you need a provider to reply.
