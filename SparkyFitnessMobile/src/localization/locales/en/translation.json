@@ -809,31 +809,6 @@
         "continue": "Continue · {{seconds}} s",
         "autoClose": "Closes on its own after about 5 s"
       },
-      "now": {
-        "label": "Now · {{name}}",
-        "set": "Set {{number}}/{{total}}",
-        "tapBack": "Tap: back",
-        "a11y": "Back to the current exercise"
-      },
-      "preview": {
-        "set": "Set",
-        "prev": "Prev",
-        "reps": "Reps",
-        "doNow": "Do it now",
-        "doNowLabel": "Do {{name}} now",
-        "doNowHeld": "Finish or cancel the hold first"
-      },
-      "superset": {
-        "title": "Superset {{letter}}",
-        "summary_one": "{{count}} round · {{order}}, rest after {{last}}",
-        "summary_other": "{{count}} rounds · {{order}}, rest after {{last}}",
-        "then": "then",
-        "round": "Round {{round}} · {{badge}}",
-        "prev": "Prev {{value}}",
-        "log": "Log set",
-        "logGoTo": "Log set · go to {{badge}}",
-        "done": "Superset done"
-      },
       "settings": {
         "title": "Workout settings",
         "askEffortSubtitle": "Shows the effort sheet after Log set here and on the watch (the same setting as Watch settings). Rest still starts at Log set. The metric column is chosen in the set table.",
@@ -13280,8 +13255,7 @@
     },
     "unit": "mmHg",
     "pulseValue": "{{value}} bpm",
-    "time": "Time",
-    "timeFuture": "The time cannot be in the future."
+    "time": "Time"
   },
   "imageLightbox": {
     "zoomHint": "Pinch to zoom · double-tap to reset",
