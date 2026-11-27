@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
     insertNudgeWithChatMessage: vi.fn(),
     countWinsForDay: vi.fn(),
     claimEventScan: vi.fn(),
+    getLastDayWithSignal: vi.fn(),
   },
   getCoachSignals: vi.fn(),
   composeCoachMessage: vi.fn(),
@@ -74,6 +75,8 @@ vi.mock('../config/logging.js', () => ({ log: vi.fn() }));
 import {
   CHECKIN_GRACE_MINUTES,
   dueCheckinSlot,
+  isFirstCheckinOfDay,
+  personalRecordSinceDay,
   runCheckinNow,
   runCoachCheckins,
 } from '../services/coachCheckinService.js';
@@ -117,6 +120,7 @@ beforeEach(() => {
   mocks.repo.getProfile.mockResolvedValue(null);
   mocks.repo.countWinsForDay.mockResolvedValue(0);
   mocks.repo.claimEventScan.mockResolvedValue(null);
+  mocks.repo.getLastDayWithSignal.mockResolvedValue(null);
   mocks.buildSuggestion.mockResolvedValue({ suggestion: null, facts: {} });
   mocks.judgeCustomCoach.mockResolvedValue(null);
   mocks.getEntriesCreatedSince.mockResolvedValue([]);
@@ -481,8 +485,72 @@ describe('runCoachCheckins', () => {
       expect(mocks.repo.insertNudgeWithChatMessage).toHaveBeenCalledOnce();
       // Not at the later check-ins of the same day.
       mocks.repo.insertNudgeWithChatMessage.mockClear();
+      mocks.repo.listCheckinCandidates.mockResolvedValue([
+        candidate({ last_checkin_at: new Date('2026-11-25T07:00:00Z') }),
+      ]);
       await runCoachCheckins(new Date('2026-11-25T12:05:00Z'));
       expect(mocks.repo.insertNudgeWithChatMessage).not.toHaveBeenCalled();
+    });
+
+    it('runs the weekly review at the next check-in when the first was missed', async () => {
+      // 13:05 Berlin; the 08:00 check-in never ran (the last was yesterday).
+      mocks.repo.listCheckinCandidates.mockResolvedValue([
+        candidate({ last_checkin_at: new Date('2026-11-24T18:00:00Z') }),
+      ]);
+      mocks.repo.listCoaches.mockResolvedValue([
+        coach('weekly_review', 'c-weekly', { settings: { weekday: 3 } }),
+      ]);
+      mocks.buildSuggestion.mockResolvedValue({
+        suggestion: null,
+        facts: { days_logged: 6 },
+      });
+      await runCoachCheckins(new Date('2026-11-25T12:05:00Z'));
+      expect(mocks.repo.insertNudgeWithChatMessage).toHaveBeenCalledOnce();
+    });
+
+    it('works out goal streaks for a custom rule that reads them', async () => {
+      mocks.repo.listCoaches.mockResolvedValue([
+        {
+          ...recoveryRow,
+          id: 'mine',
+          builtin_key: null,
+          name: 'Streaks',
+          mode: 'rules',
+          ai_rule: null,
+          settings: {},
+          rules: {
+            version: 1,
+            rules: [
+              {
+                id: 'cal',
+                enabled: true,
+                when: 'any',
+                conditions: [
+                  {
+                    signal: 'calorie_goal_hit_streak_days',
+                    op: 'gte',
+                    value: 3,
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      ]);
+      await runCoachCheckins(NOW);
+      expect(mocks.getCoachSignals.mock.calls[0][3]).toMatchObject({
+        includeGoalStreaks: true,
+      });
+    });
+
+    it('counts records from the day of the previous check-in', async () => {
+      mocks.repo.listCheckinCandidates.mockResolvedValue([
+        candidate({ last_checkin_at: new Date('2026-11-24T18:00:00Z') }),
+      ]);
+      await runCoachCheckins(new Date('2026-11-25T07:05:00Z'));
+      expect(mocks.getCoachSignals.mock.calls[0][3]).toMatchObject({
+        prSinceDay: '2026-11-24',
+      });
     });
   });
 
@@ -621,6 +689,49 @@ describe('runCoachCheckins', () => {
   });
 });
 
+describe('isFirstCheckinOfDay', () => {
+  it('is the first when nothing ran yet, or the last one was another day', () => {
+    expect(isFirstCheckinOfDay(null, 'Europe/Berlin', '2026-11-25')).toBe(true);
+    // 23:30 Berlin on the 24th.
+    expect(
+      isFirstCheckinOfDay(
+        new Date('2026-11-24T22:30:00Z'),
+        'Europe/Berlin',
+        '2026-11-25'
+      )
+    ).toBe(true);
+    // 00:30 Berlin on the 25th.
+    expect(
+      isFirstCheckinOfDay(
+        new Date('2026-11-24T23:30:00Z'),
+        'Europe/Berlin',
+        '2026-11-25'
+      )
+    ).toBe(false);
+  });
+});
+
+describe('personalRecordSinceDay', () => {
+  const tz = 'Europe/Berlin';
+  const yesterdayEvening = new Date('2026-11-24T18:00:00Z');
+  it('starts at the previous check-in’s day', () => {
+    expect(
+      personalRecordSinceDay(yesterdayEvening, tz, '2026-11-25', null)
+    ).toBe('2026-11-24');
+    expect(personalRecordSinceDay(null, tz, '2026-11-25', null)).toBe(
+      '2026-11-25'
+    );
+  });
+  it('skips a day whose record was already celebrated', () => {
+    expect(
+      personalRecordSinceDay(yesterdayEvening, tz, '2026-11-25', '2026-11-24')
+    ).toBe('2026-11-25');
+    expect(
+      personalRecordSinceDay(yesterdayEvening, tz, '2026-11-25', '2026-11-20')
+    ).toBe('2026-11-24');
+  });
+});
+
 describe('runCheckinNow', () => {
   const profile = (over: object = {}) => ({
     user_id: 'u1',
@@ -668,6 +779,33 @@ describe('runCheckinNow', () => {
       },
     });
     expect((await runCheckinNow('u1', NOW)).reason).toBe('no_coaches');
+  });
+
+  it('runs the first-check-in rules while nothing was said today', async () => {
+    // 09:05 Berlin on a Wednesday; the 08:00 check-in ran and said nothing.
+    const morning = new Date('2026-11-25T08:05:00Z');
+    mocks.repo.getProfile.mockResolvedValue(
+      profile({ last_checkin_at: new Date('2026-11-25T07:00:00Z') })
+    );
+    mocks.repo.listCoaches.mockResolvedValue([
+      {
+        ...recoveryRow,
+        id: 'c-weekly',
+        builtin_key: 'weekly_review',
+        settings: { weekday: 3 },
+        rules: { version: 1, rules: [] },
+      },
+    ]);
+    mocks.buildSuggestion.mockResolvedValue({
+      suggestion: null,
+      facts: { days_logged: 6 },
+    });
+    mocks.repo.countNudgesForDay.mockResolvedValueOnce(0).mockResolvedValue(1);
+    expect((await runCheckinNow('u1', morning)).sent).toBe(1);
+    // Records still count from the previous check-in's day.
+    expect(mocks.getCoachSignals.mock.calls[0][3]).toMatchObject({
+      prSinceDay: '2026-11-25',
+    });
   });
 
   it('still never repeats what was already said today', async () => {

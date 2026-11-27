@@ -275,6 +275,14 @@ router.get('/messages/unread', async (req, res, next) => {
   }
 });
 
+router.get('/questions/open', async (req, res, next) => {
+  try {
+    res.json(await coachService.getOpenQuestions(req.userId));
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.get('/knowledge', async (req, res, next) => {
   try {
     res.json(await coachService.getKnowledge(req.userId));

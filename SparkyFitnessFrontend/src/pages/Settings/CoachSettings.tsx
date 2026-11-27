@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Sparkles } from 'lucide-react';
 import { AccordionContent, AccordionTrigger } from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
+import ConfirmationDialog from '@/components/ui/ConfirmationDialog';
 import {
   useCheckInNow,
   useResetTodayCheckin,
@@ -28,6 +30,7 @@ export const CoachSettings = () => {
   const { data, isLoading, isError, refetch } = useCoachSettings();
   const checkIn = useCheckInNow();
   const resetToday = useResetTodayCheckin();
+  const [confirmReset, setConfirmReset] = useState(false);
   const { openChat } = useChatbotVisibility();
 
   return (
@@ -121,9 +124,9 @@ export const CoachSettings = () => {
                 <Button
                   variant="outline"
                   disabled={resetToday.isPending}
-                  onClick={() => resetToday.mutate()}
+                  onClick={() => setConfirmReset(true)}
                 >
-                  {t('coaches.checkInNow.resetToday', "Reset today's count")}
+                  {t('coaches.checkInNow.resetToday', "Clear today's messages")}
                 </Button>
                 <Button variant="ghost" onClick={() => openChat()}>
                   {t('coaches.checkInNow.openChat', 'Open chat')}
@@ -144,6 +147,24 @@ export const CoachSettings = () => {
                 </p>
               )}
             </section>
+            <ConfirmationDialog
+              open={confirmReset}
+              onOpenChange={setConfirmReset}
+              variant="destructive"
+              title={t(
+                'coaches.checkInNow.resetConfirmTitle',
+                "Clear today's coach messages?"
+              )}
+              description={t(
+                'coaches.checkInNow.resetConfirmDescription',
+                "Today's coach messages are removed from the chat, with any suggestion or question in them, and today's count starts again from zero. Changes you already applied stay."
+              )}
+              confirmLabel={t('coaches.checkInNow.resetConfirm', 'Clear')}
+              onConfirm={() => {
+                setConfirmReset(false);
+                resetToday.mutate();
+              }}
+            />
             <CoachList coaches={data.coaches} />
             <CoachKnowledgePanel />
           </>

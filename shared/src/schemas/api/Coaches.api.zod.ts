@@ -211,6 +211,23 @@ export type CoachUnreadMessages = z.infer<
   typeof coachUnreadMessagesResponseSchema
 >;
 
+/** Today's coach questions not yet answered, newest first, for answering
+ * outside the chat (Siri). */
+export const coachOpenQuestionsResponseSchema = z.array(
+  z.object({
+    nudge_id: z.string(),
+    coach_id: z.string(),
+    coach_name: z.string().nullable(),
+    builtin_key: z.string().nullable(),
+    question: z.enum(COACH_QUESTIONS),
+    text: z.string(),
+    created_at: z.string(),
+  })
+);
+export type CoachOpenQuestions = z.infer<
+  typeof coachOpenQuestionsResponseSchema
+>;
+
 export const reactToNudgeBodySchema = z.object({
   reaction: z.union([z.literal(1), z.literal(-1), z.null()]),
 });

@@ -64,6 +64,34 @@ struct SparkyFitnessShortcuts: AppShortcutsProvider {
             ],
             shortTitle: "Macros today",
             systemImageName: "chart.pie"
+
+        )
+        AppShortcut(
+            intent: CheckInWithCoachesIntent(),
+            phrases: [
+                "Check in with my coaches in \(.applicationName)",
+                "Ask my \(.applicationName) coaches",
+            ],
+            shortTitle: "Check in with coaches",
+            systemImageName: "sparkles"
+        )
+        AppShortcut(
+            intent: ReadCoachMessagesIntent(),
+            phrases: [
+                "Read my coach messages in \(.applicationName)",
+                "What do my \(.applicationName) coaches say",
+            ],
+            shortTitle: "Read coach messages",
+            systemImageName: "text.bubble"
+        )
+        AppShortcut(
+            intent: AnswerCoachQuestionIntent(),
+            phrases: [
+                "Answer my coach in \(.applicationName)",
+                "Answer my \(.applicationName) coach",
+            ],
+            shortTitle: "Answer my coach",
+            systemImageName: "checkmark.bubble"
         )
     }
 }

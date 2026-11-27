@@ -28,6 +28,7 @@ import {
   updateBuiltinCoach,
   updateCoachProfile,
 } from '@/api/Coaches/coachesApi';
+import { chatbotKeys } from '@/api/keys/ai';
 import { coachKeys } from '@/api/keys/coaches';
 import { useActiveUser } from '@/contexts/ActiveUserContext';
 import { useAuth } from '@/hooks/useAuth';
@@ -383,20 +384,23 @@ export function useCheckInNow() {
   });
 }
 
-/** Reset today's message count back to zero for manual testing. */
+/** Removes today's coach messages, from the chat too, so today's count
+ * starts again from zero. */
 export function useResetTodayCheckin() {
   const queryClient = useQueryClient();
   const { t } = useTranslation();
   return useMutation({
     mutationFn: resetTodayCheckin,
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: coachKeys.unread() });
-      void queryClient.invalidateQueries({ queryKey: coachKeys.settings() });
+      void queryClient.invalidateQueries({ queryKey: coachKeys.all });
+      void queryClient.invalidateQueries({
+        queryKey: [...chatbotKeys.all, 'history'],
+      });
     },
     meta: {
       errorMessage: t(
         'coaches.checkInNow.resetFailed',
-        'Could not reset today count.'
+        "Could not clear today's messages."
       ),
     },
   });

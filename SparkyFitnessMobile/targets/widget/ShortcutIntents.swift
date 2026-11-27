@@ -5,7 +5,8 @@ import WidgetKit
 
 // Siri and Shortcuts actions that log without opening the app, then say what
 // happened on screen: Log water, Log weight, Start fast and End fast, plus the
-// read-only Calories left and Macros today. They also
+// read-only Calories left and Macros today, and for the AI coaches Check in
+// with my coaches, Read my coach messages and Answer my coach. They also
 // show up in Spotlight and can be put on the Action button.
 //
 // They need the login the app keeps in the Keychain item read below (written by
@@ -250,6 +251,9 @@ private enum ShortcutCall {
         case expired
         case server(Int)
         case unreachable
+        /// The server took longer than the request was allowed to wait. What
+        /// was asked may still finish there.
+        case timedOut
 
         var message: String {
             switch self {
@@ -257,6 +261,7 @@ private enum ShortcutCall {
             case .expired: return intentText("intent.expired", "Your SparkyFitness login expired. Open the app once to sign in again.")
             case .server(let status): return intentText("intent.server_error", "SparkyFitness could not do that (error %lld).", [status])
             case .unreachable: return intentText("intent.unreachable", "SparkyFitness could not reach your server.")
+            case .timedOut: return intentText("intent.timed_out", "Your SparkyFitness server is taking too long to answer.")
             }
         }
     }
@@ -271,10 +276,11 @@ private enum ShortcutCall {
         _ config: ShortcutConfig,
         method: String,
         path: String,
-        body: [String: Any]? = nil
+        body: [String: Any]? = nil,
+        timeout: TimeInterval = 15
     ) async throws -> Data {
         guard let url = URL(string: config.baseUrl + path) else { throw Failure.unreachable }
-        var request = URLRequest(url: url, timeoutInterval: 15)
+        var request = URLRequest(url: url, timeoutInterval: timeout)
         request.httpMethod = method
         for (name, value) in config.headers {
             request.setValue(value, forHTTPHeaderField: name)
@@ -291,6 +297,8 @@ private enum ShortcutCall {
             throw Failure.server(status)
         } catch let failure as Failure {
             throw failure
+        } catch let error as URLError where error.code == .timedOut {
+            throw Failure.timedOut
         } catch {
             throw Failure.unreachable
         }
@@ -895,5 +903,246 @@ struct OpenDiaryControlIntent: AppIntent {
     func perform() async throws -> some IntentResult {
         leaveControlRoute("diary")
         return .result()
+    }
+}
+
+// MARK: - AI coaches
+
+// Siri and Shortcuts actions for the AI coaches: check in now, read the unread
+// messages aloud, and answer a coach's quick question by voice. They use the
+// same saved login and the same owner-only /api/v2/coaches routes as the app.
+// Coach messages are about the person's health, so unlike Log water these
+// only run on an unlocked phone.
+
+/// The built-in coaches' names, as the app shows them. A custom coach brings
+/// its own name.
+private let builtinCoachNames: [String: String] = [
+    "daily_outlook": "Daily outlook",
+    "recovery": "Recovery coach",
+    "consistency": "Consistency coach",
+    "nutrition": "Nutrition coach",
+    "sleep_recovery": "Sleep and recovery coach",
+    "weekly_review": "Weekly review",
+    "training": "Training coach",
+    "habits": "Habits coach",
+]
+
+/// Messages read out at once; the rest wait in the app.
+private let maxCoachMessagesSpoken = 3
+
+private struct CoachMessage {
+    let coachId: String
+    let name: String
+    let text: String
+
+    init?(_ object: [String: Any]) {
+        guard let coachId = object["coach_id"] as? String,
+              let text = object["text"] as? String,
+              !text.isEmpty else { return nil }
+        self.coachId = coachId
+        self.text = text
+        if let own = object["coach_name"] as? String, !own.isEmpty {
+            name = own
+        } else if let key = object["builtin_key"] as? String,
+                  let builtin = builtinCoachNames[key] {
+            name = builtin
+        } else {
+            name = "Your coach"
+        }
+    }
+}
+
+private enum CoachCall {
+    /// Messages not read yet, newest first; with `since`, only those after it.
+    static func unread(_ config: ShortcutConfig, since: Date? = nil) async throws -> [CoachMessage] {
+        var path = "/api/v2/coaches/messages/unread"
+        if let since,
+           let encoded = isoString(since).addingPercentEncoding(withAllowedCharacters: .alphanumerics) {
+            path += "?since=\(encoded)"
+        }
+        let data = try await ShortcutCall.send(config, method: "GET", path: path)
+        let rows = (try? JSONSerialization.jsonObject(with: data)) as? [[String: Any]] ?? []
+        return rows.compactMap(CoachMessage.init)
+    }
+
+    /// Reads up to `maxCoachMessagesSpoken` messages out and marks a coach's
+    /// thread read only when every unread message of it was among them, so
+    /// nothing unheard is hidden from the app.
+    static func speak(_ config: ShortcutConfig, _ messages: [CoachMessage]) async -> String {
+        let spoken = Array(messages.prefix(maxCoachMessagesSpoken))
+        let left = messages.count - spoken.count
+        for coachId in Set(spoken.map(\.coachId)) {
+            let heard = spoken.filter { $0.coachId == coachId }.count
+            let total = messages.filter { $0.coachId == coachId }.count
+            guard heard == total else { continue }
+            // Best effort: a failure only leaves the thread unread in the app.
+            _ = try? await ShortcutCall.send(
+                config, method: "POST", path: "/api/v2/coaches/read",
+                body: ["coach_id": coachId]
+            )
+        }
+        var lines = spoken.reversed().map { "\($0.name): \($0.text)" }
+        if left > 0 {
+            lines.append(left == 1 ? "1 more message is in the app." : "\(left) more messages are in the app.")
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    /// The words for a failure, with an older server named as such.
+    static func message(for failure: ShortcutCall.Failure) -> String {
+        if case .server(404) = failure {
+            return "Your SparkyFitness server does not have coaches yet. Update it to use this."
+        }
+        return failure.message
+    }
+}
+
+@available(iOS 16.0, *)
+struct CheckInWithCoachesIntent: AppIntent {
+    static var title: LocalizedStringResource = "Check in with my coaches"
+    static var description = IntentDescription(
+        "Asks your SparkyFitness coaches to look at today's data now, and reads out what they say."
+    )
+    static var openAppWhenRun: Bool = false
+    static var authenticationPolicy: IntentAuthenticationPolicy = .requiresAuthentication
+
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        do {
+            let config = try ShortcutCall.config()
+            let started = Date()
+            // A coach that words its message with AI can take a while.
+            let data = try await ShortcutCall.send(
+                config, method: "POST", path: "/api/v2/coaches/check-in-now", timeout: 45
+            )
+            let answer = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] ?? [:]
+            let sent = (answer["sent"] as? NSNumber)?.intValue ?? 0
+            if sent == 0 {
+                switch answer["reason"] as? String {
+                case "paused":
+                    return .result(dialog: "Your coaches are paused.")
+                case "no_coaches":
+                    return .result(dialog: "No coach is switched on. Turn coaches on in SparkyFitness settings.")
+                case "limit_reached":
+                    return .result(dialog: "Your coaches already sent today's messages.")
+                default:
+                    return .result(dialog: "Your coaches have nothing new to say right now.")
+                }
+            }
+            // A minute early, so a server clock a little behind the phone's
+            // still finds them. Anything older it picks up is unread anyway.
+            let messages = try await CoachCall.unread(config, since: started.addingTimeInterval(-60))
+            if messages.isEmpty {
+                return .result(dialog: sent == 1
+                    ? "Your coaches sent 1 message. It is in the app."
+                    : "Your coaches sent \(sent) messages. They are in the app.")
+            }
+            let text = await CoachCall.speak(config, messages)
+            return .result(dialog: IntentDialog(stringLiteral: text))
+        } catch ShortcutCall.Failure.timedOut {
+            return .result(dialog: "Your coaches are still looking. Ask me to read your coach messages in a minute.")
+        } catch let failure as ShortcutCall.Failure {
+            return .result(dialog: IntentDialog(stringLiteral: CoachCall.message(for: failure)))
+        }
+    }
+}
+
+@available(iOS 16.0, *)
+struct ReadCoachMessagesIntent: AppIntent {
+    static var title: LocalizedStringResource = "Read my coach messages"
+    static var description = IntentDescription(
+        "Reads out the SparkyFitness coach messages you have not read yet."
+    )
+    static var openAppWhenRun: Bool = false
+    static var authenticationPolicy: IntentAuthenticationPolicy = .requiresAuthentication
+
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        do {
+            let config = try ShortcutCall.config()
+            let messages = try await CoachCall.unread(config)
+            if messages.isEmpty {
+                return .result(dialog: "You have no new coach messages.")
+            }
+            let text = await CoachCall.speak(config, messages)
+            return .result(dialog: IntentDialog(stringLiteral: text))
+        } catch let failure as ShortcutCall.Failure {
+            return .result(dialog: IntentDialog(stringLiteral: CoachCall.message(for: failure)))
+        }
+    }
+}
+
+/// Answers today's newest coach question: a number from 1 to 5 for energy,
+/// mood or focus (saved as a mood check-in), or yes or not yet for a habit
+/// (yes is saved to the habit log). Siri asks the question in the coach's own
+/// words when no answer was given with the request.
+@available(iOS 16.0, *)
+struct AnswerCoachQuestionIntent: AppIntent {
+    static var title: LocalizedStringResource = "Answer my coach"
+    static var description = IntentDescription(
+        "Answers today's quick question from your SparkyFitness coach, such as how your energy is."
+    )
+    static var openAppWhenRun: Bool = false
+    static var authenticationPolicy: IntentAuthenticationPolicy = .requiresAuthentication
+
+    /// 1 to 5, checked below.
+    @Parameter(title: "Rating")
+    var rating: Int?
+
+    @Parameter(title: "Done")
+    var done: Bool?
+
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        do {
+            let config = try ShortcutCall.config()
+            let data = try await ShortcutCall.send(config, method: "GET", path: "/api/v2/coaches/questions/open")
+            let open = (try? JSONSerialization.jsonObject(with: data)) as? [[String: Any]] ?? []
+            guard let newest = open.first,
+                  let nudgeId = newest["nudge_id"] as? String,
+                  let question = newest["question"] as? String else {
+                return .result(dialog: "No coach question is waiting today.")
+            }
+            let asked = (newest["text"] as? String) ?? "How are you today?"
+
+            let value: Any
+            let saidBack: String
+            if question == "habit_done" {
+                var answered: Bool? = done
+                if answered == nil {
+                    answered = try await $done.requestValue(IntentDialog(stringLiteral: asked))
+                }
+                guard let didIt = answered else {
+                    return .result(dialog: "Okay, I left the question for later.")
+                }
+                value = didIt ? "yes" : "not_yet"
+                saidBack = didIt ? "Nice work." : "Okay, saved as not yet."
+            } else {
+                var answered: Int? = rating
+                if answered == nil {
+                    answered = try await $rating.requestValue(
+                        IntentDialog(stringLiteral: "\(asked) Say a number from 1 to 5.")
+                    )
+                }
+                guard let picked = answered, (1...5).contains(picked) else {
+                    return .result(dialog: "Please answer with a number from 1 to 5.")
+                }
+                value = picked
+                let what = ["energy": "energy", "mood": "mood", "focus": "focus"][question] ?? "answer"
+                saidBack = "Saved your \(what) as \(picked) out of 5."
+            }
+
+            let saved = try await ShortcutCall.send(
+                config, method: "POST", path: "/api/v2/coaches/nudges/\(nudgeId)/answer",
+                body: ["value": value]
+            )
+            // A habit is logged only when the coach has one picked.
+            let answer = (try? JSONSerialization.jsonObject(with: saved)) as? [String: Any]
+            if answer?["saved"] as? String == "habit_log" {
+                return .result(dialog: IntentDialog(stringLiteral: "\(saidBack) I saved it to your habit log."))
+            }
+            return .result(dialog: IntentDialog(stringLiteral: saidBack))
+        } catch ShortcutCall.Failure.server(409) {
+            return .result(dialog: "That question was already answered.")
+        } catch let failure as ShortcutCall.Failure {
+            return .result(dialog: IntentDialog(stringLiteral: CoachCall.message(for: failure)))
+        }
     }
 }
