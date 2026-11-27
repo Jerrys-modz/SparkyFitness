@@ -236,3 +236,14 @@
     min-width: 0;
   }
 }
+
+/* Recharts' default tooltip is a white box that inherits the page's text color,
+   so in dark mode its text is light on white. Only a tooltip still on that
+   default white background is themed here (it is an inline style on the
+   wrapper, hence the attribute selector and !important); charts that pass
+   their own contentStyle colors keep them. */
+.recharts-default-tooltip[style*='background-color: rgb(255, 255, 255)'] {
+  background-color: hsl(var(--popover)) !important;
+  border-color: hsl(var(--border)) !important;
+  color: hsl(var(--popover-foreground));
+}
