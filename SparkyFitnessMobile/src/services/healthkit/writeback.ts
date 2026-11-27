@@ -63,6 +63,13 @@ import {
   isHealthKitBodyMetric,
   writeBodyMetricForDate,
 } from './bodyWriteback';
+import {
+  VO2_IDENTIFIER,
+  VO2_UUIDS_KEY_PREFIX,
+  writeVo2MaxForDate,
+} from './vo2Writeback';
+import { vo2SeriesByDay } from '../shared/vo2Writeback';
+import { fetchRunEstimates } from '../api/reportsApi';
 import type { CheckInMeasurementRange } from '../../types/measurements';
 
 type DailySummary = Awaited<ReturnType<typeof fetchDailySummary>>;
@@ -598,13 +605,15 @@ const writableMetrics = (metrics: WritebackMetric[]): WritebackMetric[] =>
   metrics.filter((m) => {
     const gate: ObjectTypeIdentifier = isHealthKitBodyMetric(m.id)
       ? bodyIdentifierFor(m.id)
-      : m.id === 'toothbrushing'
-        ? TOOTHBRUSHING_IDENTIFIER
-        : m.id === 'exercise'
-          ? WORKOUT_TYPE
-          : m.id === 'hydration'
-            ? DIETARY_WATER_IDENTIFIER
-            : DIETARY_ENERGY_IDENTIFIER;
+      : m.id === 'vo2Max'
+        ? VO2_IDENTIFIER
+        : m.id === 'toothbrushing'
+          ? TOOTHBRUSHING_IDENTIFIER
+          : m.id === 'exercise'
+            ? WORKOUT_TYPE
+            : m.id === 'hydration'
+              ? DIETARY_WATER_IDENTIFIER
+              : DIETARY_ENERGY_IDENTIFIER;
     const ok = isAuthorized(gate);
     if (!ok)
       addLog(
@@ -647,6 +656,22 @@ export const writebackPhase = async (dates: string[]): Promise<boolean> => {
   // itself incomplete below and the cursor holds instead of moving past dates
   // whose body values were never written.
   const bodyMetrics = writable.filter((m) => isHealthKitBodyMetric(m.id));
+  const vo2Metric = writable.find((m) => m.id === 'vo2Max');
+  // The estimated VO2 max comes from one server read for the whole window. A
+  // failed read (or a server without the route) skips it for this window without
+  // holding the cursor: the estimate is derived, so the next sync writes it from
+  // fresh data.
+  let vo2Series: Map<string, number> | null = null;
+  if (vo2Metric && dates.length > 0) {
+    try {
+      vo2Series = vo2SeriesByDay((await fetchRunEstimates()).vo2Max);
+    } catch (error) {
+      addLog(
+        `[Writeback] Failed to load the VO2 max estimate: ${message(error)}`,
+        'WARNING'
+      );
+    }
+  }
   let checkIns: Map<string, CheckInMeasurementRange> | null = null;
   let bodyReadFailed = false;
   if (bodyMetrics.length > 0 && dates.length > 0) {
@@ -680,6 +705,16 @@ export const writebackPhase = async (dates: string[]): Promise<boolean> => {
         );
       }
     }
+    if (vo2Metric && vo2Series) {
+      try {
+        await writeVo2MaxForDate(date, vo2Series.get(date) ?? null, version);
+      } catch (error) {
+        addLog(
+          `[Writeback] Failed ${vo2Metric.defaultLabel} for ${date}: ${message(error)}`,
+          'ERROR'
+        );
+      }
+    }
     if (checkIns) {
       for (const metric of bodyMetrics) {
         if (!isHealthKitBodyMetric(metric.id)) continue;
@@ -699,7 +734,10 @@ export const writebackPhase = async (dates: string[]): Promise<boolean> => {
       }
     }
     const diaryMetrics = writable.filter(
-      (m) => m.id !== 'toothbrushing' && !isHealthKitBodyMetric(m.id)
+      (m) =>
+        m.id !== 'toothbrushing' &&
+        m.id !== 'vo2Max' &&
+        !isHealthKitBodyMetric(m.id)
     );
     if (diaryMetrics.length === 0) return;
     let summary: DailySummary;
@@ -816,19 +854,26 @@ export const removeWrittenData = async (
   const deleteTypes: SampleTypeIdentifierWriteable[] = [
     ...WRITEBACK_DELETE_TYPES,
     ...HEALTHKIT_BODY_IDENTIFIERS.filter(isAuthorized),
+    ...(isAuthorized(VO2_IDENTIFIER) ? [VO2_IDENTIFIER] : []),
   ];
   // A body type without sharing permission cannot be deleted here; the samples
   // it may hold stay until the permission is back.
-  const skippedBodyUuidPrefixes = HEALTHKIT_BODY_IDENTIFIERS.filter(
-    (type) => !isAuthorized(type)
-  ).flatMap((type) => bodyUuidsKeyPrefixFor(type) ?? []);
+  const skippedBodyUuidPrefixes = [
+    ...HEALTHKIT_BODY_IDENTIFIERS.filter((type) => !isAuthorized(type)).flatMap(
+      (type) => bodyUuidsKeyPrefixFor(type) ?? []
+    ),
+    ...(isAuthorized(VO2_IDENTIFIER) ? [] : [VO2_UUIDS_KEY_PREFIX]),
+  ];
   const failedBodyUuidPrefixes: string[] = [];
   for (const type of deleteTypes) {
     try {
       await deleteObjects(type, { date: dateFilter });
     } catch (error) {
       ok = false;
-      const bodyPrefix = bodyUuidsKeyPrefixFor(type);
+      const bodyPrefix =
+        type === VO2_IDENTIFIER
+          ? VO2_UUIDS_KEY_PREFIX
+          : bodyUuidsKeyPrefixFor(type);
       if (bodyPrefix) failedBodyUuidPrefixes.push(bodyPrefix);
       addLog(
         `[Writeback] Failed to delete ${type} records: ${message(error)}`,

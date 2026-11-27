@@ -17,6 +17,7 @@ export type WritebackMetricId =
   | 'hydration'
   | 'toothbrushing'
   | 'exercise'
+  | 'vo2Max'
   | BodyWritebackMetricId;
 
 /** Inclusive local-calendar-day range (YYYY-MM-DD) for a targeted writeback removal.
@@ -36,6 +37,7 @@ type WritebackRecordType =
   | 'Hydration'
   | 'Toothbrushing'
   | 'ExerciseSession'
+  | 'Vo2Max'
   | BodyWritebackRecordType;
 
 /** The store record type each body metric is written as (#2465). */
@@ -134,6 +136,24 @@ const ALL_WRITEBACK_METRICS: WritebackMetric[] = [
           ]
         : undefined,
     icon: require('../assets/icons/health-metrics/exercise_session.png'),
+    category: 'Exercise',
+  },
+  {
+    // The run-based VO2 max estimate, one record per run day. A model from pace
+    // and heart rate, never a watch reading, so it is off by default, skips a
+    // day another app already has a reading on, and is never imported back
+    // (the read side skips its own records, see shared/vo2Writeback.ts).
+    id: 'vo2Max',
+    labelKey: 'writebackVo2Max.label',
+    defaultLabel: 'Estimated VO2 max',
+    preferenceKey: 'writebackVo2MaxEnabled',
+    recordType: 'Vo2Max',
+    permission: { accessType: 'write', recordType: 'Vo2Max' },
+    // The writer works without read access (it then cannot see other apps' readings).
+    extraPermissions: [
+      { accessType: 'read', recordType: 'Vo2Max', optional: true },
+    ],
+    icon: require('../assets/icons/health-metrics/vo2_max.png'),
     category: 'Exercise',
   },
 ];

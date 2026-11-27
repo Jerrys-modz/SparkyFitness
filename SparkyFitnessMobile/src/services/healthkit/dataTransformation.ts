@@ -1,6 +1,7 @@
 import { instantToDay, isValidTimeZone } from '@workspace/shared';
 import { addLog } from '../LogService';
 import { BODY_WRITEBACK_METADATA_KEY } from '../shared/bodyWriteback';
+import { VO2_WRITEBACK_METADATA_KEY } from '../shared/vo2Writeback';
 import { attachWorkoutTelemetry } from '../shared/workoutTelemetryPayload';
 import {
   TransformedExerciseSession,
@@ -98,6 +99,19 @@ export const isOwnWrittenBodySample = (sample: {
 }): boolean =>
   (sample.metadata as Record<string, unknown> | undefined)?.[
     BODY_WRITEBACK_METADATA_KEY
+  ] !== undefined;
+
+/**
+ * True for a sample estimated VO2 max write-back saved, by its metadata key. The
+ * read side skips these: the value is a model estimate, never a device reading,
+ * and would otherwise return as one. Matched by key rather than bundle id for
+ * the same reason as body samples.
+ */
+export const isOwnWrittenVo2Sample = (sample: {
+  metadata?: unknown;
+}): boolean =>
+  (sample.metadata as Record<string, unknown> | undefined)?.[
+    VO2_WRITEBACK_METADATA_KEY
   ] !== undefined;
 
 /**
