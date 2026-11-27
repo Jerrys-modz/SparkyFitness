@@ -250,6 +250,7 @@ describe.runIf(RUN)('RLS permission matrix', () => {
     day_classification_cache: 'checkin',
     fasting_logs: 'checkin',
     health_metric_samples: 'checkin',
+    immunizations: 'checkin',
     lab_markers: 'checkin',
     lab_reports: 'checkin',
     lab_results: 'checkin',
