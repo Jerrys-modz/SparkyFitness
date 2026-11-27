@@ -42,6 +42,7 @@ import {
   EXERCISE_WRITEBACK_METADATA_KEY,
   isOwnWrittenWorkout,
   isOwnWrittenBodySample,
+  isOwnWrittenVo2Sample,
 } from './dataTransformation';
 import { DIETARY_WRITE_IDENTIFIERS } from './writebackMappers';
 import {
@@ -1912,9 +1913,11 @@ const createQuantityHandler = (recordType: string): RecordHandler => {
     // wrist temperature starts the evening before a window that opens at midnight.
     const matchByEnd = END_DATED_QUANTITIES.has(recordType);
     const filteredSamples = samples.filter((record) => {
-      // Body write-back's own samples (#2465) came from the check-in; never
-      // import them back.
-      if (isOwnWrittenBodySample(record)) return false;
+      // Body write-back's own samples (#2465) came from the check-in, and VO2
+      // max write-back's are model estimates; never import either back.
+      if (isOwnWrittenBodySample(record) || isOwnWrittenVo2Sample(record)) {
+        return false;
+      }
       const recordDate = new Date(
         matchByEnd ? record.endDate : record.startDate
       );

@@ -829,6 +829,9 @@
     "share": "Share image",
     "shareFailed": "Could not create the image"
   },
+  "writebackVo2Max": {
+    "label": "Estimated VO2 max"
+  },
   "healthMetrics": {
     "steps": "Steps",
     "calories": "Active Calories",

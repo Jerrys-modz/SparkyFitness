@@ -12,6 +12,7 @@ import {
 } from '../../types/healthRecords';
 import { toLocalDateString } from '../../utils/dateUtils';
 import { BODY_CLIENT_RECORD_PREFIX } from '../shared/bodyWriteback';
+import { VO2_CLIENT_RECORD_PREFIX } from '../shared/vo2Writeback';
 import type { MindfulnessSessionType } from '@workspace/shared';
 import {
   BLOOD_GLUCOSE_MG_DL_PER_MMOL_L,
@@ -71,6 +72,18 @@ export const isOwnWrittenBodyRecord = (rec: unknown): boolean => {
   const id = (rec as { metadata?: { clientRecordId?: unknown } } | null)
     ?.metadata?.clientRecordId;
   return typeof id === 'string' && id.startsWith(BODY_CLIENT_RECORD_PREFIX);
+};
+
+/**
+ * True for a record estimated VO2 max write-back wrote, by its client record id.
+ * The read side skips these: the value is a model estimate, never a device
+ * reading, and would otherwise return as one. Matched by id rather than this
+ * app's package, as the dev seed tool writes records from the same package.
+ */
+export const isOwnWrittenVo2Record = (rec: unknown): boolean => {
+  const id = (rec as { metadata?: { clientRecordId?: unknown } } | null)
+    ?.metadata?.clientRecordId;
+  return typeof id === 'string' && id.startsWith(VO2_CLIENT_RECORD_PREFIX);
 };
 
 let ownPackageName: string | null = null;
@@ -1068,6 +1081,13 @@ VALUE_TRANSFORMERS['TotalCaloriesBurned'] = createCalorieTransformer(
       isOwnWrittenBodyRecord(rec) ? null : base(rec, metricConfig, index);
   }
 );
+
+// VO2 max write-back's own records are never imported (see isOwnWrittenVo2Record).
+{
+  const base = VALUE_TRANSFORMERS['Vo2Max'];
+  VALUE_TRANSFORMERS['Vo2Max'] = (rec, metricConfig, index) =>
+    isOwnWrittenVo2Record(rec) ? null : base(rec, metricConfig, index);
+}
 
 // ============================================================================
 // Skip Types - qualitative records that should be skipped

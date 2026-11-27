@@ -48,6 +48,13 @@ import {
   isHealthConnectBodyMetric,
   writeBodyMetricForDate,
 } from './bodyWriteback';
+import {
+  VO2_IDS_KEY_PREFIX,
+  VO2_RECORD_TYPE,
+  writeVo2MaxForDate,
+} from './vo2Writeback';
+import { vo2SeriesByDay } from '../shared/vo2Writeback';
+import { fetchRunEstimates } from '../api/reportsApi';
 import type { CheckInMeasurementRange } from '../../types/measurements';
 
 type DailySummary = Awaited<ReturnType<typeof fetchDailySummary>>;
@@ -327,7 +334,10 @@ export const writebackPhase = async (dates: string[]): Promise<boolean> => {
   // itself incomplete below and the cursor holds, like a quota stop, instead of
   // moving past dates whose body values were never written.
   const bodyMetrics = writable.filter((m) => isHealthConnectBodyMetric(m.id));
-  const diaryMetrics = writable.filter((m) => !isHealthConnectBodyMetric(m.id));
+  const vo2Metric = writable.find((m) => m.id === 'vo2Max');
+  const diaryMetrics = writable.filter(
+    (m) => !isHealthConnectBodyMetric(m.id) && m.id !== 'vo2Max'
+  );
   let checkIns: Map<string, CheckInMeasurementRange> | null = null;
   let bodyReadFailed = false;
   if (bodyMetrics.length > 0 && dates.length > 0) {
@@ -344,7 +354,46 @@ export const writebackPhase = async (dates: string[]): Promise<boolean> => {
     }
   }
 
+  // The estimate comes from one server read for the whole window. A failed read
+  // (or a server without the route) skips it for this window without holding the
+  // cursor: the estimate is derived, so the next sync writes it from fresh data.
+  let vo2Series: Map<string, number> | null = null;
+  if (vo2Metric && dates.length > 0) {
+    try {
+      vo2Series = vo2SeriesByDay((await fetchRunEstimates()).vo2Max);
+    } catch (error) {
+      addLog(
+        `[Writeback] Failed to load the VO2 max estimate: ${message(error)}`,
+        'WARNING'
+      );
+    }
+  }
+
   for (const date of dates) {
+    if (vo2Metric && vo2Series) {
+      try {
+        await writeVo2MaxForDate(
+          date,
+          vo2Series.get(date) ?? null,
+          version,
+          granted.some(
+            (p) => p.recordType === VO2_RECORD_TYPE && p.accessType === 'read'
+          )
+        );
+      } catch (error) {
+        if (isQuotaExceededError(error)) {
+          addLog(
+            '[Writeback] Health Connect quota exceeded — stopping; resumes next sync',
+            'WARNING'
+          );
+          return false;
+        }
+        addLog(
+          `[Writeback] Failed ${vo2Metric.defaultLabel} for ${date}: ${message(error)}`,
+          'ERROR'
+        );
+      }
+    }
     if (checkIns) {
       for (const metric of bodyMetrics) {
         if (!isHealthConnectBodyMetric(metric.id)) continue;
@@ -459,22 +508,34 @@ const trackingKeysToClear = (
     return day >= range.from && day <= range.to;
   });
 
+/** The record types written under their own switch: body measurements and the VO2 max estimate. */
+const OPT_IN_RECORD_TYPES = [
+  ...HEALTH_CONNECT_BODY_RECORD_TYPES,
+  VO2_RECORD_TYPE,
+] as const;
+
+/** The start of the per-day id-list keys for an opt-in record type, or null for any other. */
+const idsKeyPrefixFor = (recordType: string): string | null =>
+  recordType === VO2_RECORD_TYPE
+    ? VO2_IDS_KEY_PREFIX
+    : bodyIdsKeyPrefixFor(recordType);
+
 /**
- * The body record types this app may still delete. Deleting needs the type's
- * write permission, which someone who never turned a body switch on has not
- * given; trying anyway would throw and report the whole removal as partial. A
- * type without it holds nothing this app can remove.
+ * The body and VO2 max record types this app may still delete. Deleting needs
+ * the type's write permission, which someone who never turned that switch on
+ * has not given; trying anyway would throw and report the whole removal as
+ * partial. A type without it holds nothing this app can remove.
  */
 const bodyTypesWithWriteAccess = async (): Promise<
-  typeof HEALTH_CONNECT_BODY_RECORD_TYPES
+  (typeof OPT_IN_RECORD_TYPES)[number][]
 > => {
   try {
     const granted: GrantedPermission[] = await getGrantedPermissions();
-    return HEALTH_CONNECT_BODY_RECORD_TYPES.filter((type) =>
+    return OPT_IN_RECORD_TYPES.filter((type) =>
       granted.some((p) => p.recordType === type && p.accessType === 'write')
     );
   } catch {
-    return HEALTH_CONNECT_BODY_RECORD_TYPES;
+    return [...OPT_IN_RECORD_TYPES];
   }
 };
 
@@ -495,9 +556,9 @@ export const removeWrittenData = async (
   const writableBodyTypes = await bodyTypesWithWriteAccess();
   // A body type without its write permission cannot be deleted here; the records
   // it may hold stay until the permission is back.
-  const skippedBodyIdPrefixes = HEALTH_CONNECT_BODY_RECORD_TYPES.filter(
+  const skippedBodyIdPrefixes = OPT_IN_RECORD_TYPES.filter(
     (type) => !writableBodyTypes.includes(type)
-  ).flatMap((type) => bodyIdsKeyPrefixFor(type) ?? []);
+  ).flatMap((type) => idsKeyPrefixFor(type) ?? []);
   const recordTypes = [
     ...new Set(
       WRITEBACK_METRICS.map((m) => m.recordType).filter(
@@ -528,7 +589,7 @@ export const removeWrittenData = async (
       await deleteRecordsByTimeRange(recordType, filter);
     } catch (error) {
       ok = false;
-      const bodyPrefix = bodyIdsKeyPrefixFor(recordType);
+      const bodyPrefix = idsKeyPrefixFor(recordType);
       if (bodyPrefix) failedBodyIdPrefixes.push(bodyPrefix);
       addLog(
         `[Writeback] Failed to delete ${recordType} records: ${message(error)}`,
