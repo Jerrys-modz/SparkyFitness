@@ -6,6 +6,7 @@ import {
   getGrantedPermissions,
 } from 'react-native-health-connect';
 import { fetchDailySummary } from '../../../src/services/api/dailySummaryApi';
+import { fetchRunEstimates } from '../../../src/services/api/reportsApi';
 import {
   fetchMeasurementsRange,
   fetchWaterIntakeLog,
@@ -27,7 +28,12 @@ jest.mock('react-native-health-connect', () => ({
   deleteRecordsByUuids: jest.fn().mockResolvedValue(undefined),
   deleteRecordsByTimeRange: jest.fn().mockResolvedValue(undefined),
   getGrantedPermissions: jest.fn(),
+  readRecords: jest.fn().mockResolvedValue({ records: [] }),
   RecordingMethod: { RECORDING_METHOD_MANUAL_ENTRY: 3 },
+  Vo2MaxMeasurementMethod: { OTHER: 0 },
+}));
+jest.mock('../../../src/services/api/reportsApi', () => ({
+  fetchRunEstimates: jest.fn(),
 }));
 jest.mock('../../../src/services/api/dailySummaryApi', () => ({
   fetchDailySummary: jest.fn(),
@@ -590,5 +596,123 @@ describe('removeWrittenData (cleanup)', () => {
     mockDeleteByRange.mockRejectedValueOnce(new Error('permission revoked'));
     const result = await removeWrittenData(null);
     expect(result).toEqual({ ok: false });
+  });
+});
+
+describe('estimated VO2 max write-back', () => {
+  const estimate = {
+    vo2Max: {
+      value: 48,
+      runs: 3,
+      from: '2026-06-01',
+      to: '2026-06-02',
+      series: [{ day: '2026-06-01', value: 47.5 }],
+    },
+    power: null,
+  };
+  const { saveLastWritebackTime } = jest.requireMock(
+    '../../../src/services/storage'
+  );
+
+  beforeEach(() => {
+    // Earlier tests leave a quota failure on these; start from a working store.
+    mockInsert.mockReset();
+    mockInsert.mockResolvedValue([]);
+    mockDelete.mockReset();
+    mockDelete.mockResolvedValue(undefined);
+    (
+      jest.requireMock('../../../src/services/healthconnect/index')
+        .isQuotaExceededError as jest.Mock
+    ).mockReturnValue(false);
+    (fetchRunEstimates as jest.Mock).mockResolvedValue(estimate);
+    mockGranted.mockResolvedValue([
+      { recordType: 'Vo2Max', accessType: 'write' },
+    ]);
+  });
+
+  it('writes the run day estimate and leaves other days empty', async () => {
+    prefs({ writebackVo2MaxEnabled: true });
+    await expect(writebackPhase(['2026-06-01', '2026-06-02'])).resolves.toBe(
+      true
+    );
+    expect(mockInsert).toHaveBeenCalledTimes(1);
+    expect(mockInsert.mock.calls[0][0][0]).toMatchObject({
+      recordType: 'Vo2Max',
+      vo2MillilitersPerMinuteKilogram: 47.5,
+    });
+    expect(mockSummary).not.toHaveBeenCalled();
+  });
+
+  it('writes nothing while the switch is off', async () => {
+    prefs({ writebackVo2MaxEnabled: false });
+    await writebackPhase(['2026-06-01']);
+    expect(fetchRunEstimates).not.toHaveBeenCalled();
+    expect(mockInsert).not.toHaveBeenCalled();
+  });
+
+  it('writes nothing without the write permission', async () => {
+    prefs({ writebackVo2MaxEnabled: true });
+    mockGranted.mockResolvedValue([]);
+    await expect(writebackPhase(['2026-06-01'])).resolves.toBe(true);
+    expect(fetchRunEstimates).not.toHaveBeenCalled();
+    expect(mockInsert).not.toHaveBeenCalled();
+  });
+
+  it('does not hold the cursor when the estimate cannot be read', async () => {
+    prefs({ writebackVo2MaxEnabled: true });
+    (fetchRunEstimates as jest.Mock).mockRejectedValue(new Error('404'));
+    await expect(writebackPhase(['2026-06-01'])).resolves.toBe(true);
+    await runWriteback();
+    expect(saveLastWritebackTime).toHaveBeenCalled();
+    expect(mockInsert).not.toHaveBeenCalled();
+  });
+
+  it('removes the record of a day whose run was left out of the estimate', async () => {
+    prefs({ writebackVo2MaxEnabled: true });
+    await writebackPhase(['2026-06-01']);
+    (fetchRunEstimates as jest.Mock).mockResolvedValue({
+      vo2Max: null,
+      power: null,
+    });
+    await writebackPhase(['2026-06-01']);
+    expect(mockDelete).toHaveBeenCalledWith(
+      'Vo2Max',
+      [],
+      [expect.stringMatching(/^sparky-vo2-2026-06-01-/)]
+    );
+    expect(mockInsert).toHaveBeenCalledTimes(1);
+  });
+
+  it('removal deletes the Vo2Max records it has write access for', async () => {
+    const result = await removeWrittenData(null);
+    expect(result).toEqual({ ok: true });
+    expect(mockDeleteByRange).toHaveBeenCalledWith(
+      'Vo2Max',
+      expect.objectContaining({ operator: 'before' })
+    );
+  });
+
+  it('removal keeps tracked ids of a Vo2Max type whose write permission is gone', async () => {
+    await AsyncStorage.clear();
+    await AsyncStorage.setItem(
+      '@HealthConnect:writebackVo2MaxIds:2026-06-01',
+      JSON.stringify(['sparky-vo2-2026-06-01-1'])
+    );
+    await AsyncStorage.setItem(
+      '@HealthConnect:writebackVo2MaxSig:2026-06-01',
+      '"sig"'
+    );
+    mockGranted.mockResolvedValue([]);
+    const result = await removeWrittenData(null);
+    expect(result).toEqual({ ok: false });
+    expect(mockDeleteByRange).not.toHaveBeenCalledWith(
+      'Vo2Max',
+      expect.anything()
+    );
+    const remaining = await AsyncStorage.getAllKeys();
+    expect(remaining).toContain('@HealthConnect:writebackVo2MaxIds:2026-06-01');
+    expect(remaining).not.toContain(
+      '@HealthConnect:writebackVo2MaxSig:2026-06-01'
+    );
   });
 });

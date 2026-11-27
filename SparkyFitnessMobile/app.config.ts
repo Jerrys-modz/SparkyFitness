@@ -92,6 +92,8 @@ const androidPermissions = [
   'android.permission.health.WRITE_HEIGHT',
   'android.permission.health.WRITE_BONE_MASS',
   'android.permission.health.WRITE_BODY_WATER_MASS',
+  // Estimated VO2 max write-back: the run-based estimate, one record per run day.
+  'android.permission.health.WRITE_VO2_MAX',
   // Exact rest-complete alerts: without this special access (user-granted via
   // "Alarms & reminders" on Android 13+), expo-notifications falls back to
   // inexact alarms that the OS batches ~15s late.

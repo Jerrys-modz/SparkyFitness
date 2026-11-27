@@ -1057,6 +1057,34 @@ describe('readHealthRecords', () => {
     expect(result[0]).toMatchObject({ weight: { inKilograms: 75.5 } });
   });
 
+  test('skips VO2 max samples estimated VO2 max write-back saved, keeping a device reading', async () => {
+    await initHealthConnect();
+
+    mockQueryQuantitySamples.mockResolvedValue([
+      {
+        startDate: '2024-01-15T12:00:00Z',
+        endDate: '2024-01-15T12:00:00Z',
+        quantity: 47.5,
+        metadata: { SparkyVo2MaxWriteback: '2024-01-15-1' },
+      },
+      {
+        startDate: '2024-01-15T08:00:00Z',
+        endDate: '2024-01-15T08:00:00Z',
+        quantity: 52,
+        metadata: {},
+      },
+    ]);
+
+    const result = await readHealthRecords(
+      'Vo2Max',
+      new Date('2024-01-15T00:00:00Z'),
+      new Date('2024-01-15T23:59:59Z')
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({ vo2Max: 52 });
+  });
+
   test('normalizes flattened metadataTimeZone into metadata.HKTimeZone for quantity records', async () => {
     await initHealthConnect();
 

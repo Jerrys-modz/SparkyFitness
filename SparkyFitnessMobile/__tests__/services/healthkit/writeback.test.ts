@@ -7,6 +7,7 @@ import {
   authorizationStatusFor,
 } from '@kingstinct/react-native-healthkit';
 import { fetchDailySummary } from '../../../src/services/api/dailySummaryApi';
+import { fetchRunEstimates } from '../../../src/services/api/reportsApi';
 import {
   fetchMeasurementsRange,
   fetchWaterIntakeLog,
@@ -28,6 +29,9 @@ jest.mock('../../../src/services/api/dailySummaryApi', () => ({
 jest.mock('../../../src/services/api/measurementsApi', () => ({
   fetchWaterIntakeLog: jest.fn(),
   fetchMeasurementsRange: jest.fn(),
+}));
+jest.mock('../../../src/services/api/reportsApi', () => ({
+  fetchRunEstimates: jest.fn(),
 }));
 jest.mock('../../../src/services/api/oralCareApi', () => ({
   fetchOralCareSessions: jest.fn().mockResolvedValue([]),
@@ -762,5 +766,115 @@ describe('toothbrushing writeback', () => {
     (AsyncStorage.getAllKeys as jest.Mock).mockResolvedValue([]);
     await removeWrittenData(null);
     expect(mockDeleteObjects).toHaveBeenCalledWith(BRUSH, expect.anything());
+  });
+});
+
+describe('estimated VO2 max write-back', () => {
+  const VO2 = 'HKQuantityTypeIdentifierVO2Max';
+  const estimate = {
+    vo2Max: {
+      value: 48,
+      runs: 3,
+      from: '2026-06-01',
+      to: '2026-06-02',
+      series: [{ day: '2026-06-01', value: 47.5 }],
+    },
+    power: null,
+  };
+  const { queryQuantitySamples } = jest.requireMock(
+    '@kingstinct/react-native-healthkit'
+  );
+
+  beforeEach(() => {
+    (fetchRunEstimates as jest.Mock).mockResolvedValue(estimate);
+    (queryQuantitySamples as jest.Mock).mockResolvedValue([]);
+    mockSaveQuantity.mockResolvedValue({ uuid: 'vo2-1' });
+    mockDeleteObjects.mockResolvedValue(1);
+  });
+
+  it('saves the run day estimate and leaves other days empty', async () => {
+    prefs({ writebackVo2MaxEnabled: true });
+    await expect(writebackPhase(['2026-06-01', '2026-06-02'])).resolves.toBe(
+      true
+    );
+    expect(mockSaveQuantity).toHaveBeenCalledTimes(1);
+    expect(mockSaveQuantity).toHaveBeenCalledWith(
+      VO2,
+      'ml/(kg*min)',
+      47.5,
+      expect.any(Date),
+      expect.any(Date),
+      expect.objectContaining({ SparkyVo2MaxWriteback: expect.any(String) })
+    );
+    expect(mockSummary).not.toHaveBeenCalled();
+  });
+
+  it('writes nothing while the switch is off', async () => {
+    prefs({ writebackVo2MaxEnabled: false });
+    await writebackPhase(['2026-06-01']);
+    expect(fetchRunEstimates).not.toHaveBeenCalled();
+    expect(mockSaveQuantity).not.toHaveBeenCalled();
+  });
+
+  it('skips the metric when sharing permission is not granted', async () => {
+    prefs({ writebackVo2MaxEnabled: true });
+    mockAuthStatus.mockReturnValue(SHARING_DENIED);
+    await expect(writebackPhase(['2026-06-01'])).resolves.toBe(true);
+    expect(fetchRunEstimates).not.toHaveBeenCalled();
+    expect(mockSaveQuantity).not.toHaveBeenCalled();
+  });
+
+  it('does not hold the cursor when the estimate cannot be read', async () => {
+    prefs({ writebackVo2MaxEnabled: true });
+    (fetchRunEstimates as jest.Mock).mockRejectedValue(new Error('404'));
+    await expect(writebackPhase(['2026-06-01'])).resolves.toBe(true);
+    expect(mockSaveQuantity).not.toHaveBeenCalled();
+  });
+
+  it('removes the sample of a day whose run was left out of the estimate', async () => {
+    prefs({ writebackVo2MaxEnabled: true });
+    await writebackPhase(['2026-06-01']);
+    (fetchRunEstimates as jest.Mock).mockResolvedValue({
+      vo2Max: null,
+      power: null,
+    });
+    await writebackPhase(['2026-06-01']);
+    expect(mockDeleteObjects).toHaveBeenCalledWith(VO2, { uuids: ['vo2-1'] });
+    expect(mockSaveQuantity).toHaveBeenCalledTimes(1);
+  });
+
+  it('removal deletes the VO2 max samples it may delete', async () => {
+    prefs({});
+    (AsyncStorage.getAllKeys as jest.Mock).mockResolvedValue([]);
+    await removeWrittenData(null);
+    expect(mockDeleteObjects).toHaveBeenCalledWith(VO2, expect.anything());
+  });
+
+  it('removal keeps tracked UUIDs of a VO2 max type whose sharing permission is gone', async () => {
+    await AsyncStorage.clear();
+    await AsyncStorage.setItem(
+      '@HealthKit:writebackVo2MaxUuids:2026-06-01',
+      JSON.stringify(['vo2-1'])
+    );
+    await AsyncStorage.setItem(
+      '@HealthKit:writebackVo2MaxSig:2026-06-01',
+      '"sig"'
+    );
+    // An earlier test leaves getAllKeys stubbed empty; name the keys here.
+    (AsyncStorage.getAllKeys as jest.Mock).mockResolvedValueOnce([
+      '@HealthKit:writebackVo2MaxUuids:2026-06-01',
+      '@HealthKit:writebackVo2MaxSig:2026-06-01',
+    ]);
+    mockAuthStatus.mockReturnValue(SHARING_DENIED);
+    const result = await removeWrittenData(null);
+    expect(result).toEqual({ ok: false });
+    expect(mockDeleteObjects).not.toHaveBeenCalledWith(VO2, expect.anything());
+    // The UUID list is kept for the next write; only the signature is cleared.
+    expect(
+      await AsyncStorage.getItem('@HealthKit:writebackVo2MaxUuids:2026-06-01')
+    ).toBe(JSON.stringify(['vo2-1']));
+    expect(
+      await AsyncStorage.getItem('@HealthKit:writebackVo2MaxSig:2026-06-01')
+    ).toBeNull();
   });
 });

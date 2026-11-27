@@ -1062,6 +1062,9 @@
     "shareFailed": "Could not create the image",
     "treadmillSettings": "Treadmill & Stride"
   },
+  "writebackVo2Max": {
+    "label": "Estimated VO2 max"
+  },
   "healthMetrics": {
     "steps": "Steps",
     "calories": "Active Calories",
