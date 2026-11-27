@@ -357,6 +357,7 @@ export * from './schemas/api/FitnessFatigue.api.zod.ts';
 export * from './utils/fitnessFatigue.ts';
 export * from './utils/readiness.ts';
 export * from './utils/runningEstimates.ts';
+export * from './utils/vo2Max.ts';
 export * from './utils/routeGeometry.ts';
 export * from './utils/routeGenerate.ts';
 export * from './utils/routeGpx.ts';
