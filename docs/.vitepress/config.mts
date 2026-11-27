@@ -141,6 +141,7 @@ export default defineConfig({
             { text: 'Measurements', link: '/features/measurements' },
             { text: 'Lab Results', link: '/features/lab-results' },
             { text: 'Oral Care', link: '/features/oral-care' },
+            { text: 'VO2 Max', link: '/features/vo2-max' },
             { text: 'MCP Server', link: '/features/mcp-server' },
           ],
         },
