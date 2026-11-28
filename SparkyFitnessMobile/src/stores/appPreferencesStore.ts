@@ -148,6 +148,7 @@ export const PREFERENCE_DEFAULTS = {
   checkinRemindersEnabled: false,
   checkinReminderTimes: [DEFAULT_CHECKIN_REMINDER_TIME] as string[],
   oralCareRemindersEnabled: false,
+  immunizationRemindersEnabled: true,
   coachNotificationsEnabled: true,
   mutedCoachNotificationIds: [] as string[],
   oralCareReminderTimes: [...DEFAULT_ORAL_CARE_REMINDER_TIMES] as string[],
@@ -259,6 +260,7 @@ export type AppPreferencesData = {
   checkinRemindersEnabled: boolean;
   checkinReminderTimes: string[];
   oralCareRemindersEnabled: boolean;
+  immunizationRemindersEnabled: boolean;
   /** Phone notifications for AI coach messages (#2013). */
   coachNotificationsEnabled: boolean;
   /** Coaches whose messages do not notify; they still arrive in chat. */
@@ -449,6 +451,7 @@ export interface AppPreferencesState extends AppPreferencesData {
   setCheckinRemindersEnabled: (enabled: boolean) => void;
   setCheckinReminderTimes: (times: string[]) => void;
   setOralCareRemindersEnabled: (enabled: boolean) => void;
+  setImmunizationRemindersEnabled: (enabled: boolean) => void;
   setCoachNotificationsEnabled: (enabled: boolean) => void;
   setCoachNotificationMuted: (coachId: string, muted: boolean) => void;
   setOralCareReminderTimes: (times: string[]) => void;
@@ -650,6 +653,8 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         set({ checkinReminderTimes: normalizeCheckinReminderTimes(times) }),
       setOralCareRemindersEnabled: (enabled) =>
         set({ oralCareRemindersEnabled: enabled }),
+      setImmunizationRemindersEnabled: (enabled) =>
+        set({ immunizationRemindersEnabled: enabled }),
       setCoachNotificationsEnabled: (enabled) =>
         set({ coachNotificationsEnabled: enabled }),
       setCoachNotificationMuted: (coachId, muted) =>
@@ -900,6 +905,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         checkinRemindersEnabled: state.checkinRemindersEnabled,
         checkinReminderTimes: state.checkinReminderTimes,
         oralCareRemindersEnabled: state.oralCareRemindersEnabled,
+        immunizationRemindersEnabled: state.immunizationRemindersEnabled,
         coachNotificationsEnabled: state.coachNotificationsEnabled,
         mutedCoachNotificationIds: state.mutedCoachNotificationIds,
         oralCareReminderTimes: state.oralCareReminderTimes,

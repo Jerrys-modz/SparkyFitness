@@ -324,7 +324,8 @@
       "oralCare": "Brushing reminders",
       "mindfulness": "Meditation timer",
       "challenges": "Challenges",
-      "coaches": "Coaches"
+      "coaches": "Coaches",
+      "immunizations": "Vaccine reminders"
     },
     "moodCheckin": {
       "title": "How are you feeling?",
@@ -385,6 +386,11 @@
       "bodyWithOwn": "{{leader}} leads with {{total}}. You are #{{rank}} with {{ownTotal}}. The week closes tonight.",
       "bodyYouLead": "You lead with {{total}}. The week closes tonight.",
       "title": "{{name}}: who leads this week"
+    },
+    "immunization": {
+      "title": "Vaccine due",
+      "dueToday": "{{name}} is due today.",
+      "dueSoon": "{{name}} is due in a week."
     }
   },
   "activeWorkout": {
@@ -1503,7 +1509,10 @@
     "oralCareAddReminder": "Add reminder",
     "challengeWeek": "Week leader",
     "challengeWeekSubtitle": "The last evening of each challenge week: who leads each weekly challenge you are in",
-    "challenges": "Challenges"
+    "challenges": "Challenges",
+    "immunizations": "Vaccines",
+    "immunizationReminders": "Vaccine reminders",
+    "immunizationRemindersSubtitle": "A reminder a week before a vaccine is due, and on the day"
   },
   "workoutSettings": {
     "title": "Workout Settings",

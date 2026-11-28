@@ -21,10 +21,11 @@ import { addLog } from '../services/LogService';
 const failureLog = (what: string, err: Error) =>
   `Failed to ${what}${err instanceof ApiError ? ` (HTTP ${err.statusCode})` : ''}`;
 
-export function useImmunizations() {
+export function useImmunizations(options: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: immunizationsQueryKey,
     queryFn: fetchImmunizations,
+    enabled: options.enabled ?? true,
   });
 }
 

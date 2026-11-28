@@ -29,6 +29,7 @@ const FASTING_CHANNEL_ID = 'fasting';
 const HYDRATION_CHANNEL_ID = 'hydration';
 export const MOOD_CHECKIN_CHANNEL_ID = 'mood-checkin';
 export const ORAL_CARE_CHANNEL_ID = 'oral-care';
+export const IMMUNIZATION_CHANNEL_ID = 'immunizations';
 const MINDFULNESS_CHANNEL_ID = 'mindfulness';
 export const MEDICATION_REMINDER_CHANNEL_ID = 'medication-reminders';
 export const CHALLENGES_CHANNEL_ID = 'challenges';
@@ -229,6 +230,17 @@ export async function ensureOralCareChannel(): Promise<void> {
     ),
     importance: AndroidImportance.HIGH,
     enableVibrate: true,
+  });
+}
+
+export async function ensureImmunizationChannel(): Promise<void> {
+  if (Platform.OS !== 'android') return;
+  await Notifications.setNotificationChannelAsync(IMMUNIZATION_CHANNEL_ID, {
+    name: notificationCopy(
+      'notifications.channels.immunizations',
+      'Vaccine reminders'
+    ),
+    importance: AndroidImportance.DEFAULT,
   });
 }
 

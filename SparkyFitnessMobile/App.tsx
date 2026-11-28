@@ -233,6 +233,7 @@ import { usePendingPresetUpdateStore } from './src/stores/pendingPresetUpdateSto
 import ActiveWorkoutKeepAwake from './src/components/ActiveWorkoutKeepAwake';
 import MedicationReminderReconciler from './src/components/MedicationReminderReconciler';
 import MoodCheckinReminderReconciler from './src/components/MoodCheckinReminderReconciler';
+import ImmunizationReminderReconciler from './src/components/ImmunizationReminderReconciler';
 import OralCareReminderReconciler from './src/components/OralCareReminderReconciler';
 import ChallengeWeekNotificationReconciler from './src/components/ChallengeWeekNotificationReconciler';
 import { useNativeIOSTabsActive, useNativeIOSHeadersActive } from './src/services/nativeTabBarPreference';
@@ -1710,6 +1711,7 @@ function AppContent() {
         <MedicationReminderReconciler />
         <MoodCheckinReminderReconciler />
         <OralCareReminderReconciler />
+        <ImmunizationReminderReconciler />
         <ChallengeWeekNotificationReconciler />
         <SafeAreaToast />
         </LightboxProvider>
