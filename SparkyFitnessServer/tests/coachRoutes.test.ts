@@ -34,6 +34,7 @@ vi.mock('../services/coachService.js', () => {
       reactToNudge: vi.fn(),
       answerNudge: vi.fn(),
       getKnowledge: vi.fn(),
+      getOpenQuestions: vi.fn(),
     },
     CoachLimitError: class CoachLimitError extends Error {},
     CoachInvalidError: class CoachInvalidError extends Error {},
@@ -113,6 +114,7 @@ describe('coach routes', () => {
       ['post', '/api/v2/coaches/preview'],
       ['get', '/api/v2/coaches/knowledge'],
       ['get', '/api/v2/coaches/messages/unread'],
+      ['get', '/api/v2/coaches/questions/open'],
       ['get', '/api/v2/coaches/c1/nudges'],
       ['post', '/api/v2/coaches/nudges/n1/react'],
       ['post', '/api/v2/coaches/nudges/n1/answer'],
@@ -361,6 +363,25 @@ describe('coach routes', () => {
     expect(
       (await request(app).post('/api/v2/coaches/nudges/n1/dismiss')).status
     ).toBe(200);
+  });
+
+  it('lists today’s open questions', async () => {
+    const open = [
+      {
+        nudge_id: 'n1',
+        coach_id: 'c1',
+        coach_name: null,
+        builtin_key: 'consistency',
+        question: 'energy' as const,
+        text: 'How is your energy today?',
+        created_at: '2026-11-25T07:05:00.000Z',
+      },
+    ];
+    vi.mocked(coachService.getOpenQuestions).mockResolvedValue(open);
+    const res = await request(app).get('/api/v2/coaches/questions/open');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual(open);
+    expect(coachService.getOpenQuestions).toHaveBeenCalledWith('test-user-id');
   });
 
   it('lists a thread’s message states and the unread messages', async () => {

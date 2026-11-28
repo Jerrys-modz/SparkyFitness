@@ -8,6 +8,7 @@ import { formatDate } from '../utils/dateUtils';
 import {
   COACH_DIET_TYPES,
   COACH_TONES,
+  getBuiltinCoach,
   MAX_COACH_CHECKIN_TIMES,
   MAX_COACH_MESSAGES_PER_DAY,
   type CoachView,
@@ -26,6 +27,7 @@ import { useReminderTimeRows } from '../components/ReminderTimeRows';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { usePreferences } from '../hooks/usePreferences';
 import { useProfile } from '../hooks/useProfile';
+import { useCustomCategories } from '../hooks/useCustomMeasurements';
 import {
   useCheckInNow,
   useCoachesAvailable,
@@ -64,6 +66,30 @@ export default function CoachSettingsScreen({
   const updateBuiltin = useUpdateBuiltinCoach();
   const updateCustom = useUpdateCustomCoach();
   const checkIn = useCheckInNow();
+  const { data: categories = [] } = useCustomCategories();
+  // Habits are the yes/no custom measurements, as on the website.
+  const habitOptions = [
+    {
+      label: t('coaches.settings.noHabit', { defaultValue: 'None yet' }),
+      value: NOT_SET,
+    },
+    ...categories
+      .filter((category) => category.data_type === 'boolean')
+      .map((category) => ({
+        label: category.display_name || category.name,
+        value: category.id,
+      })),
+  ];
+  // Sunday first, as the server's weekday numbers (0 to 6).
+  const weekdayOptions = [
+    t('coaches.weekdays.0', { defaultValue: 'Sunday' }),
+    t('coaches.weekdays.1', { defaultValue: 'Monday' }),
+    t('coaches.weekdays.2', { defaultValue: 'Tuesday' }),
+    t('coaches.weekdays.3', { defaultValue: 'Wednesday' }),
+    t('coaches.weekdays.4', { defaultValue: 'Thursday' }),
+    t('coaches.weekdays.5', { defaultValue: 'Friday' }),
+    t('coaches.weekdays.6', { defaultValue: 'Saturday' }),
+  ].map((label, day) => ({ label, value: String(day) }));
   const coachNotifications = useAppPreferencesStore(
     (s) => s.coachNotificationsEnabled
   );
@@ -339,31 +365,109 @@ export default function CoachSettingsScreen({
               >
                 {data.coaches.map((coach) => {
                   const name = coachName(t, coach.builtin_key, coach.name);
+                  const wanted =
+                    getBuiltinCoach(coach.builtin_key ?? '')?.settings ?? [];
+                  const weekday =
+                    typeof coach.settings['weekday'] === 'number'
+                      ? coach.settings['weekday']
+                      : 0;
+                  const habitId =
+                    typeof coach.settings['focus_habit_id'] === 'string'
+                      ? coach.settings['focus_habit_id']
+                      : NOT_SET;
+                  const builtinKey = coach.builtin_key;
                   return (
-                    <SettingsRow
-                      key={coach.id ?? coach.builtin_key}
-                      title={name}
-                      subtitle={
-                        coach.builtin_key
-                          ? coachDescription(t, coach.builtin_key)
-                          : t('coaches.list.customRules', {
-                              defaultValue: '{{count}} rules',
-                              defaultValue_one: '{{count}} rule',
-                              count: coach.rules.rules.length,
-                            })
-                      }
-                      subtitleNumberOfLines={0}
-                      rightAccessory={
-                        <Switch
-                          accessibilityLabel={name}
-                          value={coach.enabled}
-                          disabled={
-                            updateBuiltin.isPending || updateCustom.isPending
-                          }
-                          onValueChange={(on) => switchCoach(coach, on)}
-                        />
-                      }
-                    />
+                    <View key={coach.id ?? coach.builtin_key}>
+                      <SettingsRow
+                        title={name}
+                        subtitle={
+                          coach.builtin_key
+                            ? coachDescription(t, coach.builtin_key)
+                            : t('coaches.list.customRules', {
+                                defaultValue: '{{count}} rules',
+                                defaultValue_one: '{{count}} rule',
+                                count: coach.rules.rules.length,
+                              })
+                        }
+                        subtitleNumberOfLines={0}
+                        rightAccessory={
+                          <Switch
+                            accessibilityLabel={name}
+                            value={coach.enabled}
+                            disabled={
+                              updateBuiltin.isPending || updateCustom.isPending
+                            }
+                            onValueChange={(on) => switchCoach(coach, on)}
+                          />
+                        }
+                      />
+                      {builtinKey &&
+                        coach.enabled &&
+                        wanted.includes('weekday') && (
+                          <SettingsRow
+                            title={t('coaches.settings.weekday', {
+                              defaultValue: 'Runs on',
+                            })}
+                            rightAccessory={
+                              <BottomSheetPicker
+                                value={String(weekday)}
+                                options={weekdayOptions}
+                                title={t('coaches.settings.weekday', {
+                                  defaultValue: 'Runs on',
+                                })}
+                                containerStyle={{ minWidth: 150 }}
+                                onSelect={(value) =>
+                                  updateBuiltin.mutate({
+                                    key: builtinKey,
+                                    body: {
+                                      settings: { weekday: Number(value) },
+                                    },
+                                  })
+                                }
+                              />
+                            }
+                          />
+                        )}
+                      {builtinKey &&
+                        coach.enabled &&
+                        wanted.includes('focus_habit_id') && (
+                          <SettingsRow
+                            title={t('coaches.settings.focusHabit', {
+                              defaultValue: 'Habit to focus on',
+                            })}
+                            subtitle={
+                              habitId === NOT_SET
+                                ? t('coaches.settings.pickHabit', {
+                                    defaultValue:
+                                      'Pick a habit, or this coach stays quiet. Habits are yes/no custom measurements.',
+                                  })
+                                : undefined
+                            }
+                            subtitleNumberOfLines={0}
+                            rightAccessory={
+                              <BottomSheetPicker
+                                value={habitId}
+                                options={habitOptions}
+                                title={t('coaches.settings.focusHabit', {
+                                  defaultValue: 'Habit to focus on',
+                                })}
+                                containerStyle={{ minWidth: 150 }}
+                                onSelect={(value) =>
+                                  updateBuiltin.mutate({
+                                    key: builtinKey,
+                                    body: {
+                                      settings: {
+                                        focus_habit_id:
+                                          value === NOT_SET ? null : value,
+                                      },
+                                    },
+                                  })
+                                }
+                              />
+                            }
+                          />
+                        )}
+                    </View>
                   );
                 })}
               </SettingsRowGroup>

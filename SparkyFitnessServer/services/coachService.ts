@@ -440,6 +440,13 @@ export async function getUnread(userId: string) {
   };
 }
 
+/** Today's questions not answered yet, in the person's own day, since an
+ * answer is saved to today (`answerNudge`). */
+export async function getOpenQuestions(userId: string) {
+  const tz = await loadUserTimezone(userId);
+  return aiCoachRepository.listOpenQuestions(userId, todayInZone(tz));
+}
+
 export async function markThreadRead(userId: string, coachId: string) {
   await aiCoachRepository.markRead(userId, coachId);
   return getUnread(userId);
@@ -635,6 +642,7 @@ export default {
   previewBuiltinCoach,
   previewDraft,
   getUnread,
+  getOpenQuestions,
   markThreadRead,
   reactToNudge,
   getKnowledge,

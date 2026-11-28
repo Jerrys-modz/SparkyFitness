@@ -26,6 +26,8 @@ One profile shared by every coach and by normal Sparky chat (while Coaches are o
 
 You don't have to wait for the next check-in time. In **Settings → Wellness → Coaches** (website) or **Settings → Coaches** (app), the **Check in now** section shows when the last check-in ran and has a **Check in now** button. It runs one check-in right away for the coaches you switched on, and tells you how many messages it sent, or why none: coaches are paused, none is switched on, today's limit is reached, or nothing matched your data today. It follows the same rules and daily limit as a scheduled check-in. The messages are in the coach's thread in the chat.
 
+On the website, **Clear today's messages** removes today's coach messages from the chat, with any suggestion or question in them, and starts today's count again from zero, so the coaches can speak again today. A change you already applied stays.
+
 ## The coaches
 
 | Coach | Looks at | Example |
@@ -39,7 +41,7 @@ You don't have to wait for the next check-in time. In **Settings → Wellness �
 | **Training** | Your lifts and your workout plan | Two lifts have stopped progressing; plan changes you can apply. |
 | **Habits** | One habit you pick | A gentle evening "did you do it?", and your streaks. |
 
-Open a coach's **When it speaks up** section to switch single rules off or change their numbers. **Would it speak right now?** checks today's data against the rules. It uses no AI and sends nothing. The weekly review and the training coach run on the weekday you choose.
+Open a coach's **When it speaks up** section to switch single rules off or change their numbers. **Would it speak right now?** checks today's data against the rules. It uses no AI and sends nothing. The weekly review and the training coach run on the weekday you choose, at the first check-in that runs that day; if the server missed your first check-in time, the next one takes its place.
 
 ### Your own coaches
 
@@ -75,6 +77,16 @@ If you use cycle tracking, coaches take your phase into account in how they word
 
 When a coach writes, the app shows a **notification**; tapping it opens that coach's thread. The app checks for new messages in its background sync, so on iPhone, where the system decides when background tasks run, a message can arrive a little after the check-in time. Opening the app always shows it. Turn notifications off, or per coach, in **Settings → Coaches**. Messages never pass through any outside push service.
 
+### Siri and Shortcuts (iPhone)
+
+Once you have signed in to a server in the app, you can ask Siri:
+
+- **"Check in with my coaches in SparkyFitness"** runs a check-in now, like the **Check in now** button, and reads out what your coaches say (or why they have nothing to say).
+- **"Read my coach messages in SparkyFitness"** reads out up to three unread messages and tells you how many more are in the app. A coach's thread counts as read once you have heard all of its messages.
+- **"Answer my coach in SparkyFitness"** answers today's quick question. Siri asks it in the coach's words: say a number from 1 to 5 for energy, mood or focus, or yes or not yet for a habit. The answer is saved as it is from the chat.
+
+They are also in the Shortcuts app, so you can put them in an automation or on the Action button. Because they speak about your health, they only run while your iPhone is unlocked. Siri speaks them in English for now.
+
 ## AI provider
 
 Coaches use **your own AI provider** (your key, or your local model) to word a message, and only when a rule matches, so a quiet day costs nothing. Without a provider, or if it fails, you get a short fixed message instead. You can still read it, but you need a provider to reply.
@@ -89,3 +101,4 @@ Everything stays on your server. Only the wording of a message is sent to the AI
 - It already said that today.
 - Coaches are paused, or the Coaches feature is off in that app.
 - The check-in time passed while the server was down (more than an hour ago).
+- For sleep: last night is not in SparkyFitness yet. Coaches compare only a night that ended today, so let your phone or watch sync first.

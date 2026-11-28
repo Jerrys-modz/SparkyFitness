@@ -259,12 +259,49 @@ async function clearNudgesForDay(
 ): Promise<number> {
   const client = await getClient(userId);
   try {
-    const result = await client.query(
+    await client.query('BEGIN');
+    // The chat copies go with them, so no message is left in a coach's
+    // thread whose buttons point at a nudge that is gone.
+    const removed = await client.query(
       `DELETE FROM coach_nudges
-       WHERE user_id = $1 AND local_day = $2`,
+       WHERE user_id = $1 AND local_day = $2
+       RETURNING chat_message_id`,
       [userId, localDay]
     );
-    return result.rowCount ?? 0;
+    const chatIds = (removed.rows as { chat_message_id: string }[]).map(
+      (row) => row.chat_message_id
+    );
+    if (chatIds.length > 0) {
+      await client.query(
+        `DELETE FROM sparky_chat_history
+         WHERE user_id = $1 AND id = ANY($2::uuid[])`,
+        [userId, chatIds]
+      );
+    }
+    await client.query('COMMIT');
+    return removed.rowCount ?? 0;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+/** The last local day a message was sent because of this signal (for a
+ * record, the day it was celebrated), or null. */
+async function getLastDayWithSignal(
+  userId: string,
+  signal: string
+): Promise<string | null> {
+  const client = await getClient(userId);
+  try {
+    const result = await client.query(
+      `SELECT max(local_day)::text AS day FROM coach_nudges
+       WHERE user_id = $1 AND because @> $2::jsonb`,
+      [userId, JSON.stringify([{ signal }])]
+    );
+    return (result.rows[0] as { day: string | null } | undefined)?.day ?? null;
   } finally {
     client.release();
   }
@@ -401,6 +438,33 @@ async function listUnreadMessages(userId: string, since: Date | null) {
          AND ($2::timestamptz IS NULL OR n.created_at > $2)
        ORDER BY n.created_at DESC LIMIT 20`,
       [userId, since]
+    );
+    return result.rows.map(
+      (row: { created_at: Date } & Record<string, unknown>) => ({
+        ...row,
+        created_at: row.created_at.toISOString(),
+      })
+    );
+  } finally {
+    client.release();
+  }
+}
+
+/** Questions asked on this local day and not answered yet, newest first,
+ * with the text the chat shows. */
+async function listOpenQuestions(userId: string, localDay: string) {
+  const client = await getClient(userId);
+  try {
+    const result = await client.query(
+      `SELECT n.id AS nudge_id, n.coach_id, c.name AS coach_name, c.builtin_key,
+              n.question, h.content AS text, n.created_at
+       FROM coach_nudges n
+       JOIN user_coaches c ON c.id = n.coach_id AND c.user_id = n.user_id
+       JOIN sparky_chat_history h ON h.id = n.chat_message_id AND h.user_id = n.user_id
+       WHERE n.user_id = $1 AND n.local_day = $2
+         AND n.question IS NOT NULL AND n.answered_at IS NULL
+       ORDER BY n.created_at DESC LIMIT 10`,
+      [userId, localDay]
     );
     return result.rows.map(
       (row: { created_at: Date } & Record<string, unknown>) => ({
@@ -853,6 +917,7 @@ export default {
   countNudgesForDay,
   clearNudgesForDay,
   getNudgeKeysForDay,
+  getLastDayWithSignal,
   getNudge,
   listNudgeStates,
   countWinsForDay,
@@ -868,6 +933,7 @@ export default {
   insertNudgeWithChatMessage,
   getUnreadCounts,
   listUnreadMessages,
+  listOpenQuestions,
   markRead,
   markAllRead,
   getCoachById,

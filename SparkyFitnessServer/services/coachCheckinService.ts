@@ -170,8 +170,8 @@ async function signalOptions(
     includeStalls: on('training') || hasSignal('stalled_lifts'),
     includeGoalStreaks:
       on('nutrition') ||
-      hasSignal('calorie_goal_streak_days') ||
-      hasSignal('protein_goal_streak_days'),
+      hasSignal('calorie_goal_hit_streak_days') ||
+      hasSignal('protein_goal_hit_streak_days'),
     includeCycle: isFeatureEnabledAnywhere('cycle', {
       choices: null,
       cycleEnabled: cycle?.enabled ?? null,
@@ -360,11 +360,41 @@ async function deliver(
   });
 }
 
+/** The first check-in of the person's day is the first one that runs that
+ * day, not the first time on their list: when that one was missed (the server
+ * was down), the next one still brings the morning outlook and the weekly
+ * rules. `previous` is the check-in that ran before this one. */
+export function isFirstCheckinOfDay(
+  previous: Date | null,
+  tz: string,
+  day: string
+): boolean {
+  return previous === null || instantToDay(previous, tz) < day;
+}
+
+/** Records are kept by day, so "since the last check-in" is from that
+ * check-in's day; a day a record was already celebrated on is not counted
+ * again. */
+export function personalRecordSinceDay(
+  previous: Date | null,
+  tz: string,
+  day: string,
+  lastCelebratedDay: string | null
+): string {
+  let since = previous ? instantToDay(previous, tz) : day;
+  if (since > day) since = day;
+  if (lastCelebratedDay && lastCelebratedDay >= since) {
+    since = lastCelebratedDay < day ? addDays(lastCelebratedDay, 1) : day;
+  }
+  return since;
+}
+
 async function runCheckinForUser(
   candidate: CheckinCandidate,
   tz: string,
   slot: { time: string; day: string },
-  now: Date
+  now: Date,
+  treatAsFirst = false
 ): Promise<void> {
   const userId = candidate.user_id;
   const coaches = (await aiCoachRepository.listCoaches(userId))
@@ -372,20 +402,31 @@ async function runCheckinForUser(
     .sort((a, b) => a.sort_order - b.sort_order);
   if (coaches.length === 0) return;
 
-  const [sentToday, nudgeKeys, winsToday] = await Promise.all([
+  const [sentToday, nudgeKeys, winsToday, lastPrDay] = await Promise.all([
     aiCoachRepository.countNudgesForDay(userId, slot.day),
     aiCoachRepository.getNudgeKeysForDay(userId, slot.day),
     aiCoachRepository.countWinsForDay(userId, slot.day),
+    aiCoachRepository.getLastDayWithSignal(
+      userId,
+      'new_prs_since_last_checkin'
+    ),
   ]);
   let budget = candidate.max_messages_per_day - sentToday;
   let wins = winsToday;
   if (budget <= 0) return;
 
   const options = await signalOptions(userId, coaches);
-  const isFirstCheckinOfDay = candidate.checkin_times[0] === slot.time;
+  const firstOfDay =
+    treatAsFirst ||
+    isFirstCheckinOfDay(candidate.last_checkin_at, tz, slot.day);
   const signals = await getCoachSignals(userId, tz, now, {
     ...options,
-    prSinceDay: slot.day,
+    prSinceDay: personalRecordSinceDay(
+      candidate.last_checkin_at,
+      tz,
+      slot.day,
+      lastPrDay
+    ),
   });
   const part = slotPartOf(slot.time);
 
@@ -407,7 +448,7 @@ async function runCheckinForUser(
     const weekday = settingsOf(coach).weekday;
     const matches = evaluateCoachRules(rulesOf(coach), signals, {
       part,
-      isFirstCheckinOfDay,
+      isFirstCheckinOfDay: firstOfDay,
       weekdayOk:
         dayOfWeek(slot.day) ===
         (typeof weekday === 'number' ? weekday : DEFAULT_WEEKDAY),
@@ -658,18 +699,19 @@ export async function runCheckinNow(
 
   const candidate: CheckinCandidate = {
     user_id: userId,
-    // Treated as the first check-in of the day when nothing was said yet, so
-    // the morning outlook and weekly rules can run.
-    checkin_times: before === 0 ? [time] : ['00:00'],
+    checkin_times: [time],
     max_messages_per_day: limit,
     paused_until: null,
-    last_checkin_at: null,
+    last_checkin_at: profile?.last_checkin_at ?? null,
     feature_choices: null,
   };
   // Shows as the last check-in, and a scheduled slot already behind us is not
   // run again.
   await aiCoachRepository.claimCheckin(userId, now);
-  await runCheckinForUser(candidate, tz, { time, day }, now);
+  // The day's first when no check-in ran today, as for a scheduled one, or
+  // when nothing was said yet today, so the morning outlook and weekly rules
+  // can run once the data they need has arrived.
+  await runCheckinForUser(candidate, tz, { time, day }, now, before === 0);
   await runWorkoutScanForUser(candidate, tz, now);
   const after = await aiCoachRepository.countNudgesForDay(userId, day);
   return {

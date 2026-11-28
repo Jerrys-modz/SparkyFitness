@@ -11458,6 +11458,7 @@
       "weekday": "Runs on",
       "focusHabit": "Habit to focus on",
       "noHabit": "None yet",
+      "pickHabit": "Pick a habit, or this coach stays quiet. Habits are yes/no custom measurements.",
       "openFeatures": "Open Features"
     },
     "aboutMe": {
