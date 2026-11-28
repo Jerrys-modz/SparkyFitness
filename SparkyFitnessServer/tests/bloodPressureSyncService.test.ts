@@ -139,3 +139,49 @@ describe('one Withings reading reported twice', () => {
     ]);
   });
 });
+
+describe('context carried by a synced reading', () => {
+  const base = {
+    entryDate: '2026-11-20',
+    timestamp: AT,
+    sourceProvider: 'ihealth',
+  };
+
+  it('keeps arm, position, pulse and a note, merged across the two halves', async () => {
+    await recordSyncedBloodPressure('u1', 'u1', [
+      { ...base, systolic: 122, arm: 'left', pulse: 64 },
+      {
+        ...base,
+        diastolic: 79,
+        bodyPosition: 'sitting',
+        note: '  after a walk  ',
+      },
+    ]);
+    expect(rows()).toEqual([
+      expect.objectContaining({
+        systolic_mmhg: 122,
+        diastolic_mmhg: 79,
+        pulse_bpm: 64,
+        arm: 'left',
+        body_position: 'sitting',
+        note: 'after a walk',
+      }),
+    ]);
+  });
+
+  it('drops values outside the set the manual routes use', async () => {
+    await recordSyncedBloodPressure('u1', 'u1', [
+      {
+        ...base,
+        systolic: 122,
+        diastolic: 79,
+        arm: 'both',
+        bodyPosition: 'upside_down',
+        note: '   ',
+      },
+    ]);
+    expect(rows()[0]).toEqual(
+      expect.objectContaining({ arm: null, body_position: null, note: null })
+    );
+  });
+});

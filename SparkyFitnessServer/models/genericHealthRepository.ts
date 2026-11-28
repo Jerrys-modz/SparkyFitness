@@ -205,8 +205,8 @@ export async function bulkUpsertVitals(
       const entry = withoutImpossibleBloodPressure(rawEntry);
       const res = (await client.query(
         `INSERT INTO vitals_entries
-          (user_id, entry_date, timestamp, systolic_mmhg, diastolic_mmhg, blood_glucose_mgdl, body_temperature_celsius, pulse_bpm, meal_context, source_provider, device_name, external_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+          (user_id, entry_date, timestamp, systolic_mmhg, diastolic_mmhg, blood_glucose_mgdl, body_temperature_celsius, pulse_bpm, meal_context, source_provider, device_name, external_id, arm, body_position, note)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
          ON CONFLICT (user_id, source_provider, timestamp)
          DO UPDATE SET
            systolic_mmhg = COALESCE(EXCLUDED.systolic_mmhg, vitals_entries.systolic_mmhg),
@@ -216,7 +216,11 @@ export async function bulkUpsertVitals(
            pulse_bpm = COALESCE(EXCLUDED.pulse_bpm, vitals_entries.pulse_bpm),
            meal_context = COALESCE(EXCLUDED.meal_context, vitals_entries.meal_context),
            device_name = COALESCE(EXCLUDED.device_name, vitals_entries.device_name),
-           external_id = COALESCE(EXCLUDED.external_id, vitals_entries.external_id)
+           external_id = COALESCE(EXCLUDED.external_id, vitals_entries.external_id),
+           -- What the person added to a synced reading wins over a sync.
+           arm = COALESCE(vitals_entries.arm, EXCLUDED.arm),
+           body_position = COALESCE(vitals_entries.body_position, EXCLUDED.body_position),
+           note = COALESCE(vitals_entries.note, EXCLUDED.note)
          RETURNING *`,
         [
           userId,
@@ -233,6 +237,9 @@ export async function bulkUpsertVitals(
           entry.source_provider,
           entry.device_name || null,
           entry.external_id || null,
+          entry.arm || null,
+          entry.body_position || null,
+          entry.note || null,
         ]
       )) as { rows: VitalsEntries[] };
       if (res.rows[0]) results.push(res.rows[0]);

@@ -2767,7 +2767,9 @@ const toothbrushingHandler: HealthTypeHandler = {
 // ── Blood pressure ──────────────────────────────────────────────────────────
 
 // Health Connect and Apple Health deliver systolic and diastolic as two
-// records of the same instant. Each is still stored as a custom measurement
+// records of the same instant; a record may also carry `pulse_bpm`, `arm`
+// (left or right), `body_position` (sitting, standing, lying or reclining) and
+// a `note`, which are kept with the reading. Each is still stored as a custom measurement
 // exactly as before; a record that carries its own `timestamp` is also written
 // to `vitals_entries`, the single home of blood pressure. Records of one
 // instant join into one row; a record without an instant (an older app sends
@@ -2789,11 +2791,23 @@ const bloodPressureHandleBatch: HandleBatchFn = async (entries, ctx) => {
     if (!part || !Number.isFinite(Date.parse(String(entry.timestamp)))) return;
     const value = Number(entry.value);
     if (!Number.isFinite(value)) return;
+    // Either record of a pair may carry the optional context; the two halves
+    // are merged by instant and source, and values that are not in the set the
+    // manual routes use are dropped by `recordSyncedBloodPressure`.
+    const rawPulse =
+      entry.pulse_bpm === undefined || entry.pulse_bpm === null
+        ? null
+        : Number(entry.pulse_bpm);
     readings.push({
       entryDate: parsedDate,
       timestamp: entryTimestamp,
       sourceProvider: normalizeHealthSourceProvider(entry.source),
       [part]: value,
+      pulse: rawPulse !== null && Number.isFinite(rawPulse) ? rawPulse : null,
+      arm: typeof entry.arm === 'string' ? entry.arm : null,
+      bodyPosition:
+        typeof entry.body_position === 'string' ? entry.body_position : null,
+      note: typeof entry.note === 'string' ? entry.note : null,
     });
   });
   await recordSyncedBloodPressure(

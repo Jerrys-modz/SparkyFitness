@@ -1648,6 +1648,48 @@ describe('blood pressure readings', () => {
     expect(genericHealthRepository.bulkUpsertVitals).not.toHaveBeenCalled();
   });
 
+  it('passes optional context on either record through to the reading', async () => {
+    const at = '2026-11-20T13:05:00.000Z';
+    await handler.handleBatch!(
+      [
+        prepared(
+          {
+            type: 'blood_pressure_systolic',
+            value: 122,
+            source: 'iHealth',
+            timestamp: at,
+            arm: 'left',
+            body_position: 'sitting',
+            pulse_bpm: 64,
+          },
+          at
+        ),
+        prepared(
+          {
+            type: 'blood_pressure_diastolic',
+            value: 79,
+            source: 'iHealth',
+            timestamp: at,
+            note: 'morning',
+          },
+          at
+        ),
+      ],
+      ctx
+    );
+    expect(vitalsWrites()).toEqual([
+      expect.objectContaining({
+        systolic_mmhg: 122,
+        diastolic_mmhg: 79,
+        pulse_bpm: 64,
+        arm: 'left',
+        body_position: 'sitting',
+        note: 'morning',
+        source_provider: 'ihealth',
+      }),
+    ]);
+  });
+
   it('does not write readings whose timestamp cannot be read, so they never merge at midnight', async () => {
     const midnight = '2026-11-20T00:00:00.000Z';
     await handler.handleBatch!(
