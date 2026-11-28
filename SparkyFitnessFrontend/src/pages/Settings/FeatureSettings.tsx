@@ -208,6 +208,21 @@ function LabResultsFeatureRow() {
   );
 }
 
+function ImmunizationsFeatureRow() {
+  const { t } = useTranslation();
+  return (
+    <ChoiceFeatureRow
+      feature="immunizations"
+      icon={webTabIcon('immunizations')}
+      label={choiceFeatureLabel(t, 'immunizations')}
+      description={t(
+        'settings.features.immunizations.description',
+        'Keep a record of the vaccines you have had, with dose, lot and next-due date.'
+      )}
+    />
+  );
+}
+
 function AiCoachesFeatureRow() {
   const { t } = useTranslation();
   return (
@@ -232,6 +247,8 @@ function FeatureRow({ feature }: { feature: FeatureKey }): ReactElement {
       return <MedicationsFeatureRow />;
     case 'labResults':
       return <LabResultsFeatureRow />;
+    case 'immunizations':
+      return <ImmunizationsFeatureRow />;
     case 'aiCoaches':
       return <AiCoachesFeatureRow />;
   }

@@ -1133,6 +1133,7 @@
     "symptoms": "Symptoms",
     "sparkyFitnessV": "SparkyFitness v{{version}}",
     "labs": "Lab results",
+    "immunizations": "Immunizations",
     "challenges": "Challenges"
   },
   "nutrition": {
@@ -3657,6 +3658,9 @@
       },
       "labResults": {
         "description": "Record blood tests and follow each marker over time."
+      },
+      "immunizations": {
+        "description": "Keep a record of the vaccines you have had, with dose, lot and next-due date."
       },
       "aiCoaches": {
         "description": "AI coaches that watch your food, training and sleep and send a short message when something is worth saying. Set them up in Settings → Wellness → Coaches."
@@ -10875,6 +10879,38 @@
     "legendElevated": "Elevated outside exercise",
     "vsSevenDayAvg": "{{diff}} bpm vs 7d avg",
     "minIntoWorkout": "{{min}} min into workout"
+  },
+  "immunizations": {
+    "add": "Add immunization",
+    "administeredBy": "Given by",
+    "code": "Vaccine code (optional)",
+    "date": "Date given",
+    "dateFuture": "The date given cannot be in the future.",
+    "dateRequired": "Enter the date it was given.",
+    "deleteFailed": "Could not delete the immunization",
+    "deleteMessage": "Delete this immunization record? This cannot be undone.",
+    "deleteTitle": "Delete immunization",
+    "dose": "Dose number",
+    "doseInvalid": "Dose number must be from 1 to 20.",
+    "doseShort": "Dose {{n}}",
+    "dueBeforeGiven": "The next-due date cannot be before the date given.",
+    "dueInvalid": "Enter a valid next-due date.",
+    "edit": "Edit immunization",
+    "empty": "No immunizations yet. Add the vaccines you have had to keep them in one place.",
+    "loadFailed": "Could not load your immunizations.",
+    "lot": "Lot number",
+    "nameRequired": "Enter the vaccine name.",
+    "nextDue": "Next due (optional)",
+    "nextDueOn": "Next due {{date}}",
+    "notes": "Notes",
+    "notesPlaceholder": "Add a note (optional)",
+    "saveFailed": "Could not save the immunization",
+    "site": "Site",
+    "status": {
+      "dueSoon": "Due soon",
+      "overdue": "Overdue"
+    },
+    "vaccine": "Vaccine"
   },
   "labs": {
     "add": "Add lab result",

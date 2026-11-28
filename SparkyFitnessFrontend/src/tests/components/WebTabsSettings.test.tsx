@@ -92,7 +92,7 @@ describe('WebTabsSettings', () => {
     expect(
       screen.queryByRole('switch', { name: 'Lab results' })
     ).not.toBeInTheDocument();
-    expect(screen.getAllByRole('switch')).toHaveLength(6);
+    expect(screen.getAllByRole('switch')).toHaveLength(7);
     expect(screen.getAllByText('Some features are turned off')).toHaveLength(1);
     expect(mockSetTabHidden).not.toHaveBeenCalled();
   });
@@ -104,7 +104,7 @@ describe('WebTabsSettings', () => {
     expect(
       screen.queryByRole('switch', { name: 'Medications' })
     ).not.toBeInTheDocument();
-    expect(screen.getAllByRole('switch')).toHaveLength(6);
+    expect(screen.getAllByRole('switch')).toHaveLength(7);
     expect(screen.getAllByText('Some features are turned off')).toHaveLength(1);
     expect(mockSetTabHidden).not.toHaveBeenCalled();
   });
@@ -151,7 +151,7 @@ describe('WebTabsSettings', () => {
     mockFeaturesOff = new Set<FeatureKey>(['medications']);
     renderSettings();
     expect(screen.getByRole('switch', { name: 'Medications' })).toBeDisabled();
-    expect(screen.getAllByRole('switch')).toHaveLength(7);
+    expect(screen.getAllByRole('switch')).toHaveLength(8);
     expect(
       screen.queryByText('Some features are turned off')
     ).not.toBeInTheDocument();
@@ -170,7 +170,7 @@ describe('WebTabsSettings', () => {
   it('shows a switch, on, for each tab that can be hidden', () => {
     renderSettings();
     const switches = screen.getAllByRole('switch');
-    expect(switches).toHaveLength(7);
+    expect(switches).toHaveLength(8);
     switches.forEach((toggle) => expect(toggle).toBeChecked());
     expect(screen.getByLabelText('Lab results')).toBeInTheDocument();
     expect(screen.queryByLabelText('Diary')).not.toBeInTheDocument();
@@ -230,7 +230,7 @@ describe('WebTabsSettings', () => {
     renderSettings();
     expect(screen.getByText('Cycle')).toBeInTheDocument();
     expect(screen.getByText('On')).toBeInTheDocument();
-    expect(screen.getAllByRole('switch')).toHaveLength(7);
+    expect(screen.getAllByRole('switch')).toHaveLength(8);
     expect(
       screen.getByText('Cycle is turned on or off in Features, above.')
     ).toBeInTheDocument();

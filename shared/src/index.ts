@@ -51,6 +51,7 @@ export * from './schemas/api/LabReportScan.api.zod.ts';
 export * from './schemas/api/LabResults.api.zod.ts';
 export * from './schemas/api/calendarDay.zod.ts';
 export * from './schemas/api/Immunizations.api.zod.ts';
+export * from './utils/immunizations.ts';
 export * from './schemas/api/Mindfulness.api.zod.ts';
 export * from './schemas/api/OralCare.api.zod.ts';
 export * from './schemas/api/Challenges.api.zod.ts';

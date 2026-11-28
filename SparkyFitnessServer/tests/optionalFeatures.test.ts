@@ -29,11 +29,12 @@ function keys(count: number, value: boolean | null = true) {
 }
 
 describe('optional features registry', () => {
-  it('lists cycle, stored in cycle_settings, then medications, lab results and AI coaches, chosen per app', () => {
+  it('lists cycle, stored in cycle_settings, then medications, lab results, immunizations and AI coaches, chosen per app', () => {
     expect(FEATURE_KEYS).toEqual([
       'cycle',
       'medications',
       'labResults',
+      'immunizations',
       'aiCoaches',
     ]);
     expect(featureStorage('cycle')).toBe('cycleSettings');

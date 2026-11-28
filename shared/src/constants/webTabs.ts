@@ -15,6 +15,7 @@ export const WEB_HIDEABLE_TAB_IDS = [
   'checkin',
   'medications',
   'labs',
+  'immunizations',
   'reports',
   'foods',
   'exercises',
