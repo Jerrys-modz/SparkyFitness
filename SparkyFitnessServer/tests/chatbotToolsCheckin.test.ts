@@ -10,6 +10,7 @@ import moodRepository, {
 import fastingRepository from '../models/fastingRepository.js';
 import sleepRepository from '../models/sleepRepository.js';
 import * as oralCareService from '../services/oralCareService.js';
+import { listImmunizations } from '../models/immunizationRepository.js';
 import { toolOpts } from './helpers/toolExecutionOptions.js';
 import { CustomCategoryExistsError } from '../utils/errors.js';
 
@@ -87,6 +88,9 @@ vi.mock('../models/sleepRepository', () => ({
   default: {
     getSleepEntriesByUserIdAndDateRange: vi.fn(),
   },
+}));
+vi.mock('../models/immunizationRepository.js', () => ({
+  listImmunizations: vi.fn(),
 }));
 vi.mock('../services/oralCareService', () => ({
   MAX_HISTORY_DAYS: 366,
@@ -2160,5 +2164,75 @@ describe('get_oral_care_summary', () => {
     expect(vi.mocked(oralCareService.getHistory).mock.calls[0]![2]).toBe(
       '2025-11-08'
     );
+  });
+});
+
+describe('list_immunizations', () => {
+  const record = (over: Record<string, unknown> = {}) => ({
+    id: 'i1',
+    user_id: 'user-1',
+    vaccine_name: 'Influenza',
+    vaccine_code: null,
+    administered_on: '2025-10-01',
+    dose_number: null,
+    lot_number: 'AB1',
+    administered_by: 'Walgreens',
+    site: null,
+    next_due_on: '2026-10-01',
+    notes: null,
+    source: 'manual',
+    created_at: '2025-10-01T10:00:00.000Z',
+    updated_at: '2025-10-01T10:00:00.000Z',
+    ...over,
+  });
+
+  it('lists the vaccines with how they stand against today', async () => {
+    vi.mocked(listImmunizations).mockResolvedValue([
+      record(),
+      record({ id: 'i2', vaccine_name: 'Tdap', next_due_on: null }),
+    ] as never);
+    const result = String(
+      await tools.sparky_manage_checkin.execute!(
+        { action: 'list_immunizations' },
+        opts
+      )
+    );
+    expect(listImmunizations).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({ limit: 200 }),
+      'user-1'
+    );
+    expect(result).toContain('"count":2');
+    expect(result).toContain('"vaccine":"Influenza"');
+    expect(result).toContain('"given_on":"2025-10-01"');
+    expect(result).toContain('"due_status":"overdue"');
+    expect(result).toContain('"due_status":"none"');
+  });
+
+  it('passes the day range through and refuses a reversed one', async () => {
+    vi.mocked(listImmunizations).mockResolvedValue([] as never);
+    await tools.sparky_manage_checkin.execute!(
+      {
+        action: 'list_immunizations',
+        start_date: '2025-01-01',
+        end_date: '2025-12-31',
+      },
+      opts
+    );
+    expect(vi.mocked(listImmunizations).mock.calls[0]![1]).toMatchObject({
+      startDate: '2025-01-01',
+      endDate: '2025-12-31',
+    });
+    const reversed = String(
+      await tools.sparky_manage_checkin.execute!(
+        {
+          action: 'list_immunizations',
+          start_date: '2026-01-01',
+          end_date: '2025-01-01',
+        },
+        opts
+      )
+    );
+    expect(reversed).toContain('start_date must not be after end_date');
   });
 });

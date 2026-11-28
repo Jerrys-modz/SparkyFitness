@@ -11,6 +11,7 @@ import {
   instantHourMinute,
   instantHourMinuteInZone,
   instantToDay,
+  immunizationDueStatus,
   instantToDayWithOffset,
   resolveRecordZone,
   type RecordZone,
@@ -27,6 +28,7 @@ import fastingRepository from '../../models/fastingRepository.js';
 import fastingAutoCalculationService from '../../services/fastingAutoCalculationService.js';
 import sleepRepository from '../../models/sleepRepository.js';
 import * as oralCareService from '../../services/oralCareService.js';
+import { listImmunizations } from '../../models/immunizationRepository.js';
 import { ERRORS, formatZodError } from './errors.js';
 import { normalizeActionArgs } from './dates.js';
 import {
@@ -111,6 +113,7 @@ const VALID_ACTIONS = [
   'get_biometrics_history',
   'get_custom_metrics_history',
   'get_oral_care_summary',
+  'list_immunizations',
 ];
 
 // Optional inputs and nullable DB columns are treated alike: absent.
@@ -279,7 +282,8 @@ Actions:
 - get_fasting_status() — returns the currently active fasting session if any
 - get_biometrics_history(start_date?, end_date?) — returns standard measurement history
 - get_custom_metrics_history(start_date?, end_date?, category_name?) — custom metric values by day, newest first; category_name keeps one metric (if several share that display name, the reply lists their stored names)
-- get_oral_care_summary(start_date?, end_date?) — brushing per day against the daily goal, other oral care (flossing, mouthwash, ...) and the streak; defaults to the last 7 days. A brush logged in Sparky that a synced toothbrush also recorded counts once`,
+- get_oral_care_summary(start_date?, end_date?) — brushing per day against the daily goal, other oral care (flossing, mouthwash, ...) and the streak; defaults to the last 7 days. A brush logged in Sparky that a synced toothbrush also recorded counts once
+- list_immunizations(start_date?, end_date?) — the vaccines the person has had, newest first: name, date given, dose, lot, who gave it, next-due date and whether it is overdue or due soon; start_date/end_date limit by the day it was given`,
       inputSchema: manageCheckinInput,
       execute: async (rawArgs) => {
         const normalized = normalizeActionArgs(
@@ -1021,6 +1025,43 @@ Actions:
                 current_streak_days: history.streak,
                 best_streak_days: history.best_streak,
                 days: history.days,
+              });
+            }
+
+            case 'list_immunizations': {
+              if (
+                args.start_date &&
+                args.end_date &&
+                args.start_date > args.end_date
+              ) {
+                return ERRORS.VALIDATION(
+                  'start_date must not be after end_date.'
+                );
+              }
+              const today = todayInZone(tz);
+              const records = await listImmunizations(
+                userId,
+                {
+                  startDate: args.start_date,
+                  endDate: args.end_date,
+                  limit: 200,
+                },
+                actorUserIdFor(userId)
+              );
+              return formatJsonResult({
+                count: records.length,
+                immunizations: records.map((record) => ({
+                  vaccine: record.vaccine_name,
+                  vaccine_code: record.vaccine_code,
+                  given_on: record.administered_on,
+                  dose_number: record.dose_number,
+                  lot_number: record.lot_number,
+                  administered_by: record.administered_by,
+                  site: record.site,
+                  next_due_on: record.next_due_on,
+                  due_status: immunizationDueStatus(record.next_due_on, today),
+                  notes: record.notes,
+                })),
               });
             }
 
