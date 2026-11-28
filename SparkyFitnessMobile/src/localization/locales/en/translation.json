@@ -1587,6 +1587,7 @@
       "unit": "Unit",
       "strengthUnitPlaceholder": "mg",
       "doseUnitPlaceholder": "tablet",
+      "calculatedTotalDose": "Total per dose: {{amount}} {{unit}}",
       "details": "Details",
       "reason": "Reason",
       "reasonPlaceholder": "Blood pressure",

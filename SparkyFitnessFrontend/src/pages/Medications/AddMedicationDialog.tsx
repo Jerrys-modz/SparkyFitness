@@ -7,6 +7,7 @@ import {
   GLP1_DRUG_PROFILES,
   normalizeNutrientName,
   resolveMacroFieldKey,
+  calculateTotalMedicationDose,
 } from '@workspace/shared';
 import { TimeInput } from '@/components/ui/TimeInput';
 import { Button } from '@/components/ui/button';
@@ -839,6 +840,34 @@ export default function AddMedicationDialog({
                     disabled={isInjectableGlp1}
                   />
                 </div>
+                {(() => {
+                  const numDose = Number(displayedDoseAmount);
+                  const numStrength = Number(strength);
+                  if (numDose > 0 && numStrength > 0) {
+                    const total = calculateTotalMedicationDose({
+                      dose_amount: numDose,
+                      dose_unit: displayedDoseUnit,
+                      strength_value: numStrength,
+                      strength_unit: strengthUnit,
+                      is_supplement: isSupplement,
+                    });
+                    if (total) {
+                      return (
+                        <p className="text-xs font-medium text-primary">
+                          {t(
+                            'medications.cabinet.calculatedTotalDose',
+                            'Total per dose: {{amount}} {{unit}}',
+                            {
+                              amount: total.totalAmount,
+                              unit: total.totalUnit,
+                            }
+                          )}
+                        </p>
+                      );
+                    }
+                  }
+                  return null;
+                })()}
                 {!doseTouched && (
                   <p className="text-xs text-muted-foreground">
                     {t(

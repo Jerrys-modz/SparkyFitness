@@ -65,7 +65,9 @@ describe('MedicationRow', () => {
     );
 
     expect(screen.getByText('Lisinopril')).toBeTruthy();
-    expect(screen.getByText('1 tablet · Daily at 8:00 AM')).toBeTruthy();
+    expect(
+      screen.getByText('1 tablet (10 mg) · Daily at 8:00 AM')
+    ).toBeTruthy();
   });
 
   it('summarizes schedule-less medications as as-needed', () => {
@@ -73,7 +75,7 @@ describe('MedicationRow', () => {
       <MedicationRow medication={buildMedication()} onPress={jest.fn()} />
     );
 
-    expect(screen.getByText('1 tablet · As needed')).toBeTruthy();
+    expect(screen.getByText('1 tablet (10 mg) · As needed')).toBeTruthy();
   });
 
   it('fires onPress', () => {

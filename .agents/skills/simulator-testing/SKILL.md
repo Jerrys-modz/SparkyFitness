@@ -14,7 +14,8 @@ How to run SparkyFitness on a simulator, drive it, and check what it did, withou
 - **The user's processes are the user's.** Servers, Metro and builds the user started are not yours to stop. Kill only a PID you started yourself, and check its start time before killing anything on a port.
 - **Ask who starts what.** Default: ask the user to start the server, the web app and the mobile build in their own terminal, so they can watch the output. They prefer to see builds (`pnpm android`, `pnpm ios`). Start things yourself, in the background, only when the user says you may. Then stop what you started when you finish and say so.
 - **Never install software without the user's go-ahead.** If something below is missing, say what it is and why, give the exact command, and let the user run it (or approve it). If a command is refused by a permission check, stop and explain; do not look for a way round it.
-- **Credentials:** ask the user for a test account. Never write a password into a file, a commit or a reply.
+- **Credentials, Secrets & Infrastructure Privacy:** ask the user for a test account. Never write a password, secret token, API key, database credential, or private IP/domain into a file, a commit, or a reply.
+- **Privacy & PII Protection in Screenshots:** Ensure screenshots NEVER capture personally identifiable information (PII) such as real personal names, real email addresses, phone numbers, private medical notes, or sensitive infrastructure details (private hostnames, server IP addresses). Use synthetic/demo accounts (e.g. `testuser@example.com`), and crop, mask, or blur sensitive areas if displaying profile or account views.
 - **Leave the account as you found it.** If a test changes a setting (units, a preference), put it back. Tell the user about test data you created (workouts, entries) and do not delete it unless asked.
 - **Token cost:** prefer text (accessibility dumps, JSON, SQL) to screenshots. When a screenshot is needed, downscale it first: `sips -Z 420 in.png --out out.png` (macOS). Wait with a bounded poll loop, not one long sleep.
 
@@ -74,7 +75,9 @@ Needs Xcode (check the version). Newer Xcode versions may have no `Simulator.app
 
 ## 5. Web app
 
-Ask the user to run `pnpm dev` in `SparkyFitnessFrontend/` (port 8080; it proxies `/api`, `/health-data` and `/uploads` to the server on 3010). For checks without a browser, call the API (section 6). Drive the page with a browser tool only if one is available in the session; do not install one without asking.
+For testing the web application unattended in the background or capturing web screenshots via Playwright, see the dedicated skill `@.agents/skills/playwright-testing/SKILL.md`. It covers running headless Google Chrome without remote debugging, zero-PII/IP redaction, and Vite-safe API interception.
+
+Otherwise, ask the user to run `pnpm dev` in `SparkyFitnessFrontend/` (port 8080 or 5173; it proxies `/api`, `/health-data` and `/uploads` to the server on 3010). For checks without a browser, call the API (section 6). Drive the page with a browser tool only if one is available in the session; do not install one without asking.
 
 ## 6. Check the result on the server
 

@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import {
   todayInZone,
-  formatDose,
+  formatDoseWithTotal,
+  calculateTotalMedicationDose,
   type MedicationWithMeal,
 } from '@workspace/shared';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -296,6 +297,30 @@ export default function ScheduleManager({ med }: { med: MedicationDetail }) {
                       : (med.dose_unit ?? med.type_id)}
                   </span>
                 </div>
+                {(() => {
+                  const numDose = Number(doseAmount || med.dose_amount);
+                  const numStrength = Number(med.strength_value);
+                  if (numDose > 0 && numStrength > 0) {
+                    const total = calculateTotalMedicationDose(med, {
+                      dose_amount: numDose,
+                    });
+                    if (total) {
+                      return (
+                        <p className="text-xs font-medium text-primary">
+                          {t(
+                            'medications.cabinet.calculatedTotalDose',
+                            'Total per dose: {{amount}} {{unit}}',
+                            {
+                              amount: total.totalAmount,
+                              unit: total.totalUnit,
+                            }
+                          )}
+                        </p>
+                      );
+                    }
+                  }
+                  return null;
+                })()}
                 {doseScaling && (
                   <p className="text-xs text-muted-foreground">
                     {doseScaling.calories != null
@@ -573,7 +598,7 @@ export default function ScheduleManager({ med }: { med: MedicationDetail }) {
                     </span>
                     {sched.dose_amount != null && (
                       <span className="text-xs text-muted-foreground ml-2">
-                        (<span>{formatDose(med, sched)}</span>)
+                        (<span>{formatDoseWithTotal(med, sched)}</span>)
                       </span>
                     )}
                   </div>

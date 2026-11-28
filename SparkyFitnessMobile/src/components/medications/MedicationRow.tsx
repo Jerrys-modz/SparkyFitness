@@ -2,9 +2,11 @@ import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useCSSVariable } from 'uniwind';
-import { formatDose, type Medication } from '@workspace/shared';
+import type { Medication } from '@workspace/shared';
 import { countNutrients } from '../../utils/supplements';
 import { localizedDescribeSchedules } from '../../utils/medicationScheduleLocalization';
+import { formatLocalizedDoseWithTotal } from '../../utils/medicationLocalization';
+import { useAppLocale } from '../../localization';
 import Icon from '../Icon';
 
 interface MedicationRowProps {
@@ -18,6 +20,7 @@ const MedicationRow: React.FC<MedicationRowProps> = ({
   onPress,
 }) => {
   const { t } = useTranslation();
+  const appLocale = useAppLocale();
   const [iconDecorative] = useCSSVariable(['--color-icon-decorative']) as [
     string,
   ];
@@ -25,7 +28,7 @@ const MedicationRow: React.FC<MedicationRowProps> = ({
     ? countNutrients(medication.nutrients)
     : 0;
   const summary = [
-    formatDose(medication),
+    formatLocalizedDoseWithTotal(medication, null, appLocale),
     nutrientCount > 0
       ? t('medications.supplement.nutrientCount', {
           defaultValue: '{{count}} nutrients',

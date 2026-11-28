@@ -39,12 +39,14 @@ import { prepareLabelPhoto } from '../utils/labelPhoto';
 import { useExternalProviders } from '../hooks/useExternalProviders';
 import { usePreferences } from '../hooks/usePreferences';
 import { parseDecimalInput } from '../utils/numericInput';
+import { formatLocalizedNumber } from '../localization';
 import TimeSheet, { type TimeSheetRef } from '../components/TimeSheet';
 import {
   GLP1_DRUG_PROFILES,
   SUPPLEMENT_LOOKUP_PROVIDER_TYPE,
   type SupplementLookupProduct,
   type CreateScheduleInput,
+  calculateTotalMedicationDose,
 } from '@workspace/shared';
 import FormInput from '../components/FormInput';
 import Icon from '../components/Icon';
@@ -597,9 +599,11 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
       }
 
       const strengthNum = form.strengthValue
-        ? parseFloat(form.strengthValue)
+        ? parseDecimalInput(form.strengthValue)
         : null;
-      const doseNum = form.doseAmount ? parseFloat(form.doseAmount) : null;
+      const doseNum = form.doseAmount
+        ? parseDecimalInput(form.doseAmount)
+        : null;
 
       if (
         !isSupplement &&
@@ -1040,6 +1044,9 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
                   </Text>
                   <FormInput
                     placeholder="1"
+                    accessibilityLabel={t('medications.form.dose', {
+                      defaultValue: 'Dose',
+                    })}
                     value={form.doseAmount}
                     onChangeText={(v) => updateField('doseAmount', v)}
                     keyboardType="decimal-pad"
@@ -1058,6 +1065,39 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
                   />
                 </View>
               </View>
+
+              {(() => {
+                const numDose = parseDecimalInput(form.doseAmount);
+                const numStrength = parseDecimalInput(form.strengthValue);
+                if (
+                  !Number.isNaN(numDose) &&
+                  !Number.isNaN(numStrength) &&
+                  numDose > 0 &&
+                  numStrength > 0
+                ) {
+                  const total = calculateTotalMedicationDose({
+                    dose_amount: numDose,
+                    dose_unit: form.doseUnit,
+                    strength_value: numStrength,
+                    strength_unit: form.strengthUnit,
+                    is_supplement: isSupplement,
+                  });
+                  if (total) {
+                    return (
+                      <Text className="text-accent-primary text-xs font-medium">
+                        {t('medications.form.calculatedTotalDose', {
+                          defaultValue: 'Total per dose: {{amount}} {{unit}}',
+                          amount: formatLocalizedNumber(total.totalAmount, {
+                            maximumSignificantDigits: 7,
+                          }),
+                          unit: total.totalUnit,
+                        })}
+                      </Text>
+                    );
+                  }
+                }
+                return null;
+              })()}
 
               {/* Schedule & Dosing times (only when creating a new medication) */}
               {!medicationId && (
@@ -1189,6 +1229,41 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
                               }
                               keyboardType="decimal-pad"
                             />
+                            {(() => {
+                              const slotDose = parseDecimalInput(
+                                slot.doseOverride || form.doseAmount
+                              );
+                              const numStrength = parseDecimalInput(
+                                form.strengthValue
+                              );
+                              if (
+                                !Number.isNaN(slotDose) &&
+                                !Number.isNaN(numStrength) &&
+                                slotDose > 0 &&
+                                numStrength > 0
+                              ) {
+                                const total = calculateTotalMedicationDose({
+                                  dose_amount: slotDose,
+                                  dose_unit: form.doseUnit,
+                                  strength_value: numStrength,
+                                  strength_unit: form.strengthUnit,
+                                  is_supplement: isSupplement,
+                                });
+                                if (total) {
+                                  return (
+                                    <Text className="text-accent-primary text-[10px] mt-0.5 font-medium">
+                                      {`${formatLocalizedNumber(
+                                        total.totalAmount,
+                                        {
+                                          maximumSignificantDigits: 7,
+                                        }
+                                      )} ${total.totalUnit}`}
+                                    </Text>
+                                  );
+                                }
+                              }
+                              return null;
+                            })()}
                           </View>
 
                           {scheduleTimes.length > 1 && (

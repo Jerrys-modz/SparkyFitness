@@ -162,7 +162,9 @@ describe('MedicationsListScreen', () => {
     const screen = setupScreen([buildMedication()]);
 
     expect(screen.getByText('Lisinopril')).toBeTruthy();
-    expect(screen.getByText('1 tablet · Daily at 8:00 AM')).toBeTruthy();
+    expect(
+      screen.getByText('1 tablet (10 mg) · Daily at 8:00 AM')
+    ).toBeTruthy();
     expect(screen.queryByText(/Inactive/)).toBeNull();
   });
 

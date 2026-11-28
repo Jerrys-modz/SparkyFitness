@@ -1,4 +1,4 @@
-import { formatDose, getDueDosesForDate } from '@workspace/shared';
+import { formatDoseWithTotal, getDueDosesForDate } from '@workspace/shared';
 import type { MedicationDetail, MedicationEntry } from '@workspace/shared';
 import type {
   WatchMedicationDosePayload,
@@ -47,7 +47,7 @@ export function medicationsForWatch(
         medicationId: due.medication.id,
         scheduleId: due.schedule.id,
         name: due.medication.name,
-        detail: formatDose(due.medication, due.schedule) ?? '',
+        detail: formatDoseWithTotal(due.medication, due.schedule) ?? '',
         time: due.schedule.time_of_day
           ? formatLocalizedTimeOfDay(
               due.schedule.time_of_day,
@@ -69,7 +69,7 @@ export function medicationsForWatch(
       medicationId: med.id,
       scheduleId: '',
       name: med.name,
-      detail: formatDose(med) ?? '',
+      detail: formatDoseWithTotal(med) ?? '',
       time: '',
       status: doseSlotStatus(entry),
       supplement: Boolean(med.is_supplement),

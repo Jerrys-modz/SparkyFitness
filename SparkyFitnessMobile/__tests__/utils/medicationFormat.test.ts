@@ -1,5 +1,7 @@
 import {
   formatDose,
+  formatDoseWithTotal,
+  calculateTotalMedicationDose,
   formatStrengthPerUnit,
   formatTimeOfDay,
   formatWithMeal,
@@ -42,6 +44,101 @@ describe('formatDose', () => {
   it('omits a missing unit without trailing whitespace', () => {
     expect(formatDose({ dose_amount: 2, dose_unit: null })).toBe('2');
     expect(formatDose({ dose_amount: 2, dose_unit: '' })).toBe('2');
+  });
+});
+
+describe('calculateTotalMedicationDose & formatDoseWithTotal', () => {
+  it('calculates total mass for countable units like pills and tablets', () => {
+    const med = {
+      dose_amount: 3,
+      dose_unit: 'pills',
+      strength_value: 30,
+      strength_unit: 'mg',
+    };
+    const total = calculateTotalMedicationDose(med);
+    expect(total).toEqual({
+      totalAmount: 90,
+      totalUnit: 'mg',
+      formatted: '90 mg',
+    });
+    expect(formatDoseWithTotal(med)).toBe('3 pills (90 mg)');
+  });
+
+  it('respects schedule dose override when calculating total', () => {
+    const med = {
+      dose_amount: 1,
+      dose_unit: 'tablet',
+      strength_value: 500,
+      strength_unit: 'mg',
+    };
+    const total = calculateTotalMedicationDose(med, { dose_amount: 2 });
+    expect(total).toEqual({
+      totalAmount: 1000,
+      totalUnit: 'mg',
+      formatted: '1000 mg',
+    });
+    expect(formatDoseWithTotal(med, { dose_amount: 2 })).toBe(
+      '2 tablet (1000 mg)'
+    );
+  });
+
+  it('returns null if dose_unit matches strength_unit (already total)', () => {
+    const med = {
+      dose_amount: 30,
+      dose_unit: 'mg',
+      strength_value: 30,
+      strength_unit: 'mg',
+    };
+    expect(calculateTotalMedicationDose(med)).toBeNull();
+    expect(formatDoseWithTotal(med)).toBe('30 mg');
+  });
+
+  it('returns null if strength or dose is missing or zero', () => {
+    expect(
+      calculateTotalMedicationDose({ dose_amount: 3, strength_value: null })
+    ).toBeNull();
+    expect(
+      calculateTotalMedicationDose({ dose_amount: null, strength_value: 30 })
+    ).toBeNull();
+    expect(
+      calculateTotalMedicationDose({
+        dose_amount: 0,
+        strength_value: 30,
+        strength_unit: 'mg',
+      })
+    ).toBeNull();
+  });
+
+  it('preserves small positive totals without rounding to zero', () => {
+    const med = {
+      dose_amount: 1,
+      dose_unit: 'tablet',
+      strength_value: 0.000025,
+      strength_unit: 'g',
+    };
+    const total = calculateTotalMedicationDose(med);
+    expect(total).toEqual({
+      totalAmount: 0.000025,
+      totalUnit: 'g',
+      formatted: '0.000025 g',
+    });
+    expect(formatDoseWithTotal(med)).toBe('1 tablet (0.000025 g)');
+  });
+
+  it('calculates total for supplements with countable dose unit', () => {
+    const supp = {
+      dose_amount: 2,
+      dose_unit: 'capsule',
+      strength_value: 500,
+      strength_unit: 'mg',
+      is_supplement: true,
+    };
+    expect(calculateTotalMedicationDose(supp)).toEqual({
+      totalAmount: 1000,
+      totalUnit: 'mg',
+      formatted: '1000 mg',
+    });
+    expect(formatDoseWithTotal(supp)).toBe('2 capsule (1000 mg)');
   });
 });
 

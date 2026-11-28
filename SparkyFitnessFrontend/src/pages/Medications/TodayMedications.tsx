@@ -27,7 +27,7 @@ import {
   localDateTimeToUtc,
   utcToLocalDateTimeInput,
   visibleDoseCards,
-  formatDose,
+  formatDoseWithTotal,
   INJECTION_SITES,
   type MedSubtype,
   type SharedScheduleRule,
@@ -272,7 +272,10 @@ export default function TodayMedications({
                 entry &&
                 (entry.status === 'taken' || entry.status === 'skipped');
               const isSnoozed = entry && entry.status === 'snoozed';
-              const doseLabel = formatDose(due.medication, due.schedule);
+              const doseLabel = formatDoseWithTotal(
+                due.medication,
+                due.schedule
+              );
 
               return (
                 <div
@@ -462,7 +465,7 @@ export default function TodayMedications({
                           {med.display_name || med.name}
                         </p>
                         <p className="text-[10px] text-muted-foreground">
-                          {formatDose(med) ?? med.type_id}
+                          {formatDoseWithTotal(med) ?? med.type_id}
                         </p>
                       </div>
                     </div>

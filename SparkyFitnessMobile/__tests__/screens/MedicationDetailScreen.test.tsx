@@ -269,7 +269,7 @@ describe('MedicationDetailScreen', () => {
 
     expect(screen.getAllByText('Lisinopril').length).toBeGreaterThan(0);
     expect(screen.getByText('Pill · Blood pressure')).toBeTruthy();
-    expect(screen.getAllByText('1 tablet').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('1 tablet (500 mg)').length).toBeGreaterThan(0);
     expect(screen.getByText('500 mg per tablet')).toBeTruthy();
   });
 
@@ -312,7 +312,9 @@ describe('MedicationDetailScreen', () => {
       buildMedication({ schedules: [buildSchedule({ dose_amount: 2 })] })
     );
 
-    expect(screen.getAllByText('2 tablet').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('2 tablet (1,000 mg)').length).toBeGreaterThan(
+      0
+    );
   });
 
   it('shows a Taken state once the dose is logged', () => {
@@ -356,7 +358,7 @@ describe('MedicationDetailScreen', () => {
     );
 
     expect(screen.getByText('Daily at 8:00 AM')).toBeTruthy();
-    expect(screen.getByText('2 tablet · Before meal')).toBeTruthy();
+    expect(screen.getByText('2 tablet (1,000 mg) · Before meal')).toBeTruthy();
   });
 
   it('notes when nothing is scheduled for the selected day', () => {

@@ -10,6 +10,33 @@ export const DAY_LABELS = [
   'Sat',
 ] as const;
 
+/** Base countable dose units (singular forms). */
+export const COUNTABLE_DOSE_UNITS = new Set([
+  'pill',
+  'tablet',
+  'capsule',
+  'cap',
+  'tab',
+  'softgel',
+  'gummy',
+  'scoop',
+  'drop',
+  'piece',
+]);
+
+/** Normalizes a dose unit string by trimming and stripping common English plural suffixes. */
+function normalizeDoseUnit(unit: string | null | undefined): string {
+  const clean = unit?.trim().toLowerCase() ?? '';
+  if (!clean) return '';
+  if (clean.endsWith('ies') && clean.length > 3) {
+    return `${clean.slice(0, -3)}y`;
+  }
+  if (clean.endsWith('s') && !clean.endsWith('ss') && clean.length > 2) {
+    return clean.slice(0, -1);
+  }
+  return clean;
+}
+
 /** Minimal medication fields needed by the dose formatters. */
 export interface MedicationDoseFields {
   dose_amount?: number | null;
@@ -17,6 +44,70 @@ export interface MedicationDoseFields {
   strength_value?: number | null;
   strength_unit?: string | null;
   is_supplement?: boolean | null;
+}
+
+/**
+ * Calculates total active mass/volume when dose_amount and strength_value are both present
+ * and dose_unit represents a discrete count (e.g. 3 pills of 30 mg = 90 mg).
+ *
+ * Returns null when:
+ * - Either dose_amount or strength_value is missing or <= 0
+ * - strength_unit is missing
+ * - dose_unit matches strength_unit (already expressed in total mass/potency)
+ * - dose_unit is not a recognized countable unit and is not empty/null/count
+ */
+export function calculateTotalMedicationDose(
+  med: MedicationDoseFields,
+  schedule?: Pick<SharedScheduleRule, 'dose_amount'> | null
+): { totalAmount: number; totalUnit: string; formatted: string } | null {
+  const dose =
+    schedule != null && schedule.dose_amount != null
+      ? schedule.dose_amount
+      : med.dose_amount;
+  const strength = med.strength_value;
+  const strengthUnit = med.strength_unit?.trim();
+
+  if (
+    dose == null ||
+    strength == null ||
+    !Number.isFinite(dose) ||
+    !Number.isFinite(strength) ||
+    dose <= 0 ||
+    strength <= 0 ||
+    !strengthUnit
+  ) {
+    return null;
+  }
+
+  const doseUnitLower = med.dose_unit?.trim().toLowerCase() ?? '';
+  const normalizedDoseUnit = normalizeDoseUnit(med.dose_unit);
+  const strengthUnitLower = strengthUnit.toLowerCase();
+
+  // If dose_unit is the same unit as strength (e.g. 30 mg dose of 30 mg strength),
+  // it is already expressed in that unit, so multiplying would be wrong.
+  if (doseUnitLower !== '' && doseUnitLower === strengthUnitLower) {
+    return null;
+  }
+
+  // Countable units or empty/null dose_unit (dimensionless multiplier)
+  const isCountable =
+    doseUnitLower === '' ||
+    COUNTABLE_DOSE_UNITS.has(normalizedDoseUnit) ||
+    med.is_supplement === true;
+
+  if (!isCountable) {
+    return null;
+  }
+
+  const rawTotal = dose * strength;
+  // Eliminate floating point artifacts (e.g. 0.1 * 0.2 = 0.020000000000000004) while preserving small positive values
+  const totalAmount = parseFloat(rawTotal.toPrecision(7));
+  const formatted = `${totalAmount} ${strengthUnit}`;
+  return {
+    totalAmount,
+    totalUnit: strengthUnit,
+    formatted,
+  };
 }
 
 /**
@@ -84,6 +175,24 @@ export function formatDose(
     return joinAmountUnit(med.strength_value, med.strength_unit);
   }
   return null;
+}
+
+/**
+ * Formats dose with calculated total in parentheses when available, e.g. "3 pills (90 mg)".
+ * Falls back to standard formatDose if total cannot be calculated.
+ */
+export function formatDoseWithTotal(
+  med: MedicationDoseFields,
+  schedule?: Pick<SharedScheduleRule, 'dose_amount'> | null
+): string | null {
+  const baseDose = formatDose(med, schedule);
+  if (!baseDose) return null;
+
+  const total = calculateTotalMedicationDose(med, schedule);
+  if (total) {
+    return `${baseDose} (${total.formatted})`;
+  }
+  return baseDose;
 }
 
 /**

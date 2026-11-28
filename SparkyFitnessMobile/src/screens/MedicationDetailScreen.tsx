@@ -13,7 +13,7 @@ import {
   useLogDose,
 } from '../hooks/useMedications';
 import { useCustomNutrients } from '../hooks/useCustomNutrients';
-import { formatLocalizedNumber } from '../localization';
+import { formatLocalizedNumber, useAppLocale } from '../localization';
 import { rowsFromNutrients } from '../utils/supplements';
 import { usePreferences } from '../hooks/usePreferences';
 import { useDiaryDateStore } from '../stores/diaryDateStore';
@@ -21,11 +21,7 @@ import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import Icon from '../components/Icon';
 import DoseRow from '../components/medications/DoseRow';
-import {
-  getDueDosesForDate,
-  formatDose,
-  formatStrengthPerUnit,
-} from '@workspace/shared';
+import { getDueDosesForDate, formatStrengthPerUnit } from '@workspace/shared';
 import {
   localizedDescribeSchedule,
   formatLocalizedTimeOfDay,
@@ -34,6 +30,7 @@ import { formatDateToTimeLabel } from '../utils/entryTimeDisplay';
 import { getDeviceTimezone, formatDateLabel } from '../utils/dateUtils';
 import type { RootStackScreenProps } from '../types/navigation';
 import {
+  formatLocalizedDoseWithTotal,
   medicationTypeLabel,
   mealTimingLabel,
 } from '../utils/medicationLocalization';
@@ -207,7 +204,10 @@ const MedicationDetailScreen: React.FC<MedicationDetailScreenProps> = ({
     [med?.nutrients, customNutrientDefs, customLoading]
   );
   const typeLabel = med ? medicationTypeLabel(med.type_id, t) : '';
-  const doseLabel = med ? formatDose(med) : null;
+  const appLocale = useAppLocale();
+  const doseLabel = med
+    ? formatLocalizedDoseWithTotal(med, null, appLocale)
+    : null;
   const strengthLabel = med ? formatStrengthPerUnit(med) : null;
   const contextLine = [typeLabel, med?.reason_text].filter(Boolean).join(' · ');
 
@@ -287,7 +287,11 @@ const MedicationDetailScreen: React.FC<MedicationDetailScreenProps> = ({
                         )
                   }
                   subtitle={
-                    formatDose(due.medication, due.schedule) ?? undefined
+                    formatLocalizedDoseWithTotal(
+                      due.medication,
+                      due.schedule,
+                      appLocale
+                    ) ?? undefined
                   }
                 />
               ))}
@@ -307,7 +311,10 @@ const MedicationDetailScreen: React.FC<MedicationDetailScreenProps> = ({
                     title={t('medications.detail.asNeeded', {
                       defaultValue: 'As needed',
                     })}
-                    subtitle={formatDose(med) ?? undefined}
+                    subtitle={
+                      formatLocalizedDoseWithTotal(med, null, appLocale) ??
+                      undefined
+                    }
                   />
                   {todayPrnDoses.map((dose) => (
                     <View
@@ -407,7 +414,11 @@ const MedicationDetailScreen: React.FC<MedicationDetailScreenProps> = ({
                 sched.dose_amount != null &&
                 sched.dose_amount !== med.dose_amount
               ) {
-                const scheduleDose = formatDose(med, sched);
+                const scheduleDose = formatLocalizedDoseWithTotal(
+                  med,
+                  sched,
+                  appLocale
+                );
                 if (scheduleDose != null) parts.push(scheduleDose);
               }
               if (sched.with_meal)

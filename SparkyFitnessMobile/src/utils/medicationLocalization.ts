@@ -1,9 +1,38 @@
 import type { TFunction } from 'i18next';
 import {
   formatDose,
+  calculateTotalMedicationDose,
   type Medication,
   type SharedScheduleRule,
+  type MedicationDoseFields,
 } from '@workspace/shared';
+import { formatLocalizedNumber } from '../localization';
+
+/**
+ * Formats dose with localized calculated total, e.g. "3 pills (1,5 mg)" in European locales
+ * or "3 pills (1.5 mg)" in English.
+ */
+export function formatLocalizedDoseWithTotal(
+  med: MedicationDoseFields,
+  schedule?: Pick<SharedScheduleRule, 'dose_amount'> | null,
+  locale?: string
+): string | null {
+  const baseDose = formatDose(med, schedule);
+  if (!baseDose) return null;
+
+  const total = calculateTotalMedicationDose(med, schedule);
+  if (total) {
+    const formattedAmount = locale
+      ? total.totalAmount.toLocaleString(locale, {
+          maximumSignificantDigits: 7,
+        })
+      : formatLocalizedNumber(total.totalAmount, {
+          maximumSignificantDigits: 7,
+        });
+    return `${baseDose} (${formattedAmount} ${total.totalUnit})`;
+  }
+  return baseDose;
+}
 
 export function medicationTypeLabel(
   typeId: string | null | undefined,
@@ -185,7 +214,7 @@ export function medicationDoseSubtitle(
 ): string {
   const parts = [
     medicationTypeLabel(med.type_id, t),
-    formatDose(med, schedule),
+    formatLocalizedDoseWithTotal(med, schedule),
   ];
   if (schedule?.with_meal) {
     parts.push(mealTimingLabel(schedule.with_meal, t));

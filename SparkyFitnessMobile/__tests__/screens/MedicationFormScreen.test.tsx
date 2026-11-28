@@ -1055,4 +1055,19 @@ describe('MedicationFormScreen — converting to a supplement', () => {
     );
     expect(mockUpdateScheduleAsync).not.toHaveBeenCalled();
   });
+
+  it('renders calculated total dose preview when strength and dose are countable', async () => {
+    setup();
+    const screen = renderScreen();
+
+    const strengthInput = screen.getByPlaceholderText('10');
+    const doseInput = screen.getByLabelText('Dose');
+
+    fireEvent.changeText(strengthInput, '30');
+    fireEvent.changeText(doseInput, '3');
+
+    await waitFor(() => {
+      expect(screen.getByText('Total per dose: 90 mg')).toBeTruthy();
+    });
+  });
 });

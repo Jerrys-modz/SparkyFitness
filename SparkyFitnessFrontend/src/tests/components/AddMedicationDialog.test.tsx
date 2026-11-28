@@ -5,7 +5,25 @@ import type { Medication } from '@/types/medications';
 
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (_key: string, defaultValue?: string) => defaultValue,
+    t: (
+      _key: string,
+      defaultValueOrOptions?: string | Record<string, unknown>,
+      options?: Record<string, unknown>
+    ) => {
+      const template =
+        typeof defaultValueOrOptions === 'string'
+          ? defaultValueOrOptions
+          : _key;
+      const opts =
+        typeof defaultValueOrOptions === 'object'
+          ? defaultValueOrOptions
+          : options;
+      if (!opts) return template;
+      return Object.entries(opts).reduce(
+        (acc, [k, v]) => acc.replace(new RegExp(`{{${k}}}`, 'g'), String(v)),
+        template
+      );
+    },
   }),
   initReactI18next: { type: '3rdParty', init: jest.fn() },
 }));
@@ -388,5 +406,16 @@ describe('AddMedicationDialog dose fields', () => {
       dose_amount: 1.7,
       dose_unit: 'mg',
     });
+  });
+
+  it('displays calculated total dose preview when dose and strength are countable', () => {
+    render(<AddMedicationDialog />);
+    openDialog();
+
+    setField('Strength', '30');
+    setField('Dose', '3');
+    setField('Dose unit', 'pills');
+
+    expect(screen.getByText('Total per dose: 90 mg')).toBeInTheDocument();
   });
 });

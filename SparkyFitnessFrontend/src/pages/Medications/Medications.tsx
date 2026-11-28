@@ -19,7 +19,7 @@ import {
   todayInZone,
   addDays,
   getDueDosesForDate,
-  formatDose,
+  formatDoseWithTotal,
   formatStrengthPerUnit,
   filterEntriesBySubtype,
   filterMedsBySubtype,
@@ -443,7 +443,7 @@ export default function Medications() {
                           {med.display_name || med.name}
                         </p>
                         <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
-                          <span>{formatDose(med) ?? med.type_id}</span>
+                          <span>{formatDoseWithTotal(med) ?? med.type_id}</span>
                           {med.schedules && med.schedules.length > 0 && (
                             <>
                               <span>·</span>
@@ -537,7 +537,7 @@ export default function Medications() {
                         </div>
                         <CardDescription className="text-xs mt-0.5">
                           {[
-                            formatDose(selected),
+                            formatDoseWithTotal(selected),
                             formatStrengthPerUnit(selected),
                           ]
                             .filter(Boolean)
