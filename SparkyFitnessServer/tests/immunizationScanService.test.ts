@@ -65,6 +65,26 @@ describe('normalizeImmunizations', () => {
     expect(result?.records[0]?.dose_number).toBeNull();
   });
 
+  it('drops a vaccine dated after the persons today', () => {
+    const result = normalizeImmunizations(
+      {
+        records: [
+          { vaccine_name: 'Booked', administered_on: '2026-12-01' },
+          { vaccine_name: 'Given', administered_on: '2026-11-28' },
+        ],
+      },
+      '2026-11-28'
+    );
+    expect(result?.records.map((r) => r.vaccine_name)).toEqual(['Given']);
+  });
+
+  it('keeps future dates when no today is given', () => {
+    const result = normalizeImmunizations({
+      records: [{ vaccine_name: 'Booked', administered_on: '2999-01-01' }],
+    });
+    expect(result?.records).toHaveLength(1);
+  });
+
   it('returns null when nothing usable is left', () => {
     expect(normalizeImmunizations({ records: [] })).toBeNull();
     expect(normalizeImmunizations('nope')).toBeNull();
@@ -116,6 +136,23 @@ describe('extractImmunizations', () => {
     const options = vi.mocked(extractDocumentJson).mock.calls[0]?.[0];
     expect(options?.prompt).toContain('vaccine');
     expect(options?.logLabel).toBe('Immunization scan');
+  });
+
+  it('hands the day it was given to the normalizer', async () => {
+    vi.mocked(extractDocumentJson).mockResolvedValue({
+      success: true,
+      json: {
+        records: [{ vaccine_name: 'Booked', administered_on: '2026-12-01' }],
+      },
+    });
+    const result = await extractImmunizations(
+      'b64',
+      'application/pdf',
+      'u1',
+      false,
+      '2026-11-28'
+    );
+    expect(result).toMatchObject({ success: false, category: 'parse_error' });
   });
 
   it('passes a reader failure through unchanged', async () => {

@@ -81,7 +81,10 @@ const ImmunizationFormScreen: React.FC<Props> = ({ navigation, route }) => {
   const doseValid =
     doseNumber === null ||
     (Number.isInteger(doseNumber) && doseNumber >= 1 && doseNumber <= 20);
-  const dateValid = compareDays(date, getTodayDate()) <= 0;
+  // A saved record keeps the date it has (one a scan read can be dated ahead);
+  // only a date typed now must not be in the future.
+  const dateValid =
+    date === record?.administered_on || compareDays(date, getTodayDate()) <= 0;
   const dueValid = nextDue === null || compareDays(nextDue, date) >= 0;
   const canSave =
     name.trim() !== '' && doseValid && dateValid && dueValid && !save.isPending;
@@ -98,7 +101,6 @@ const ImmunizationFormScreen: React.FC<Props> = ({ navigation, route }) => {
       site: orNull(site),
       next_due_on: nextDue,
       notes: orNull(notes),
-      source: record?.source ?? 'manual',
     };
     try {
       await save.mutateAsync({ id: record?.id, body });

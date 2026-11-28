@@ -7,15 +7,40 @@ import type {
   UpdateImmunizationBody,
 } from '@workspace/shared';
 import { apiFetch } from './apiClient';
+import { putCacheRows } from '../../offline/cacheStore';
+import {
+  CACHE_COLLECTIONS,
+  SINGLE_DOCUMENT_KEY,
+} from '../../offline/collections';
+import { readSavedSingle } from '../../offline/foodLibrary';
+import { withOfflineFallback } from '../../offline/withOfflineFallback';
 import { AI_TIMEOUT_MS } from '../../utils/concurrency';
 
 const SERVICE = 'Immunizations API';
 
+/**
+ * The person's records, newest first. With no connection the copy the phone
+ * kept from the last answer is used (#1983), so the list and the reminders
+ * still work offline.
+ */
 export const fetchImmunizations = (): Promise<ImmunizationResponse[]> =>
-  apiFetch<ImmunizationResponse[]>({
-    endpoint: '/api/v2/immunizations',
-    serviceName: SERVICE,
-    operation: 'fetch immunizations',
+  withOfflineFallback<ImmunizationResponse[]>({
+    fetch: () =>
+      apiFetch<ImmunizationResponse[]>({
+        endpoint: '/api/v2/immunizations',
+        serviceName: SERVICE,
+        operation: 'fetch immunizations',
+      }),
+    store: (db, serverConfigId, records) =>
+      putCacheRows(db, serverConfigId, CACHE_COLLECTIONS.immunizations, [
+        { key: SINGLE_DOCUMENT_KEY, payload: records },
+      ]),
+    read: (db, serverConfigId) =>
+      readSavedSingle<ImmunizationResponse[]>(
+        db,
+        serverConfigId,
+        CACHE_COLLECTIONS.immunizations
+      ),
   });
 
 export const createImmunization = (

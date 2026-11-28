@@ -11,8 +11,14 @@ const valid = {
 };
 
 describe('createImmunizationBodySchema', () => {
-  it('accepts a minimal record and defaults the source to manual', () => {
-    expect(createImmunizationBodySchema.parse(valid).source).toBe('manual');
+  it('accepts a minimal record', () => {
+    expect(createImmunizationBodySchema.safeParse(valid).success).toBe(true);
+  });
+
+  it('drops a source a client sends, so only an import can write one', () => {
+    expect(
+      createImmunizationBodySchema.parse({ ...valid, source: 'import' })
+    ).not.toHaveProperty('source');
   });
 
   it('accepts every optional field', () => {
@@ -26,7 +32,6 @@ describe('createImmunizationBodySchema', () => {
         site: 'Left arm',
         next_due_on: '2027-10-01',
         notes: 'Annual',
-        source: 'import',
       }).success
     ).toBe(true);
   });
@@ -75,13 +80,6 @@ describe('createImmunizationBodySchema', () => {
           .success
       ).toBe(false);
     }
-  });
-
-  it('rejects an unknown source', () => {
-    expect(
-      createImmunizationBodySchema.safeParse({ ...valid, source: 'fhir' })
-        .success
-    ).toBe(false);
   });
 });
 

@@ -53,11 +53,13 @@ function asDose(value: unknown): number | null {
 
 /**
  * Shapes a model's JSON into the extraction contract. A record without a name
- * or a real date is dropped; loose optional values become null. Returns null
+ * or a real date is dropped, and so is one dated after `today` (the person's
+ * day, when given); loose optional values become null. Returns null
  * when nothing usable is left.
  */
 export function normalizeImmunizations(
-  raw: unknown
+  raw: unknown,
+  today?: string
 ): ImmunizationExtraction | null {
   if (typeof raw !== 'object' || raw === null) return null;
   const source = raw as Record<string, unknown>;
@@ -68,6 +70,8 @@ export function normalizeImmunizations(
       const vaccine_name = asText(item.vaccine_name);
       const administered_on = asDate(item.administered_on);
       if (!vaccine_name || !administered_on) return [];
+      // A vaccine not given yet (a booked appointment) is not a record.
+      if (today && administered_on > today) return [];
       return [
         {
           vaccine_name,
@@ -107,7 +111,8 @@ export async function extractImmunizations(
   base64Document: string,
   mimeType: string,
   userId: string,
-  actorIsAdmin = false
+  actorIsAdmin = false,
+  today?: string
 ): Promise<ExtractImmunizationsResult> {
   const read = await extractDocumentJson({
     base64Document,
@@ -121,7 +126,7 @@ export async function extractImmunizations(
     logLabel: 'Immunization scan',
   });
   if (!read.success) return read;
-  const extraction = normalizeImmunizations(read.json);
+  const extraction = normalizeImmunizations(read.json, today);
   if (!extraction) {
     return {
       success: false,

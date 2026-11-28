@@ -27,6 +27,10 @@ vi.mock('../services/immunizationScanService.js', () => ({
   ),
 }));
 
+vi.mock('../utils/timezoneLoader.js', () => ({
+  loadUserTimezone: vi.fn().mockResolvedValue('UTC'),
+}));
+
 vi.mock('../utils/adminCheck.js', () => ({
   resolveIsAdmin: vi.fn().mockResolvedValue(false),
 }));
@@ -117,9 +121,21 @@ describe('Immunization routes (v2)', () => {
     expect(res.statusCode).toBe(201);
     expect(repo.createImmunization).toHaveBeenCalledWith(
       'test-user-id',
-      expect.objectContaining({ vaccine_name: 'Influenza', source: 'manual' }),
+      expect.objectContaining({ vaccine_name: 'Influenza' }),
       'test-user-id'
     );
+  });
+
+  it('does not pass on a source a client sends', async () => {
+    vi.mocked(repo.createImmunization).mockResolvedValue(record);
+    await request(app).post('/api/v2/immunizations').send({
+      vaccine_name: 'Influenza',
+      administered_on: '2026-10-01',
+      source: 'import',
+    });
+    expect(
+      vi.mocked(repo.createImmunization).mock.calls[0]?.[1]
+    ).not.toHaveProperty('source');
   });
 
   it('rejects a record without a date', async () => {
@@ -207,6 +223,19 @@ describe('Immunization routes (v2)', () => {
         already_recorded: false,
       });
       expect(repo.createImmunization).not.toHaveBeenCalled();
+    });
+
+    it("hands the scan the person's today so a booked appointment is dropped", async () => {
+      vi.mocked(extractImmunizations).mockResolvedValue({
+        success: true,
+        extraction,
+      });
+      vi.mocked(repo.listImmunizations).mockResolvedValue([]);
+      await request(app)
+        .post('/api/v2/immunizations/scan')
+        .send({ document: 'abc', mime_type: 'application/pdf' });
+      const today = vi.mocked(extractImmunizations).mock.calls[0]?.[4];
+      expect(today).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     });
 
     it('maps a scan failure to its status', async () => {

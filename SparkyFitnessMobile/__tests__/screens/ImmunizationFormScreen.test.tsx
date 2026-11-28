@@ -88,8 +88,8 @@ describe('ImmunizationFormScreen', () => {
       dose_number: null,
       lot_number: null,
       next_due_on: null,
-      source: 'manual',
     });
+    expect(body).not.toHaveProperty('source');
     expect(goBack).toHaveBeenCalled();
   });
 
@@ -140,7 +140,40 @@ describe('ImmunizationFormScreen', () => {
       vaccine_name: 'MMR',
       dose_number: 1,
       lot_number: 'AB1',
-      source: 'import',
     });
+  });
+
+  it('lets a saved record dated ahead be saved without changing its date', async () => {
+    const immunization = {
+      id: 'i9',
+      user_id: 'u1',
+      vaccine_name: 'Booked',
+      vaccine_code: null,
+      administered_on: '2999-01-01',
+      dose_number: null,
+      lot_number: null,
+      administered_by: null,
+      site: null,
+      next_due_on: null,
+      notes: null,
+      source: 'import',
+      created_at: '2020-05-04T10:00:00.000Z',
+      updated_at: '2020-05-04T10:00:00.000Z',
+    };
+    const screen = render(
+      <ImmunizationFormScreen
+        navigation={navigation}
+        route={{ params: { immunization } } as never}
+      />
+    );
+    expect(
+      screen.getByLabelText('save-bar').props.accessibilityState.disabled
+    ).toBe(false);
+    fireEvent.changeText(screen.getByLabelText('Lot number'), 'X1');
+    fireEvent.press(screen.getByLabelText('save-bar'));
+    await waitFor(() => expect(mutateAsync).toHaveBeenCalled());
+    expect(mutateAsync.mock.calls[0][0].body.administered_on).toBe(
+      '2999-01-01'
+    );
   });
 });

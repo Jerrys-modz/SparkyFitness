@@ -70,7 +70,12 @@ const ImmunizationDialog = ({
       setError(t('immunizations.dateRequired', 'Enter the date it was given.'));
       return;
     }
-    if (compareDays(date, todayInZone(timezone)) > 0) {
+    // A saved record keeps the date it has (one a scan read can be dated
+    // ahead); only a date typed now must not be in the future.
+    if (
+      date !== immunization?.administered_on &&
+      compareDays(date, todayInZone(timezone)) > 0
+    ) {
       setError(
         t('immunizations.dateFuture', 'The date given cannot be in the future.')
       );
@@ -110,7 +115,6 @@ const ImmunizationDialog = ({
       site: orNull(site),
       next_due_on: nextDue === '' ? null : nextDue,
       notes: orNull(notes),
-      source: immunization?.source ?? 'manual',
     };
     save.mutate(
       { id: immunization?.id, body },

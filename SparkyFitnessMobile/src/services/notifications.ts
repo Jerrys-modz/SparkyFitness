@@ -11,6 +11,7 @@ import {
   ORAL_CARE_REMINDER_KIND,
 } from '../utils/checkinReminderTimes';
 import { CHALLENGE_WEEK_LEADER_KIND } from '../utils/challenges';
+import { IMMUNIZATION_REMINDER_KIND } from '../utils/immunizationReminders';
 import i18n from '../localization/i18n';
 import { fireSuccessHaptic } from './haptics';
 import {
@@ -360,6 +361,7 @@ export async function initNotifications(): Promise<void> {
         const isMoodCheckin =
           kind === MOOD_CHECKIN_KIND ||
           kind === ORAL_CARE_REMINDER_KIND ||
+          kind === IMMUNIZATION_REMINDER_KIND ||
           kind === CHALLENGE_WEEK_LEADER_KIND;
         // iOS also runs this while the app is frontmost-but-inactive (screen
         // locking, app switcher), where the chime never plays — so there the

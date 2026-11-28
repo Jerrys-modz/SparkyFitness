@@ -116,6 +116,9 @@ const VALID_ACTIONS = [
   'list_immunizations',
 ];
 
+/** How many vaccines `list_immunizations` returns before it says it was cut off. */
+const LIST_IMMUNIZATIONS_LIMIT = 200;
+
 // Optional inputs and nullable DB columns are treated alike: absent.
 function isSet<T>(value: T | null | undefined): value is T {
   return value !== null && value !== undefined;
@@ -1039,17 +1042,26 @@ Actions:
                 );
               }
               const today = todayInZone(tz);
-              const records = await listImmunizations(
+              const all = await listImmunizations(
                 userId,
                 {
                   startDate: args.start_date,
                   endDate: args.end_date,
-                  limit: 200,
+                  // One more than is shown, to know the list was cut off.
+                  limit: LIST_IMMUNIZATIONS_LIMIT + 1,
                 },
                 actorUserIdFor(userId)
               );
+              const truncated = all.length > LIST_IMMUNIZATIONS_LIMIT;
+              const records = all.slice(0, LIST_IMMUNIZATIONS_LIMIT);
               return formatJsonResult({
                 count: records.length,
+                ...(truncated
+                  ? {
+                      truncated: true,
+                      note: `Only the newest ${LIST_IMMUNIZATIONS_LIMIT} are shown; narrow start_date and end_date to see older ones.`,
+                    }
+                  : {}),
                 immunizations: records.map((record) => ({
                   vaccine: record.vaccine_name,
                   vaccine_code: record.vaccine_code,

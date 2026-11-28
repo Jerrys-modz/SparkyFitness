@@ -34,10 +34,7 @@ const dueAfterGivenIssue = {
 };
 
 export const createImmunizationBodySchema = z
-  .object({
-    ...immunizationFields,
-    source: immunizationSourceSchema.default('manual'),
-  })
+  .object(immunizationFields)
   .refine(dueAfterGiven, dueAfterGivenIssue);
 export type CreateImmunizationBody = z.infer<
   typeof createImmunizationBodySchema

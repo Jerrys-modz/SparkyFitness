@@ -116,7 +116,9 @@ export async function createImmunization(
         data.site ?? null,
         data.next_due_on ?? null,
         data.notes ?? null,
-        data.source,
+        // Only an import (`importImmunizations`) writes `import`; a record
+        // made through this route is always the person's own entry.
+        'manual',
         authenticatedUserId ?? userId,
       ]
     );

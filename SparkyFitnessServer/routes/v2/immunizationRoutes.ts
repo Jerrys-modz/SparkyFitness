@@ -11,7 +11,9 @@ import {
 import { authenticate } from '../../middleware/authMiddleware.js';
 import onBehalfOfMiddleware from '../../middleware/onBehalfOfMiddleware.js';
 import checkPermissionMiddleware from '../../middleware/checkPermissionMiddleware.js';
+import { todayInZone } from '@workspace/shared';
 import { resolveIsAdmin } from '../../utils/adminCheck.js';
+import { loadUserTimezone } from '../../utils/timezoneLoader.js';
 import { createUserRateLimiter } from '../../utils/userRateLimiter.js';
 import {
   extractImmunizations,
@@ -127,7 +129,8 @@ router.post('/scan', async (req, res, next) => {
       body.data.document,
       body.data.mime_type,
       req.userId,
-      isAdmin
+      isAdmin,
+      todayInZone(await loadUserTimezone(targetUserId))
     );
     if (!result.success) {
       const status = SCAN_ERROR_HTTP_STATUS[result.category] ?? 500;

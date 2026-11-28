@@ -94,8 +94,10 @@ describe('Immunizations page', () => {
       vaccine_name: 'Tdap',
       administered_on: '2020-05-04',
       next_due_on: null,
-      source: 'manual',
     });
+    expect(api.createImmunization.mock.calls[0]?.[0]).not.toHaveProperty(
+      'source'
+    );
   });
 
   it('refuses a next-due date before the date given', async () => {
@@ -131,5 +133,38 @@ describe('Immunizations page', () => {
     await waitFor(() =>
       expect(api.deleteImmunization.mock.calls[0]?.[0]).toBe('i1')
     );
+  });
+
+  it('lets a saved record dated ahead be edited without changing its date', async () => {
+    api.listImmunizations.mockResolvedValue([
+      record({ administered_on: '2999-01-01', notes: null }),
+    ]);
+    api.updateImmunization.mockResolvedValue(record());
+    renderPage();
+    await screen.findByText('Influenza (flu)');
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(api.updateImmunization).toHaveBeenCalled());
+    expect(api.updateImmunization.mock.calls[0]?.[1]).toMatchObject({
+      administered_on: '2999-01-01',
+    });
+  });
+
+  it('still refuses a future date typed into a new record', async () => {
+    api.listImmunizations.mockResolvedValue([]);
+    renderPage();
+    await screen.findByText(/No immunizations yet/);
+    fireEvent.click(screen.getByRole('button', { name: 'Add immunization' }));
+    fireEvent.change(screen.getByLabelText('Vaccine'), {
+      target: { value: 'Tdap' },
+    });
+    fireEvent.change(screen.getByLabelText('Date given'), {
+      target: { value: '2999-01-01' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'cannot be in the future'
+    );
+    expect(api.createImmunization).not.toHaveBeenCalled();
   });
 });

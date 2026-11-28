@@ -2199,7 +2199,7 @@ describe('list_immunizations', () => {
     );
     expect(listImmunizations).toHaveBeenCalledWith(
       'user-1',
-      expect.objectContaining({ limit: 200 }),
+      expect.objectContaining({ limit: 201 }),
       'user-1'
     );
     expect(result).toContain('"count":2');
@@ -2207,6 +2207,38 @@ describe('list_immunizations', () => {
     expect(result).toContain('"given_on":"2025-10-01"');
     expect(result).toContain('"due_status":"overdue"');
     expect(result).toContain('"due_status":"none"');
+  });
+
+  it('says so when the list was cut off at 200', async () => {
+    vi.mocked(listImmunizations).mockResolvedValue(
+      Array.from({ length: 201 }, (_, index) =>
+        record({ id: `i${index}`, vaccine_name: `Vaccine ${index}` })
+      ) as never
+    );
+    const result = String(
+      await tools.sparky_manage_checkin.execute!(
+        { action: 'list_immunizations' },
+        opts
+      )
+    );
+    expect(vi.mocked(listImmunizations).mock.calls[0]![1]).toMatchObject({
+      limit: 201,
+    });
+    expect(result).toContain('"count":200');
+    expect(result).toContain('"truncated":true');
+    expect(result).toContain('narrow start_date and end_date');
+    expect(result).not.toContain('Vaccine 200');
+  });
+
+  it('does not say truncated for a short list', async () => {
+    vi.mocked(listImmunizations).mockResolvedValue([record()] as never);
+    const result = String(
+      await tools.sparky_manage_checkin.execute!(
+        { action: 'list_immunizations' },
+        opts
+      )
+    );
+    expect(result).not.toContain('truncated');
   });
 
   it('passes the day range through and refuses a reversed one', async () => {
