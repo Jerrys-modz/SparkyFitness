@@ -79,7 +79,7 @@ export const OPTIONAL_FEATURES = {
     group: 'health',
     defaultEnabled: true,
     storage: 'choices',
-    platforms: ['web'],
+    platforms: ['web', 'mobile'],
   },
   aiCoaches: {
     group: 'wellbeing',

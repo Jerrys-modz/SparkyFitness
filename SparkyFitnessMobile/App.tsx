@@ -50,6 +50,8 @@ import {
   SafeMealsLibrary,
   SafeRecipeImport,
   SafeMealPlans,
+  SafeImmunizationForm,
+  SafeImmunizations,
   SafeLabReportImport,
   SafeLabResultAdd,
   SafeLabResultDetail,
@@ -763,6 +765,20 @@ function AppContent() {
             name="LabResults"
             component={SafeLabResults}
             options={createStackScreenOptions(t('screens.labResults', { defaultValue: 'Lab results' }), { headerBackTitle: t('navigation.library', { defaultValue: 'Library' }) })}
+          />
+          <Stack.Screen
+            name="Immunizations"
+            component={SafeImmunizations}
+            options={createStackScreenOptions(t('screens.immunizations', { defaultValue: 'Immunizations' }), { headerBackTitle: t('navigation.library', { defaultValue: 'Library' }) })}
+          />
+          <Stack.Screen
+            name="ImmunizationForm"
+            component={SafeImmunizationForm}
+            options={createStackScreenOptions(t('screens.immunizationAdd', { defaultValue: 'Add immunization' }), {
+              presentation: 'modal',
+              headerBackButtonDisplayMode: 'minimal',
+              ...(Platform.OS === 'android' ? androidModalAnimation : {}),
+            })}
           />
           <Stack.Screen
             name="Challenges"

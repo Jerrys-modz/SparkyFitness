@@ -10,6 +10,7 @@ import type {
   ExerciseRecentSessionSet,
   FoodPhotoEstimateResponse,
   FoodPhotoLogItem,
+  ImmunizationResponse,
   IndividualSessionResponse,
   MedicationEntry,
   MindfulnessSessionResponse,
@@ -144,6 +145,9 @@ export type RootStackParamList = {
   RunProgramEdit: { id?: string; fromProgramId?: string } | undefined;
   PersonalRecords: undefined;
   LabResults: undefined;
+  Immunizations: undefined;
+  /** `immunization` edits a saved record; without it a new one is added. */
+  ImmunizationForm: { immunization?: ImmunizationResponse };
   /** The challenges the user is in, with join by code. */
   Challenges: undefined;
   /** One challenge's standings; `name` titles the screen until it loads. */

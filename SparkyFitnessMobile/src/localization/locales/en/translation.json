@@ -756,7 +756,9 @@
       "labResults": "Lab results",
       "labResultsSubtitle": "Blood tests and other markers over time",
       "challenges": "Challenges",
-      "challengesSubtitle": "Group leaderboards with friends and family"
+      "challengesSubtitle": "Group leaderboards with friends and family",
+      "immunizations": "Immunizations",
+      "immunizationsSubtitle": "Vaccines you have had and when the next is due"
     },
     "sleep": "Sleep",
     "healthTrendsSettings": "Health Trends",
@@ -810,7 +812,10 @@
     "labResults": "Lab results",
     "labResultDetail": "Lab result",
     "labResultAdd": "Add lab result",
-    "labReportImport": "Import report"
+    "labReportImport": "Import report",
+    "immunizations": "Immunizations",
+    "immunizationAdd": "Add immunization",
+    "immunizationEdit": "Edit immunization"
   },
   "activityShare": {
     "title": "Share Activity",
@@ -2959,6 +2964,10 @@
     "aiCoaches": {
       "title": "Coaches",
       "description": "AI coaches that watch your food, training and sleep and send a short message when something is worth saying."
+    },
+    "immunizations": {
+      "title": "Immunizations",
+      "description": "Keep a record of the vaccines you have had, with dose, lot and next-due date."
     }
   },
   "measurements": {
@@ -11774,5 +11783,34 @@
       "reasonLimit": "Today's message limit is already reached.",
       "reasonNothing": "Nothing to say right now: no rule matches today's data, or the coaches already said it today."
     }
+  },
+  "immunizations": {
+    "add": "Add immunization",
+    "administeredBy": "Given by",
+    "code": "Vaccine code (optional)",
+    "date": "Date given",
+    "dateFuture": "The date given cannot be in the future.",
+    "deleteFailed": "Could not delete the immunization",
+    "deleteMessage": "Delete this immunization record? This cannot be undone.",
+    "deleteTitle": "Delete immunization",
+    "dose": "Dose number",
+    "doseInvalid": "Dose number must be from 1 to 20.",
+    "doseShort": "Dose {{n}}",
+    "dueBeforeGiven": "The next-due date cannot be before the date given.",
+    "empty": "No immunizations yet. Add the vaccines you have had to keep them in one place.",
+    "loadFailed": "Could not load your immunizations.",
+    "lot": "Lot number",
+    "moreActions": "More actions",
+    "nextDue": "Next due",
+    "nextDueOptional": "Next due (optional)",
+    "notSet": "Not set",
+    "notesPlaceholder": "Add a note (optional)",
+    "saveFailed": "Could not save the immunization",
+    "site": "Site",
+    "status": {
+      "dueSoon": "Due soon",
+      "overdue": "Overdue"
+    },
+    "vaccine": "Vaccine"
   }
 }

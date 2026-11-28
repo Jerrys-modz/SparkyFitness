@@ -580,3 +580,6 @@ export const glucoseSamplesQueryKeyRoot = ['glucoseSamples'] as const;
 export const glucoseContextQueryKeyRoot = ['glucoseContext'] as const;
 
 export const chatMcpServersQueryKey = ['chatMcpServers'] as const;
+
+/** The user's immunization records, newest first. */
+export const immunizationsQueryKey = ['immunizations'] as const;
