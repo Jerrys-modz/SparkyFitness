@@ -66,6 +66,9 @@ const FoodDatabaseManager = lazyWithChunkRecovery(
 );
 const Reports = lazyWithChunkRecovery(() => import('./pages/Reports/Reports'));
 const Labs = lazyWithChunkRecovery(() => import('./pages/Labs/Labs'));
+const Immunizations = lazyWithChunkRecovery(
+  () => import('./pages/Immunizations/Immunizations')
+);
 const Challenges = lazyWithChunkRecovery(
   () => import('./pages/Challenges/Challenges')
 );
@@ -471,6 +474,15 @@ const router = createBrowserRouter([
             element: (
               <FeatureRoute feature="labResults">
                 <Labs />
+              </FeatureRoute>
+            ),
+            ErrorBoundary: RouteErrorBoundary,
+          },
+          {
+            path: 'immunizations',
+            element: (
+              <FeatureRoute feature="immunizations">
+                <Immunizations />
               </FeatureRoute>
             ),
             ErrorBoundary: RouteErrorBoundary,

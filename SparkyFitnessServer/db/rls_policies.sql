@@ -30,6 +30,7 @@ BEGIN
     'lab_markers',
     'lab_results',
     'lab_reports',
+    'immunizations',
     'exercise_entries',
     'exercise_entry_sets',
     'exercise_entry_activity_details',
@@ -863,6 +864,8 @@ SELECT create_checkin_policy('oral_care_sessions');
 SELECT create_checkin_policy('lab_markers');
 SELECT create_checkin_policy('lab_results');
 SELECT create_checkin_policy('lab_reports');
+-- Immunization records (#2765) are check-in data like lab results.
+SELECT create_checkin_policy('immunizations');
 
 -- Mood display preferences: personal picker config, owner-only.
 SELECT create_owner_policy('user_mood_display_preferences');

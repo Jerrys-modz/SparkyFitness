@@ -7,6 +7,7 @@ import {
   Dumbbell,
   FlaskConical,
   Pill,
+  Syringe,
   Target,
   Trophy,
   Utensils,
@@ -44,6 +45,12 @@ const MODULE_TABS: readonly ModuleTabDefinition[] = [
     feature: 'medications',
   },
   { id: 'labs', path: '/labs', inPlusMenu: true, feature: 'labResults' },
+  {
+    id: 'immunizations',
+    path: '/immunizations',
+    inPlusMenu: true,
+    feature: 'immunizations',
+  },
   { id: 'reports', path: '/reports', inPlusMenu: false },
   { id: 'foods', path: '/foods', inPlusMenu: true },
   { id: 'exercises', path: '/exercises', inPlusMenu: true },
@@ -55,6 +62,7 @@ const TAB_ICONS: Record<WebHideableTabId, LucideIcon> = {
   checkin: Activity,
   medications: Pill,
   labs: FlaskConical,
+  immunizations: Syringe,
   reports: BarChart3,
   foods: Utensils,
   exercises: Dumbbell,
@@ -72,6 +80,8 @@ export function webTabLabel(t: TFunction, id: WebHideableTabId): string {
       return t('nav.medications', 'Medications');
     case 'labs':
       return t('nav.labs', 'Lab results');
+    case 'immunizations':
+      return t('nav.immunizations', 'Immunizations');
     case 'reports':
       return t('nav.reports', 'Reports');
     case 'foods':
@@ -99,6 +109,8 @@ export function choiceFeatureLabel(
       return webTabLabel(t, 'medications');
     case 'labResults':
       return webTabLabel(t, 'labs');
+    case 'immunizations':
+      return webTabLabel(t, 'immunizations');
     case 'aiCoaches':
       return t('coaches.settings.title', 'Coaches');
   }

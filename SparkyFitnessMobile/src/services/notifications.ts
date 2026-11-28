@@ -11,6 +11,7 @@ import {
   ORAL_CARE_REMINDER_KIND,
 } from '../utils/checkinReminderTimes';
 import { CHALLENGE_WEEK_LEADER_KIND } from '../utils/challenges';
+import { IMMUNIZATION_REMINDER_KIND } from '../utils/immunizationReminders';
 import i18n from '../localization/i18n';
 import { fireSuccessHaptic } from './haptics';
 import {
@@ -29,6 +30,7 @@ const FASTING_CHANNEL_ID = 'fasting';
 const HYDRATION_CHANNEL_ID = 'hydration';
 export const MOOD_CHECKIN_CHANNEL_ID = 'mood-checkin';
 export const ORAL_CARE_CHANNEL_ID = 'oral-care';
+export const IMMUNIZATION_CHANNEL_ID = 'immunizations';
 const MINDFULNESS_CHANNEL_ID = 'mindfulness';
 export const MEDICATION_REMINDER_CHANNEL_ID = 'medication-reminders';
 export const CHALLENGES_CHANNEL_ID = 'challenges';
@@ -232,6 +234,17 @@ export async function ensureOralCareChannel(): Promise<void> {
   });
 }
 
+export async function ensureImmunizationChannel(): Promise<void> {
+  if (Platform.OS !== 'android') return;
+  await Notifications.setNotificationChannelAsync(IMMUNIZATION_CHANNEL_ID, {
+    name: notificationCopy(
+      'notifications.channels.immunizations',
+      'Vaccine reminders'
+    ),
+    importance: AndroidImportance.DEFAULT,
+  });
+}
+
 export async function ensureCoachesChannel(): Promise<void> {
   if (Platform.OS !== 'android') return;
   await Notifications.setNotificationChannelAsync(COACHES_CHANNEL_ID, {
@@ -348,6 +361,7 @@ export async function initNotifications(): Promise<void> {
         const isMoodCheckin =
           kind === MOOD_CHECKIN_KIND ||
           kind === ORAL_CARE_REMINDER_KIND ||
+          kind === IMMUNIZATION_REMINDER_KIND ||
           kind === CHALLENGE_WEEK_LEADER_KIND;
         // iOS also runs this while the app is frontmost-but-inactive (screen
         // locking, app switcher), where the chime never plays — so there the

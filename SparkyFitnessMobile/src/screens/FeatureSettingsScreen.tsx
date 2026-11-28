@@ -223,6 +223,23 @@ function LabResultsFeatureRows() {
   );
 }
 
+function ImmunizationsFeatureRows() {
+  const { t } = useTranslation();
+  return (
+    <ChoiceFeatureRows
+      feature="immunizations"
+      icon="immunizations"
+      title={t('featureSettings.immunizations.title', {
+        defaultValue: 'Immunizations',
+      })}
+      description={t('featureSettings.immunizations.description', {
+        defaultValue:
+          'Keep a record of the vaccines you have had, with dose, lot and next-due date.',
+      })}
+    />
+  );
+}
+
 /** Supplements and GLP-1 tracking are part of it. Reminders stop while it is
  * off; supplement nutrients still count in the day's totals. */
 function MedicationsFeatureRows() {
@@ -268,6 +285,8 @@ function FeatureRows({ feature }: { feature: FeatureKey }): ReactElement {
       return <MedicationsFeatureRows />;
     case 'labResults':
       return <LabResultsFeatureRows />;
+    case 'immunizations':
+      return <ImmunizationsFeatureRows />;
     case 'aiCoaches':
       return <AiCoachesFeatureRows />;
   }

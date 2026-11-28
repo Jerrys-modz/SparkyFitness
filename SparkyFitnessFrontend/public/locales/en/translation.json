@@ -1153,6 +1153,7 @@
     "symptoms": "Symptoms",
     "sparkyFitnessV": "SparkyFitness v{{version}}",
     "labs": "Lab results",
+    "immunizations": "Immunizations",
     "challenges": "Challenges"
   },
   "nutrition": {
@@ -3677,6 +3678,9 @@
       },
       "labResults": {
         "description": "Record blood tests and follow each marker over time."
+      },
+      "immunizations": {
+        "description": "Keep a record of the vaccines you have had, with dose, lot and next-due date."
       },
       "aiCoaches": {
         "description": "AI coaches that watch your food, training and sleep and send a short message when something is worth saying. Set them up in Settings → Wellness → Coaches."
@@ -10897,6 +10901,56 @@
     "legendElevated": "Elevated outside exercise",
     "vsSevenDayAvg": "{{diff}} bpm vs 7d avg",
     "minIntoWorkout": "{{min}} min into workout"
+  },
+  "immunizations": {
+    "add": "Add immunization",
+    "administeredBy": "Given by",
+    "code": "Vaccine code (optional)",
+    "date": "Date given",
+    "dateFuture": "The date given cannot be in the future.",
+    "dateRequired": "Enter the date it was given.",
+    "deleteFailed": "Could not delete the immunization",
+    "deleteMessage": "Delete this immunization record? This cannot be undone.",
+    "deleteTitle": "Delete immunization",
+    "dose": "Dose number",
+    "doseInvalid": "Dose number must be from 1 to 20.",
+    "doseShort": "Dose {{n}}",
+    "dueBeforeGiven": "The next-due date cannot be before the date given.",
+    "dueInvalid": "Enter a valid next-due date.",
+    "edit": "Edit immunization",
+    "empty": "No immunizations yet. Add the vaccines you have had to keep them in one place.",
+    "import": {
+      "alreadyRecorded": "Already recorded",
+      "chooseFile": "Choose a PDF or photo",
+      "cta": "Import from a record",
+      "intro": "Choose a vaccine record PDF, or a photo or screenshot of one. Your AI provider reads it and you review the vaccines before anything is saved. The file itself is not stored.",
+      "photoTooLarge": "That photo is too large to read (limit 6 MB). Try a smaller photo or a screenshot.",
+      "readFailed": "Could not open that file.",
+      "reading": "Reading your record...",
+      "reviewHint": "Check the vaccines against your record. Ones you already have on that day start unchecked.",
+      "save_one": "Save {{count}} immunization",
+      "save_other": "Save {{count}} immunizations",
+      "saveFailed": "Could not save the records. Nothing was saved.",
+      "saved_one": "Saved {{count}} immunization",
+      "saved_other": "Saved {{count}} immunizations",
+      "scanFailed": "Could not read that record.",
+      "tooLarge": "That file is too large to read (limit 14 MB)."
+    },
+    "loadFailed": "Could not load your immunizations.",
+    "lot": "Lot number",
+    "lotShort": "Lot {{lot}}",
+    "nameRequired": "Enter the vaccine name.",
+    "nextDue": "Next due (optional)",
+    "nextDueOn": "Next due {{date}}",
+    "notes": "Notes",
+    "notesPlaceholder": "Add a note (optional)",
+    "saveFailed": "Could not save the immunization",
+    "site": "Site",
+    "status": {
+      "dueSoon": "Due soon",
+      "overdue": "Overdue"
+    },
+    "vaccine": "Vaccine"
   },
   "labs": {
     "add": "Add lab result",

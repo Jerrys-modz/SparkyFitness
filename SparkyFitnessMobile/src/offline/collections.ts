@@ -41,6 +41,8 @@ export const CACHE_COLLECTIONS = {
   loggedMeal: 'logged_meal',
   /** The person's meal types (one document). */
   mealTypes: 'meal_types',
+  /** The person's immunization records (one document). */
+  immunizations: 'immunizations',
   /** Markers the offline pack writes about itself. */
   pack: 'pack',
 } as const;

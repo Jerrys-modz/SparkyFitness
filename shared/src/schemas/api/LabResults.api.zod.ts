@@ -1,30 +1,13 @@
 import { z } from 'zod';
 import { LAB_MARKER_PRESETS } from '../../constants/labMarkers.ts';
+import { calendarDaySchema } from './calendarDay.zod.ts';
 
 const BUILT_IN_MARKER_KEYS = new Set(LAB_MARKER_PRESETS.map((p) => p.key));
 
 export const labResultSourceSchema = z.enum(['manual', 'report', 'fhir']);
 export type LabResultSource = z.infer<typeof labResultSourceSchema>;
 
-/** A real calendar day: `2026-02-31` has the right shape but is not a date. */
-const isCalendarDay = (value: string): boolean => {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
-  if (!match) return false;
-  const year = Number(match[1]);
-  const month = Number(match[2]);
-  const day = Number(match[3]);
-  const parsed = new Date(Date.UTC(year, month - 1, day));
-  return (
-    parsed.getUTCFullYear() === year &&
-    parsed.getUTCMonth() === month - 1 &&
-    parsed.getUTCDate() === day
-  );
-};
-
-const dateStringSchema = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, 'must be YYYY-MM-DD')
-  .refine(isCalendarDay, 'must be a real calendar date');
+const dateStringSchema = calendarDaySchema;
 const unitSchema = z.string().trim().max(40);
 const rangeBoundSchema = z.number().finite().nullable().optional();
 

@@ -75,6 +75,12 @@ export const OPTIONAL_FEATURES = {
   cycle: { group: 'health', defaultEnabled: false, storage: 'cycleSettings' },
   medications: { group: 'health', defaultEnabled: true, storage: 'choices' },
   labResults: { group: 'health', defaultEnabled: true, storage: 'choices' },
+  immunizations: {
+    group: 'health',
+    defaultEnabled: true,
+    storage: 'choices',
+    platforms: ['web', 'mobile'],
+  },
   aiCoaches: {
     group: 'wellbeing',
     defaultEnabled: false,

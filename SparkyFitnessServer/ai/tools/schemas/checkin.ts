@@ -266,6 +266,18 @@ const getOralCareSummarySchema = z
   })
   .strict();
 
+const listImmunizationsSchema = z
+  .object({
+    action: z.literal('list_immunizations'),
+    start_date: dateSchema
+      .optional()
+      .describe('Only vaccines given on or after this day'),
+    end_date: dateSchema
+      .optional()
+      .describe('Only vaccines given on or before this day'),
+  })
+  .strict();
+
 export const manageCheckinSchema = z.discriminatedUnion('action', [
   logBiometricsSchema,
   logCustomMetricSchema,
@@ -279,6 +291,7 @@ export const manageCheckinSchema = z.discriminatedUnion('action', [
   getBiometricsHistorySchema,
   getCustomMetricsHistorySchema,
   getOralCareSummarySchema,
+  listImmunizationsSchema,
 ]);
 
 export type ManageCheckinInput = z.infer<typeof manageCheckinSchema>;
@@ -301,6 +314,7 @@ export const manageCheckinInput = z.object({
       'get_biometrics_history',
       'get_custom_metrics_history',
       'get_oral_care_summary',
+      'list_immunizations',
     ])
     .optional()
     .describe('Action to perform; see tool description for per-action fields.'),

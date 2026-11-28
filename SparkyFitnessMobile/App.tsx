@@ -50,6 +50,9 @@ import {
   SafeMealsLibrary,
   SafeRecipeImport,
   SafeMealPlans,
+  SafeImmunizationForm,
+  SafeImmunizationImport,
+  SafeImmunizations,
   SafeLabReportImport,
   SafeLabResultAdd,
   SafeLabResultDetail,
@@ -230,6 +233,7 @@ import { usePendingPresetUpdateStore } from './src/stores/pendingPresetUpdateSto
 import ActiveWorkoutKeepAwake from './src/components/ActiveWorkoutKeepAwake';
 import MedicationReminderReconciler from './src/components/MedicationReminderReconciler';
 import MoodCheckinReminderReconciler from './src/components/MoodCheckinReminderReconciler';
+import ImmunizationReminderReconciler from './src/components/ImmunizationReminderReconciler';
 import OralCareReminderReconciler from './src/components/OralCareReminderReconciler';
 import ChallengeWeekNotificationReconciler from './src/components/ChallengeWeekNotificationReconciler';
 import { useNativeIOSTabsActive, useNativeIOSHeadersActive } from './src/services/nativeTabBarPreference';
@@ -763,6 +767,29 @@ function AppContent() {
             name="LabResults"
             component={SafeLabResults}
             options={createStackScreenOptions(t('screens.labResults', { defaultValue: 'Lab results' }), { headerBackTitle: t('navigation.library', { defaultValue: 'Library' }) })}
+          />
+          <Stack.Screen
+            name="Immunizations"
+            component={SafeImmunizations}
+            options={createStackScreenOptions(t('screens.immunizations', { defaultValue: 'Immunizations' }), { headerBackTitle: t('navigation.library', { defaultValue: 'Library' }) })}
+          />
+          <Stack.Screen
+            name="ImmunizationForm"
+            component={SafeImmunizationForm}
+            options={createStackScreenOptions(t('screens.immunizationAdd', { defaultValue: 'Add immunization' }), {
+              presentation: 'modal',
+              headerBackButtonDisplayMode: 'minimal',
+              ...(Platform.OS === 'android' ? androidModalAnimation : {}),
+            })}
+          />
+          <Stack.Screen
+            name="ImmunizationImport"
+            component={SafeImmunizationImport}
+            options={createStackScreenOptions(t('screens.immunizationImport', { defaultValue: 'Import record' }), {
+              presentation: 'modal',
+              headerBackButtonDisplayMode: 'minimal',
+              ...(Platform.OS === 'android' ? androidModalAnimation : {}),
+            })}
           />
           <Stack.Screen
             name="Challenges"
@@ -1684,6 +1711,7 @@ function AppContent() {
         <MedicationReminderReconciler />
         <MoodCheckinReminderReconciler />
         <OralCareReminderReconciler />
+        <ImmunizationReminderReconciler />
         <ChallengeWeekNotificationReconciler />
         <SafeAreaToast />
         </LightboxProvider>

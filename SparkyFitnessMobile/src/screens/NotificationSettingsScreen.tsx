@@ -200,6 +200,25 @@ const NotificationSettingsScreen: React.FC<NotificationSettingsScreenProps> = ({
     [setCheckinRemindersEnabled]
   );
 
+  const immunizationRemindersEnabled = useAppPreferencesStore(
+    (s) => s.immunizationRemindersEnabled
+  );
+  const setImmunizationRemindersEnabled = useAppPreferencesStore(
+    (s) => s.setImmunizationRemindersEnabled
+  );
+  const handleImmunizationRemindersToggle = useCallback(
+    async (value: boolean) => {
+      if (!value) {
+        setImmunizationRemindersEnabled(false);
+        return;
+      }
+      const status = await requestNotificationPermission();
+      bannerRef.current?.refresh();
+      if (status === 'granted') setImmunizationRemindersEnabled(true);
+    },
+    [setImmunizationRemindersEnabled]
+  );
+
   const oralCareRemindersEnabled = useAppPreferencesStore(
     (s) => s.oralCareRemindersEnabled
   );
@@ -731,6 +750,38 @@ const NotificationSettingsScreen: React.FC<NotificationSettingsScreenProps> = ({
               }
             />
             {oralCareRemindersEnabled && oralCareReminderRows.rows}
+          </SettingsRowGroup>
+        )}
+
+        {notificationsEnabled && isFeatureOn('immunizations') && (
+          <SettingsRowGroup
+            title={t('notificationSettings.immunizations', {
+              defaultValue: 'Vaccines',
+            })}
+          >
+            <SettingsRow
+              title={t('notificationSettings.immunizationReminders', {
+                defaultValue: 'Vaccine reminders',
+              })}
+              subtitle={t(
+                'notificationSettings.immunizationRemindersSubtitle',
+                {
+                  defaultValue:
+                    'A reminder a week before a vaccine is due, and on the day',
+                }
+              )}
+              subtitleNumberOfLines={0}
+              rightAccessory={
+                <Switch
+                  accessibilityLabel={t(
+                    'notificationSettings.immunizationReminders',
+                    { defaultValue: 'Vaccine reminders' }
+                  )}
+                  value={immunizationRemindersEnabled}
+                  onValueChange={handleImmunizationRemindersToggle}
+                />
+              }
+            />
           </SettingsRowGroup>
         )}
 

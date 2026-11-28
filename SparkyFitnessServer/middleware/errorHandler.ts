@@ -9,6 +9,8 @@ const labConstraintMessages: Record<string, string> = {
   lab_markers_ref_range_check: 'ref_range_low must not exceed ref_range_high',
   lab_results_ref_range_check: 'ref_range_low must not exceed ref_range_high',
   lab_results_value_check: 'Provide value_numeric or value_text',
+  immunizations_due_after_given_check:
+    'next_due_on must not be before administered_on',
 };
 
 interface ErrorFields {

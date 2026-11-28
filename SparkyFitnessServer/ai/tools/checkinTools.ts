@@ -11,6 +11,7 @@ import {
   instantHourMinute,
   instantHourMinuteInZone,
   instantToDay,
+  immunizationDueStatus,
   instantToDayWithOffset,
   resolveRecordZone,
   type RecordZone,
@@ -27,6 +28,7 @@ import fastingRepository from '../../models/fastingRepository.js';
 import fastingAutoCalculationService from '../../services/fastingAutoCalculationService.js';
 import sleepRepository from '../../models/sleepRepository.js';
 import * as oralCareService from '../../services/oralCareService.js';
+import { listImmunizations } from '../../models/immunizationRepository.js';
 import { ERRORS, formatZodError } from './errors.js';
 import { normalizeActionArgs } from './dates.js';
 import {
@@ -111,7 +113,11 @@ const VALID_ACTIONS = [
   'get_biometrics_history',
   'get_custom_metrics_history',
   'get_oral_care_summary',
+  'list_immunizations',
 ];
+
+/** How many vaccines `list_immunizations` returns before it says it was cut off. */
+const LIST_IMMUNIZATIONS_LIMIT = 200;
 
 // Optional inputs and nullable DB columns are treated alike: absent.
 function isSet<T>(value: T | null | undefined): value is T {
@@ -279,7 +285,8 @@ Actions:
 - get_fasting_status() — returns the currently active fasting session if any
 - get_biometrics_history(start_date?, end_date?) — returns standard measurement history
 - get_custom_metrics_history(start_date?, end_date?, category_name?) — custom metric values by day, newest first; category_name keeps one metric (if several share that display name, the reply lists their stored names)
-- get_oral_care_summary(start_date?, end_date?) — brushing per day against the daily goal, other oral care (flossing, mouthwash, ...) and the streak; defaults to the last 7 days. A brush logged in Sparky that a synced toothbrush also recorded counts once`,
+- get_oral_care_summary(start_date?, end_date?) — brushing per day against the daily goal, other oral care (flossing, mouthwash, ...) and the streak; defaults to the last 7 days. A brush logged in Sparky that a synced toothbrush also recorded counts once
+- list_immunizations(start_date?, end_date?) — the vaccines the person has had, newest first: name, date given, dose, lot, who gave it, next-due date and whether it is overdue or due soon; start_date/end_date limit by the day it was given`,
       inputSchema: manageCheckinInput,
       execute: async (rawArgs) => {
         const normalized = normalizeActionArgs(
@@ -1021,6 +1028,52 @@ Actions:
                 current_streak_days: history.streak,
                 best_streak_days: history.best_streak,
                 days: history.days,
+              });
+            }
+
+            case 'list_immunizations': {
+              if (
+                args.start_date &&
+                args.end_date &&
+                args.start_date > args.end_date
+              ) {
+                return ERRORS.VALIDATION(
+                  'start_date must not be after end_date.'
+                );
+              }
+              const today = todayInZone(tz);
+              const all = await listImmunizations(
+                userId,
+                {
+                  startDate: args.start_date,
+                  endDate: args.end_date,
+                  // One more than is shown, to know the list was cut off.
+                  limit: LIST_IMMUNIZATIONS_LIMIT + 1,
+                },
+                actorUserIdFor(userId)
+              );
+              const truncated = all.length > LIST_IMMUNIZATIONS_LIMIT;
+              const records = all.slice(0, LIST_IMMUNIZATIONS_LIMIT);
+              return formatJsonResult({
+                count: records.length,
+                ...(truncated
+                  ? {
+                      truncated: true,
+                      note: `Only the newest ${LIST_IMMUNIZATIONS_LIMIT} are shown; narrow start_date and end_date to see older ones.`,
+                    }
+                  : {}),
+                immunizations: records.map((record) => ({
+                  vaccine: record.vaccine_name,
+                  vaccine_code: record.vaccine_code,
+                  given_on: record.administered_on,
+                  dose_number: record.dose_number,
+                  lot_number: record.lot_number,
+                  administered_by: record.administered_by,
+                  site: record.site,
+                  next_due_on: record.next_due_on,
+                  due_status: immunizationDueStatus(record.next_due_on, today),
+                  notes: record.notes,
+                })),
               });
             }
 

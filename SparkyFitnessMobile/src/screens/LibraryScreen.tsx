@@ -531,6 +531,28 @@ const LibraryScreen: React.FC<LibraryScreenProps> = ({ navigation }) => {
             <Icon name="chevron-forward" size={20} color="#999" />
           </Pressable>
         )}
+        {isFeatureOn('immunizations') && (
+          <Pressable
+            className="px-4 py-4 flex-row items-center justify-between border-b border-border-subtle"
+            onPress={() => navigation.navigate('Immunizations')}
+            style={({ pressed }) => (pressed ? { opacity: 0.7 } : null)}
+          >
+            <View className="flex-1 mr-3">
+              <Text className="text-base font-semibold text-text-primary">
+                {t('screens.library.immunizations', {
+                  defaultValue: 'Immunizations',
+                })}
+              </Text>
+              <Text className="text-sm text-text-secondary mt-0.5">
+                {t('screens.library.immunizationsSubtitle', {
+                  defaultValue:
+                    'Vaccines you have had and when the next is due',
+                })}
+              </Text>
+            </View>
+            <Icon name="chevron-forward" size={20} color="#999" />
+          </Pressable>
+        )}
         <Pressable
           className="px-4 py-4 flex-row items-center justify-between border-b border-border-subtle"
           onPress={() => navigation.navigate('Routes')}

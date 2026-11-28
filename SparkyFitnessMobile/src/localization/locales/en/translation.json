@@ -324,7 +324,8 @@
       "oralCare": "Brushing reminders",
       "mindfulness": "Meditation timer",
       "challenges": "Challenges",
-      "coaches": "Coaches"
+      "coaches": "Coaches",
+      "immunizations": "Vaccine reminders"
     },
     "moodCheckin": {
       "title": "How are you feeling?",
@@ -385,6 +386,11 @@
       "bodyWithOwn": "{{leader}} leads with {{total}}. You are #{{rank}} with {{ownTotal}}. The week closes tonight.",
       "bodyYouLead": "You lead with {{total}}. The week closes tonight.",
       "title": "{{name}}: who leads this week"
+    },
+    "immunization": {
+      "title": "Vaccine due",
+      "dueToday": "{{name}} is due today.",
+      "dueSoon": "{{name}} is due in a week."
     }
   },
   "activeWorkout": {
@@ -756,7 +762,9 @@
       "labResults": "Lab results",
       "labResultsSubtitle": "Blood tests and other markers over time",
       "challenges": "Challenges",
-      "challengesSubtitle": "Group leaderboards with friends and family"
+      "challengesSubtitle": "Group leaderboards with friends and family",
+      "immunizations": "Immunizations",
+      "immunizationsSubtitle": "Vaccines you have had and when the next is due"
     },
     "sleep": "Sleep",
     "healthTrendsSettings": "Health Trends",
@@ -810,7 +818,11 @@
     "labResults": "Lab results",
     "labResultDetail": "Lab result",
     "labResultAdd": "Add lab result",
-    "labReportImport": "Import report"
+    "labReportImport": "Import report",
+    "immunizations": "Immunizations",
+    "immunizationAdd": "Add immunization",
+    "immunizationEdit": "Edit immunization",
+    "immunizationImport": "Import record"
   },
   "activityShare": {
     "title": "Share Activity",
@@ -1498,7 +1510,10 @@
     "oralCareAddReminder": "Add reminder",
     "challengeWeek": "Week leader",
     "challengeWeekSubtitle": "The last evening of each challenge week: who leads each weekly challenge you are in",
-    "challenges": "Challenges"
+    "challenges": "Challenges",
+    "immunizations": "Vaccines",
+    "immunizationReminders": "Vaccine reminders",
+    "immunizationRemindersSubtitle": "A reminder a week before a vaccine is due, and on the day"
   },
   "workoutSettings": {
     "title": "Workout Settings",
@@ -2974,6 +2989,10 @@
     "aiCoaches": {
       "title": "Coaches",
       "description": "AI coaches that watch your food, training and sleep and send a short message when something is worth saying."
+    },
+    "immunizations": {
+      "title": "Immunizations",
+      "description": "Keep a record of the vaccines you have had, with dose, lot and next-due date."
     }
   },
   "measurements": {
@@ -11814,6 +11833,56 @@
       "reasonNoCoaches": "No coach is switched on. Switch one on in the list below.",
       "reasonLimit": "Today's message limit is already reached.",
       "reasonNothing": "Nothing to say right now: no rule matches today's data, or the coaches already said it today."
+    }
+  },
+  "immunizations": {
+    "add": "Add immunization",
+    "administeredBy": "Given by",
+    "code": "Vaccine code (optional)",
+    "date": "Date given",
+    "dateFuture": "The date given cannot be in the future.",
+    "deleteFailed": "Could not delete the immunization",
+    "deleteMessage": "Delete this immunization record? This cannot be undone.",
+    "deleteTitle": "Delete immunization",
+    "dose": "Dose number",
+    "doseInvalid": "Dose number must be from 1 to 20.",
+    "doseShort": "Dose {{n}}",
+    "dueBeforeGiven": "The next-due date cannot be before the date given.",
+    "empty": "No immunizations yet. Add the vaccines you have had to keep them in one place.",
+    "loadFailed": "Could not load your immunizations.",
+    "lot": "Lot number",
+    "moreActions": "More actions",
+    "nextDue": "Next due",
+    "nextDueOptional": "Next due (optional)",
+    "notSet": "Not set",
+    "notesPlaceholder": "Add a note (optional)",
+    "saveFailed": "Could not save the immunization",
+    "site": "Site",
+    "status": {
+      "dueSoon": "Due soon",
+      "overdue": "Overdue"
+    },
+    "vaccine": "Vaccine",
+    "import": {
+      "alreadyRecorded": "Already recorded",
+      "cameraDenied": "Camera access is needed to take a photo.",
+      "chooseAnother": "Choose a different record",
+      "choosePdf": "Choose a PDF",
+      "choosePhoto": "Choose a photo or screenshot",
+      "cta": "Import from a record",
+      "include": "Include {{name}}",
+      "intro": "Choose a vaccine record PDF, or a photo or screenshot of one. Your AI provider reads it and you review the vaccines before anything is saved. The file itself is not stored.",
+      "pickFailed": "Could not open that file.",
+      "reading": "Reading your record...",
+      "reviewHint": "Check the vaccines against your record. Ones you already have on that day start off.",
+      "saveCount_one": "Save {{count}} immunization",
+      "saveCount_other": "Save {{count}} immunizations",
+      "saveFailed": "Could not save the records. Nothing was saved.",
+      "saved_one": "Saved {{count}} immunization",
+      "saved_other": "Saved {{count}} immunizations",
+      "scanFailed": "Could not read that record.",
+      "takePhoto": "Take a photo",
+      "tooLarge": "That PDF is too large to read (limit 14 MB)."
     }
   }
 }

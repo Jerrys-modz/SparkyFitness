@@ -310,6 +310,20 @@ describe('notifications service', () => {
       expect(result.shouldShowList).toBe(true);
     });
 
+    it('shows a banner for vaccine reminders', async () => {
+      const handler = await getHandler();
+      const result = await handler({
+        request: {
+          content: {
+            categoryIdentifier: null,
+            data: { kind: 'immunization-due' },
+          },
+        },
+      } as unknown as Notifications.Notification);
+      expect(result.shouldShowBanner).toBe(true);
+      expect(result.shouldShowList).toBe(true);
+    });
+
     it('mutes the rest ping sound while the rest chime is enabled', async () => {
       const handler = await getHandler();
       const result = await handler(notificationWith('rest-complete'));

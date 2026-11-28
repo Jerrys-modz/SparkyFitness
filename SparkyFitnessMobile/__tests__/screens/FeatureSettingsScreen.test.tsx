@@ -203,6 +203,7 @@ describe('FeatureSettingsScreen', () => {
       'feature-row-cycle',
       'feature-row-medications',
       'feature-row-labResults',
+      'feature-row-immunizations',
       'feature-row-aiCoaches',
     ]);
   });
@@ -258,9 +259,9 @@ describe('FeatureSettingsScreen', () => {
       true
     );
     // One under each switch that reads the choices: medications, lab results,
-    // coaches.
+    // immunizations, coaches.
     const retries = screen.getAllByText('Retry');
-    expect(retries).toHaveLength(3);
+    expect(retries).toHaveLength(4);
     fireEvent.press(retries[1]);
     expect(mockReloadChoices).toHaveBeenCalledTimes(1);
   });

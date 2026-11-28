@@ -3,8 +3,8 @@ import {
   formatLabRange,
   formatLabValue,
   labNumber,
-  readFileAsBase64,
 } from '@/pages/Labs/labFormat';
+import { readFileAsBase64 } from '@/utils/documentFile';
 
 describe('labFormat', () => {
   it('keeps the decimals a value was entered with', () => {
