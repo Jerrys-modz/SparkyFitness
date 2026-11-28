@@ -148,6 +148,7 @@ export type RootStackParamList = {
   Immunizations: undefined;
   /** `immunization` edits a saved record; without it a new one is added. */
   ImmunizationForm: { immunization?: ImmunizationResponse };
+  ImmunizationImport: undefined;
   /** The challenges the user is in, with join by code. */
   Challenges: undefined;
   /** One challenge's standings; `name` titles the screen until it loads. */

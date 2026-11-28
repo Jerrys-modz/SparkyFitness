@@ -192,6 +192,7 @@ const HIDDEN_ROUTES = new Set<string>([
   'OralCareLog',
   'LabResultAdd',
   'ImmunizationForm',
+  'ImmunizationImport',
   'LabReportImport',
   'Chat',
   'ActiveWorkout',

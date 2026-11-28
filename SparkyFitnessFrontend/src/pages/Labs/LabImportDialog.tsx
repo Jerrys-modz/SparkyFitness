@@ -31,16 +31,14 @@ import {
   useImportLabReport,
   useScanLabReport,
 } from '@/hooks/Labs/useLabResults';
+import { exactLabValue, formatLabRange, labNumber } from './labFormat';
 import {
-  LAB_REPORT_ACCEPT,
-  LAB_REPORT_MAX_FILE_BYTES,
-  LAB_REPORT_MAX_PHOTO_BYTES,
-  exactLabValue,
-  formatLabRange,
-  labNumber,
-  labReportMimeType,
+  DOCUMENT_ACCEPT,
+  DOCUMENT_MAX_FILE_BYTES,
+  DOCUMENT_MAX_PHOTO_BYTES,
+  documentMimeType,
   readFileAsBase64,
-} from './labFormat';
+} from '@/utils/documentFile';
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -105,11 +103,8 @@ const LabImportDialog = ({
     const id = ++selection.current;
     const stale = () => id !== selection.current;
     setFileError(null);
-    const mimeType = labReportMimeType(file);
-    if (
-      mimeType.startsWith('image/') &&
-      file.size > LAB_REPORT_MAX_PHOTO_BYTES
-    ) {
+    const mimeType = documentMimeType(file);
+    if (mimeType.startsWith('image/') && file.size > DOCUMENT_MAX_PHOTO_BYTES) {
       setFileError(
         t(
           'labs.import.photoTooLarge',
@@ -118,7 +113,7 @@ const LabImportDialog = ({
       );
       return;
     }
-    if (file.size > LAB_REPORT_MAX_FILE_BYTES) {
+    if (file.size > DOCUMENT_MAX_FILE_BYTES) {
       setFileError(
         t(
           'labs.import.tooLarge',
@@ -245,7 +240,7 @@ const LabImportDialog = ({
             <input
               ref={fileInput}
               type="file"
-              accept={LAB_REPORT_ACCEPT}
+              accept={DOCUMENT_ACCEPT}
               className="hidden"
               data-testid="lab-report-file"
               onChange={(e) => void onFile(e.target.files?.[0])}

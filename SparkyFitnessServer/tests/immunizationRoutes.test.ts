@@ -6,6 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 import errorHandler from '../middleware/errorHandler.js';
 import immunizationRoutes from '../routes/v2/immunizationRoutes.js';
 import * as repo from '../models/immunizationRepository.js';
+import { extractImmunizations } from '../services/immunizationScanService.js';
 
 vi.mock('../models/immunizationRepository.js', () => ({
   listImmunizations: vi.fn(),
@@ -13,6 +14,21 @@ vi.mock('../models/immunizationRepository.js', () => ({
   createImmunization: vi.fn(),
   updateImmunization: vi.fn(),
   deleteImmunization: vi.fn(),
+  importImmunizations: vi.fn(),
+}));
+
+vi.mock('../services/immunizationScanService.js', () => ({
+  extractImmunizations: vi.fn(),
+  flagAlreadyRecorded: vi.fn((extraction: { records: unknown[] }) =>
+    extraction.records.map((r) => ({
+      ...(r as object),
+      already_recorded: false,
+    }))
+  ),
+}));
+
+vi.mock('../utils/adminCheck.js', () => ({
+  resolveIsAdmin: vi.fn().mockResolvedValue(false),
 }));
 
 vi.mock('../middleware/authMiddleware.js', () => ({
@@ -160,5 +176,80 @@ describe('Immunization routes (v2)', () => {
     expect(
       (await request(app).delete(`/api/v2/immunizations/${ID}`)).statusCode
     ).toBe(404);
+  });
+
+  describe('scan and import', () => {
+    const extraction = {
+      records: [
+        {
+          vaccine_name: 'Tdap',
+          administered_on: '2026-05-04',
+          dose_number: null,
+          lot_number: null,
+          administered_by: null,
+          site: null,
+        },
+      ],
+    };
+
+    it('scans a document and returns the vaccines for review', async () => {
+      vi.mocked(extractImmunizations).mockResolvedValue({
+        success: true,
+        extraction,
+      });
+      vi.mocked(repo.listImmunizations).mockResolvedValue([]);
+      const res = await request(app)
+        .post('/api/v2/immunizations/scan')
+        .send({ document: 'abc', mime_type: 'application/pdf' });
+      expect(res.statusCode).toBe(200);
+      expect(res.body.records[0]).toMatchObject({
+        vaccine_name: 'Tdap',
+        already_recorded: false,
+      });
+      expect(repo.createImmunization).not.toHaveBeenCalled();
+    });
+
+    it('maps a scan failure to its status', async () => {
+      vi.mocked(extractImmunizations).mockResolvedValue({
+        success: false,
+        category: 'no_ai_configured',
+        error: 'No AI service configured',
+      });
+      const res = await request(app)
+        .post('/api/v2/immunizations/scan')
+        .send({ document: 'abc', mime_type: 'application/pdf' });
+      expect(res.statusCode).toBe(422);
+      expect(res.body.error).toBe('No AI service configured');
+    });
+
+    it('rejects a scan without a document', async () => {
+      const res = await request(app)
+        .post('/api/v2/immunizations/scan')
+        .send({ mime_type: 'application/pdf' });
+      expect(res.statusCode).toBe(400);
+      expect(extractImmunizations).not.toHaveBeenCalled();
+    });
+
+    it('saves reviewed records as one import', async () => {
+      vi.mocked(repo.importImmunizations).mockResolvedValue(1);
+      const res = await request(app)
+        .post('/api/v2/immunizations/imports')
+        .send(extraction);
+      expect(res.statusCode).toBe(201);
+      expect(res.body).toEqual({ created: 1 });
+      expect(repo.importImmunizations).toHaveBeenCalledWith(
+        'test-user-id',
+        extraction.records,
+        'test-user-id'
+      );
+    });
+
+    it('rejects an empty import', async () => {
+      const res = await request(app)
+        .post('/api/v2/immunizations/imports')
+        .send({ records: [] });
+      expect(res.statusCode).toBe(400);
+      expect(repo.importImmunizations).not.toHaveBeenCalled();
+    });
   });
 });

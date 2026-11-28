@@ -51,6 +51,7 @@ import {
   SafeRecipeImport,
   SafeMealPlans,
   SafeImmunizationForm,
+  SafeImmunizationImport,
   SafeImmunizations,
   SafeLabReportImport,
   SafeLabResultAdd,
@@ -775,6 +776,15 @@ function AppContent() {
             name="ImmunizationForm"
             component={SafeImmunizationForm}
             options={createStackScreenOptions(t('screens.immunizationAdd', { defaultValue: 'Add immunization' }), {
+              presentation: 'modal',
+              headerBackButtonDisplayMode: 'minimal',
+              ...(Platform.OS === 'android' ? androidModalAnimation : {}),
+            })}
+          />
+          <Stack.Screen
+            name="ImmunizationImport"
+            component={SafeImmunizationImport}
+            options={createStackScreenOptions(t('screens.immunizationImport', { defaultValue: 'Import record' }), {
               presentation: 'modal',
               headerBackButtonDisplayMode: 'minimal',
               ...(Platform.OS === 'android' ? androidModalAnimation : {}),

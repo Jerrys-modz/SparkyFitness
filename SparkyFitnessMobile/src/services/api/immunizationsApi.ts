@@ -1,9 +1,13 @@
 import type {
   CreateImmunizationBody,
   ImmunizationResponse,
+  ImmunizationScanResponse,
+  ImportImmunizationsBody,
+  ImportImmunizationsResponse,
   UpdateImmunizationBody,
 } from '@workspace/shared';
 import { apiFetch } from './apiClient';
+import { AI_TIMEOUT_MS } from '../../utils/concurrency';
 
 const SERVICE = 'Immunizations API';
 
@@ -43,4 +47,40 @@ export const deleteImmunization = (id: string): Promise<void> =>
     serviceName: SERVICE,
     operation: 'delete immunization',
     method: 'DELETE',
+  });
+
+/**
+ * Reads a vaccine record (a PDF with a text layer, or a photo) with the user's
+ * AI provider. Nothing is saved; the vaccines come back for review.
+ * POST /api/v2/immunizations/scan
+ */
+export const scanImmunizations = (
+  document: string,
+  mimeType: string
+): Promise<ImmunizationScanResponse> =>
+  apiFetch<ImmunizationScanResponse>({
+    endpoint: '/api/v2/immunizations/scan',
+    serviceName: SERVICE,
+    operation: 'scan immunizations',
+    method: 'POST',
+    body: { document, mime_type: mimeType },
+    timeoutMs: AI_TIMEOUT_MS,
+    // The request is a health record, so an error body that quotes it stays out of the log.
+    logResponseBody: false,
+  });
+
+/**
+ * Saves the reviewed vaccines of one scan, all or none.
+ * POST /api/v2/immunizations/imports
+ */
+export const importImmunizations = (
+  body: ImportImmunizationsBody
+): Promise<ImportImmunizationsResponse> =>
+  apiFetch<ImportImmunizationsResponse>({
+    endpoint: '/api/v2/immunizations/imports',
+    serviceName: SERVICE,
+    operation: 'import immunizations',
+    method: 'POST',
+    body,
+    logResponseBody: false,
   });

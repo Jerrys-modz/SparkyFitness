@@ -48,6 +48,23 @@ const ImmunizationsScreen: React.FC<Props> = ({ navigation }) => {
         }),
         onPress: () => navigation.navigate('ImmunizationForm', {}),
       },
+      {
+        kind: 'menu',
+        accessibilityLabel: t('immunizations.moreActions', {
+          defaultValue: 'More actions',
+        }),
+        items: [
+          {
+            label: t('immunizations.import.cta', {
+              defaultValue: 'Import from a record',
+            }),
+            sfSymbol: 'doc.text',
+            icon: 'document-text',
+            onPress: () => navigation.navigate('ImmunizationImport'),
+          },
+        ],
+        identifier: 'immunizations-menu',
+      },
     ],
   });
 
@@ -87,6 +104,14 @@ const ImmunizationsScreen: React.FC<Props> = ({ navigation }) => {
               onPress={() => navigation.navigate('ImmunizationForm', {})}
             >
               {t('immunizations.add', { defaultValue: 'Add immunization' })}
+            </Button>
+            <Button
+              variant="secondary"
+              onPress={() => navigation.navigate('ImmunizationImport')}
+            >
+              {t('immunizations.import.cta', {
+                defaultValue: 'Import from a record',
+              })}
             </Button>
           </View>
         ) : (

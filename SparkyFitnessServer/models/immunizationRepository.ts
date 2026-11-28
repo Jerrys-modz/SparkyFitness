@@ -1,6 +1,7 @@
 import { getClient } from '../db/poolManager.js';
 import type {
   CreateImmunizationBody,
+  ImmunizationExtractionRecord,
   ImmunizationListQuery,
   ImmunizationResponse,
   ImmunizationSource,
@@ -184,6 +185,46 @@ export async function deleteImmunization(
       [id, userId]
     );
     return (result.rowCount ?? 0) > 0;
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Saves the reviewed records of one scan, all or none, as `import` records.
+ * Returns how many were created.
+ */
+export async function importImmunizations(
+  userId: string,
+  records: ImmunizationExtractionRecord[],
+  authenticatedUserId?: string
+): Promise<number> {
+  const client = await getClient(userId, authenticatedUserId);
+  try {
+    await client.query('BEGIN');
+    for (const record of records) {
+      await client.query(
+        `INSERT INTO immunizations (
+          user_id, vaccine_name, administered_on, dose_number, lot_number,
+          administered_by, site, source, created_by_user_id, updated_by_user_id
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'import', $8, $8)`,
+        [
+          userId,
+          record.vaccine_name,
+          record.administered_on,
+          record.dose_number,
+          record.lot_number,
+          record.administered_by,
+          record.site,
+          authenticatedUserId ?? userId,
+        ]
+      );
+    }
+    await client.query('COMMIT');
+    return records.length;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
   } finally {
     client.release();
   }

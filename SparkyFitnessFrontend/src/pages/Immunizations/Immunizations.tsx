@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { FileUp, Pencil, Plus, Trash2 } from 'lucide-react';
 import {
   immunizationDueStatus,
   todayInZone,
@@ -17,6 +17,7 @@ import {
   useImmunizations,
 } from '@/hooks/Immunizations/useImmunizations';
 import ImmunizationDialog from './ImmunizationDialog';
+import ImmunizationImportDialog from './ImmunizationImportDialog';
 
 const Immunizations = () => {
   const { t } = useTranslation();
@@ -25,6 +26,7 @@ const Immunizations = () => {
   const deleteMutation = useDeleteImmunization();
 
   const [addOpen, setAddOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [editing, setEditing] = useState<ImmunizationResponse | null>(null);
   const [deleting, setDeleting] = useState<ImmunizationResponse | null>(null);
 
@@ -56,10 +58,16 @@ const Immunizations = () => {
         <h1 className="text-2xl font-semibold">
           {t('nav.immunizations', 'Immunizations')}
         </h1>
-        <Button onClick={() => setAddOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          {t('immunizations.add', 'Add immunization')}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setImportOpen(true)}>
+            <FileUp className="mr-2 h-4 w-4" />
+            {t('immunizations.import.cta', 'Import from a record')}
+          </Button>
+          <Button onClick={() => setAddOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            {t('immunizations.add', 'Add immunization')}
+          </Button>
+        </div>
       </div>
 
       {immunizations.isLoading ? (
@@ -157,6 +165,10 @@ const Immunizations = () => {
           }}
           immunization={editing}
         />
+      )}
+
+      {importOpen && (
+        <ImmunizationImportDialog open onOpenChange={setImportOpen} />
       )}
 
       <ConfirmationDialog

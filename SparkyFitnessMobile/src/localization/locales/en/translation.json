@@ -815,7 +815,8 @@
     "labReportImport": "Import report",
     "immunizations": "Immunizations",
     "immunizationAdd": "Add immunization",
-    "immunizationEdit": "Edit immunization"
+    "immunizationEdit": "Edit immunization",
+    "immunizationImport": "Import record"
   },
   "activityShare": {
     "title": "Share Activity",
@@ -11811,6 +11812,27 @@
       "dueSoon": "Due soon",
       "overdue": "Overdue"
     },
-    "vaccine": "Vaccine"
+    "vaccine": "Vaccine",
+    "import": {
+      "alreadyRecorded": "Already recorded",
+      "cameraDenied": "Camera access is needed to take a photo.",
+      "chooseAnother": "Choose a different record",
+      "choosePdf": "Choose a PDF",
+      "choosePhoto": "Choose a photo or screenshot",
+      "cta": "Import from a record",
+      "include": "Include {{name}}",
+      "intro": "Choose a vaccine record PDF, or a photo or screenshot of one. Your AI provider reads it and you review the vaccines before anything is saved. The file itself is not stored.",
+      "pickFailed": "Could not open that file.",
+      "reading": "Reading your record...",
+      "reviewHint": "Check the vaccines against your record. Ones you already have on that day start off.",
+      "saveCount_one": "Save {{count}} immunization",
+      "saveCount_other": "Save {{count}} immunizations",
+      "saveFailed": "Could not save the records. Nothing was saved.",
+      "saved_one": "Saved {{count}} immunization",
+      "saved_other": "Saved {{count}} immunizations",
+      "scanFailed": "Could not read that record.",
+      "takePhoto": "Take a photo",
+      "tooLarge": "That PDF is too large to read (limit 14 MB)."
+    }
   }
 }

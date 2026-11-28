@@ -21,6 +21,7 @@ import MealsLibraryScreen from '../screens/MealsLibraryScreen';
 import MealPlansScreen from '../screens/MealPlansScreen';
 import RunProgramsScreen from '../screens/RunProgramsScreen';
 import ImmunizationFormScreen from '../screens/ImmunizationFormScreen';
+import ImmunizationImportScreen from '../screens/ImmunizationImportScreen';
 import ImmunizationsScreen from '../screens/ImmunizationsScreen';
 import LabReportImportScreen from '../screens/LabReportImportScreen';
 import LabResultAddScreen from '../screens/LabResultAddScreen';
@@ -173,6 +174,7 @@ export const SafeWatchRunLive = withErrorBoundary(WatchRunLiveScreen, 'WatchRunL
 export const SafeLabReportImport = withErrorBoundary(LabReportImportScreen, 'LabReportImport', { canGoBack: true });
 export const SafeImmunizations = withErrorBoundary(ImmunizationsScreen, 'Immunizations', { canGoBack: true });
 export const SafeImmunizationForm = withErrorBoundary(ImmunizationFormScreen, 'ImmunizationForm', { canGoBack: true });
+export const SafeImmunizationImport = withErrorBoundary(ImmunizationImportScreen, 'ImmunizationImport', { canGoBack: true });
 export const SafeLabResults = withErrorBoundary(LabResultsScreen, 'LabResults', { canGoBack: true });
 export const SafeChallenges = withErrorBoundary(ChallengesScreen, 'Challenges', { canGoBack: true });
 export const SafeChallengeDetail = withErrorBoundary(ChallengeDetailScreen, 'ChallengeDetail', { canGoBack: true });

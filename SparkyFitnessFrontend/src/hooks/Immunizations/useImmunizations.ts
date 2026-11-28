@@ -9,6 +9,7 @@ import * as immunizationApi from '@/api/Immunizations/immunizationsApi';
 import { immunizationKeys } from '@/api/keys/immunizations';
 import type {
   CreateImmunizationBody,
+  ImportImmunizationsBody,
   UpdateImmunizationBody,
 } from '@workspace/shared';
 
@@ -53,6 +54,36 @@ export const useDeleteImmunization = () => {
       errorMessage: i18n.t(
         'immunizations.deleteFailed',
         'Could not delete the immunization'
+      ),
+    },
+  });
+};
+
+/** Reads a vaccine record; the vaccines come back for review and nothing is saved. */
+export const useScanImmunizations = () =>
+  useMutation({
+    mutationFn: ({
+      document,
+      mimeType,
+    }: {
+      document: string;
+      mimeType: string;
+    }) => immunizationApi.scanImmunizations(document, mimeType),
+    // No toast: the import dialog shows a failure inline, and only for the
+    // file it is still showing.
+    meta: { silentError: true },
+  });
+
+export const useImportImmunizations = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: ImportImmunizationsBody) =>
+      immunizationApi.importImmunizations(body),
+    onSuccess: () => invalidateImmunizations(queryClient),
+    meta: {
+      errorMessage: i18n.t(
+        'immunizations.import.saveFailed',
+        'Could not save the records. Nothing was saved.'
       ),
     },
   });
