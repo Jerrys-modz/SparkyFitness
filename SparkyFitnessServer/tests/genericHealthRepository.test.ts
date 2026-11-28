@@ -643,3 +643,38 @@ describe('editing a synced blood pressure reading', () => {
     expect(query).toHaveBeenCalledTimes(4);
   });
 });
+
+describe('bulk upsert of vitals with context', () => {
+  const query = vi.fn();
+  const client = { query, release: vi.fn() };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (getClient as ReturnType<typeof vi.fn>).mockResolvedValue(client);
+    query.mockResolvedValue({ rows: [{ id: 'row' }] });
+  });
+
+  it('writes arm, position and note and lets a stored value win over a sync', async () => {
+    await genericHealthRepo.bulkUpsertVitals('user-1', 'user-1', [
+      {
+        user_id: 'user-1',
+        entry_date: '2026-11-20',
+        timestamp: new Date('2026-11-20T08:00:00Z'),
+        systolic_mmhg: 122,
+        diastolic_mmhg: 79,
+        source_provider: 'ihealth',
+        arm: 'left',
+        body_position: 'sitting',
+        note: 'morning',
+      },
+    ]);
+    const sql = String(query.mock.calls[0]?.[0]);
+    expect(sql).toContain('COALESCE(vitals_entries.arm, EXCLUDED.arm)');
+    expect(sql).toContain('COALESCE(vitals_entries.note, EXCLUDED.note)');
+    expect(query.mock.calls[0]?.[1].slice(12)).toEqual([
+      'left',
+      'sitting',
+      'morning',
+    ]);
+  });
+});
